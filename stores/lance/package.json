@@ -29,6 +29,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@lancedb/lancedb": "^0.18.1",
     "@mastra/core": "workspace:^"
   },
   "devDependencies": {
