@@ -1,5 +1,5 @@
-import { connect } from '@lancedb/lancedb';
-import type { Connection, ConnectionOptions } from '@lancedb/lancedb';
+import { connect, Index } from '@lancedb/lancedb';
+import type { Connection, ConnectionOptions, CreateTableOptions, Table, TableLike } from '@lancedb/lancedb';
 
 import type {
   CreateIndexArgs,
@@ -16,9 +16,12 @@ import type {
 import { MastraVector } from '@mastra/core';
 import type { IndexConfig } from './types';
 
-interface LanceIndexParams extends CreateIndexParams {
+interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: IndexConfig;
+  tableName?: string;
 }
+
+type LanceCreateIndexArgs = [...CreateIndexArgs, IndexConfig?, boolean?];
 
 export class LanceVectorStore extends MastraVector {
   private lanceClient!: Connection;
@@ -73,11 +76,59 @@ export class LanceVectorStore extends MastraVector {
   ): Promise<string[]> {
     throw new Error('Method not implemented.');
   }
-  createIndex<E extends CreateIndexArgs = CreateIndexArgs>(
-    ...args: ParamsToArgs<CreateIndexParams> | E
-  ): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  async createTable(
+    tableName: string,
+    data: Record<string, unknown>[] | TableLike,
+    options?: Partial<CreateTableOptions>,
+  ): Promise<Table> {
+    return await this.lanceClient.createTable(tableName, data, options);
   }
+
+  async createIndex(...args: ParamsToArgs<LanceCreateIndexParams> | LanceCreateIndexArgs): Promise<void> {
+    const params = this.normalizeArgs<LanceCreateIndexParams, LanceCreateIndexArgs>('createIndex', args, [
+      'indexConfig',
+      'tableName',
+    ]);
+
+    const { tableName, indexName, dimension, metric = 'cosine', indexConfig = {} } = params;
+
+    try {
+      if (!tableName) {
+        throw new Error('tableName is required');
+      }
+
+      const tables = await this.lanceClient.tableNames();
+      if (!tables.includes(tableName)) {
+        throw new Error(
+          `Table ${tableName} does not exist. Please create the table first by calling createTable() method.`,
+        );
+      }
+
+      const table = await this.lanceClient.openTable(tableName);
+
+      if (indexConfig.type === 'ivfflat') {
+        await table.createIndex(indexName, {
+          config: Index.ivfPq({
+            numPartitions: 128,
+            numSubVectors: 16,
+          }),
+        });
+
+        return;
+      }
+
+      await table.createIndex(indexName, {
+        config: Index.hnswPq({
+          m: 16,
+          efConstruction: 100,
+        }),
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to create index: ${error.message}`);
+    }
+  }
+
   listIndexes(): Promise<string[]> {
     throw new Error('Method not implemented.');
   }
