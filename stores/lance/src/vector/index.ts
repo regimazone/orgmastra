@@ -15,7 +15,6 @@ import type {
 
 import { MastraVector } from '@mastra/core';
 import type { IndexConfig } from './types';
-import { count } from 'console';
 
 interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: LanceIndexConfig;
@@ -138,11 +137,6 @@ export class LanceVectorStore extends MastraVector {
 
       const table = await this.lanceClient.openTable(tableName);
 
-      const existingIndices = await table.indexStats(indexName);
-      if (existingIndices !== undefined) {
-        throw new Error('Index already exists');
-      }
-
       // Convert metric to LanceDB metric
       type LanceMetric = 'cosine' | 'l2' | 'dot';
       let metricType: LanceMetric | undefined;
@@ -169,6 +163,7 @@ export class LanceVectorStore extends MastraVector {
           config: Index.hnswPq({
             m: indexConfig?.hnsw?.m || 16,
             efConstruction: indexConfig?.hnsw?.efConstruction || 100,
+            distanceType: metricType,
           }),
         });
       }
@@ -217,7 +212,6 @@ export class LanceVectorStore extends MastraVector {
 
         if (foundIndex) {
           const stats = await table.indexStats(foundIndex.name);
-          console.log(stats);
 
           if (!stats) {
             throw new Error(`Index stats not found for index: ${indexName}`);
@@ -236,36 +230,6 @@ export class LanceVectorStore extends MastraVector {
             count: stats.numIndexedRows,
           };
         }
-        //   try {
-        //     // Since LanceDB doesn't provide detailed index stats directly,
-        //     // we attempt to get the schema to extract vector dimension
-        //     const schema = await table.schema();
-        //     const vectorCol = foundIndex.columns[0] || 'vector';
-
-        //     // Find the vector column in the schema
-        //     const vectorField = schema.fields.find(field => field.name === vectorCol);
-        //     const dimension = vectorField?.type?.['listSize'] || 0;
-
-        //     // Get count of vectors in the table
-        //     const countResult = await table.countRows();
-        //     const count = typeof countResult === 'number' ? countResult : 0;
-
-        //     // For metric, we default to 'cosine' as the most common
-        //     return {
-        //       dimension,
-        //       metric: 'cosine',
-        //       count,
-        //     };
-        //   } catch (innerError) {
-        //     // If we fail to get detailed information, return defaults
-        //     console.warn(`Could not get detailed index stats: ${innerError}`);
-        //     return {
-        //       dimension: 0,
-        //       metric: 'cosine',
-        //       count: 0,
-        //     };
-        //   }
-        // }
       }
 
       throw new Error(`IndexName: ${indexName} not found`);
@@ -300,6 +264,26 @@ export class LanceVectorStore extends MastraVector {
       throw new Error(`Index ${indexName} not found`);
     } catch (error: any) {
       throw new Error(`Failed to delete index: ${error.message}`);
+    }
+  }
+
+  /**
+   * Deletes all tables in the database
+   * @returns Promise<void>
+   */
+  async deleteAllTables(): Promise<void> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    try {
+      const tables = await this.lanceClient.tableNames();
+
+      for (const tableName of tables) {
+        await this.lanceClient.dropTable(tableName);
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to delete tables: ${error.message}`);
     }
   }
 }
