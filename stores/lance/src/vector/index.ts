@@ -9,7 +9,6 @@ import type {
   QueryResult,
   QueryVectorArgs,
   QueryVectorParams,
-  UpsertVectorArgs,
   UpsertVectorParams,
 } from '@mastra/core';
 
@@ -24,6 +23,10 @@ interface LanceCreateIndexParams extends CreateIndexParams {
 interface LanceIndexConfig extends IndexConfig {
   numPartitions?: number;
   numSubVectors?: number;
+}
+
+interface LanceUpsertVectorParams extends UpsertVectorParams {
+  tableName: string;
 }
 
 type LanceCreateIndexArgs = [...CreateIndexArgs, LanceIndexConfig?, boolean?];
@@ -83,10 +86,51 @@ export class LanceVectorStore extends MastraVector {
     throw new Error('Method not implemented.');
   }
 
-  upsert<E extends UpsertVectorArgs = UpsertVectorArgs>(
-    ...args: ParamsToArgs<UpsertVectorParams> | E
-  ): Promise<string[]> {
-    throw new Error('Method not implemented.');
+  async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    const params = this.normalizeArgs<LanceUpsertVectorParams>('upsert', args);
+    const { tableName, indexName, vectors, metadata = [], ids = [] } = params;
+
+    if (!tableName) {
+      throw new Error('tableName is required');
+    }
+
+    if (!indexName) {
+      throw new Error('indexName is required');
+    }
+
+    if (!vectors || !Array.isArray(vectors) || vectors.length === 0) {
+      throw new Error('vectors array is required and must not be empty');
+    }
+
+    try {
+      const tables = await this.lanceClient.tableNames();
+      if (!tables.includes(tableName)) {
+        throw new Error(`Table ${tableName} does not exist`);
+      }
+
+      const table = await this.lanceClient.openTable(tableName);
+
+      // Generate IDs if not provided
+      const vectorIds = ids.length === vectors.length ? ids : vectors.map((_, i) => ids[i] || crypto.randomUUID());
+
+      const data = vectors.map((vector, i) => {
+        return {
+          id: vectorIds[i],
+          [indexName]: vector,
+          metadata: JSON.stringify(metadata[i] || {}),
+        };
+      });
+
+      await table.add(data, { mode: 'overwrite' });
+
+      return vectorIds;
+    } catch (error: any) {
+      throw new Error(`Failed to upsert vectors: ${error.message}`);
+    }
   }
 
   async createTable(
@@ -101,7 +145,7 @@ export class LanceVectorStore extends MastraVector {
   }
 
   /**
-   * indexName is actually the column name in the table
+   * indexName is actually a column name in a table in lanceDB
    */
   async createIndex(...args: ParamsToArgs<LanceCreateIndexParams> | LanceCreateIndexArgs): Promise<void> {
     if (!this.lanceClient) {
@@ -277,11 +321,19 @@ export class LanceVectorStore extends MastraVector {
     }
 
     try {
-      const tables = await this.lanceClient.tableNames();
+      await this.lanceClient.dropAllTables();
+    } catch (error: any) {
+      throw new Error(`Failed to delete tables: ${error.message}`);
+    }
+  }
 
-      for (const tableName of tables) {
-        await this.lanceClient.dropTable(tableName);
-      }
+  async deleteTable(tableName: string): Promise<void> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    try {
+      await this.lanceClient.dropTable(tableName);
     } catch (error: any) {
       throw new Error(`Failed to delete tables: ${error.message}`);
     }
