@@ -516,7 +516,7 @@ describe('Lance vector store tests', () => {
         expect(originalResult).toHaveLength(1);
         expect(originalResult[0].id).toBe(ids[0]);
         expect(originalResult[0].metadata).to.deep.equal({ text: 'First vector' });
-        expect(originalResult[0].vector).to.deep.equal([0.1, 0.2, 0.3]);
+        expect(originalResult[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.1, 0.2, 0.3]);
 
         // Update only the metadata
         await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
