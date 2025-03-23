@@ -298,6 +298,7 @@ export class LanceVectorStore extends MastraVector {
       const tables = await this.lanceClient.tableNames();
 
       for (const tableName of tables) {
+        console.debug('Checking table:', tableName);
         const table = await this.lanceClient.openTable(tableName);
         const tableIndices = await table.listIndices();
         const foundIndex = tableIndices.find(index => index.name === indexName);
@@ -391,28 +392,45 @@ export class LanceVectorStore extends MastraVector {
     _id: string,
     _update: { vector?: number[]; metadata?: Record<string, any> },
   ): Promise<void> {
-    if (!this.lanceClient) {
-      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
-    }
-
     try {
-      const table = await this.lanceClient.openTable(_indexName);
-      const row = await table.query().where(`id == "${_id}"`).toArray();
+      // In LanceDB, the indexName is actually a column name in a table
+      // We need to find which table has this column as an index
+      const tables = await this.lanceClient.tableNames();
 
-      if (!row) {
-        throw new Error(`Row with id ${_id} not found`);
+      for (const tableName of tables) {
+        console.debug('Checking table:', tableName);
+        const table = await this.lanceClient.openTable(tableName);
+
+        try {
+          const schema = await table.schema();
+          const hasColumn = schema.fields.some(field => field.name === _indexName);
+
+          if (hasColumn) {
+            console.debug(`Found column ${_indexName} in table ${tableName}`);
+
+            // For vector updates, we need to use the add method with overwrite mode
+            // since update doesn't directly support vector array types
+            if (_update.vector || _update.metadata) {
+              const data = [
+                {
+                  id: _id,
+                  [_indexName]: _update.vector || null,
+                  metadata: _update.metadata ? JSON.stringify(_update.metadata) : null,
+                },
+              ];
+
+              await table.add(data, { mode: 'overwrite' });
+              return;
+            }
+          }
+        } catch (err) {
+          console.error(`Error checking schema for table ${tableName}:`, err);
+          // Continue to the next table if there's an error
+          continue;
+        }
       }
-      const updatedRow = {
-        ...row,
-        ..._update,
-      };
-      // await table.update({
-      //   where: `id = ${_id}`,
-      //   values: {
-      //     vector: _update.vector,
-      //     metadata: _update.metadata,
-      //   },
-      // });
+
+      throw new Error(`No table found with column/index '${_indexName}'`);
     } catch (error: any) {
       throw new Error(`Failed to update index: ${error.message}`);
     }

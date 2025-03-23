@@ -442,12 +442,23 @@ describe('Lance vector store tests', () => {
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
-        const results = await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
+        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
           vector: [0.4, 0.5, 0.6],
           metadata: { text: 'Updated vector' },
         });
 
-        expect(results).toBeUndefined();
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.4, 0.5, 0.6],
+          columns: ['id', 'metadata', 'vector'],
+          topK: 3,
+          includeVector: true,
+        });
+
+        expect(res).toHaveLength(1);
+        expect(res[0].id).toBe(ids[0]);
+        expect(res[0].metadata).to.deep.equal({ text: 'Updated vector' });
       });
     });
 
@@ -506,7 +517,6 @@ describe('Lance vector store tests', () => {
           includeVector: true,
         });
 
-        console.log('res', res);
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
         expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
