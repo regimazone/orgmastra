@@ -417,7 +417,7 @@ export class LanceVectorStore extends MastraVector {
               .limit(1)
               .toArray();
 
-            if (existingRecord === undefined) {
+            if (existingRecord.length === 0) {
               throw new Error(`Record with id '${_id}' not found in table ${tableName}`);
             }
 
