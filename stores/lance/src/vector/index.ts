@@ -14,6 +14,8 @@ import type {
 
 import { MastraVector } from '@mastra/core';
 import type { IndexConfig } from './types';
+import type { VectorFilter } from '@mastra/core/vector/filter';
+import { error } from 'console';
 
 interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: LanceIndexConfig;
@@ -27,6 +29,11 @@ interface LanceIndexConfig extends IndexConfig {
 
 interface LanceUpsertVectorParams extends UpsertVectorParams {
   tableName: string;
+}
+
+interface LanceQueryVectorParams extends QueryVectorParams {
+  tableName: string;
+  columns?: string[];
 }
 
 type LanceCreateIndexArgs = [...CreateIndexArgs, LanceIndexConfig?, boolean?];
@@ -80,10 +87,52 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  query<E extends QueryVectorArgs = QueryVectorArgs>(
-    ...args: ParamsToArgs<QueryVectorParams> | E
-  ): Promise<QueryResult[]> {
-    throw new Error('Method not implemented.');
+  async query(...args: ParamsToArgs<LanceQueryVectorParams>): Promise<QueryResult[]> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+    const params = this.normalizeArgs<LanceQueryVectorParams>('query', args);
+    const { tableName, queryVector, topK = 10, filter, includeVector = false, columns = [] } = params;
+
+    if (!tableName) {
+      throw new Error('tableName is required');
+    }
+
+    if (!columns || !Array.isArray(columns) || columns.length === 0) {
+      throw new Error('columns array is required and must not be empty');
+    }
+
+    if (!queryVector || !Array.isArray(queryVector) || queryVector.length === 0) {
+      throw new Error('queryVector array is required and must not be empty');
+    }
+
+    try {
+      const filterString = filter ? this.filterStringBuilder(filter) : '';
+
+      const table = await this.lanceClient.openTable(tableName);
+
+      // Make sure we're selecting the id field explicitly
+      if (!columns.includes('id')) {
+        columns.push('id');
+      }
+
+      const query = table.query().nearestTo(queryVector).select(columns).limit(topK);
+      const results = await query.toArray();
+
+      return results.map(result => ({
+        id: String(result.id),
+        metadata: JSON.parse(result.metadata),
+        vector: includeVector ? result.vector : undefined,
+        document: result.document,
+        score: result.score,
+      }));
+    } catch (error: any) {
+      throw new Error(`Failed to query: ${error}`);
+    }
+  }
+
+  private filterStringBuilder(filter: VectorFilter): string {
+    throw new Error('Function not implemented.');
   }
 
   async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
@@ -118,8 +167,9 @@ export class LanceVectorStore extends MastraVector {
       const vectorIds = ids.length === vectors.length ? ids : vectors.map((_, i) => ids[i] || crypto.randomUUID());
 
       const data = vectors.map((vector, i) => {
+        const id = String(vectorIds[i]);
         return {
-          id: vectorIds[i],
+          id,
           [indexName]: vector,
           metadata: JSON.stringify(metadata[i] || {}),
         };

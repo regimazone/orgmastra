@@ -29,7 +29,7 @@ describe('Lance vector store tests', () => {
     beforeAll(async () => {
       const generateTableData = (numRows: number) => {
         return Array.from({ length: numRows }, (_, i) => ({
-          id: i + 1,
+          id: String(i + 1),
           vector: Array.from({ length: 3 }, () => Math.random()),
         }));
       };
@@ -102,7 +102,7 @@ describe('Lance vector store tests', () => {
       it('should list available indexes', async () => {
         const generateTableData = (numRows: number) => {
           return Array.from({ length: numRows }, (_, i) => ({
-            id: i + 1,
+            id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
           }));
         };
@@ -140,7 +140,7 @@ describe('Lance vector store tests', () => {
       it('should describe an existing index', async () => {
         const generateTableData = (numRows: number) => {
           return Array.from({ length: numRows }, (_, i) => ({
-            id: i + 1,
+            id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
           }));
         };
@@ -193,7 +193,7 @@ describe('Lance vector store tests', () => {
       it('should delete an existing index', async () => {
         const generateTableData = (numRows: number) => {
           return Array.from({ length: numRows }, (_, i) => ({
-            id: i + 1,
+            id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
           }));
         };
@@ -229,91 +229,177 @@ describe('Lance vector store tests', () => {
     });
   });
 
-  describe('upsert vectors', () => {
-    const testTableName = 'test-table' + Date.now();
-    const testTableIndexColumn = 'vector';
+  describe('Vector operations', () => {
+    describe('upsert operations', () => {
+      const testTableName = 'test-table' + Date.now();
+      const testTableIndexColumn = 'vector';
 
-    beforeAll(async () => {
-      const generateTableData = (numRows: number) => {
-        return Array.from({ length: numRows }, (_, i) => ({
-          id: i + 1,
-          vector: Array.from({ length: 3 }, () => Math.random()),
-          metadata: JSON.stringify({}),
-        }));
-      };
+      beforeAll(async () => {
+        const generateTableData = (numRows: number) => {
+          return Array.from({ length: numRows }, (_, i) => ({
+            id: String(i + 1),
+            vector: Array.from({ length: 3 }, () => Math.random()),
+            metadata: JSON.stringify({}),
+          }));
+        };
 
-      await vectorDB.createTable(testTableName, generateTableData(300));
+        await vectorDB.createTable(testTableName, generateTableData(300));
 
-      await vectorDB.createIndex({
-        indexConfig: {
-          type: 'ivfflat',
-          numPartitions: 1,
-          numSubVectors: 1,
-        },
-        indexName: testTableIndexColumn,
-        dimension: 3,
-        tableName: testTableName,
-      });
-    });
-
-    afterAll(async () => {
-      vectorDB.deleteTable(testTableName);
-    });
-
-    it('should upsert vectors in an existing table', async () => {
-      const testVectors = [
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
-        [0.7, 0.8, 0.9],
-      ];
-
-      const testMetadata = [{ text: 'First vector' }, { text: 'Second vector' }, { text: 'Third vector' }];
-
-      // Test upsert with auto-generated IDs
-      const ids = await vectorDB.upsert({
-        indexName: testTableIndexColumn,
-        tableName: testTableName,
-        vectors: testVectors,
-        metadata: testMetadata,
-      });
-
-      expect(ids).toHaveLength(3);
-      expect(ids.every(id => typeof id === 'string')).toBe(true);
-
-      // Test upsert with provided IDs (update existing vectors)
-      const updatedVectors = [
-        [1.1, 1.2, 1.3],
-        [1.4, 1.5, 1.6],
-        [1.7, 1.8, 1.9],
-      ];
-
-      const updatedMetadata = [
-        { text: 'First vector updated' },
-        { text: 'Second vector updated' },
-        { text: 'Third vector updated' },
-      ];
-
-      const updatedIds = await vectorDB.upsert({
-        indexName: testTableIndexColumn,
-        tableName: testTableName,
-        vectors: updatedVectors,
-        metadata: updatedMetadata,
-        ids,
-      });
-
-      expect(updatedIds).toEqual(ids);
-    });
-
-    it('should throw error when upserting to non-existent table', async () => {
-      const nonExistentTable = 'non-existent-table-' + Date.now();
-
-      await expect(
-        vectorDB.upsert({
+        await vectorDB.createIndex({
+          indexConfig: {
+            type: 'ivfflat',
+            numPartitions: 1,
+            numSubVectors: 1,
+          },
           indexName: testTableIndexColumn,
-          tableName: nonExistentTable,
-          vectors: [[0.1, 0.2, 0.3]],
-        }),
-      ).rejects.toThrow('does not exist');
+          dimension: 3,
+          tableName: testTableName,
+        });
+      });
+
+      afterAll(async () => {
+        vectorDB.deleteTable(testTableName);
+      });
+
+      it('should upsert vectors in an existing table', async () => {
+        const testVectors = [
+          [0.1, 0.2, 0.3],
+          [0.4, 0.5, 0.6],
+          [0.7, 0.8, 0.9],
+        ];
+
+        const testMetadata = [{ text: 'First vector' }, { text: 'Second vector' }, { text: 'Third vector' }];
+
+        // Test upsert with auto-generated IDs
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: testVectors,
+          metadata: testMetadata,
+        });
+
+        expect(ids).toHaveLength(3);
+        expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+        // Test upsert with provided IDs (update existing vectors)
+        const updatedVectors = [
+          [1.1, 1.2, 1.3],
+          [1.4, 1.5, 1.6],
+          [1.7, 1.8, 1.9],
+        ];
+
+        const updatedMetadata = [
+          { text: 'First vector updated' },
+          { text: 'Second vector updated' },
+          { text: 'Third vector updated' },
+        ];
+
+        const updatedIds = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: updatedVectors,
+          metadata: updatedMetadata,
+          ids,
+        });
+
+        expect(updatedIds).toEqual(ids);
+      });
+
+      it('should throw error when upserting to non-existent table', async () => {
+        const nonExistentTable = 'non-existent-table-' + Date.now();
+
+        await expect(
+          vectorDB.upsert({
+            indexName: testTableIndexColumn,
+            tableName: nonExistentTable,
+            vectors: [[0.1, 0.2, 0.3]],
+          }),
+        ).rejects.toThrow('does not exist');
+      });
+    });
+
+    describe('query operations', () => {
+      const testTableName = 'test-table' + Date.now();
+      const testTableIndexColumn = 'vector';
+
+      beforeAll(async () => {
+        const generateTableData = (numRows: number) => {
+          return Array.from({ length: numRows }, (_, i) => ({
+            id: String(i + 1),
+            vector: Array.from({ length: 3 }, () => Math.random()),
+            metadata: JSON.stringify({}),
+          }));
+        };
+
+        await vectorDB.createTable(testTableName, generateTableData(300));
+
+        await vectorDB.createIndex({
+          indexConfig: {
+            type: 'ivfflat',
+            numPartitions: 1,
+            numSubVectors: 1,
+          },
+          indexName: testTableIndexColumn,
+          dimension: 3,
+          tableName: testTableName,
+        });
+      });
+
+      afterAll(async () => {
+        vectorDB.deleteTable(testTableName);
+      });
+
+      it('should query vectors from an existing table', async () => {
+        const testVectors = [
+          [0.1, 0.2, 0.3],
+          [0.4, 0.5, 0.6],
+          [0.7, 0.8, 0.9],
+        ];
+
+        const testMetadata = [{ text: 'First vector' }, { text: 'Second vector' }, { text: 'Third vector' }];
+
+        // Test upsert with auto-generated IDs
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: testVectors,
+          metadata: testMetadata,
+        });
+
+        expect(ids).toHaveLength(3);
+        expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+        // Test query
+        const results = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: testVectors[0],
+          columns: ['id', 'metadata', 'vector'],
+          topK: 3,
+        });
+
+        expect(results).toHaveLength(3);
+        const sortedResultIds = [...results.map(res => res.id)].sort();
+        const sortedIds = [...ids].sort();
+        expect(sortedResultIds).to.deep.equal(sortedIds);
+
+        for (const meta of testMetadata) {
+          expect(results.some(res => JSON.stringify(res.metadata) === JSON.stringify(meta))).to.be.true;
+        }
+      });
+
+      it('should throw error when querying from non-existent table', async () => {
+        const nonExistentTable = 'non-existent-table-' + Date.now();
+
+        await expect(
+          vectorDB.query({
+            indexName: testTableIndexColumn,
+            tableName: nonExistentTable,
+            columns: ['id', 'vector', 'metadata'],
+            queryVector: [0.1, 0.2, 0.3],
+          }),
+        ).rejects.toThrow(`Failed to query: Error: Table '${nonExistentTable}' was not found`);
+      });
     });
   });
 });
