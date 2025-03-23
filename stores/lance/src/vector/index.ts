@@ -7,15 +7,13 @@ import type {
   IndexStats,
   ParamsToArgs,
   QueryResult,
-  QueryVectorArgs,
   QueryVectorParams,
   UpsertVectorParams,
 } from '@mastra/core';
 
 import { MastraVector } from '@mastra/core';
-import type { IndexConfig } from './types';
 import type { VectorFilter } from '@mastra/core/vector/filter';
-import { error } from 'console';
+import type { IndexConfig } from './types';
 
 interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: LanceIndexConfig;
@@ -363,7 +361,6 @@ export class LanceVectorStore extends MastraVector {
 
   /**
    * Deletes all tables in the database
-   * @returns Promise<void>
    */
   async deleteAllTables(): Promise<void> {
     if (!this.lanceClient) {
@@ -386,6 +383,83 @@ export class LanceVectorStore extends MastraVector {
       await this.lanceClient.dropTable(tableName);
     } catch (error: any) {
       throw new Error(`Failed to delete tables: ${error.message}`);
+    }
+  }
+
+  async updateIndexById(
+    _indexName: string,
+    _id: string,
+    _update: { vector?: number[]; metadata?: Record<string, any> },
+  ): Promise<void> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    try {
+      const table = await this.lanceClient.openTable(_indexName);
+      const row = await table.query().where(`id == "${_id}"`).toArray();
+
+      if (!row) {
+        throw new Error(`Row with id ${_id} not found`);
+      }
+      const updatedRow = {
+        ...row,
+        ..._update,
+      };
+      // await table.update({
+      //   where: `id = ${_id}`,
+      //   values: {
+      //     vector: _update.vector,
+      //     metadata: _update.metadata,
+      //   },
+      // });
+    } catch (error: any) {
+      throw new Error(`Failed to update index: ${error.message}`);
+    }
+  }
+
+  async deleteIndexById(_indexName: string, _id: string): Promise<void> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    if (!_indexName) {
+      throw new Error('indexName is required');
+    }
+
+    if (!_id) {
+      throw new Error('id is required');
+    }
+
+    try {
+      // In LanceDB, the indexName is actually a column name in a table
+      // We need to find which table has this column as an index
+      const tables = await this.lanceClient.tableNames();
+
+      for (const tableName of tables) {
+        console.debug('Checking table:', tableName);
+        const table = await this.lanceClient.openTable(tableName);
+
+        try {
+          // Try to get the schema to check if this table has the column we're looking for
+          const schema = await table.schema();
+          const hasColumn = schema.fields.some(field => field.name === _indexName);
+
+          if (hasColumn) {
+            console.debug(`Found column ${_indexName} in table ${tableName}`);
+            await table.delete(`id = '${_id}'`);
+            return;
+          }
+        } catch (err) {
+          console.error(`Error checking schema for table ${tableName}:`, err);
+          // Continue to the next table if there's an error
+          continue;
+        }
+      }
+
+      throw new Error(`No table found with column/index '${_indexName}'`);
+    } catch (error: any) {
+      throw new Error(`Failed to delete index: ${error.message}`);
     }
   }
 }
