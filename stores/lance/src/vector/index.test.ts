@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, should } from 'vitest';
 import { LanceVectorStore } from './index';
 
 describe('Lance vector store tests', () => {
@@ -459,6 +459,84 @@ describe('Lance vector store tests', () => {
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
         expect(res[0].metadata).to.deep.equal({ text: 'Updated vector' });
+        expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
+      });
+
+      it('should only update existing vector', async () => {
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: [[0.1, 0.2, 0.3]],
+          metadata: [{ text: 'First vector' }],
+        });
+
+        expect(ids).toHaveLength(1);
+        expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
+          vector: [0.4, 0.5, 0.6],
+        });
+
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.4, 0.5, 0.6],
+          columns: ['id', 'metadata', 'vector'],
+          topK: 3,
+          includeVector: true,
+        });
+
+        expect(res).toHaveLength(1);
+        expect(res[0].id).toBe(ids[0]);
+        expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+        expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
+      });
+
+      it('should only update existing vector metadata', async () => {
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: [[0.1, 0.2, 0.3]],
+          metadata: [{ text: 'First vector' }],
+        });
+
+        expect(ids).toHaveLength(1);
+        expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+        // First, query to get the original vector
+        const originalResult = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.1, 0.2, 0.3],
+          columns: ['id', 'metadata', 'vector'],
+          topK: 1,
+          includeVector: true,
+        });
+
+        expect(originalResult).toHaveLength(1);
+        expect(originalResult[0].id).toBe(ids[0]);
+        expect(originalResult[0].metadata).to.deep.equal({ text: 'First vector' });
+        expect(originalResult[0].vector).to.deep.equal([0.1, 0.2, 0.3]);
+
+        // Update only the metadata
+        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
+          // vector: [1, 2, 3],
+          metadata: { text: 'Updated vector' },
+        });
+
+        // Query again to verify changes
+        const updatedResult = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.1, 0.2, 0.3],
+          columns: ['id', 'metadata', 'vector'],
+          topK: 1,
+          includeVector: true,
+        });
+
+        expect(updatedResult).toHaveLength(1);
+        expect(updatedResult[0].id).toBe(ids[0]);
+        expect(updatedResult[0].metadata).to.deep.equal({ text: 'Updated vector' });
       });
     });
 

@@ -120,7 +120,8 @@ export class LanceVectorStore extends MastraVector {
       return results.map(result => ({
         id: String(result.id),
         metadata: JSON.parse(result.metadata),
-        vector: includeVector ? result.vector : undefined,
+        // Convert Vector object to plain array if includeVector is true
+        vector: includeVector ? (Array.isArray(result.vector) ? result.vector : Array.from(result.vector)) : undefined,
         document: result.document,
         score: result.score,
       }));
@@ -408,14 +409,26 @@ export class LanceVectorStore extends MastraVector {
           if (hasColumn) {
             console.debug(`Found column ${_indexName} in table ${tableName}`);
 
+            // First, query the existing record to preserve values that aren't being updated
+            const existingRecord = await table
+              .query()
+              .where(`id = '${_id}'`)
+              .select(['id', _indexName, 'metadata'])
+              .limit(1)
+              .toArray();
+
+            if (existingRecord === undefined) {
+              throw new Error(`Record with id '${_id}' not found in table ${tableName}`);
+            }
+
             // For vector updates, we need to use the add method with overwrite mode
             // since update doesn't directly support vector array types
             if (_update.vector || _update.metadata) {
               const data = [
                 {
                   id: _id,
-                  [_indexName]: _update.vector || null,
-                  metadata: _update.metadata ? JSON.stringify(_update.metadata) : null,
+                  [_indexName]: _update.vector || JSON.stringify(existingRecord[0].vector),
+                  metadata: _update.metadata ? JSON.stringify(_update.metadata) : existingRecord[0].metadata,
                 },
               ];
 
