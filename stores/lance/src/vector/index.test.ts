@@ -613,4 +613,91 @@ describe('Lance vector store tests', () => {
       });
     });
   });
+
+  describe('Basic query operations', () => {
+    const testTableName = 'test-table-basic' + Date.now();
+    const testTableIndexColumn = 'vector';
+
+    beforeAll(async () => {
+      vectorDB.deleteAllTables();
+
+      const generateTableData = (numRows: number) => {
+        return Array.from({ length: numRows }, (_, i) => ({
+          id: String(i + 1),
+          vector: Array.from({ length: 3 }, () => Math.random()),
+          metadata: JSON.stringify({}),
+        }));
+      };
+
+      await vectorDB.createTable(testTableName, generateTableData(300));
+
+      await vectorDB.createIndex({
+        indexConfig: {
+          type: 'ivfflat',
+          numPartitions: 1,
+          numSubVectors: 1,
+        },
+        indexName: testTableIndexColumn,
+        dimension: 3,
+        tableName: testTableName,
+      });
+    });
+
+    afterAll(async () => {
+      vectorDB.deleteTable(testTableName);
+    });
+
+    it('should query vectors with metadata', async () => {
+      const testVectors = [[0.1, 0.2, 0.3]];
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [{ text: 'First vector' }],
+      });
+
+      expect(ids).toHaveLength(1);
+      expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: testVectors[0],
+        columns: ['id', 'metadata', 'vector'],
+        topK: 3,
+        includeVector: true,
+      });
+
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe(ids[0]);
+      expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+    });
+
+    it('should query vectors with filter', async () => {
+      const testVectors = [[0.1, 0.2, 0.3]];
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [{ text: 'First vector' }],
+      });
+
+      expect(ids).toHaveLength(1);
+      expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: testVectors[0],
+        columns: ['id', 'metadata', 'vector'],
+        topK: 3,
+        includeVector: true,
+        filter: { text: 'First vector' },
+      });
+
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe(ids[0]);
+      expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+    });
+  });
 });

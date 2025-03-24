@@ -14,6 +14,7 @@ import type {
 import { MastraVector } from '@mastra/core';
 import type { VectorFilter } from '@mastra/core/vector/filter';
 import type { IndexConfig } from './types';
+import { LanceFilterTranslator } from './filter';
 
 interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: LanceIndexConfig;
@@ -105,7 +106,7 @@ export class LanceVectorStore extends MastraVector {
     }
 
     try {
-      const filterString = filter ? this.filterStringBuilder(filter) : '';
+      const translatedFilter = this.filterTranslator(filter);
 
       const table = await this.lanceClient.openTable(tableName);
 
@@ -130,8 +131,9 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  private filterStringBuilder(filter: VectorFilter): string {
-    throw new Error('Function not implemented.');
+  private filterTranslator(filter: VectorFilter): string {
+    const translator = new LanceFilterTranslator();
+    return translator.translate(filter) as string;
   }
 
   async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
