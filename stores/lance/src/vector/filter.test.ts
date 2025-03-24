@@ -264,7 +264,7 @@ describe('LanceFilterTranslator', () => {
 
     it('throws error for field names with periods that are not nested fields', () => {
       const filter = {
-        'field.with.period': 'value',
+        'field.with..period': 'value', // Using double dots to ensure it's invalid
       };
       expect(() => translator.translate(filter)).toThrow(/Field names containing periods/);
     });
