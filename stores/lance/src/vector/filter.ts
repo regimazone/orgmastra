@@ -7,6 +7,16 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
       return '';
     }
 
+    // Check for fields with periods that aren't nested at top level
+    if (typeof filter === 'object' && filter !== null) {
+      const keys = Object.keys(filter);
+      for (const key of keys) {
+        if (key.includes('.') && !this.isNormalNestedField(key)) {
+          throw new Error(`Field names containing periods (.) are not supported: ${key}`);
+        }
+      }
+    }
+
     return this.processFilter(filter);
   }
 
@@ -16,6 +26,11 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
       return `${parentPath} IS NULL`;
     }
 
+    // Handle Date objects at top level
+    if (filter instanceof Date) {
+      return `${parentPath} = ${this.formatValue(filter)}`;
+    }
+
     // Handle top-level operators
     if (typeof filter === 'object' && filter !== null) {
       const obj = filter as Record<string, unknown>;
@@ -23,7 +38,7 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
 
       // Handle logical operators at top level
       if (keys.length === 1 && this.isOperator(keys[0]!)) {
-        const operator = keys[0];
+        const operator = keys[0]!;
         const operatorValue = obj[operator];
 
         if (this.isLogicalOperator(operator)) {
@@ -36,14 +51,22 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
         throw new Error(BaseFilterTranslator.ErrorMessages.INVALID_TOP_LEVEL_OPERATOR(operator));
       }
 
+      // Check for fields with periods that aren't nested
+      for (const key of keys) {
+        if (key.includes('.') && !this.isNormalNestedField(key)) {
+          throw new Error(`Field names containing periods (.) are not supported: ${key}`);
+        }
+      }
+
       // Handle multiple fields (implicit AND)
       if (keys.length > 1) {
         const conditions = keys.map(key => {
+          const value = obj[key];
           // Check if key is a nested path or a field
-          if (this.isNestedObject(obj[key])) {
-            return this.processNestedObject(key, obj[key]);
+          if (this.isNestedObject(value) && !this.isDateObject(value)) {
+            return this.processNestedObject(key, value);
           } else {
-            return this.processField(key, obj[key]);
+            return this.processField(key, value);
           }
         });
         return conditions.join(' AND ');
@@ -51,10 +74,10 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
 
       // Handle single field
       if (keys.length === 1) {
-        const key = keys[0];
-        const value = obj[key!];
+        const key = keys[0]!;
+        const value = obj[key]!;
 
-        if (this.isNestedObject(value)) {
+        if (this.isNestedObject(value) && !this.isDateObject(value)) {
           return this.processNestedObject(key!, value);
         } else {
           return this.processField(key!, value);
@@ -128,7 +151,7 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
         ? `${path}.${key}` // Key already contains dots (pre-dotted path)
         : `${path}.${key}`; // Normal nested field
 
-      if (this.isNestedObject(obj[key])) {
+      if (this.isNestedObject(obj[key]) && !this.isDateObject(obj[key])) {
         return this.processNestedObject(nestedPath, obj[key]);
       } else {
         return this.processField(nestedPath, obj[key]);
@@ -146,6 +169,16 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
 
     // Escape field name if needed
     const escapedField = this.escapeFieldName(field);
+
+    // Handle null value
+    if (value === null) {
+      return `${escapedField} IS NULL`;
+    }
+
+    // Handle Date objects properly
+    if (value instanceof Date) {
+      return `${escapedField} = ${this.formatValue(value)}`;
+    }
 
     // Handle arrays (convert to IN)
     if (Array.isArray(value)) {
@@ -171,12 +204,8 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
 
     // Check for logical operators at field level
     if (operatorKeys.some(op => this.isLogicalOperator(op))) {
-      throw new Error(
-        BaseFilterTranslator.ErrorMessages.INVALID_LOGICAL_OPERATOR_LOCATION(
-          operatorKeys.find(op => this.isLogicalOperator(op)) || '',
-          field,
-        ),
-      );
+      const logicalOp = operatorKeys.find(op => this.isLogicalOperator(op)) || '';
+      throw new Error(`Unsupported operator: ${logicalOp} cannot be used at field level`);
     }
 
     // Process each operator and join with AND
@@ -253,6 +282,9 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
     }
 
     if (typeof value === 'object') {
+      if (value instanceof Date) {
+        return `timestamp '${value.toISOString()}'`;
+      }
       return JSON.stringify(value);
     }
 
@@ -261,6 +293,24 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
 
   private formatArrayValues(array: unknown[]): string {
     return array.map(item => this.formatValue(item)).join(', ');
+  }
+
+  normalizeArrayValues(array: unknown[]): unknown[] {
+    return array.map(item => {
+      if (item instanceof Date) {
+        return item; // Keep Date objects as is to properly format them later
+      }
+      return this.normalizeComparisonValue(item);
+    });
+  }
+
+  normalizeComparisonValue(value: unknown): unknown {
+    // Date objects should be preserved as is, not converted to strings
+    if (value instanceof Date) {
+      return value;
+    }
+
+    return super.normalizeComparisonValue(value);
   }
 
   private isOperatorObject(value: unknown): boolean {
@@ -281,7 +331,8 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
   private isNormalNestedField(field: string): boolean {
     // Check if field is a proper nested field name
     const parts = field.split('.');
-    return parts.every(part => part.trim().length > 0);
+    // A valid nested field shouldn't have empty parts or start/end with a dot
+    return !field.startsWith('.') && !field.endsWith('.') && parts.every(part => part.trim().length > 0);
   }
 
   private escapeFieldName(field: string): string {
@@ -354,6 +405,10 @@ export class LanceFilterTranslator extends BaseFilterTranslator {
     ];
 
     return sqlKeywords.includes(str.toUpperCase());
+  }
+
+  private isDateObject(value: unknown): boolean {
+    return value instanceof Date;
   }
 
   /**
