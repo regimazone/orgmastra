@@ -217,7 +217,6 @@ describe('Lance vector store tests', () => {
         await vectorDB.deleteIndex(indexColumnName + '_idx');
 
         const indexesAfter = await vectorDB.listIndexes();
-        console.log('vishesh', indexesAfter);
         expect(indexesAfter).not.toContain(indexColumnName + '_idx');
       });
 
@@ -239,7 +238,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            metadata: JSON.stringify({}),
+            text: 'test',
           }));
         };
 
@@ -327,7 +326,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            metadata: JSON.stringify({}),
+            text: 'test',
           }));
         };
 
@@ -372,7 +371,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: testVectors[0],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 3,
         });
 
@@ -380,10 +379,9 @@ describe('Lance vector store tests', () => {
         const sortedResultIds = results.map(res => res.id).sort();
         const sortedIds = ids.sort();
         expect(sortedResultIds).to.deep.equal(sortedIds);
-
-        for (const meta of testMetadata) {
-          expect(results.some(res => JSON.stringify(res.metadata) === JSON.stringify(meta))).to.be.true;
-        }
+        expect(results[0].metadata?.text).toBe('First vector');
+        expect(results[1].metadata?.text).toBe('Second vector');
+        expect(results[2].metadata?.text).toBe('Third vector');
       });
 
       it('should throw error when querying from non-existent table', async () => {
@@ -409,7 +407,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            metadata: JSON.stringify({}),
+            text: 'test',
           }));
         };
 
@@ -451,14 +449,14 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.4, 0.5, 0.6],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 3,
           includeVector: true,
         });
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata).to.deep.equal({ text: 'Updated vector' });
+        expect(res[0].metadata?.text).to.equal('Updated vector');
         expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
       });
 
@@ -481,14 +479,14 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.4, 0.5, 0.6],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 3,
           includeVector: true,
         });
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+        expect(res[0].metadata?.text).to.equal('First vector');
         expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
       });
 
@@ -508,14 +506,14 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.1, 0.2, 0.3],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 1,
           includeVector: true,
         });
 
         expect(originalResult).toHaveLength(1);
         expect(originalResult[0].id).toBe(ids[0]);
-        expect(originalResult[0].metadata).to.deep.equal({ text: 'First vector' });
+        expect(originalResult[0].metadata?.text).to.equal('First vector');
         expect(originalResult[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.1, 0.2, 0.3]);
 
         // Update only the metadata
@@ -536,7 +534,7 @@ describe('Lance vector store tests', () => {
 
         expect(updatedResult).toHaveLength(1);
         expect(updatedResult[0].id).toBe(ids[0]);
-        expect(updatedResult[0].metadata).to.deep.equal({ text: 'Updated vector' });
+        expect(updatedResult[0].metadata?.text).to.equal('Updated vector');
       });
     });
 
@@ -551,7 +549,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            metadata: JSON.stringify({}),
+            text: 'test',
           }));
         };
 
@@ -590,14 +588,14 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: testVectors[0],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 3,
           includeVector: true,
         });
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+        expect(res[0].metadata?.text).to.equal('First vector');
 
         await vectorDB.deleteIndexById(testTableIndexColumn, ids[0]);
 
@@ -605,7 +603,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: testVectors[0],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 3,
         });
 
@@ -625,7 +623,8 @@ describe('Lance vector store tests', () => {
         return Array.from({ length: numRows }, (_, i) => ({
           id: String(i + 1),
           vector: Array.from({ length: 3 }, () => Math.random()),
-          metadata: JSON.stringify({}),
+          text: 'test',
+          newText: 'test',
         }));
       };
 
@@ -653,7 +652,7 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         vectors: testVectors,
-        metadata: [{ text: 'First vector' }],
+        metadata: [{ text: 'First vector', newText: 'hi' }],
       });
 
       expect(ids).toHaveLength(1);
@@ -663,14 +662,14 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         queryVector: testVectors[0],
-        columns: ['id', 'metadata', 'vector'],
+        columns: ['id', 'text', 'newText', 'vector'],
         topK: 3,
         includeVector: true,
       });
 
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
-      expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+      expect(res[0].metadata?.text).to.equal('First vector');
     });
 
     it('should query vectors with filter', async () => {
@@ -679,7 +678,7 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         vectors: testVectors,
-        metadata: [{ text: 'First vector' }],
+        metadata: [{ text: 'First vector', newText: 'hi' }],
       });
 
       expect(ids).toHaveLength(1);
@@ -689,7 +688,7 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         queryVector: testVectors[0],
-        columns: ['id', 'metadata', 'vector'],
+        columns: ['id', 'text', 'newText', 'vector'],
         topK: 3,
         includeVector: true,
         filter: { text: 'First vector' },
@@ -697,7 +696,8 @@ describe('Lance vector store tests', () => {
 
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
-      expect(res[0].metadata).to.deep.equal({ text: 'First vector' });
+      expect(res[0].metadata?.text).to.equal('First vector');
+      expect(res[0].metadata?.newText).to.equal('hi');
     });
   });
 });
