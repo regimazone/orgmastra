@@ -13,8 +13,8 @@ import type {
 
 import { MastraVector } from '@mastra/core';
 import type { VectorFilter } from '@mastra/core/vector/filter';
-import type { IndexConfig } from './types';
 import { LanceFilterTranslator } from './filter';
+import type { IndexConfig } from './types';
 
 interface LanceCreateIndexParams extends CreateIndexParams {
   indexConfig?: LanceIndexConfig;
@@ -108,35 +108,11 @@ export class LanceVectorStore extends MastraVector {
     try {
       const table = await this.lanceClient.openTable(tableName);
 
-      // Get the schema to know what columns are actually available
-      const schema = await table.schema();
-      const availableColumns = schema.fields.map(field => field.name);
-
-      // Determine which columns to select
-      let selectColumns = [...columns];
-
-      // Make sure we're selecting the id field explicitly
-      if (!selectColumns.includes('id')) {
-        selectColumns.push('id');
+      if (!columns.includes('id')) {
+        columns.push('id');
       }
 
-      // Handle the special case where 'metadata' is requested
-      // The 'metadata' column doesn't exist since metadata fields are stored as top-level columns
-      const hasMetadataColumn = selectColumns.includes('metadata');
-      if (hasMetadataColumn) {
-        // Remove 'metadata' from the selection since it's not a real column
-        selectColumns = selectColumns.filter(col => col !== 'metadata');
-
-        // Include all available columns except special ones to capture all potential metadata fields
-        selectColumns = [
-          ...new Set([
-            ...selectColumns,
-            ...availableColumns.filter(col => col !== 'id' && col !== 'vector' && col !== '_distance'),
-          ]),
-        ];
-      }
-
-      let query = table.query().nearestTo(queryVector).select(selectColumns).limit(topK);
+      let query = table.query().nearestTo(queryVector).select(columns).limit(topK);
 
       // Only apply where clause if the filter is not empty
       if (filter && Object.keys(filter).length > 0) {

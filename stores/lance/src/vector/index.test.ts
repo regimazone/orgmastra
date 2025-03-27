@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, should } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LanceVectorStore } from './index';
 
 describe('Lance vector store tests', () => {
@@ -527,7 +527,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.1, 0.2, 0.3],
-          columns: ['id', 'metadata', 'vector'],
+          columns: ['id', 'text', 'vector'],
           topK: 1,
           includeVector: true,
         });
