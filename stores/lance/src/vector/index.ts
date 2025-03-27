@@ -91,7 +91,7 @@ export class LanceVectorStore extends MastraVector {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
     const params = this.normalizeArgs<LanceQueryVectorParams>('query', args);
-    const { tableName, queryVector, topK = 10, filter, includeVector = false, columns = [] } = params;
+    const { tableName, queryVector, topK = 10, filter = {}, includeVector = false, columns = [] } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
@@ -106,26 +106,73 @@ export class LanceVectorStore extends MastraVector {
     }
 
     try {
-      const translatedFilter = this.filterTranslator(filter);
-
       const table = await this.lanceClient.openTable(tableName);
 
+      // Get the schema to know what columns are actually available
+      const schema = await table.schema();
+      const availableColumns = schema.fields.map(field => field.name);
+
+      // Determine which columns to select
+      let selectColumns = [...columns];
+
       // Make sure we're selecting the id field explicitly
-      if (!columns.includes('id')) {
-        columns.push('id');
+      if (!selectColumns.includes('id')) {
+        selectColumns.push('id');
       }
 
-      const query = table.query().nearestTo(queryVector).select(columns).limit(topK);
+      // Handle the special case where 'metadata' is requested
+      // The 'metadata' column doesn't exist since metadata fields are stored as top-level columns
+      const hasMetadataColumn = selectColumns.includes('metadata');
+      if (hasMetadataColumn) {
+        // Remove 'metadata' from the selection since it's not a real column
+        selectColumns = selectColumns.filter(col => col !== 'metadata');
+
+        // Include all available columns except special ones to capture all potential metadata fields
+        selectColumns = [
+          ...new Set([
+            ...selectColumns,
+            ...availableColumns.filter(col => col !== 'id' && col !== 'vector' && col !== '_distance'),
+          ]),
+        ];
+      }
+
+      let query = table.query().nearestTo(queryVector).select(selectColumns).limit(topK);
+
+      // Only apply where clause if the filter is not empty
+      if (filter && Object.keys(filter).length > 0) {
+        const translatedFilter = this.filterTranslator(filter);
+        if (translatedFilter) {
+          query = query.where(translatedFilter);
+        }
+      }
+
       const results = await query.toArray();
 
-      return results.map(result => ({
-        id: String(result.id),
-        metadata: JSON.parse(result.metadata),
-        // Convert Vector object to plain array if includeVector is true
-        vector: includeVector ? (Array.isArray(result.vector) ? result.vector : Array.from(result.vector)) : undefined,
-        document: result.document,
-        score: result.score,
-      }));
+      return results.map(result => {
+        // Build metadata object by collecting all keys except for specific reserved fields
+        const metadata: Record<string, any> = {};
+
+        // Get all keys from the result object
+        Object.keys(result).forEach(key => {
+          // Skip reserved keys (id, score, and the vector column)
+          if (key !== 'id' && key !== 'score' && key !== 'vector' && key !== '_distance') {
+            metadata[key] = result[key];
+          }
+        });
+
+        return {
+          id: String(result.id),
+          metadata,
+          // Convert Vector object to plain array if includeVector is true
+          vector: includeVector
+            ? Array.isArray(result.vector)
+              ? result.vector
+              : Array.from(result.vector as any[])
+            : undefined,
+          document: result.document,
+          score: result._distance,
+        };
+      });
     } catch (error: any) {
       throw new Error(`Failed to query: ${error}`);
     }
@@ -133,7 +180,7 @@ export class LanceVectorStore extends MastraVector {
 
   private filterTranslator(filter: VectorFilter): string {
     const translator = new LanceFilterTranslator();
-    return translator.translate(filter) as string;
+    return translator.translate(filter);
   }
 
   async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
@@ -167,13 +214,23 @@ export class LanceVectorStore extends MastraVector {
       // Generate IDs if not provided
       const vectorIds = ids.length === vectors.length ? ids : vectors.map((_, i) => ids[i] || crypto.randomUUID());
 
+      // Create data with metadata fields expanded at the top level
       const data = vectors.map((vector, i) => {
         const id = String(vectorIds[i]);
-        return {
+        const metadataItem = metadata[i] || {};
+
+        // Create the base object with id and vector
+        const rowData: Record<string, any> = {
           id,
-          [indexName]: vector,
-          metadata: JSON.stringify(metadata[i] || {}),
+          vector: vector,
         };
+
+        // Add all metadata properties directly to the row data object
+        Object.entries(metadataItem).forEach(([key, value]) => {
+          rowData[key] = value;
+        });
+
+        return rowData;
       });
 
       await table.add(data, { mode: 'overwrite' });
@@ -395,6 +452,18 @@ export class LanceVectorStore extends MastraVector {
     _id: string,
     _update: { vector?: number[]; metadata?: Record<string, any> },
   ): Promise<void> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+
+    if (!_indexName) {
+      throw new Error('indexName is required');
+    }
+
+    if (!_id) {
+      throw new Error('id is required');
+    }
+
     try {
       // In LanceDB, the indexName is actually a column name in a table
       // We need to find which table has this column as an index
@@ -415,7 +484,7 @@ export class LanceVectorStore extends MastraVector {
             const existingRecord = await table
               .query()
               .where(`id = '${_id}'`)
-              .select(['id', _indexName, 'metadata'])
+              .select(schema.fields.map(field => field.name))
               .limit(1)
               .toArray();
 
@@ -423,20 +492,50 @@ export class LanceVectorStore extends MastraVector {
               throw new Error(`Record with id '${_id}' not found in table ${tableName}`);
             }
 
-            // For vector updates, we need to use the add method with overwrite mode
-            // since update doesn't directly support vector array types
-            if (_update.vector || _update.metadata) {
-              const data = [
-                {
-                  id: _id,
-                  [_indexName]: _update.vector || JSON.stringify(existingRecord[0].vector),
-                  metadata: _update.metadata ? JSON.stringify(_update.metadata) : existingRecord[0].metadata,
-                },
-              ];
+            // Create a clean data object for update
+            const rowData: Record<string, any> = {
+              id: _id,
+            };
 
-              await table.add(data, { mode: 'overwrite' });
-              return;
+            // Copy all existing field values except special fields
+            Object.entries(existingRecord[0]).forEach(([key, value]) => {
+              // Skip special fields
+              if (key !== 'id' && key !== '_distance') {
+                // Handle vector field specially to avoid nested properties
+                if (key === _indexName) {
+                  // If we're about to update this vector anyway, skip copying
+                  if (!_update.vector) {
+                    // Ensure vector is a plain array
+                    if (Array.isArray(value)) {
+                      rowData[key] = [...value];
+                    } else if (typeof value === 'object' && value !== null) {
+                      // Handle vector objects by converting to array if needed
+                      rowData[key] = Array.from(value as any[]);
+                    } else {
+                      rowData[key] = value;
+                    }
+                  }
+                } else {
+                  rowData[key] = value;
+                }
+              }
+            });
+
+            // Apply the vector update if provided
+            if (_update.vector) {
+              rowData[_indexName] = _update.vector;
             }
+
+            // Apply metadata updates if provided
+            if (_update.metadata) {
+              Object.entries(_update.metadata).forEach(([key, value]) => {
+                rowData[key] = value;
+              });
+            }
+
+            // Update the record
+            await table.add([rowData], { mode: 'overwrite' });
+            return;
           }
         } catch (err) {
           console.error(`Error checking schema for table ${tableName}:`, err);
