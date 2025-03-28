@@ -143,20 +143,23 @@ export class LanceVectorStore extends MastraVector {
       const results = await query.toArray();
 
       return results.map(result => {
-        // Build metadata object by collecting all metadata_ prefixed fields
-        const metadata: Record<string, any> = {};
+        // Collect all metadata_ prefixed fields
+        const flatMetadata: Record<string, any> = {};
 
         // Get all keys from the result object
         Object.keys(result).forEach(key => {
           // Skip reserved keys (id, score, and the vector column)
           if (key !== 'id' && key !== 'score' && key !== 'vector' && key !== '_distance') {
             if (key.startsWith('metadata_')) {
-              // Remove the prefix and add to metadata
+              // Remove the prefix and add to flat metadata
               const metadataKey = key.substring('metadata_'.length);
-              metadata[metadataKey] = result[key];
+              flatMetadata[metadataKey] = result[key];
             }
           }
         });
+
+        // Reconstruct nested metadata object
+        const metadata = this.unflattenObject(flatMetadata);
 
         return {
           id: String(result.id || ''),
@@ -651,5 +654,42 @@ export class LanceVectorStore extends MastraVector {
     } catch (error: any) {
       throw new Error(`Failed to delete index: ${error.message}`);
     }
+  }
+
+  /**
+   * Converts a flattened object with keys using underscore notation back to a nested object.
+   * Example: { name: 'test', details_text: 'test' } → { name: 'test', details: { text: 'test' } }
+   */
+  private unflattenObject(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+
+    Object.keys(obj).forEach(key => {
+      const value = obj[key];
+      const parts = key.split('_');
+
+      // Start with the result object
+      let current = result;
+
+      // Process all parts except the last one
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        // Skip empty parts
+        if (!part) continue;
+
+        // Create nested object if it doesn't exist
+        if (!current[part] || typeof current[part] !== 'object') {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+
+      // Set the value at the last part
+      const lastPart = parts[parts.length - 1];
+      if (lastPart) {
+        current[lastPart] = value;
+      }
+    });
+
+    return result;
   }
 }
