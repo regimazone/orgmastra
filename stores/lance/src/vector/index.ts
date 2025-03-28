@@ -217,6 +217,22 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
+  /**
+   * Flattens a nested object, creating new keys with underscores for nested properties.
+   * Example: { metadata: { text: 'test' } } → { metadata_text: 'test' }
+   */
+  private flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+    return Object.keys(obj).reduce((acc: Record<string, unknown>, k: string) => {
+      const pre = prefix.length ? `${prefix}_` : '';
+      if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+        Object.assign(acc, this.flattenObject(obj[k] as Record<string, unknown>, pre + k));
+      } else {
+        acc[pre + k] = obj[k];
+      }
+      return acc;
+    }, {});
+  }
+
   async createTable(
     tableName: string,
     data: Record<string, unknown>[] | TableLike,
@@ -225,7 +241,32 @@ export class LanceVectorStore extends MastraVector {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
-    return await this.lanceClient.createTable(tableName, data, options);
+
+    try {
+      // Flatten nested objects if data is an array of records
+      if (Array.isArray(data)) {
+        data = data.map(record => this.flattenObject(record));
+      }
+
+      return await this.lanceClient.createTable(tableName, data, options);
+    } catch (error: any) {
+      throw new Error(`Failed to create table: ${error.message}`);
+    }
+  }
+
+  async listTables(): Promise<string[]> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+    return await this.lanceClient.tableNames();
+  }
+
+  async getTableSchema(tableName: string): Promise<any> {
+    if (!this.lanceClient) {
+      throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
+    }
+    const table = await this.lanceClient.openTable(tableName);
+    return await table.schema();
   }
 
   /**
