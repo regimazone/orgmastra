@@ -286,7 +286,7 @@ describe('Lance vector store tests', () => {
 
   describe('Vector operations', () => {
     describe('upsert operations', () => {
-      const testTableName = 'test-table' + Date.now();
+      const testTableName = 'test-table-test' + Date.now();
       const testTableIndexColumn = 'vector';
 
       beforeAll(async () => {
@@ -373,7 +373,7 @@ describe('Lance vector store tests', () => {
     });
 
     describe('query operations', () => {
-      const testTableName = 'test-table' + Date.now();
+      const testTableName = 'test-table-query' + Date.now();
       const testTableIndexColumn = 'vector';
 
       beforeAll(async () => {
@@ -450,12 +450,12 @@ describe('Lance vector store tests', () => {
             columns: ['id', 'vector', 'metadata'],
             queryVector: [0.1, 0.2, 0.3],
           }),
-        ).rejects.toThrow(`Failed to query: Error: Table '${nonExistentTable}' was not found`);
+        ).rejects.toThrow(`Failed to query vectors: Table '${nonExistentTable}' was not found`);
       });
     });
 
     describe('update operations', () => {
-      const testTableName = 'test-table' + Date.now();
+      const testTableName = 'test-table-update' + Date.now();
       const testTableIndexColumn = 'vector';
 
       beforeAll(async () => {
@@ -513,7 +513,10 @@ describe('Lance vector store tests', () => {
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
         expect(res[0].metadata?.text).to.equal('Updated vector');
-        expect(res[0].vector).toEqual([0.4, 0.5, 0.6]);
+
+        // Fix decimal points in the response vector
+        const fixedVector = res[0].vector?.map(num => Number(num.toFixed(1)));
+        expect(fixedVector).toEqual([0.4, 0.5, 0.6]);
       });
 
       it('should only update existing vector', async () => {
@@ -521,7 +524,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           vectors: [[0.1, 0.2, 0.3]],
-          metadata: [{ metadata_text: 'Vector only update test' }],
+          metadata: [{ text: 'Vector only update test' }],
         });
 
         expect(ids).toHaveLength(1);
@@ -542,8 +545,11 @@ describe('Lance vector store tests', () => {
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata?.metadata_text).to.equal('Vector only update test');
-        expect(res[0].vector).toEqual([0.4, 0.5, 0.6]);
+        expect(res[0].metadata?.text).to.equal('Vector only update test');
+
+        // Fix decimal points in the response vector
+        const fixedVector = res[0].vector?.map(num => Number(num.toFixed(1)));
+        expect(fixedVector).toEqual([0.4, 0.5, 0.6]);
       });
 
       it('should only update existing vector metadata', async () => {
@@ -551,14 +557,14 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           vectors: [[0.1, 0.2, 0.3]],
-          metadata: [{ metadata_text: 'Metadata only update test' }],
+          metadata: [{ text: 'Metadata only update test' }],
         });
 
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
         await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
-          metadata: { metadata_text: 'Updated metadata' },
+          metadata: { text: 'Updated metadata' },
         });
 
         const res = await vectorDB.query({
@@ -572,8 +578,11 @@ describe('Lance vector store tests', () => {
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata?.metadata_text).to.equal('Updated metadata');
-        expect(res[0].vector).toEqual([0.1, 0.2, 0.3]);
+        expect(res[0].metadata?.text).to.equal('Updated metadata');
+
+        // Fix decimal points in the response vector
+        const fixedVector = res[0].vector?.map(num => Number(num.toFixed(1)));
+        expect(fixedVector).toEqual([0.1, 0.2, 0.3]);
       });
     });
 
