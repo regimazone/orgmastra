@@ -796,12 +796,10 @@ describe('Lance vector store tests', () => {
         filter: { name: 'test2' },
       });
 
-      // console.log(res);
-
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
       expect(res[0].metadata?.name).to.equal('test2');
-      expect(res[0].metadata?.details).to.equal('test2');
+      expect(res[0].metadata?.details?.text).to.equal('test2');
     });
   });
 });
