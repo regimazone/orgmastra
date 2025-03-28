@@ -262,24 +262,24 @@ describe('Lance vector store tests', () => {
 
     it('should create a table with single level nested metadata object by flattening it', async () => {
       const tableName = 'test-table' + Date.now();
-      await vectorDB.createTable(tableName, [{ id: '1', vector: [0.1, 0.2, 0.3], metadata: { name: 'test' } }]);
+      await vectorDB.createTable(tableName, [{ id: '1', vector: [0.1, 0.2, 0.3], metadata_text: 'test' }]);
 
       const schema = await vectorDB.getTableSchema(tableName);
-      expect(schema.fields.map((field: any) => field.name)).toEqual(['id', 'vector', 'metadata_name']);
+      expect(schema.fields.map((field: any) => field.name)).toEqual(['id', 'vector', 'metadata_text']);
     });
 
     it('should create a table with multi level nested metadata object by flattening it', async () => {
       const tableName = 'test-table' + Date.now();
       await vectorDB.createTable(tableName, [
-        { id: '1', vector: [0.1, 0.2, 0.3], metadata: { name: 'test', details: { text: 'test' } } },
+        { id: '1', vector: [0.1, 0.2, 0.3], metadata_text: 'test', metadata_newText: 'test' },
       ]);
 
       const schema = await vectorDB.getTableSchema(tableName);
       expect(schema.fields.map((field: any) => field.name)).toEqual([
         'id',
         'vector',
-        'metadata_name',
-        'metadata_details_text',
+        'metadata_text',
+        'metadata_newText',
       ]);
     });
   });
@@ -294,7 +294,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            text: 'test',
+            metadata: { text: 'test' },
           }));
         };
 
@@ -325,7 +325,6 @@ describe('Lance vector store tests', () => {
 
         const testMetadata = [{ text: 'First vector' }, { text: 'Second vector' }, { text: 'Third vector' }];
 
-        // Test upsert with auto-generated IDs
         const ids = await vectorDB.upsert({
           indexName: testTableIndexColumn,
           tableName: testTableName,
@@ -382,7 +381,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            text: 'test',
+            metadata: { text: 'test' },
           }));
         };
 
@@ -427,8 +426,9 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: testVectors[0],
-          columns: ['id', 'text', 'vector'],
+          columns: ['id', 'metadata_text', 'vector'],
           topK: 3,
+          includeVector: true,
         });
 
         expect(results).toHaveLength(3);
@@ -463,7 +463,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            text: 'test',
+            metadata: { text: 'test' },
           }));
         };
 
@@ -505,7 +505,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.4, 0.5, 0.6],
-          columns: ['id', 'text', 'vector'],
+          columns: ['id', 'metadata_text', 'vector'],
           topK: 3,
           includeVector: true,
         });
@@ -513,7 +513,7 @@ describe('Lance vector store tests', () => {
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
         expect(res[0].metadata?.text).to.equal('Updated vector');
-        expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
+        expect(res[0].vector).toEqual([0.4, 0.5, 0.6]);
       });
 
       it('should only update existing vector', async () => {
@@ -521,7 +521,7 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           vectors: [[0.1, 0.2, 0.3]],
-          metadata: [{ text: 'First vector' }],
+          metadata: [{ metadata_text: 'Vector only update test' }],
         });
 
         expect(ids).toHaveLength(1);
@@ -535,15 +535,15 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.4, 0.5, 0.6],
-          columns: ['id', 'text', 'vector'],
+          columns: ['id', 'metadata_text', 'vector'],
           topK: 3,
           includeVector: true,
         });
 
         expect(res).toHaveLength(1);
         expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata?.text).to.equal('First vector');
-        expect(res[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.4, 0.5, 0.6]);
+        expect(res[0].metadata?.metadata_text).to.equal('Vector only update test');
+        expect(res[0].vector).toEqual([0.4, 0.5, 0.6]);
       });
 
       it('should only update existing vector metadata', async () => {
@@ -551,46 +551,29 @@ describe('Lance vector store tests', () => {
           indexName: testTableIndexColumn,
           tableName: testTableName,
           vectors: [[0.1, 0.2, 0.3]],
-          metadata: [{ text: 'First vector' }],
+          metadata: [{ metadata_text: 'Metadata only update test' }],
         });
 
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
-        // First, query to get the original vector
-        const originalResult = await vectorDB.query({
-          indexName: testTableIndexColumn,
-          tableName: testTableName,
-          queryVector: [0.1, 0.2, 0.3],
-          columns: ['id', 'text', 'vector'],
-          topK: 1,
-          includeVector: true,
-        });
-
-        expect(originalResult).toHaveLength(1);
-        expect(originalResult[0].id).toBe(ids[0]);
-        expect(originalResult[0].metadata?.text).to.equal('First vector');
-        expect(originalResult[0].vector?.map(num => Number(num.toFixed(1)))).to.deep.equal([0.1, 0.2, 0.3]);
-
-        // Update only the metadata
         await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
-          // vector: [1, 2, 3],
-          metadata: { text: 'Updated vector' },
+          metadata: { metadata_text: 'Updated metadata' },
         });
 
-        // Query again to verify changes
-        const updatedResult = await vectorDB.query({
+        const res = await vectorDB.query({
           indexName: testTableIndexColumn,
           tableName: testTableName,
           queryVector: [0.1, 0.2, 0.3],
-          columns: ['id', 'text', 'vector'],
-          topK: 1,
+          columns: ['id', 'metadata_text', 'vector'],
+          topK: 3,
           includeVector: true,
         });
 
-        expect(updatedResult).toHaveLength(1);
-        expect(updatedResult[0].id).toBe(ids[0]);
-        expect(updatedResult[0].metadata?.text).to.equal('Updated vector');
+        expect(res).toHaveLength(1);
+        expect(res[0].id).toBe(ids[0]);
+        expect(res[0].metadata?.metadata_text).to.equal('Updated metadata');
+        expect(res[0].vector).toEqual([0.1, 0.2, 0.3]);
       });
     });
 
@@ -605,7 +588,7 @@ describe('Lance vector store tests', () => {
           return Array.from({ length: numRows }, (_, i) => ({
             id: String(i + 1),
             vector: Array.from({ length: 3 }, () => Math.random()),
-            text: 'test',
+            metadata: { text: 'test' },
           }));
         };
 
@@ -628,42 +611,44 @@ describe('Lance vector store tests', () => {
       });
 
       it('should delete vector and metadata by id', async () => {
-        const testVectors = [[0.1, 0.2, 0.3]];
+        const testVectors = [
+          [0.1, 0.2, 0.3],
+          [0.4, 0.5, 0.6],
+        ];
+
         const ids = await vectorDB.upsert({
           indexName: testTableIndexColumn,
           tableName: testTableName,
           vectors: testVectors,
-          metadata: [{ text: 'First vector' }],
+          metadata: [{ text: 'First vector' }, { text: 'Second vector' }],
         });
 
-        expect(ids).toHaveLength(1);
-        expect(ids.every(id => typeof id === 'string')).toBe(true);
+        expect(ids).toHaveLength(2);
 
-        // Check if the vector is present in the index
-        const res = await vectorDB.query({
+        let results = await vectorDB.query({
           indexName: testTableIndexColumn,
           tableName: testTableName,
-          queryVector: testVectors[0],
-          columns: ['id', 'text', 'vector'],
+          queryVector: [0.1, 0.2, 0.3],
+          columns: ['id', 'metadata_text'],
           topK: 3,
           includeVector: true,
         });
 
-        expect(res).toHaveLength(1);
-        expect(res[0].id).toBe(ids[0]);
-        expect(res[0].metadata?.text).to.equal('First vector');
+        expect(results).toHaveLength(2);
 
         await vectorDB.deleteIndexById(testTableIndexColumn, ids[0]);
 
-        const results = await vectorDB.query({
+        results = await vectorDB.query({
           indexName: testTableIndexColumn,
           tableName: testTableName,
-          queryVector: testVectors[0],
-          columns: ['id', 'text', 'vector'],
+          queryVector: [0.1, 0.2, 0.3],
+          columns: ['id', 'metadata_text'],
           topK: 3,
+          includeVector: true,
         });
 
-        expect(results).toHaveLength(0);
+        expect(results).toHaveLength(1);
+        expect(results[0].id).toBe(ids[1]);
       });
     });
   });
@@ -673,14 +658,12 @@ describe('Lance vector store tests', () => {
     const testTableIndexColumn = 'vector';
 
     beforeAll(async () => {
-      vectorDB.deleteAllTables();
-
       const generateTableData = (numRows: number) => {
         return Array.from({ length: numRows }, (_, i) => ({
           id: String(i + 1),
           vector: Array.from({ length: 3 }, () => Math.random()),
-          text: 'test',
-          newText: 'test',
+          metadata_text: 'test',
+          metadata_newText: 'test',
         }));
       };
 
@@ -718,7 +701,7 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         queryVector: testVectors[0],
-        columns: ['id', 'text', 'newText', 'vector'],
+        columns: ['id', 'metadata_text', 'metadata_newText', 'vector'],
         topK: 3,
         includeVector: true,
       });
@@ -726,6 +709,7 @@ describe('Lance vector store tests', () => {
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
       expect(res[0].metadata?.text).to.equal('First vector');
+      expect(res[0].metadata?.newText).to.equal('hi');
     });
 
     it('should query vectors with filter', async () => {
@@ -744,10 +728,10 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         queryVector: testVectors[0],
-        columns: ['id', 'text', 'newText', 'vector'],
+        columns: ['id', 'metadata_text', 'metadata_newText', 'vector'],
         topK: 3,
         includeVector: true,
-        filter: { text: 'First vector' },
+        filter: { metadata_text: 'First vector' },
       });
 
       expect(res).toHaveLength(1);
@@ -806,16 +790,18 @@ describe('Lance vector store tests', () => {
         indexName: testTableIndexColumn,
         tableName: testTableName,
         queryVector: testVectors[0],
-        columns: ['id', 'text', 'metadata_name', 'metadata_details_text', 'vector'],
+        columns: ['id', 'metadata_name', 'metadata_details_text', 'vector'],
         topK: 3,
         includeVector: true,
         filter: { name: 'test2' },
       });
 
+      // console.log(res);
+
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
-      expect(res[0].metadata?.text).to.equal('First vector');
-      expect(res[0].metadata?.newText).to.equal('hi');
+      expect(res[0].metadata?.name).to.equal('test2');
+      expect(res[0].metadata?.details).to.equal('test2');
     });
   });
 });

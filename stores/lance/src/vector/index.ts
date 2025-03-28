@@ -90,73 +90,108 @@ export class LanceVectorStore extends MastraVector {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
+
     const params = this.normalizeArgs<LanceQueryVectorParams>('query', args);
-    const { tableName, queryVector, topK = 10, filter = {}, includeVector = false, columns = [] } = params;
+    const {
+      tableName,
+      indexName, // We need this for compatibility but don't use it directly
+      queryVector,
+      filter,
+      includeVector = false,
+      topK = 10,
+      columns = [],
+    } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
     }
 
-    if (!columns || !Array.isArray(columns) || columns.length === 0) {
-      throw new Error('columns array is required and must not be empty');
+    if (!indexName) {
+      throw new Error('indexName is required');
     }
 
-    if (!queryVector || !Array.isArray(queryVector) || queryVector.length === 0) {
-      throw new Error('queryVector array is required and must not be empty');
+    if (!queryVector) {
+      throw new Error('queryVector is required');
     }
 
     try {
+      // Open the table
       const table = await this.lanceClient.openTable(tableName);
 
-      if (!columns.includes('id')) {
-        columns.push('id');
+      // Prepare the list of columns to select
+      const selectColumns = [...columns];
+      if (!selectColumns.includes('id')) {
+        selectColumns.push('id');
       }
 
-      let query = table.query().nearestTo(queryVector).select(columns).limit(topK);
+      // Create the query builder
+      let query = table.search(queryVector);
 
-      // Only apply where clause if the filter is not empty
+      // Add filter if provided
       if (filter && Object.keys(filter).length > 0) {
-        const translatedFilter = this.filterTranslator(filter);
-        if (translatedFilter) {
-          query = query.where(translatedFilter);
-        }
+        const whereClause = this.filterTranslator(filter);
+        query = query.where(whereClause);
       }
 
+      // Apply column selection and limit
+      if (selectColumns.length > 0) {
+        query = query.select(selectColumns);
+      }
+      query = query.limit(topK);
+
+      // Execute the query
       const results = await query.toArray();
 
       return results.map(result => {
-        // Build metadata object by collecting all keys except for specific reserved fields
+        // Build metadata object by collecting all metadata_ prefixed fields
         const metadata: Record<string, any> = {};
 
         // Get all keys from the result object
         Object.keys(result).forEach(key => {
           // Skip reserved keys (id, score, and the vector column)
           if (key !== 'id' && key !== 'score' && key !== 'vector' && key !== '_distance') {
-            metadata[key] = result[key];
+            if (key.startsWith('metadata_')) {
+              // Remove the prefix and add to metadata
+              const metadataKey = key.substring('metadata_'.length);
+              metadata[metadataKey] = result[key];
+            }
           }
         });
 
         return {
-          id: String(result.id),
+          id: String(result.id || ''),
           metadata,
-          // Convert Vector object to plain array if includeVector is true
-          vector: includeVector
-            ? Array.isArray(result.vector)
-              ? result.vector
-              : Array.from(result.vector as any[])
-            : undefined,
+          vector:
+            includeVector && result.vector
+              ? Array.isArray(result.vector)
+                ? result.vector
+                : Array.from(result.vector as any[])
+              : undefined,
           document: result.document,
           score: result._distance,
         };
       });
     } catch (error: any) {
-      throw new Error(`Failed to query: ${error}`);
+      throw new Error(`Failed to query vectors: ${error.message}`);
     }
   }
 
   private filterTranslator(filter: VectorFilter): string {
+    // Add metadata_ prefix to filter keys if they don't already have it
+    const prefixedFilter: Record<string, any> = {};
+
+    if (filter && typeof filter === 'object') {
+      Object.entries(filter).forEach(([key, value]) => {
+        if (!key.startsWith('metadata_')) {
+          prefixedFilter[`metadata_${key}`] = value;
+        } else {
+          prefixedFilter[key] = value;
+        }
+      });
+    }
+
     const translator = new LanceFilterTranslator();
-    return translator.translate(filter);
+    return translator.translate(prefixedFilter);
   }
 
   async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
@@ -201,15 +236,21 @@ export class LanceVectorStore extends MastraVector {
           vector: vector,
         };
 
-        // Add all metadata properties directly to the row data object
-        Object.entries(metadataItem).forEach(([key, value]) => {
-          rowData[key] = value;
-        });
+        // Flatten the metadata object and prefix all keys with 'metadata_'
+        if (Object.keys(metadataItem).length > 0) {
+          const flattenedMetadata = this.flattenObject(metadataItem, 'metadata');
+          // Add all flattened metadata properties to the row data object
+          Object.entries(flattenedMetadata).forEach(([key, value]) => {
+            rowData[key] = value;
+          });
+        }
 
         return rowData;
       });
 
       await table.add(data, { mode: 'overwrite' });
+      const res = await table.query().toArray();
+      console.log(res);
 
       return vectorIds;
     } catch (error: any) {
@@ -546,7 +587,7 @@ export class LanceVectorStore extends MastraVector {
             // Apply metadata updates if provided
             if (_update.metadata) {
               Object.entries(_update.metadata).forEach(([key, value]) => {
-                rowData[key] = value;
+                rowData[`metadata_${key}`] = value;
               });
             }
 
