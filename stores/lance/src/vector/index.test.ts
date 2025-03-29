@@ -740,13 +740,72 @@ describe('Lance vector store tests', () => {
         columns: ['id', 'metadata_text', 'metadata_newText', 'vector'],
         topK: 3,
         includeVector: true,
-        filter: { metadata_text: 'First vector' },
+        filter: { text: 'First vector' },
       });
 
       expect(res).toHaveLength(1);
       expect(res[0].id).toBe(ids[0]);
       expect(res[0].metadata?.text).to.equal('First vector');
       expect(res[0].metadata?.newText).to.equal('hi');
+    });
+
+    it('should query vectors if filter columns array is not provided', async () => {
+      const testVectors = [[0.1, 0.2, 0.3]];
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [{ text: 'First vector', newText: 'hi' }],
+      });
+
+      expect(ids).toHaveLength(1);
+      expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: testVectors[0],
+        topK: 3,
+        includeVector: true,
+        filter: { text: 'First vector' },
+      });
+
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe(ids[0]);
+      expect(res[0].metadata?.text).toBeUndefined();
+      expect(res[0].metadata?.newText).toBeUndefined();
+    });
+
+    it('should query vectors with all columns when the include all columns flag is true', async () => {
+      const testVectors = [[0.1, 0.2, 0.3]];
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [{ text: 'First vector', newText: 'hi' }],
+      });
+
+      expect(ids).toHaveLength(1);
+      expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: testVectors[0],
+        topK: 3,
+        includeVector: true,
+        filter: { text: 'First vector' },
+        includeAllColumns: true,
+      });
+
+      const tableSchema = await vectorDB.getTableSchema(testTableName);
+      const expectedColumns = tableSchema.fields.map((column: any) => column.name);
+      expect(['id', 'vector', 'metadata_text', 'metadata_newText']).toEqual(expectedColumns);
+
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe(ids[0]);
+      expect(res[0].metadata?.text).toBe('First vector');
+      expect(res[0].metadata?.newText).toBe('hi');
     });
   });
 
