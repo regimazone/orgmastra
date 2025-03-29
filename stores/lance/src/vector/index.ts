@@ -127,6 +127,7 @@ export class LanceVectorStore extends MastraVector {
       // Add filter if provided
       if (filter && Object.keys(filter).length > 0) {
         const whereClause = this.filterTranslator(filter);
+        console.log(whereClause);
         query = query.where(whereClause);
       }
 
@@ -178,17 +179,35 @@ export class LanceVectorStore extends MastraVector {
 
   private filterTranslator(filter: VectorFilter): string {
     // Add metadata_ prefix to filter keys if they don't already have it
-    const prefixedFilter: Record<string, any> = {};
+    const processFilterKeys = (filterObj: Record<string, any>): Record<string, any> => {
+      const result: Record<string, any> = {};
 
-    if (filter && typeof filter === 'object') {
-      Object.entries(filter).forEach(([key, value]) => {
-        if (!key.startsWith('metadata_')) {
-          prefixedFilter[`metadata_${key}`] = value;
-        } else {
-          prefixedFilter[key] = value;
+      Object.entries(filterObj).forEach(([key, value]) => {
+        // Don't add prefix to logical operators
+        if (key === '$or' || key === '$and' || key === '$not') {
+          // For logical operators, process their array contents
+          if (Array.isArray(value)) {
+            result[key] = value.map(item =>
+              typeof item === 'object' && item !== null ? processFilterKeys(item as Record<string, any>) : item,
+            );
+          } else {
+            result[key] = value;
+          }
+        }
+        // Don't add prefix if it already has metadata_ prefix
+        else if (key.startsWith('metadata_')) {
+          result[key] = value;
+        }
+        // Add metadata_ prefix to regular field keys
+        else {
+          result[`metadata_${key}`] = value;
         }
       });
-    }
+
+      return result;
+    };
+
+    const prefixedFilter = filter && typeof filter === 'object' ? processFilterKeys(filter as Record<string, any>) : {};
 
     const translator = new LanceFilterTranslator();
     return translator.translate(prefixedFilter);
