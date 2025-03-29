@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LanceVectorStore } from './index';
-import { afterEach, beforeEach } from 'node:test';
-import { sleep } from 'openai/core.mjs';
 
 describe('Lance vector store tests', () => {
   let vectorDB: LanceVectorStore;
@@ -998,9 +996,6 @@ describe('Lance vector store tests', () => {
           ],
         });
 
-        const schema = await vectorDB.getTableSchema(testTableName);
-        console.log(schema);
-
         expect(ids).toHaveLength(3);
 
         const res = await vectorDB.query({
@@ -1166,6 +1161,8 @@ describe('Lance vector store tests', () => {
             },
           ],
         });
+        const schema = await vectorDB.getTableSchema(testTableName);
+        console.log(schema);
 
         expect(ids).toHaveLength(2);
 
@@ -1174,6 +1171,8 @@ describe('Lance vector store tests', () => {
           tableName: testTableName,
           queryVector: [0.75, 0.75, 0.75],
           topK: 10,
+          includeAllColumns: true,
+          includeVector: true,
           filter: {
             $and: [{ 'profile.metrics.visits': { $gt: 40 } }, { 'profile.email': { $like: '%example.com' } }],
           },
