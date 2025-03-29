@@ -842,48 +842,50 @@ describe('Lance vector store tests', () => {
       vectorDB.deleteTable(testTableName);
     });
 
-    it('should query vectors with nested metadata filter', async () => {
-      const testVectors = [[0.1, 0.2, 0.3]];
-      const ids = await vectorDB.upsert({
-        indexName: testTableIndexColumn,
-        tableName: testTableName,
-        vectors: testVectors,
-        metadata: [{ name: 'test2', details: { text: 'test2' } }],
+    describe('Simple queries', () => {
+      it('should query vectors with nested metadata filter', async () => {
+        const testVectors = [[0.1, 0.2, 0.3]];
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: testVectors,
+          metadata: [{ name: 'test2', details: { text: 'test2' } }],
+        });
+
+        expect(ids).toHaveLength(1);
+        expect(ids.every(id => typeof id === 'string')).toBe(true);
+
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: testVectors[0],
+          columns: ['id', 'metadata_name', 'metadata_details_text', 'vector'],
+          topK: 3,
+          includeVector: true,
+          filter: { name: 'test2' },
+        });
+
+        expect(res).toHaveLength(1);
+        expect(res[0].id).toBe(ids[0]);
+        expect(res[0].metadata?.name).to.equal('test2');
+        expect(res[0].metadata?.details?.text).to.equal('test2');
       });
 
-      expect(ids).toHaveLength(1);
-      expect(ids.every(id => typeof id === 'string')).toBe(true);
+      it('should not throw error when filter is not provided', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.1, 0.2, 0.3],
+          topK: 3,
+          includeVector: true,
+          includeAllColumns: true,
+        });
 
-      const res = await vectorDB.query({
-        indexName: testTableIndexColumn,
-        tableName: testTableName,
-        queryVector: testVectors[0],
-        columns: ['id', 'metadata_name', 'metadata_details_text', 'vector'],
-        topK: 3,
-        includeVector: true,
-        filter: { name: 'test2' },
+        expect(res).toHaveLength(1);
       });
-
-      expect(res).toHaveLength(1);
-      expect(res[0].id).toBe(ids[0]);
-      expect(res[0].metadata?.name).to.equal('test2');
-      expect(res[0].metadata?.details?.text).to.equal('test2');
     });
 
-    it('should not throw error when filter is not provided', async () => {
-      const res = await vectorDB.query({
-        indexName: testTableIndexColumn,
-        tableName: testTableName,
-        queryVector: [0.1, 0.2, 0.3],
-        topK: 3,
-        includeVector: true,
-        includeAllColumns: true,
-      });
-
-      expect(res).toHaveLength(1);
-    });
-
-    describe('query with $ne operator', () => {
+    describe('Query with $ne operator', () => {
       const testTableName = 'test-ne-operator';
 
       beforeAll(async () => {
@@ -976,7 +978,7 @@ describe('Lance vector store tests', () => {
       });
     });
 
-    describe('query with $or operator', () => {
+    describe('Query with $or operator', () => {
       const testTableName = 'test-or-operator';
       beforeAll(async () => {
         const generateTableData = (numRows: number) => {
@@ -1042,7 +1044,7 @@ describe('Lance vector store tests', () => {
       });
     });
 
-    describe('query with $and operator', () => {
+    describe('Query with $and operator', () => {
       const testTableName = 'test-and-operator';
       beforeAll(async () => {
         const generateTableData = (numRows: number) => {
@@ -1114,7 +1116,7 @@ describe('Lance vector store tests', () => {
       });
     });
 
-    describe('query with $in operator', () => {
+    describe('Query with $in operator', () => {
       const testTableName = 'test-in-operator';
       beforeAll(async () => {
         const generateTableData = (numRows: number) => {
@@ -1189,7 +1191,7 @@ describe('Lance vector store tests', () => {
       });
     });
 
-    describe('should query with nested comparison', () => {
+    describe('Query with nested comparison', () => {
       const testTableName = 'test-nested-table';
 
       beforeAll(async () => {
@@ -1277,7 +1279,7 @@ describe('Lance vector store tests', () => {
       });
     });
 
-    describe('should query with regex matching', () => {
+    describe('Query with regex matching', () => {
       const testTableName = 'test-regex-table';
 
       beforeAll(async () => {
@@ -1345,6 +1347,150 @@ describe('Lance vector store tests', () => {
         expect(codesFound).toContain('US-CA-123');
         expect(codesFound).toContain('US-NY-789');
         expect(codesFound).not.toContain('UK-LN-456');
+      });
+    });
+
+    describe('Queries to check null fields', () => {
+      const testTableName = 'test-null-fields-table';
+
+      beforeAll(async () => {
+        // Create data with some null fields for testing
+        const data = [
+          {
+            id: '1',
+            vector: [0.1, 0.2, 0.3],
+            metadata: {
+              title: 'Document with all fields',
+              description: 'This document has all fields populated',
+              status: 'active',
+              tags: ['important', 'reviewed'],
+            },
+          },
+          {
+            id: '2',
+            vector: [0.4, 0.5, 0.6],
+            metadata: {
+              title: 'Document with null description',
+              description: null,
+              status: 'active',
+              tags: ['draft'],
+            },
+          },
+          {
+            id: '3',
+            vector: [0.7, 0.8, 0.9],
+            metadata: {
+              title: 'Document with null status',
+              description: 'This document has a null status field',
+              status: null,
+              tags: ['important'],
+            },
+          },
+          {
+            id: '4',
+            vector: [0.2, 0.3, 0.4],
+            metadata: {
+              title: 'Document with empty tags',
+              description: 'This document has empty tags array',
+              status: 'inactive',
+              tags: [],
+            },
+          },
+          {
+            id: '5',
+            vector: [0.5, 0.6, 0.7],
+            metadata: {
+              title: 'Document with null tags',
+              description: 'This document has null tags',
+              status: 'pending',
+              tags: null,
+            },
+          },
+        ];
+
+        await vectorDB.createTable(testTableName, data);
+      });
+
+      afterAll(async () => {
+        vectorDB.deleteTable(testTableName);
+      });
+
+      it('should find documents with null fields using direct null comparison', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 10,
+          includeAllColumns: true,
+          filter: {
+            description: null,
+          },
+        });
+
+        // Should find documents where description is null
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(item.metadata?.description).toBeNull();
+        });
+      });
+
+      it('should find documents with non-null fields using $ne null comparison', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 10,
+          includeAllColumns: true,
+          filter: {
+            status: { $ne: null },
+          },
+        });
+
+        // Should find documents where status is not null
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(item.metadata?.status).not.toBeNull();
+        });
+      });
+
+      it('should find documents with null fields in complex queries', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 10,
+          includeAllColumns: true,
+          filter: {
+            $and: [{ description: { $ne: null } }, { status: null }],
+          },
+        });
+
+        // Should find documents where description is not null and status is null
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(item.metadata?.description).not.toBeNull();
+          expect(item.metadata?.status).toBeNull();
+        });
+      });
+
+      it('should combine null checks with other operators', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 10,
+          includeAllColumns: true,
+          filter: {
+            $or: [{ status: 'active' }, { tags: null }],
+          },
+        });
+
+        // Should find documents where either status is active or tags is null
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          const isMatch = item.metadata?.status === 'active' || item.metadata?.tags === null;
+          expect(isMatch).toBe(true);
+        });
       });
     });
   });
