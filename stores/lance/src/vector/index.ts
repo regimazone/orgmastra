@@ -33,6 +33,7 @@ interface LanceUpsertVectorParams extends UpsertVectorParams {
 interface LanceQueryVectorParams extends QueryVectorParams {
   tableName: string;
   columns?: string[];
+  includeAllColumns?: boolean;
 }
 
 type LanceCreateIndexArgs = [...CreateIndexArgs, LanceIndexConfig?, boolean?];
@@ -94,20 +95,16 @@ export class LanceVectorStore extends MastraVector {
     const params = this.normalizeArgs<LanceQueryVectorParams>('query', args);
     const {
       tableName,
-      indexName, // We need this for compatibility but don't use it directly
       queryVector,
       filter,
       includeVector = false,
       topK = 10,
       columns = [],
+      includeAllColumns = false,
     } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
-    }
-
-    if (!indexName) {
-      throw new Error('indexName is required');
     }
 
     if (!queryVector) {
@@ -134,7 +131,7 @@ export class LanceVectorStore extends MastraVector {
       }
 
       // Apply column selection and limit
-      if (selectColumns.length > 0) {
+      if (!includeAllColumns && selectColumns.length > 0) {
         query = query.select(selectColumns);
       }
       query = query.limit(topK);
@@ -203,14 +200,10 @@ export class LanceVectorStore extends MastraVector {
     }
 
     const params = this.normalizeArgs<LanceUpsertVectorParams>('upsert', args);
-    const { tableName, indexName, vectors, metadata = [], ids = [] } = params;
+    const { tableName, vectors, metadata = [], ids = [] } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
-    }
-
-    if (!indexName) {
-      throw new Error('indexName is required');
     }
 
     if (!vectors || !Array.isArray(vectors) || vectors.length === 0) {
@@ -252,8 +245,6 @@ export class LanceVectorStore extends MastraVector {
       });
 
       await table.add(data, { mode: 'overwrite' });
-      const res = await table.query().toArray();
-      console.log(res);
 
       return vectorIds;
     } catch (error: any) {
