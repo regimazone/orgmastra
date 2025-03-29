@@ -184,7 +184,7 @@ export class LanceVectorStore extends MastraVector {
 
       Object.entries(filterObj).forEach(([key, value]) => {
         // Don't add prefix to logical operators
-        if (key === '$or' || key === '$and' || key === '$not') {
+        if (key === '$or' || key === '$and' || key === '$not' || key === '$in') {
           // For logical operators, process their array contents
           if (Array.isArray(value)) {
             result[key] = value.map(item =>
