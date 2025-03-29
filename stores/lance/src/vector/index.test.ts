@@ -883,6 +883,99 @@ describe('Lance vector store tests', () => {
       expect(res).toHaveLength(1);
     });
 
+    describe('query with $ne operator', () => {
+      const testTableName = 'test-ne-operator';
+
+      beforeAll(async () => {
+        const generateTableData = (numRows: number) => {
+          return Array.from({ length: numRows }, (_, i) => ({
+            id: String(i + 1),
+            vector: Array.from({ length: 3 }, () => Math.random()),
+            metadata: {
+              category: i % 3 === 0 ? 'A' : i % 3 === 1 ? 'B' : 'C',
+              count: i + 1,
+              active: i % 2 === 0,
+            },
+          }));
+        };
+
+        await vectorDB.createTable(testTableName, generateTableData(300));
+
+        await vectorDB.createIndex({
+          indexConfig: {
+            type: 'ivfflat',
+            numPartitions: 1,
+            numSubVectors: 1,
+          },
+          indexName: testTableIndexColumn,
+          dimension: 3,
+          tableName: testTableName,
+        });
+      });
+
+      afterAll(async () => {
+        vectorDB.deleteTable(testTableName);
+      });
+
+      it('should filter with negated equality (equivalent to $not)', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 30,
+          includeAllColumns: true,
+          filter: {
+            category: { $ne: 'A' },
+          },
+        });
+
+        // Should only include categories B and C
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(item.metadata?.category).not.toBe('A');
+        });
+      });
+
+      it('should filter with negated comparison (equivalent to $not $gt)', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 30,
+          includeAllColumns: true,
+          filter: {
+            count: { $lte: 15 },
+          },
+        });
+
+        // Should only include counts <= 15
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(Number(item.metadata?.count)).toBeLessThanOrEqual(15);
+        });
+      });
+
+      it('should combine negated filters with other operators in complex queries', async () => {
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.5, 0.5],
+          topK: 30,
+          includeAllColumns: true,
+          filter: {
+            $and: [{ category: { $ne: 'A' } }, { active: true }],
+          },
+        });
+
+        // Should only include active items with categories B and C
+        expect(res.length).toBeGreaterThan(0);
+        res.forEach(item => {
+          expect(item.metadata?.category).not.toBe('A');
+          expect(item.metadata?.active).toBe(true);
+        });
+      });
+    });
+
     describe('query with $or operator', () => {
       const testTableName = 'test-or-operator';
       beforeAll(async () => {
@@ -1161,8 +1254,6 @@ describe('Lance vector store tests', () => {
             },
           ],
         });
-        const schema = await vectorDB.getTableSchema(testTableName);
-        console.log(schema);
 
         expect(ids).toHaveLength(2);
 
