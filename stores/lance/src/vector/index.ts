@@ -127,7 +127,7 @@ export class LanceVectorStore extends MastraVector {
       // Add filter if provided
       if (filter && Object.keys(filter).length > 0) {
         const whereClause = this.filterTranslator(filter);
-        console.log(whereClause);
+        console.debug(`Where clause generated: ${whereClause}`);
         query = query.where(whereClause);
       }
 
