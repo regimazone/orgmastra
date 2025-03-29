@@ -200,7 +200,13 @@ export class LanceVectorStore extends MastraVector {
         }
         // Add metadata_ prefix to regular field keys
         else {
-          result[`metadata_${key}`] = value;
+          // Convert dot notation to underscore notation for nested fields
+          if (key.includes('.')) {
+            const convertedKey = `metadata_${key.replace(/\./g, '_')}`;
+            result[convertedKey] = value;
+          } else {
+            result[`metadata_${key}`] = value;
+          }
         }
       });
 
