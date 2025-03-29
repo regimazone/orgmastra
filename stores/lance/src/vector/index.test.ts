@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LanceVectorStore } from './index';
+import { afterEach, beforeEach } from 'node:test';
 
 describe('Lance vector store tests', () => {
   let vectorDB: LanceVectorStore;
@@ -271,7 +272,7 @@ describe('Lance vector store tests', () => {
     it('should create a table with multi level nested metadata object by flattening it', async () => {
       const tableName = 'test-table' + Date.now();
       await vectorDB.createTable(tableName, [
-        { id: '1', vector: [0.1, 0.2, 0.3], metadata_text: 'test', metadata_newText: 'test' },
+        { id: '1', vector: [0.1, 0.2, 0.3], metadata: { text: 'test', newText: 'test' } },
       ]);
 
       const schema = await vectorDB.getTableSchema(tableName);
@@ -868,6 +869,269 @@ describe('Lance vector store tests', () => {
       expect(res[0].id).toBe(ids[0]);
       expect(res[0].metadata?.name).to.equal('test2');
       expect(res[0].metadata?.details?.text).to.equal('test2');
+    });
+
+    it('should not throw error when filter is not provided', async () => {
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: [0.1, 0.2, 0.3],
+        topK: 3,
+        includeVector: true,
+        includeAllColumns: true,
+      });
+
+      expect(res).toHaveLength(1);
+    });
+
+    describe('query with $or operator', () => {
+      const testTableName = 'test-or-operator';
+      beforeAll(async () => {
+        const generateTableData = (numRows: number) => {
+          return Array.from({ length: numRows }, (_, i) => ({
+            id: String(i + 1),
+            vector: Array.from({ length: 3 }, () => Math.random()),
+            metadata: { name: 'category_test', tag: 'important' },
+          }));
+        };
+
+        await vectorDB.createTable(testTableName, generateTableData(300));
+
+        await vectorDB.createIndex({
+          indexConfig: {
+            type: 'ivfflat',
+            numPartitions: 1,
+            numSubVectors: 1,
+          },
+          indexName: testTableIndexColumn,
+          dimension: 3,
+          tableName: testTableName,
+        });
+      });
+
+      afterAll(async () => {
+        vectorDB.deleteTable(testTableName);
+      });
+
+      it('should query with logical $or operator for metadata filtering', async () => {
+        // Insert test vectors with different metadata for testing $or
+        const testVectors = [
+          [0.4, 0.5, 0.6],
+          [0.7, 0.8, 0.9],
+        ];
+
+        const ids = await vectorDB.upsert({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          vectors: testVectors,
+          metadata: [
+            { name: 'category_a', tag: 'important' },
+            { name: 'category_b', tag: 'urgent' },
+          ],
+        });
+
+        expect(ids).toHaveLength(2);
+
+        // Query with $or operator
+        const res = await vectorDB.query({
+          indexName: testTableIndexColumn,
+          tableName: testTableName,
+          queryVector: [0.5, 0.6, 0.7],
+          topK: 5,
+          includeVector: true,
+          includeAllColumns: true,
+          filter: {
+            $or: [{ name: 'category_a' }, { name: 'category_b' }],
+          },
+        });
+
+        // Should find both of our inserted records
+        expect(res.length).toBeGreaterThanOrEqual(2);
+        // Verify results contain our inserted items
+        const foundIds = res.map(item => item.id);
+        expect(foundIds).toContain(ids[0]);
+        expect(foundIds).toContain(ids[1]);
+      });
+    });
+
+    it('should query with $and operator using comparison operators', async () => {
+      // Insert test vectors with numeric metadata
+      const testVectors = [
+        [0.1, 0.1, 0.1],
+        [0.2, 0.2, 0.2],
+        [0.3, 0.3, 0.3],
+      ];
+
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [
+          { score: 85, dateAdded: new Date('2023-01-15') },
+          { score: 92, dateAdded: new Date('2023-02-20') },
+          { score: 78, dateAdded: new Date('2023-03-10') },
+        ],
+      });
+
+      expect(ids).toHaveLength(3);
+
+      // Query with $and operator combining comparison operators
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: [0.2, 0.2, 0.2],
+        topK: 10,
+        filter: {
+          $and: [
+            { score: { $gte: 80 } }, // Score greater than or equal to 80
+            { score: { $lte: 95 } }, // Score less than or equal to 95
+          ],
+        },
+      });
+
+      // Should find the two records with scores in the 80-95 range
+      expect(res.length).toBeGreaterThanOrEqual(2);
+
+      // Verify results contain expected items
+      const scoresFound = res.map(item => item.metadata?.score);
+      expect(scoresFound).toContain(85);
+      expect(scoresFound).toContain(92);
+      expect(scoresFound).not.toContain(78);
+    });
+
+    it('should query with array $in operator', async () => {
+      // Insert test vectors with array-compatible metadata
+      const testVectors = [
+        [0.4, 0.4, 0.4],
+        [0.5, 0.5, 0.5],
+        [0.6, 0.6, 0.6],
+      ];
+
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [
+          { region: 'north', status: 'active' },
+          { region: 'south', status: 'pending' },
+          { region: 'east', status: 'inactive' },
+        ],
+      });
+
+      expect(ids).toHaveLength(3);
+
+      // Query with $in operator to match multiple possible values
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: [0.5, 0.5, 0.5],
+        topK: 10,
+        filter: {
+          region: { $in: ['north', 'south'] },
+        },
+      });
+
+      // Should find two records with matching regions
+      expect(res.length).toBeGreaterThanOrEqual(2);
+
+      // Verify results contain expected regions
+      const regionsFound = res.map(item => item.metadata?.region);
+      expect(regionsFound).toContain('north');
+      expect(regionsFound).toContain('south');
+      expect(regionsFound).not.toContain('east');
+    });
+
+    it('should query with nested comparison and pattern matching', async () => {
+      // Insert test vectors with nested metadata
+      const testVectors = [
+        [0.7, 0.7, 0.7],
+        [0.8, 0.8, 0.8],
+      ];
+
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [
+          {
+            profile: {
+              username: 'john_doe',
+              email: 'john@example.com',
+              metrics: { visits: 42, likes: 156 },
+            },
+          },
+          {
+            profile: {
+              username: 'jane_smith',
+              email: 'jane@example.com',
+              metrics: { visits: 64, likes: 89 },
+            },
+          },
+        ],
+      });
+
+      expect(ids).toHaveLength(2);
+
+      // Query with a complex filter combining nested paths and pattern matching
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: [0.75, 0.75, 0.75],
+        topK: 10,
+        filter: {
+          $and: [{ 'profile.metrics.visits': { $gt: 40 } }, { 'profile.email': { $like: '%example.com' } }],
+        },
+      });
+
+      // Should find both records that match criteria
+      expect(res.length).toBeGreaterThanOrEqual(2);
+
+      // Verify results contain expected usernames
+      const usernamesFound = res.map(item => item.metadata?.profile?.username);
+      expect(usernamesFound).toContain('john_doe');
+      expect(usernamesFound).toContain('jane_smith');
+    });
+
+    it('should query with regex pattern matching', async () => {
+      // Insert test vectors with text metadata for regex testing
+      const testVectors = [
+        [0.9, 0.9, 0.9],
+        [1.0, 1.0, 1.0],
+        [1.1, 1.1, 1.1],
+      ];
+
+      const ids = await vectorDB.upsert({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        vectors: testVectors,
+        metadata: [
+          { code: 'US-CA-123', description: 'California office' },
+          { code: 'UK-LN-456', description: 'London office' },
+          { code: 'US-NY-789', description: 'New York office' },
+        ],
+      });
+
+      expect(ids).toHaveLength(3);
+
+      // Query with regex to find US-based entries
+      const res = await vectorDB.query({
+        indexName: testTableIndexColumn,
+        tableName: testTableName,
+        queryVector: [1.0, 1.0, 1.0],
+        topK: 10,
+        filter: {
+          code: { $regex: '^US-' },
+        },
+      });
+
+      // Should find two US-based records
+      expect(res.length).toBeGreaterThanOrEqual(2);
+
+      // Verify results contain expected codes
+      const codesFound = res.map(item => item.metadata?.code);
+      expect(codesFound).toContain('US-CA-123');
+      expect(codesFound).toContain('US-NY-789');
+      expect(codesFound).not.toContain('UK-LN-456');
     });
   });
 });
