@@ -1,10 +1,67 @@
-import { MastraStorage } from '@mastra/core';
-import type { EvalRow, MessageType, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
+import { connect } from '@lancedb/lancedb';
+import type { Connection, ConnectionOptions } from '@lancedb/lancedb';
+import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
+import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 
+export interface LanceStorageColumn extends StorageColumn {
+  columnName: string;
+}
 export class LanceStorage extends MastraStorage {
-  createTable({ tableName, schema }: { tableName: TABLE_NAMES; schema: Record<string, unknown> }): Promise<void> {
-    throw new Error('Method not implemented.');
+  private lanceClient!: Connection;
+
+  /**
+   * Creates a new instance of LanceStorage
+   * @param uri The URI to connect to LanceDB
+   * @param options connection options
+   *
+   * Usage:
+   *
+   * Connect to a local database
+   * ```ts
+   * const store = await LanceStorage.create('/path/to/db');
+   * ```
+   *
+   * Connect to a LanceDB cloud database
+   * ```ts
+   * const store = await LanceStorage.create('db://host:port');
+   * ```
+   *
+   * Connect to a cloud database
+   * ```ts
+   * const store = await LanceStorage.create('s3://bucket/db', { storageOptions: { timeout: '60s' } });
+   * ```
+   */
+  public static async create(name: string, uri: string, options?: ConnectionOptions): Promise<LanceStorage> {
+    const instance = new LanceStorage(name);
+    try {
+      instance.lanceClient = await connect(uri, options);
+      return instance;
+    } catch (e: any) {
+      throw new Error(`Failed to connect to LanceDB: ${e}`);
+    }
+  }
+
+  /**
+   * @internal
+   * Private constructor to enforce using the create factory method
+   */
+  private constructor(name: string) {
+    super({ name });
+  }
+
+  async createTable({
+    tableName,
+    schema,
+  }: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, LanceStorageColumn>;
+  }): Promise<void> {
+    try {
+      // await this.lanceClient.createEmptyTable(tableName, schema);
+    } catch (error: any) {
+      throw new Error(`Failed to create table: ${error}`);
+    }
   }
   clearTable(): Promise<void> {
     throw new Error('Method not implemented.');

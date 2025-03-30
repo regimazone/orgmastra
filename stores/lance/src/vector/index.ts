@@ -11,7 +11,7 @@ import type {
   UpsertVectorParams,
 } from '@mastra/core';
 
-import { MastraVector } from '@mastra/core';
+import { MastraVector } from '@mastra/core/vector';
 import type { VectorFilter } from '@mastra/core/vector/filter';
 import { LanceFilterTranslator } from './filter';
 import type { IndexConfig } from './types';
