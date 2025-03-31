@@ -27,7 +27,8 @@
   },
   "dependencies": {
     "@lancedb/lancedb": "^0.18.1",
-    "@mastra/core": "workspace:^"
+    "@mastra/core": "workspace:^",
+    "apache-arrow": "^18.1.0"
   },
   "devDependencies": {
     "@internal/lint": "workspace:*",

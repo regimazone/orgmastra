@@ -1,12 +1,15 @@
 import { connect } from '@lancedb/lancedb';
-import type { Connection, ConnectionOptions } from '@lancedb/lancedb';
+import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
 import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
+import type { DataType } from 'apache-arrow';
+import { Utf8, Int32, Float32, Binary, Schema, Field } from 'apache-arrow';
 
 export interface LanceStorageColumn extends StorageColumn {
   columnName: string;
 }
+
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
 
@@ -55,14 +58,88 @@ export class LanceStorage extends MastraStorage {
     schema,
   }: {
     tableName: TABLE_NAMES;
-    schema: Record<string, LanceStorageColumn>;
+    schema: Record<string, StorageColumn>;
   }): Promise<void> {
     try {
-      // await this.lanceClient.createEmptyTable(tableName, schema);
+      const arrowSchema = this.translateSchema(schema);
+      console.log('Arrow Schema:', arrowSchema);
+      await this.lanceClient.createEmptyTable(tableName, arrowSchema);
     } catch (error: any) {
       throw new Error(`Failed to create table: ${error}`);
     }
   }
+
+  private translateSchema(schema: Record<string, StorageColumn>): Schema {
+    const fields = Object.entries(schema).map(([name, column]) => {
+      // Convert string type to Arrow DataType
+      let arrowType: DataType;
+      switch (column.type.toLowerCase()) {
+        case 'text':
+          arrowType = new Utf8();
+          break;
+        case 'int':
+        case 'integer':
+          arrowType = new Int32();
+          break;
+        case 'float':
+          arrowType = new Float32();
+          break;
+        case 'jsonb':
+        case 'json':
+          // JSON is typically stored as Utf8 (string) in Arrow
+          arrowType = new Utf8();
+          break;
+        case 'binary':
+          arrowType = new Binary();
+          break;
+        default:
+          // Default to string for unknown types
+          arrowType = new Utf8();
+      }
+
+      // Create a field with the appropriate arrow type
+      return new Field(name, arrowType, column.nullable ?? true);
+    });
+
+    return new Schema(fields);
+  }
+
+  /**
+   * Drop a table if it exists
+   * @param tableName Name of the table to drop
+   */
+  public async dropTable(tableName: TABLE_NAMES): Promise<void> {
+    try {
+      await this.lanceClient.dropTable(tableName);
+    } catch (error: any) {
+      throw new Error(`Failed to drop table: ${error}`);
+    }
+  }
+
+  /**
+   * Get table schema
+   * @param tableName Name of the table
+   * @returns Table schema
+   */
+  public async getTableSchema(tableName: TABLE_NAMES): Promise<SchemaLike> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+      const rawSchema = await table.schema();
+      const fields = rawSchema.fields as FieldLike[];
+
+      // Convert schema to SchemaLike format
+      return {
+        fields,
+        metadata: new Map<string, string>(),
+        get names() {
+          return fields.map((field: FieldLike) => field.name);
+        },
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get table schema: ${error}`);
+    }
+  }
+
   clearTable(): Promise<void> {
     throw new Error('Method not implemented.');
   }
