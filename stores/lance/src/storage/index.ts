@@ -4,11 +4,7 @@ import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, Storag
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Float32, Binary, Schema, Field } from 'apache-arrow';
-
-export interface LanceStorageColumn extends StorageColumn {
-  columnName: string;
-}
+import { Utf8, Int32, Float32, Binary, Schema, Field, Timestamp, TimeUnit, Struct } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -62,7 +58,6 @@ export class LanceStorage extends MastraStorage {
   }): Promise<void> {
     try {
       const arrowSchema = this.translateSchema(schema);
-      console.log('Arrow Schema:', arrowSchema);
       await this.lanceClient.createEmptyTable(tableName, arrowSchema);
     } catch (error: any) {
       throw new Error(`Failed to create table: ${error}`);
@@ -92,6 +87,8 @@ export class LanceStorage extends MastraStorage {
         case 'binary':
           arrowType = new Binary();
           break;
+        case 'timestamp':
+          arrowType = new Timestamp(TimeUnit.SECOND);
         default:
           // Default to string for unknown types
           arrowType = new Utf8();
@@ -140,15 +137,60 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  clearTable(): Promise<void> {
-    throw new Error('Method not implemented.');
+  async clearTable({ tableName }: { tableName: string }): Promise<void> {
+    const table = await this.lanceClient.openTable(tableName);
+    const batchSize = 1000;
+    let hasMoreRecords = true;
+
+    while (hasMoreRecords) {
+      // Fetch a batch of records
+      const records = await table.query().limit(batchSize).toArray();
+
+      if (records.length === 0) {
+        hasMoreRecords = false;
+        break;
+      }
+
+      const ids = records.map(record => record.id);
+
+      if (ids.length > 0) {
+        const idList = ids.map(id => (typeof id === 'string' ? `'${id}'` : id)).join(', ');
+        await table.delete(`id IN (${idList})`);
+      }
+
+      // Check if we got fewer records than the batch size, which means we're done
+      if (records.length < batchSize) {
+        hasMoreRecords = false;
+      }
+    }
   }
-  insert(): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  async insert({ tableName, record }: { tableName: string; record: Record<string, any> }): Promise<void> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+      // convert metadata to string
+      if (record.metadata) {
+        record.metadata = JSON.stringify(record.metadata);
+      }
+
+      await table.add([record]);
+    } catch (error: any) {
+      throw new Error(`Failed to insert record: ${error}`);
+    }
   }
-  batchInsert(): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+      // convert metadata to string
+      records.map(record => JSON.stringify(record?.metadata));
+
+      await table.add(records);
+    } catch (error: any) {
+      throw new Error(`Failed to insert record: ${error}`);
+    }
   }
+
   load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any> {
     throw new Error('Method not implemented.');
   }
