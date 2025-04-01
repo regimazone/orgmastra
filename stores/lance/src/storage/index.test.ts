@@ -3,6 +3,36 @@ import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LanceStorage } from './index';
 
+/**
+ * Represents a message record in the storage system
+ */
+interface MessageRecord {
+  id: number;
+  threadId: string;
+  number: number;
+  messageType: string;
+  content: string;
+  createdAt: Date;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * Generates an array of random records for testing purposes
+ * @param count - Number of records to generate
+ * @returns Array of message records with random values
+ */
+function generateRecords(count: number): MessageRecord[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: index + 1,
+    threadId: `123e4567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    number: index + 1,
+    messageType: 'text',
+    content: `Test message ${index + 1}`,
+    createdAt: new Date(),
+    metadata: { testIndex: index, foo: 'bar' },
+  }));
+}
+
 describe('LanceStorage tests', async () => {
   let storage!: LanceStorage;
 
@@ -73,7 +103,7 @@ describe('LanceStorage tests', async () => {
     });
 
     it('should insert a single record without throwing exceptions', async () => {
-      const record = {
+      const record: MessageRecord = {
         id: 1,
         threadId: '123e4567-e89b-12d3-a456-426614174000',
         number: 1,
@@ -88,6 +118,31 @@ describe('LanceStorage tests', async () => {
       }).not.toThrow();
     });
 
-    it('should insert batch records', async () => {});
+    it('should insert batch records', async () => {
+      const recordCount = 100;
+      const records: MessageRecord[] = generateRecords(recordCount);
+
+      await expect(async () => {
+        await storage.batchInsert({ tableName: TABLE_MESSAGES, records });
+      }).not.toThrow();
+
+      // // Additional assertion to verify data was properly inserted
+      // // This requires the storage.query method to be available
+      // // If there's no query method, you can remove this part
+      // const queryResults = await storage.query({
+      //   tableName: TABLE_MESSAGES,
+      //   limit: recordCount + 10, // Get slightly more than we inserted to ensure we get all
+      // });
+
+      // // Verify all records were inserted
+      // expect(queryResults.length).toBeGreaterThanOrEqual(recordCount);
+
+      // // Verify some sample data points are present in the results
+      // const sampleRecord = records[42]; // Check a specific record
+      // const foundRecord = queryResults.find(record => record.id === sampleRecord.id);
+      // expect(foundRecord).toBeDefined();
+      // expect(foundRecord?.content).toBe(sampleRecord.content);
+      // expect(foundRecord?.threadId).toBe(sampleRecord.threadId);
+    });
   });
 });

@@ -187,7 +187,7 @@ export class LanceStorage extends MastraStorage {
 
       await table.add(records);
     } catch (error: any) {
-      throw new Error(`Failed to insert record: ${error}`);
+      throw new Error(`Failed to insert batch records: ${error}`);
     }
   }
 
