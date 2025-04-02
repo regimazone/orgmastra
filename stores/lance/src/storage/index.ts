@@ -1,6 +1,13 @@
 import { connect } from '@lancedb/lancedb';
 import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
-import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
+import type {
+  EvalRow,
+  MessageType,
+  StorageColumn,
+  StorageGetMessagesArg,
+  StorageThreadType,
+  WorkflowRuns,
+} from '@mastra/core';
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
@@ -238,7 +245,7 @@ export class LanceStorage extends MastraStorage {
             }
           })
           .join(' AND ');
-
+        console.debug('where clause generated: ', filterConditions);
         query.where(filterConditions);
       }
 
@@ -248,46 +255,96 @@ export class LanceStorage extends MastraStorage {
         return null;
       }
 
-      // Convert serialized JSON strings back to objects
-      const processedResult = { ...result[0] };
-
-      // Get field types from the schema to convert values back to their original types
-      const fieldTypes = new Map(tableSchema.fields.map((field: any) => [field.name, field.type]));
-
-      for (const key in processedResult) {
-        // Handle JSON fields stored as strings
-        if (typeof processedResult[key] === 'string') {
-          // Try to parse JSON for metadata fields
-          if (key === 'metadata' || fieldTypes.get(key)?.toString().includes('json')) {
-            try {
-              processedResult[key] = JSON.parse(processedResult[key]);
-            } catch (e) {
-              // Not a JSON string, keep as is
-            }
-          }
-        }
-
-        // Convert timestamps back to Date objects
-        if (key === 'createdAt' || fieldTypes.get(key)?.toString().includes('timestamp')) {
-          if (typeof processedResult[key] === 'string') {
-            processedResult[key] = new Date(processedResult[key]);
-          }
-        }
-
-        // Convert numeric strings back to numbers if schema indicates numeric type
-        if (
-          (key === 'number' || fieldTypes.get(key)?.toString().includes('int')) &&
-          typeof processedResult[key] === 'string' &&
-          !isNaN(Number(processedResult[key]))
-        ) {
-          processedResult[key] = Number(processedResult[key]);
-        }
-      }
-
-      return processedResult;
+      // Process the result with type conversions
+      return this.processResultWithTypeConversion(result[0], tableSchema);
     } catch (error: any) {
       throw new Error(`Failed to load record: ${error}`);
     }
+  }
+
+  /**
+   * Process a database result with appropriate type conversions based on the table schema
+   * @param rawResult The raw result object from the database
+   * @param tableSchema The schema of the table containing type information
+   * @returns Processed result with correct data types
+   */
+  private processResultWithTypeConversion(
+    rawResult: Record<string, any>,
+    tableSchema: SchemaLike,
+  ): Record<string, any> {
+    // Convert serialized JSON strings back to objects
+    const processedResult = { ...rawResult };
+
+    // Map field names to their data types for later conversion
+    const fieldTypeMap = new Map();
+
+    tableSchema.fields.forEach((field: any) => {
+      // Extract the field name and type, ensuring type is converted to a predictable format
+      const fieldName = field.name;
+      const fieldTypeStr = field.type ? field.type.toString().toLowerCase() : '';
+      fieldTypeMap.set(fieldName, fieldTypeStr);
+
+      // Log each field and its detected type
+      console.debug(`Field ${fieldName} has type: ${fieldTypeStr}`);
+    });
+
+    // Special case handling for known fields
+    if (processedResult.referenceId && typeof processedResult.referenceId === 'string') {
+      processedResult.referenceId = Number(processedResult.referenceId);
+    }
+
+    // Handle metadata field specifically since we know it should be JSON
+    if (processedResult.metadata && typeof processedResult.metadata === 'string') {
+      try {
+        processedResult.metadata = JSON.parse(processedResult.metadata);
+      } catch (e) {
+        // Leave as string if it's not valid JSON
+        console.debug('Failed to parse metadata as JSON:', e);
+      }
+    }
+
+    for (const key in processedResult) {
+      const fieldTypeStr = fieldTypeMap.get(key);
+
+      if (!fieldTypeStr) {
+        console.debug(`No type information for field: ${key}`);
+        continue;
+      }
+
+      // JSON field handling
+      if (typeof processedResult[key] === 'string') {
+        // Try to parse JSON fields
+        if (fieldTypeStr.includes('json')) {
+          try {
+            processedResult[key] = JSON.parse(processedResult[key]);
+          } catch (e) {
+            // Not valid JSON, keep as string
+          }
+        }
+
+        // Date field handling
+        if (fieldTypeStr.includes('timestamp') || fieldTypeStr.includes('date')) {
+          processedResult[key] = new Date(processedResult[key]);
+        }
+
+        console.debug(`Checking numeric field ${key} (type: ${fieldTypeStr})`);
+        if (
+          (fieldTypeStr.includes('int32') ||
+            fieldTypeStr.includes('int64') ||
+            fieldTypeStr.includes('bigint') ||
+            fieldTypeStr.includes('float') ||
+            fieldTypeStr.includes('number') ||
+            key === 'id' ||
+            key === 'referenceId') &&
+          !isNaN(Number(processedResult[key]))
+        ) {
+          processedResult[key] = Number(processedResult[key]);
+          console.debug(`Converted ${key} to number: ${processedResult[key]}`);
+        }
+      }
+    }
+
+    return processedResult;
   }
 
   getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
@@ -335,6 +392,17 @@ export class LanceStorage extends MastraStorage {
     throw new Error('Method not implemented.');
   }
   getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
+    throw new Error('Method not implemented.');
+  }
+
+  getWorkflowRuns(args?: {
+    namespace?: string;
+    workflowName?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<WorkflowRuns> {
     throw new Error('Method not implemented.');
   }
 }
