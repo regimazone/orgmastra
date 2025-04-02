@@ -4,7 +4,7 @@ import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, Storag
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Float32, Binary, Schema, Field, Timestamp, TimeUnit, Struct } from 'apache-arrow';
+import { Utf8, Int32, Float32, Binary, Schema, Field, Timestamp, TimeUnit } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -105,7 +105,7 @@ export class LanceStorage extends MastraStorage {
    * Drop a table if it exists
    * @param tableName Name of the table to drop
    */
-  public async dropTable(tableName: TABLE_NAMES): Promise<void> {
+  async dropTable(tableName: TABLE_NAMES): Promise<void> {
     try {
       await this.lanceClient.dropTable(tableName);
     } catch (error: any) {
@@ -118,7 +118,7 @@ export class LanceStorage extends MastraStorage {
    * @param tableName Name of the table
    * @returns Table schema
    */
-  public async getTableSchema(tableName: TABLE_NAMES): Promise<SchemaLike> {
+  async getTableSchema(tableName: TABLE_NAMES): Promise<SchemaLike> {
     try {
       const table = await this.lanceClient.openTable(tableName);
       const rawSchema = await table.schema();
@@ -168,12 +168,21 @@ export class LanceStorage extends MastraStorage {
   async insert({ tableName, record }: { tableName: string; record: Record<string, any> }): Promise<void> {
     try {
       const table = await this.lanceClient.openTable(tableName);
-      // convert metadata to string
-      if (record.metadata) {
-        record.metadata = JSON.stringify(record.metadata);
+
+      const processedRecord = { ...record };
+
+      // Convert all object values to strings
+      for (const key in processedRecord) {
+        if (
+          processedRecord[key] !== null &&
+          typeof processedRecord[key] === 'object' &&
+          !(processedRecord[key] instanceof Date)
+        ) {
+          processedRecord[key] = JSON.stringify(processedRecord[key]);
+        }
       }
 
-      await table.add([record]);
+      await table.add([processedRecord], { mode: 'overwrite' });
     } catch (error: any) {
       throw new Error(`Failed to insert record: ${error}`);
     }
@@ -182,18 +191,71 @@ export class LanceStorage extends MastraStorage {
   async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
     try {
       const table = await this.lanceClient.openTable(tableName);
-      // convert metadata to string
-      records.map(record => JSON.stringify(record?.metadata));
 
-      await table.add(records);
+      const processedRecords = records.map(record => {
+        const processedRecord = { ...record };
+
+        // Convert all object values to strings
+        for (const key in processedRecord) {
+          if (
+            processedRecord[key] !== null &&
+            typeof processedRecord[key] === 'object' &&
+            !(processedRecord[key] instanceof Date)
+          ) {
+            processedRecord[key] = JSON.stringify(processedRecord[key]);
+          }
+        }
+        return processedRecord;
+      });
+
+      await table.add(processedRecords);
     } catch (error: any) {
       throw new Error(`Failed to insert batch records: ${error}`);
     }
   }
 
-  load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any> {
-    throw new Error('Method not implemented.');
+  async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any | null> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+
+      const query = await table.query();
+
+      // Build filter condition with 'and' between all conditions
+      if (Object.keys(keys).length > 0) {
+        const filterConditions = Object.entries(keys)
+          .map(([key, value]) => `${key} = '${value}'`)
+          .join(' AND ');
+
+        query.where(filterConditions);
+      }
+
+      const result = await query.limit(1).toArray();
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      // Convert serialized JSON strings back to objects
+      const processedResult = { ...result[0] };
+      for (const key in processedResult) {
+        if (typeof processedResult[key] === 'string') {
+          try {
+            const parsed = JSON.parse(processedResult[key]);
+            if (typeof parsed === 'object' && parsed !== null) {
+              processedResult[key] = parsed;
+            }
+          } catch (e) {
+            // Not a JSON string, keep as is
+          }
+        }
+      }
+
+      return processedResult;
+    } catch (error: any) {
+      throw new Error(`Failed to load record: ${error}`);
+    }
   }
+
   getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
     throw new Error('Method not implemented.');
   }

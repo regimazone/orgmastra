@@ -37,11 +37,11 @@ describe('LanceStorage tests', async () => {
   let storage!: LanceStorage;
 
   beforeAll(async () => {
-    storage = await LanceStorage.create('test', 'lancedb');
+    storage = await LanceStorage.create('test', 'lancedbStorage');
   });
 
   it('should create a new instance of LanceStorage', async () => {
-    const storage = await LanceStorage.create('test', 'lancedb');
+    const storage = await LanceStorage.create('test', 'lancedbStorage');
     expect(storage).toBeInstanceOf(LanceStorage);
     expect(storage.name).toBe('test');
   });
@@ -103,7 +103,7 @@ describe('LanceStorage tests', async () => {
     });
 
     it('should insert a single record without throwing exceptions', async () => {
-      const record: MessageRecord = {
+      const record = {
         id: 1,
         threadId: '123e4567-e89b-12d3-a456-426614174000',
         number: 1,
@@ -113,16 +113,21 @@ describe('LanceStorage tests', async () => {
         metadata: { foo: 'bar' },
       };
 
-      expect(async () => {
-        await storage.insert({ tableName: TABLE_MESSAGES, record });
-      }).not.toThrow();
+      // expect(async () => {
+      await storage.insert({ tableName: TABLE_MESSAGES, record });
+      // }).not.toThrow();
+
+      // Verify the record was inserted
+      const loadedRecord = await storage.load({ tableName: TABLE_MESSAGES, keys: { id: '1' } });
+      console.log(loadedRecord);
+      expect(loadedRecord).toEqual(record);
     });
 
     it('should insert batch records', async () => {
       const recordCount = 100;
       const records: MessageRecord[] = generateRecords(recordCount);
 
-      await expect(async () => {
+      expect(async () => {
         await storage.batchInsert({ tableName: TABLE_MESSAGES, records });
       }).not.toThrow();
 
