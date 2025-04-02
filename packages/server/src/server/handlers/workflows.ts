@@ -89,12 +89,16 @@ export async function startAsyncWorkflowHandler({
 
     const workflow = mastra.getWorkflow(workflowId);
 
-    if (!runId) {
-      throw new HTTPException(400, { message: 'runId required to start run' });
-    }
-
     if (!workflow) {
       throw new HTTPException(404, { message: 'Workflow not found' });
+    }
+
+    if (!runId) {
+      const { start } = workflow.createRun();
+      const result = await start({
+        triggerData,
+      });
+      return result;
     }
 
     const run = workflow.getRun(runId);
@@ -316,5 +320,22 @@ export async function resumeWorkflowHandler({
     return { message: 'Workflow run resumed' };
   } catch (error) {
     return handleError(error, 'Error resuming workflow');
+  }
+}
+
+export async function getWorkflowRunsHandler({ mastra, workflowId }: WorkflowContext) {
+  try {
+    if (!workflowId) {
+      throw new HTTPException(400, { message: 'Workflow ID is required' });
+    }
+
+    const workflow = mastra.getWorkflow(workflowId);
+    const workflowRuns = (await workflow.getWorkflowRuns()) || {
+      runs: [],
+      total: 0,
+    };
+    return workflowRuns;
+  } catch (error) {
+    return handleError(error, 'Error getting workflow runs');
   }
 }

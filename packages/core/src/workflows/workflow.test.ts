@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Agent } from '../agent';
 import { createLogger } from '../logger';
 import { Mastra } from '../mastra';
+import { TABLE_WORKFLOW_SNAPSHOT } from '../storage';
 import { DefaultStorage } from '../storage/libsql';
 import { Telemetry } from '../telemetry';
 import { createTool } from '../tools';
@@ -1733,6 +1734,30 @@ describe('Workflow', async () => {
       expect(result.results.step5).toEqual({ status: 'success', output: { result: 'success5' } });
     });
 
+    it('should run compound subscribers with overlapping keys', async () => {
+      const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
+      const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
+      const step3Action = vi.fn<any>().mockResolvedValue({ result: 'success3' });
+      const step4Action = vi.fn<any>().mockResolvedValue({ result: 'success4' });
+
+      const step1 = new Step({ id: 'step1', execute: step1Action, outputSchema: z.object({ status: z.string() }) });
+      const step2 = new Step({ id: 'step2', execute: step2Action });
+      const step3 = new Step({ id: 'step3', execute: step3Action });
+      const step4 = new Step({ id: 'step4', execute: step4Action });
+      const workflow = new Workflow({ name: 'test-workflow' });
+      workflow.step(step1).after(step1).step(step2).after([step1, step2]).step(step3).then(step4).commit();
+
+      const run = workflow.createRun();
+      const result = await run.start();
+
+      expect(step1Action).toHaveBeenCalled();
+      expect(step2Action).toHaveBeenCalled();
+      expect(step3Action).toHaveBeenCalled();
+      expect(step4Action).toHaveBeenCalled();
+      expect(result.results.step1).toEqual({ status: 'success', output: { result: 'success1' } });
+      expect(result.results.step2).toEqual({ status: 'success', output: { result: 'success2' } });
+    });
+
     it('should run compount subscribers with when conditions', async () => {
       const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
       const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
@@ -2762,6 +2787,56 @@ describe('Workflow', async () => {
           },
         },
       });
+    });
+  });
+
+  describe('Workflow Runs', () => {
+    beforeEach(async () => {
+      await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
+    });
+
+    it('should return empty result when mastra is not initialized', async () => {
+      const workflow = new Workflow({ name: 'test' });
+      const result = await workflow.getWorkflowRuns();
+      expect(result).toEqual({ runs: [], total: 0 });
+    });
+
+    it('should get workflow runs from storage', async () => {
+      await storage.init();
+
+      const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
+      const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
+
+      const step1 = new Step({ id: 'step1', execute: step1Action });
+      const step2 = new Step({ id: 'step2', execute: step2Action });
+
+      const workflow = new Workflow({ name: 'test-workflow' });
+      workflow.step(step1).then(step2).commit();
+
+      const mastra = new Mastra({
+        logger,
+        storage,
+        workflows: {
+          'test-workflow': workflow,
+        },
+      });
+
+      const testWorkflow = mastra.getWorkflow('test-workflow');
+
+      // Create a few runs
+      const run1 = await testWorkflow.createRun();
+      await run1.start();
+
+      const run2 = await testWorkflow.createRun();
+      await run2.start();
+
+      const { runs, total } = await testWorkflow.getWorkflowRuns();
+      expect(total).toBe(2);
+      expect(runs).toHaveLength(2);
+      expect(runs.map(r => r.runId)).toEqual(expect.arrayContaining([run1.runId, run2.runId]));
+      expect(runs[0]?.workflowName).toBe('test-workflow');
+      expect(runs[0]?.snapshot).toBeDefined();
+      expect(runs[1]?.snapshot).toBeDefined();
     });
   });
 
