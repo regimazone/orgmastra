@@ -455,7 +455,7 @@ describe('Lance vector store tests', () => {
     });
 
     describe('update operations', () => {
-      const testTableName = 'test-table-update' + Date.now();
+      const testTableName = 'test-table-updates' + Date.now();
       const testTableIndexColumn = 'vector';
 
       beforeAll(async () => {

@@ -183,6 +183,9 @@ export class LanceStorage extends MastraStorage {
       }
 
       await table.add([processedRecord], { mode: 'overwrite' });
+
+      const res = await table.query().limit(1).toArray();
+      console.log(res);
     } catch (error: any) {
       throw new Error(`Failed to insert record: ${error}`);
     }
@@ -208,22 +211,32 @@ export class LanceStorage extends MastraStorage {
         return processedRecord;
       });
 
-      await table.add(processedRecords);
+      await table.add(processedRecords, { mode: 'overwrite' });
     } catch (error: any) {
       throw new Error(`Failed to insert batch records: ${error}`);
     }
   }
 
-  async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any | null> {
+  async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<any> {
     try {
       const table = await this.lanceClient.openTable(tableName);
-
-      const query = await table.query();
+      const tableSchema = await this.getTableSchema(tableName);
+      const query = table.query();
 
       // Build filter condition with 'and' between all conditions
       if (Object.keys(keys).length > 0) {
         const filterConditions = Object.entries(keys)
-          .map(([key, value]) => `${key} = '${value}'`)
+          .map(([key, value]) => {
+            // Handle different types appropriately
+            if (typeof value === 'string') {
+              return `${key} = '${value}'`;
+            } else if (value === null) {
+              return `${key} IS NULL`;
+            } else {
+              // For numbers, booleans, etc.
+              return `${key} = ${value}`;
+            }
+          })
           .join(' AND ');
 
         query.where(filterConditions);
@@ -237,16 +250,37 @@ export class LanceStorage extends MastraStorage {
 
       // Convert serialized JSON strings back to objects
       const processedResult = { ...result[0] };
+
+      // Get field types from the schema to convert values back to their original types
+      const fieldTypes = new Map(tableSchema.fields.map((field: any) => [field.name, field.type]));
+
       for (const key in processedResult) {
+        // Handle JSON fields stored as strings
         if (typeof processedResult[key] === 'string') {
-          try {
-            const parsed = JSON.parse(processedResult[key]);
-            if (typeof parsed === 'object' && parsed !== null) {
-              processedResult[key] = parsed;
+          // Try to parse JSON for metadata fields
+          if (key === 'metadata' || fieldTypes.get(key)?.toString().includes('json')) {
+            try {
+              processedResult[key] = JSON.parse(processedResult[key]);
+            } catch (e) {
+              // Not a JSON string, keep as is
             }
-          } catch (e) {
-            // Not a JSON string, keep as is
           }
+        }
+
+        // Convert timestamps back to Date objects
+        if (key === 'createdAt' || fieldTypes.get(key)?.toString().includes('timestamp')) {
+          if (typeof processedResult[key] === 'string') {
+            processedResult[key] = new Date(processedResult[key]);
+          }
+        }
+
+        // Convert numeric strings back to numbers if schema indicates numeric type
+        if (
+          (key === 'number' || fieldTypes.get(key)?.toString().includes('int')) &&
+          typeof processedResult[key] === 'string' &&
+          !isNaN(Number(processedResult[key]))
+        ) {
+          processedResult[key] = Number(processedResult[key]);
         }
       }
 
