@@ -1,23 +1,261 @@
-import { MastraStorage } from '@mastra/core';
-import type { EvalRow, MessageType, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
+import { connect } from '@lancedb/lancedb';
+import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
+import type { EvalRow, MessageType, StorageColumn, StorageGetMessagesArg, StorageThreadType } from '@mastra/core';
+import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
+import type { DataType } from 'apache-arrow';
+import { Utf8, Int32, Float32, Binary, Schema, Field, Timestamp, TimeUnit } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
-  createTable({ tableName, schema }: { tableName: TABLE_NAMES; schema: Record<string, unknown> }): Promise<void> {
-    throw new Error('Method not implemented.');
+  private lanceClient!: Connection;
+
+  /**
+   * Creates a new instance of LanceStorage
+   * @param uri The URI to connect to LanceDB
+   * @param options connection options
+   *
+   * Usage:
+   *
+   * Connect to a local database
+   * ```ts
+   * const store = await LanceStorage.create('/path/to/db');
+   * ```
+   *
+   * Connect to a LanceDB cloud database
+   * ```ts
+   * const store = await LanceStorage.create('db://host:port');
+   * ```
+   *
+   * Connect to a cloud database
+   * ```ts
+   * const store = await LanceStorage.create('s3://bucket/db', { storageOptions: { timeout: '60s' } });
+   * ```
+   */
+  public static async create(name: string, uri: string, options?: ConnectionOptions): Promise<LanceStorage> {
+    const instance = new LanceStorage(name);
+    try {
+      instance.lanceClient = await connect(uri, options);
+      return instance;
+    } catch (e: any) {
+      throw new Error(`Failed to connect to LanceDB: ${e}`);
+    }
   }
-  clearTable(): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  /**
+   * @internal
+   * Private constructor to enforce using the create factory method
+   */
+  private constructor(name: string) {
+    super({ name });
   }
-  insert(): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  async createTable({
+    tableName,
+    schema,
+  }: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+  }): Promise<void> {
+    try {
+      const arrowSchema = this.translateSchema(schema);
+      await this.lanceClient.createEmptyTable(tableName, arrowSchema);
+    } catch (error: any) {
+      throw new Error(`Failed to create table: ${error}`);
+    }
   }
-  batchInsert(): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  private translateSchema(schema: Record<string, StorageColumn>): Schema {
+    const fields = Object.entries(schema).map(([name, column]) => {
+      // Convert string type to Arrow DataType
+      let arrowType: DataType;
+      switch (column.type.toLowerCase()) {
+        case 'text':
+          arrowType = new Utf8();
+          break;
+        case 'int':
+        case 'integer':
+          arrowType = new Int32();
+          break;
+        case 'float':
+          arrowType = new Float32();
+          break;
+        case 'jsonb':
+        case 'json':
+          // JSON is typically stored as Utf8 (string) in Arrow
+          arrowType = new Utf8();
+          break;
+        case 'binary':
+          arrowType = new Binary();
+          break;
+        case 'timestamp':
+          arrowType = new Timestamp(TimeUnit.SECOND);
+        default:
+          // Default to string for unknown types
+          arrowType = new Utf8();
+      }
+
+      // Create a field with the appropriate arrow type
+      return new Field(name, arrowType, column.nullable ?? true);
+    });
+
+    return new Schema(fields);
   }
-  load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any> {
-    throw new Error('Method not implemented.');
+
+  /**
+   * Drop a table if it exists
+   * @param tableName Name of the table to drop
+   */
+  async dropTable(tableName: TABLE_NAMES): Promise<void> {
+    try {
+      await this.lanceClient.dropTable(tableName);
+    } catch (error: any) {
+      throw new Error(`Failed to drop table: ${error}`);
+    }
   }
+
+  /**
+   * Get table schema
+   * @param tableName Name of the table
+   * @returns Table schema
+   */
+  async getTableSchema(tableName: TABLE_NAMES): Promise<SchemaLike> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+      const rawSchema = await table.schema();
+      const fields = rawSchema.fields as FieldLike[];
+
+      // Convert schema to SchemaLike format
+      return {
+        fields,
+        metadata: new Map<string, string>(),
+        get names() {
+          return fields.map((field: FieldLike) => field.name);
+        },
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get table schema: ${error}`);
+    }
+  }
+
+  async clearTable({ tableName }: { tableName: string }): Promise<void> {
+    const table = await this.lanceClient.openTable(tableName);
+    const batchSize = 1000;
+    let hasMoreRecords = true;
+
+    while (hasMoreRecords) {
+      // Fetch a batch of records
+      const records = await table.query().limit(batchSize).toArray();
+
+      if (records.length === 0) {
+        hasMoreRecords = false;
+        break;
+      }
+
+      const ids = records.map(record => record.id);
+
+      if (ids.length > 0) {
+        const idList = ids.map(id => (typeof id === 'string' ? `'${id}'` : id)).join(', ');
+        await table.delete(`id IN (${idList})`);
+      }
+
+      // Check if we got fewer records than the batch size, which means we're done
+      if (records.length < batchSize) {
+        hasMoreRecords = false;
+      }
+    }
+  }
+
+  async insert({ tableName, record }: { tableName: string; record: Record<string, any> }): Promise<void> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+
+      const processedRecord = { ...record };
+
+      // Convert all object values to strings
+      for (const key in processedRecord) {
+        if (
+          processedRecord[key] !== null &&
+          typeof processedRecord[key] === 'object' &&
+          !(processedRecord[key] instanceof Date)
+        ) {
+          processedRecord[key] = JSON.stringify(processedRecord[key]);
+        }
+      }
+
+      await table.add([processedRecord], { mode: 'overwrite' });
+    } catch (error: any) {
+      throw new Error(`Failed to insert record: ${error}`);
+    }
+  }
+
+  async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+
+      const processedRecords = records.map(record => {
+        const processedRecord = { ...record };
+
+        // Convert all object values to strings
+        for (const key in processedRecord) {
+          if (
+            processedRecord[key] !== null &&
+            typeof processedRecord[key] === 'object' &&
+            !(processedRecord[key] instanceof Date)
+          ) {
+            processedRecord[key] = JSON.stringify(processedRecord[key]);
+          }
+        }
+        return processedRecord;
+      });
+
+      await table.add(processedRecords);
+    } catch (error: any) {
+      throw new Error(`Failed to insert batch records: ${error}`);
+    }
+  }
+
+  async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<any | null> {
+    try {
+      const table = await this.lanceClient.openTable(tableName);
+
+      const query = await table.query();
+
+      // Build filter condition with 'and' between all conditions
+      if (Object.keys(keys).length > 0) {
+        const filterConditions = Object.entries(keys)
+          .map(([key, value]) => `${key} = '${value}'`)
+          .join(' AND ');
+
+        query.where(filterConditions);
+      }
+
+      const result = await query.limit(1).toArray();
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      // Convert serialized JSON strings back to objects
+      const processedResult = { ...result[0] };
+      for (const key in processedResult) {
+        if (typeof processedResult[key] === 'string') {
+          try {
+            const parsed = JSON.parse(processedResult[key]);
+            if (typeof parsed === 'object' && parsed !== null) {
+              processedResult[key] = parsed;
+            }
+          } catch (e) {
+            // Not a JSON string, keep as is
+          }
+        }
+      }
+
+      return processedResult;
+    } catch (error: any) {
+      throw new Error(`Failed to load record: ${error}`);
+    }
+  }
+
   getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
     throw new Error('Method not implemented.');
   }
