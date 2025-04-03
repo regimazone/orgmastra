@@ -11,7 +11,7 @@ import type {
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Timestamp, TimeUnit } from 'apache-arrow';
+import { Utf8, Int32, Int64, Float32, Binary, Schema, Field } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -135,7 +135,6 @@ export class LanceStorage extends MastraStorage {
       const table = await this.lanceClient.openTable(tableName);
       const rawSchema = await table.schema();
       const fields = rawSchema.fields as FieldLike[];
-      console.log(rawSchema);
 
       // Convert schema to SchemaLike format
       return {
@@ -203,7 +202,6 @@ export class LanceStorage extends MastraStorage {
   async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
     try {
       const table = await this.lanceClient.openTable(tableName);
-      const tableSchema = await table.schema();
 
       const processedRecords = records.map(record => {
         const processedRecord = { ...record };
@@ -213,22 +211,11 @@ export class LanceStorage extends MastraStorage {
           // Skip null/undefined values
           if (processedRecord[key] == null) continue;
 
-          // Find the field definition in the schema
-          const field = tableSchema.fields.find((f: any) => f.name === key);
-          if (!field) continue;
-
-          const fieldType = field.type.toString().toLowerCase();
-
-          // Handle specific type conversions
-          if (fieldType === 'int64' && typeof processedRecord[key] === 'number') {
-            // Convert number to BigInt for Int64 fields
-            processedRecord[key] = BigInt(Math.floor(processedRecord[key]));
-          } else if (
+          if (
             processedRecord[key] !== null &&
             typeof processedRecord[key] === 'object' &&
             !(processedRecord[key] instanceof Date)
           ) {
-            // Convert objects to JSON strings
             processedRecord[key] = JSON.stringify(processedRecord[key]);
           }
         }
@@ -283,7 +270,6 @@ export class LanceStorage extends MastraStorage {
         return null;
       }
 
-      console.log(tableSchema);
       // Process the result with type conversions
       return this.processResultWithTypeConversion(result[0], tableSchema);
     } catch (error: any) {
