@@ -99,7 +99,7 @@ export class LanceStorage extends MastraStorage {
           arrowType = new Binary();
           break;
         case 'timestamp':
-          arrowType = new Timestamp(TimeUnit.SECOND);
+          arrowType = new Float32();
           break;
         default:
           // Default to string for unknown types
@@ -184,7 +184,6 @@ export class LanceStorage extends MastraStorage {
 
       const processedRecord = { ...record };
 
-      // Convert all object values to strings
       for (const key in processedRecord) {
         if (
           processedRecord[key] !== null &&
@@ -194,7 +193,6 @@ export class LanceStorage extends MastraStorage {
           processedRecord[key] = JSON.stringify(processedRecord[key]);
         }
       }
-      // Convert to bigInt
 
       await table.add([processedRecord], { mode: 'overwrite' });
     } catch (error: any) {
@@ -205,26 +203,42 @@ export class LanceStorage extends MastraStorage {
   async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
     try {
       const table = await this.lanceClient.openTable(tableName);
+      const tableSchema = await table.schema();
 
       const processedRecords = records.map(record => {
         const processedRecord = { ...record };
 
-        // Convert all object values to strings
+        // Convert values based on schema type
         for (const key in processedRecord) {
-          if (
+          // Skip null/undefined values
+          if (processedRecord[key] == null) continue;
+
+          // Find the field definition in the schema
+          const field = tableSchema.fields.find((f: any) => f.name === key);
+          if (!field) continue;
+
+          const fieldType = field.type.toString().toLowerCase();
+
+          // Handle specific type conversions
+          if (fieldType === 'int64' && typeof processedRecord[key] === 'number') {
+            // Convert number to BigInt for Int64 fields
+            processedRecord[key] = BigInt(Math.floor(processedRecord[key]));
+          } else if (
             processedRecord[key] !== null &&
             typeof processedRecord[key] === 'object' &&
             !(processedRecord[key] instanceof Date)
           ) {
+            // Convert objects to JSON strings
             processedRecord[key] = JSON.stringify(processedRecord[key]);
           }
         }
+
         return processedRecord;
       });
 
       await table.add(processedRecords, { mode: 'overwrite' });
     } catch (error: any) {
-      throw new Error(`Failed to insert batch records: ${error}`);
+      throw new Error(`Failed to batch insert records: ${error}`);
     }
   }
 
@@ -329,41 +343,34 @@ export class LanceStorage extends MastraStorage {
     // Build a map of field names to their schema types
     tableSchema.fields.forEach((field: any) => {
       const fieldName = field.name;
-      const fieldTypeStr = field.type;
+      const fieldTypeStr = field.type.toString().toLowerCase();
       fieldTypeMap.set(fieldName, fieldTypeStr);
     });
-    console.log(fieldTypeMap);
 
     // Convert each field according to its schema type
     for (const key in processedResult) {
       const fieldTypeStr = fieldTypeMap.get(key);
       if (!fieldTypeStr) continue;
-
       // Only try to convert string values
       if (typeof processedResult[key] === 'string') {
         // Numeric types
-        if (
-          fieldTypeStr.includes('int') ||
-          fieldTypeStr.includes('float') ||
-          fieldTypeStr.includes('bigint') ||
-          fieldTypeStr.includes('number')
-        ) {
+        if (fieldTypeStr.includes('int32') || fieldTypeStr.includes('float32')) {
           if (!isNaN(Number(processedResult[key]))) {
             processedResult[key] = Number(processedResult[key]);
           }
-        }
-        // JSON types
-        else if (fieldTypeStr.includes('json')) {
+        } else if (fieldTypeStr.includes('int64')) {
+          processedResult[key] = Number(processedResult[key]);
+        } else if (fieldTypeStr.includes('utf8')) {
           try {
             processedResult[key] = JSON.parse(processedResult[key]);
           } catch (e) {
-            // Leave as string if parsing fails
+            // If JSON parsing fails, keep the original string
+            console.debug(`Failed to parse JSON for key ${key}: ${e}`);
           }
         }
-        // Date types
-        else if (fieldTypeStr.includes('timestamp') || fieldTypeStr.includes('date')) {
-          processedResult[key] = new Date(processedResult[key]);
-        }
+      } else if (typeof processedResult[key] === 'bigint') {
+        // Convert BigInt values to regular numbers for application layer
+        processedResult[key] = Number(processedResult[key]);
       }
     }
 
