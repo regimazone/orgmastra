@@ -11,7 +11,7 @@ import type {
 import { MastraStorage } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Float32, Binary, Schema, Field, Timestamp, TimeUnit } from 'apache-arrow';
+import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Timestamp, TimeUnit } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -77,18 +77,22 @@ export class LanceStorage extends MastraStorage {
       let arrowType: DataType;
       switch (column.type.toLowerCase()) {
         case 'text':
+        case 'uuid':
           arrowType = new Utf8();
           break;
         case 'int':
         case 'integer':
           arrowType = new Int32();
           break;
+        case 'bigint':
+          // Use Int64 for bigint fields
+          arrowType = new Int64();
+          break;
         case 'float':
           arrowType = new Float32();
           break;
         case 'jsonb':
         case 'json':
-          // JSON is typically stored as Utf8 (string) in Arrow
           arrowType = new Utf8();
           break;
         case 'binary':
@@ -96,6 +100,7 @@ export class LanceStorage extends MastraStorage {
           break;
         case 'timestamp':
           arrowType = new Timestamp(TimeUnit.SECOND);
+          break;
         default:
           // Default to string for unknown types
           arrowType = new Utf8();
@@ -130,6 +135,7 @@ export class LanceStorage extends MastraStorage {
       const table = await this.lanceClient.openTable(tableName);
       const rawSchema = await table.schema();
       const fields = rawSchema.fields as FieldLike[];
+      console.log(rawSchema);
 
       // Convert schema to SchemaLike format
       return {
@@ -188,11 +194,9 @@ export class LanceStorage extends MastraStorage {
           processedRecord[key] = JSON.stringify(processedRecord[key]);
         }
       }
+      // Convert to bigInt
 
       await table.add([processedRecord], { mode: 'overwrite' });
-
-      const res = await table.query().limit(1).toArray();
-      console.log(res);
     } catch (error: any) {
       throw new Error(`Failed to insert record: ${error}`);
     }
@@ -224,6 +228,13 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
+  /**
+   * Load a record from the database by its key(s)
+   * @param tableName The name of the table to query
+   * @param keys Record of key-value pairs to use for lookup
+   * @throws Error if invalid types are provided for keys
+   * @returns The loaded record with proper type conversions, or null if not found
+   */
   async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<any> {
     try {
       const table = await this.lanceClient.openTable(tableName);
@@ -232,6 +243,9 @@ export class LanceStorage extends MastraStorage {
 
       // Build filter condition with 'and' between all conditions
       if (Object.keys(keys).length > 0) {
+        // Validate key types against schema
+        this.validateKeyTypes(keys, tableSchema);
+
         const filterConditions = Object.entries(keys)
           .map(([key, value]) => {
             // Handle different types appropriately
@@ -255,10 +269,47 @@ export class LanceStorage extends MastraStorage {
         return null;
       }
 
+      console.log(tableSchema);
       // Process the result with type conversions
       return this.processResultWithTypeConversion(result[0], tableSchema);
     } catch (error: any) {
       throw new Error(`Failed to load record: ${error}`);
+    }
+  }
+
+  /**
+   * Validates that key types match the schema definition
+   * @param keys The keys to validate
+   * @param tableSchema The table schema to validate against
+   * @throws Error if a key has an incompatible type
+   */
+  private validateKeyTypes(keys: Record<string, any>, tableSchema: SchemaLike): void {
+    // Create a map of field names to their expected types
+    const fieldTypes = new Map(
+      tableSchema.fields.map((field: any) => [field.name, field.type?.toString().toLowerCase()]),
+    );
+
+    for (const [key, value] of Object.entries(keys)) {
+      const fieldType = fieldTypes.get(key);
+
+      if (!fieldType) {
+        throw new Error(`Field '${key}' does not exist in table schema`);
+      }
+
+      // Type validation
+      if (value !== null) {
+        if ((fieldType.includes('int') || fieldType.includes('bigint')) && typeof value !== 'number') {
+          throw new Error(`Expected numeric value for field '${key}', got ${typeof value}`);
+        }
+
+        if (fieldType.includes('utf8') && typeof value !== 'string') {
+          throw new Error(`Expected string value for field '${key}', got ${typeof value}`);
+        }
+
+        if (fieldType.includes('timestamp') && !(value instanceof Date) && typeof value !== 'string') {
+          throw new Error(`Expected Date or string value for field '${key}', got ${typeof value}`);
+        }
+      }
     }
   }
 
@@ -272,74 +323,46 @@ export class LanceStorage extends MastraStorage {
     rawResult: Record<string, any>,
     tableSchema: SchemaLike,
   ): Record<string, any> {
-    // Convert serialized JSON strings back to objects
     const processedResult = { ...rawResult };
-
-    // Map field names to their data types for later conversion
     const fieldTypeMap = new Map();
 
+    // Build a map of field names to their schema types
     tableSchema.fields.forEach((field: any) => {
-      // Extract the field name and type, ensuring type is converted to a predictable format
       const fieldName = field.name;
-      const fieldTypeStr = field.type ? field.type.toString().toLowerCase() : '';
+      const fieldTypeStr = field.type;
       fieldTypeMap.set(fieldName, fieldTypeStr);
-
-      // Log each field and its detected type
-      console.debug(`Field ${fieldName} has type: ${fieldTypeStr}`);
     });
+    console.log(fieldTypeMap);
 
-    // Special case handling for known fields
-    if (processedResult.referenceId && typeof processedResult.referenceId === 'string') {
-      processedResult.referenceId = Number(processedResult.referenceId);
-    }
-
-    // Handle metadata field specifically since we know it should be JSON
-    if (processedResult.metadata && typeof processedResult.metadata === 'string') {
-      try {
-        processedResult.metadata = JSON.parse(processedResult.metadata);
-      } catch (e) {
-        // Leave as string if it's not valid JSON
-        console.debug('Failed to parse metadata as JSON:', e);
-      }
-    }
-
+    // Convert each field according to its schema type
     for (const key in processedResult) {
       const fieldTypeStr = fieldTypeMap.get(key);
+      if (!fieldTypeStr) continue;
 
-      if (!fieldTypeStr) {
-        console.debug(`No type information for field: ${key}`);
-        continue;
-      }
-
-      // JSON field handling
+      // Only try to convert string values
       if (typeof processedResult[key] === 'string') {
-        // Try to parse JSON fields
-        if (fieldTypeStr.includes('json')) {
+        // Numeric types
+        if (
+          fieldTypeStr.includes('int') ||
+          fieldTypeStr.includes('float') ||
+          fieldTypeStr.includes('bigint') ||
+          fieldTypeStr.includes('number')
+        ) {
+          if (!isNaN(Number(processedResult[key]))) {
+            processedResult[key] = Number(processedResult[key]);
+          }
+        }
+        // JSON types
+        else if (fieldTypeStr.includes('json')) {
           try {
             processedResult[key] = JSON.parse(processedResult[key]);
           } catch (e) {
-            // Not valid JSON, keep as string
+            // Leave as string if parsing fails
           }
         }
-
-        // Date field handling
-        if (fieldTypeStr.includes('timestamp') || fieldTypeStr.includes('date')) {
+        // Date types
+        else if (fieldTypeStr.includes('timestamp') || fieldTypeStr.includes('date')) {
           processedResult[key] = new Date(processedResult[key]);
-        }
-
-        console.debug(`Checking numeric field ${key} (type: ${fieldTypeStr})`);
-        if (
-          (fieldTypeStr.includes('int32') ||
-            fieldTypeStr.includes('int64') ||
-            fieldTypeStr.includes('bigint') ||
-            fieldTypeStr.includes('float') ||
-            fieldTypeStr.includes('number') ||
-            key === 'id' ||
-            key === 'referenceId') &&
-          !isNaN(Number(processedResult[key]))
-        ) {
-          processedResult[key] = Number(processedResult[key]);
-          console.debug(`Converted ${key} to number: ${processedResult[key]}`);
         }
       }
     }

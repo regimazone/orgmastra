@@ -80,6 +80,14 @@ describe('LanceStorage tests', async () => {
       expect(table.names).toEqual(
         expect.arrayContaining(['id', 'threadId', 'referenceId', 'messageType', 'content', 'createdAt', 'metadata']),
       );
+      // check the types of the fields
+      expect(table.fields[0].type.toString().toLowerCase()).toBe('int32');
+      expect(table.fields[1].type.toString().toLowerCase()).toBe('utf8');
+      expect(table.fields[2].type.toString().toLowerCase()).toBe('int64');
+      expect(table.fields[3].type.toString().toLowerCase()).toBe('utf8');
+      expect(table.fields[4].type.toString().toLowerCase()).toBe('utf8');
+      expect(table.fields[5].type.toString().toLowerCase()).toBe('timestamp<second>');
+      expect(table.fields[6].type.toString().toLowerCase()).toBe('utf8');
     });
   });
 
@@ -117,6 +125,7 @@ describe('LanceStorage tests', async () => {
 
       // Verify the record was inserted
       const loadedRecord = await storage.load({ tableName: TABLE_MESSAGES, keys: { id: 1 } });
+      console.log(loadedRecord);
 
       // Custom comparison to handle date precision differences
       expect(loadedRecord.id).toEqual(record.id);
