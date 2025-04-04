@@ -229,7 +229,7 @@ describe('LanceStorage tests', async () => {
         id: 1,
         threadId: '123e4567-e89b-12d3-a456-426614174000',
         referenceId: 1,
-        messageType: 'text',
+        messageType: 'hi',
         content: 'Hello, world!',
         createdAt: new Date(),
         metadata: { foo: 'bar' },
@@ -239,8 +239,9 @@ describe('LanceStorage tests', async () => {
 
       const loadedRecord = await storage.load({
         tableName: TABLE_MESSAGES,
-        keys: { id: 1, threadId: '123e4567-e89b-12d3-a456-426614174000' },
+        keys: { id: 1, messageType: 'hi' },
       });
+
       expect(loadedRecord).not.toBeNull();
       expect(loadedRecord.id).toEqual(record.id);
       expect(loadedRecord.threadId).toEqual(record.threadId);

@@ -121,6 +121,11 @@ export class LanceStorage extends MastraStorage {
     try {
       await this.lanceClient.dropTable(tableName);
     } catch (error: any) {
+      // Don't throw if the table doesn't exist
+      if (error.toString().includes('was not found')) {
+        console.debug(`Table '${tableName}' does not exist, skipping drop`);
+        return;
+      }
       throw new Error(`Failed to drop table: ${error}`);
     }
   }
@@ -189,6 +194,7 @@ export class LanceStorage extends MastraStorage {
           typeof processedRecord[key] === 'object' &&
           !(processedRecord[key] instanceof Date)
         ) {
+          console.log('Converting object to JSON string: ', processedRecord[key]);
           processedRecord[key] = JSON.stringify(processedRecord[key]);
         }
       }
@@ -249,17 +255,22 @@ export class LanceStorage extends MastraStorage {
 
         const filterConditions = Object.entries(keys)
           .map(([key, value]) => {
+            // Check if key is in camelCase and wrap it in backticks if it is
+            const isCamelCase = /^[a-z][a-zA-Z]*$/.test(key) && /[A-Z]/.test(key);
+            const quotedKey = isCamelCase ? `\`${key}\`` : key;
+
             // Handle different types appropriately
             if (typeof value === 'string') {
-              return `${key} = '${value}'`;
+              return `${quotedKey} = '${value}'`;
             } else if (value === null) {
-              return `${key} IS NULL`;
+              return `${quotedKey} IS NULL`;
             } else {
               // For numbers, booleans, etc.
-              return `${key} = ${value}`;
+              return `${quotedKey} = ${value}`;
             }
           })
           .join(' AND ');
+
         console.debug('where clause generated: ', filterConditions);
         query.where(filterConditions);
       }
@@ -267,6 +278,7 @@ export class LanceStorage extends MastraStorage {
       const result = await query.limit(1).toArray();
 
       if (result.length === 0) {
+        console.debug('No record found');
         return null;
       }
 
