@@ -1,7 +1,8 @@
-import { TABLE_MESSAGES } from '@mastra/core/storage';
+import { TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { LanceStorage } from './index';
+import { StorageThreadType } from '@mastra/core';
 
 /**
  * Represents a message record in the storage system
@@ -86,7 +87,7 @@ describe('LanceStorage tests', async () => {
       expect(table.fields[2].type.toString().toLowerCase()).toBe('int64');
       expect(table.fields[3].type.toString().toLowerCase()).toBe('utf8');
       expect(table.fields[4].type.toString().toLowerCase()).toBe('utf8');
-      expect(table.fields[5].type.toString().toLowerCase()).toBe('float32');
+      expect(table.fields[5].type.toString().toLowerCase()).toBe('float64');
       expect(table.fields[6].type.toString().toLowerCase()).toBe('utf8');
     });
   });
@@ -141,8 +142,8 @@ describe('LanceStorage tests', async () => {
       expect(loadedDate.getMonth()).toEqual(originalDate.getMonth());
       expect(loadedDate.getDate()).toEqual(originalDate.getDate());
       expect(loadedDate.getHours()).toEqual(originalDate.getHours());
-      // expect(loadedDate.getMinutes()).toEqual(originalDate.getMinutes());
-      // expect(loadedDate.getSeconds()).toEqual(originalDate.getSeconds());
+      expect(loadedDate.getMinutes()).toEqual(originalDate.getMinutes());
+      expect(loadedDate.getSeconds()).toEqual(originalDate.getSeconds());
     });
 
     it('should throw error when invalid key type is provided', async () => {
@@ -165,7 +166,7 @@ describe('LanceStorage tests', async () => {
       expect(loadedRecords.referenceId).toEqual(records[0].referenceId);
       expect(loadedRecords.messageType).toEqual(records[0].messageType);
       expect(loadedRecords.content).toEqual(records[0].content);
-      // expect(new Date(loadedRecords.createdAt)).toEqual(new Date(records[0].createdAt));
+      expect(new Date(loadedRecords.createdAt)).toEqual(new Date(records[0].createdAt));
       expect(loadedRecords.metadata).toEqual(records[0].metadata);
 
       // Verify the last record
@@ -176,7 +177,7 @@ describe('LanceStorage tests', async () => {
       expect(lastRecord.referenceId).toEqual(records[recordCount - 1].referenceId);
       expect(lastRecord.messageType).toEqual(records[recordCount - 1].messageType);
       expect(lastRecord.content).toEqual(records[recordCount - 1].content);
-      // expect(new Date(lastRecord.createdAt)).toEqual(new Date(records[recordCount - 1].createdAt));
+      expect(new Date(lastRecord.createdAt)).toEqual(new Date(records[recordCount - 1].createdAt));
       expect(lastRecord.metadata).toEqual(records[recordCount - 1].metadata);
     });
   });
@@ -220,7 +221,7 @@ describe('LanceStorage tests', async () => {
       expect(loadedRecord.referenceId).toEqual(record.referenceId);
       expect(loadedRecord.messageType).toEqual(record.messageType);
       expect(loadedRecord.content).toEqual(record.content);
-      // expect(new Date(loadedRecord.createdAt)).toEqual(new Date(record.createdAt));
+      expect(new Date(loadedRecord.createdAt)).toEqual(new Date(record.createdAt));
       expect(loadedRecord.metadata).toEqual(record.metadata);
     });
 
@@ -248,8 +249,85 @@ describe('LanceStorage tests', async () => {
       expect(loadedRecord.referenceId).toEqual(record.referenceId);
       expect(loadedRecord.messageType).toEqual(record.messageType);
       expect(loadedRecord.content).toEqual(record.content);
-      // expect(new Date(loadedRecord.createdAt)).toEqual(new Date(record.createdAt));
+      expect(new Date(loadedRecord.createdAt)).toEqual(new Date(record.createdAt));
       expect(loadedRecord.metadata).toEqual(record.metadata);
+
+      const recordsQueriedWithIdAndThreadId = await storage.load({
+        tableName: TABLE_MESSAGES,
+        keys: { id: 1, threadId: '123e4567-e89b-12d3-a456-426614174000' },
+      });
+
+      expect(recordsQueriedWithIdAndThreadId).not.toBeNull();
+      expect(recordsQueriedWithIdAndThreadId.id).toEqual(record.id);
+      expect(recordsQueriedWithIdAndThreadId.threadId).toEqual(record.threadId);
+      expect(recordsQueriedWithIdAndThreadId.referenceId).toEqual(record.referenceId);
+      expect(recordsQueriedWithIdAndThreadId.messageType).toEqual(record.messageType);
+      expect(recordsQueriedWithIdAndThreadId.content).toEqual(record.content);
+      expect(new Date(recordsQueriedWithIdAndThreadId.createdAt)).toEqual(new Date(record.createdAt));
+      expect(recordsQueriedWithIdAndThreadId.metadata).toEqual(record.metadata);
+    });
+  });
+
+  describe('Thread operations', () => {
+    beforeAll(async () => {
+      const threadTableSchema: Record<string, StorageColumn> = {
+        id: { type: 'uuid', nullable: false },
+        resourceId: { type: 'uuid', nullable: false },
+        title: { type: 'text', nullable: true },
+        createdAt: { type: 'timestamp', nullable: true },
+        updatedAt: { type: 'timestamp', nullable: true },
+        metadata: { type: 'jsonb', nullable: true },
+      };
+
+      await storage.createTable({ tableName: TABLE_THREADS, schema: threadTableSchema });
+    });
+
+    afterAll(async () => {
+      await storage.dropTable(TABLE_THREADS);
+    });
+
+    it('should get thread by ID', async () => {
+      const thread = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        resourceId: '123e4567-e89b-12d3-a456-426614174000',
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      };
+
+      await storage.insert({ tableName: TABLE_THREADS, record: thread });
+
+      const loadedThread = (await storage.getThreadById({ threadId: thread.id })) as StorageThreadType;
+      expect(loadedThread).not.toBeNull();
+      expect(loadedThread?.id).toEqual(thread.id);
+      expect(loadedThread?.resourceId).toEqual(thread.resourceId);
+      expect(loadedThread?.title).toEqual(thread.title);
+      expect(new Date(loadedThread?.createdAt)).toEqual(new Date(thread.createdAt));
+      expect(new Date(loadedThread?.updatedAt)).toEqual(new Date(thread.updatedAt));
+      expect(loadedThread?.metadata).toEqual(thread.metadata);
+    });
+
+    it('should save thread', async () => {
+      const thread = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        resourceId: '123e4567-e89b-12d3-a456-426614174000',
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      };
+
+      await storage.saveThread({ thread });
+
+      const loadedThread = (await storage.getThreadById({ threadId: thread.id })) as StorageThreadType;
+      expect(loadedThread).not.toBeNull();
+      expect(loadedThread?.id).toEqual(thread.id);
+      expect(loadedThread?.resourceId).toEqual(thread.resourceId);
+      expect(loadedThread?.title).toEqual(thread.title);
+      expect(new Date(loadedThread?.createdAt)).toEqual(new Date(thread.createdAt));
+      expect(new Date(loadedThread?.updatedAt)).toEqual(new Date(thread.updatedAt));
+      expect(loadedThread?.metadata).toEqual(thread.metadata);
     });
   });
 });

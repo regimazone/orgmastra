@@ -8,10 +8,10 @@ import type {
   StorageThreadType,
   WorkflowRuns,
 } from '@mastra/core';
-import { MastraStorage } from '@mastra/core/storage';
+import { MastraStorage, TABLE_THREADS } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Int64, Float32, Binary, Schema, Field } from 'apache-arrow';
+import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -99,7 +99,7 @@ export class LanceStorage extends MastraStorage {
           arrowType = new Binary();
           break;
         case 'timestamp':
-          arrowType = new Float32();
+          arrowType = new Float64();
           break;
         default:
           // Default to string for unknown types
@@ -376,14 +376,27 @@ export class LanceStorage extends MastraStorage {
   }
 
   getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
-    throw new Error('Method not implemented.');
+    try {
+      return this.load({ tableName: TABLE_THREADS, keys: { id: threadId } });
+    } catch (error: any) {
+      throw new Error(`Failed to get thread by ID: ${error}`);
+    }
   }
+
   getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
     throw new Error('Method not implemented.');
   }
-  saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
-    throw new Error('Method not implemented.');
+
+  async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
+    try {
+      const record = { ...thread, metadata: JSON.stringify(thread.metadata) };
+      await this.insert({ tableName: TABLE_THREADS, record });
+      return thread;
+    } catch (error: any) {
+      throw new Error(`Failed to save thread: ${error}`);
+    }
   }
+
   updateThread({
     id,
     title,
