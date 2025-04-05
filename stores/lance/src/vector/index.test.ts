@@ -3,7 +3,7 @@ import { LanceVectorStore } from './index';
 
 describe('Lance vector store tests', () => {
   let vectorDB: LanceVectorStore;
-  const connectionString = process.env.DB_URL || 'lancedb';
+  const connectionString = process.env.DB_URL || 'lancedb-vector';
 
   beforeAll(async () => {
     // Giving directory path to connect to in memory db

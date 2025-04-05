@@ -1,8 +1,8 @@
+import type { StorageThreadType } from '@mastra/core';
 import { TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { LanceStorage } from './index';
-import { StorageThreadType } from '@mastra/core';
 
 /**
  * Represents a message record in the storage system
@@ -38,7 +38,7 @@ describe('LanceStorage tests', async () => {
   let storage!: LanceStorage;
 
   beforeAll(async () => {
-    storage = await LanceStorage.create('test', 'lancedb');
+    storage = await LanceStorage.create('test', 'lancedb-storage');
   });
 
   it('should create a new instance of LanceStorage', async () => {
@@ -375,6 +375,61 @@ describe('LanceStorage tests', async () => {
       expect(new Date(loadedThreads[1].createdAt)).toEqual(new Date(thread2.createdAt));
       expect(new Date(loadedThreads[1].updatedAt)).toEqual(new Date(thread2.updatedAt));
       expect(loadedThreads[1].metadata).toEqual(thread2.metadata);
+    });
+
+    it('should update thread', async () => {
+      const thread = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        resourceId: '123e4567-e89b-12d3-a456-426614174000',
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      };
+
+      await storage.saveThread({ thread });
+
+      const updatedThread = await storage.updateThread({
+        id: thread.id,
+        title: 'Updated Thread',
+        metadata: { foo: 'hi' },
+      });
+
+      expect(updatedThread).not.toBeNull();
+      expect(updatedThread.id).toEqual(thread.id);
+      expect(updatedThread.title).toEqual('Updated Thread');
+      expect(updatedThread.metadata).toEqual({ foo: 'hi' });
+    });
+
+    it('should delete thread', async () => {
+      await storage.dropTable(TABLE_THREADS);
+      // create new table
+      const threadTableSchema: Record<string, StorageColumn> = {
+        id: { type: 'uuid', nullable: false },
+        resourceId: { type: 'uuid', nullable: false },
+        title: { type: 'text', nullable: true },
+        createdAt: { type: 'timestamp', nullable: true },
+        updatedAt: { type: 'timestamp', nullable: true },
+        metadata: { type: 'jsonb', nullable: true },
+      };
+
+      await storage.createTable({ tableName: TABLE_THREADS, schema: threadTableSchema });
+
+      const thread = {
+        id: '123e4567-e89b-12d3-a456-426614174023',
+        resourceId: '123e4567-e89b-12d3-a456-426614234020',
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      } as StorageThreadType;
+
+      await storage.saveThread({ thread });
+
+      await storage.deleteThread({ threadId: thread.id });
+
+      const loadedThread = await storage.getThreadById({ threadId: thread.id });
+      expect(loadedThread).toBeNull();
     });
   });
 });

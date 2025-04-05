@@ -154,7 +154,7 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  async clearTable({ tableName }: { tableName: string }): Promise<void> {
+  async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
     const table = await this.lanceClient.openTable(tableName);
     const batchSize = 1000;
     let hasMoreRecords = true;
@@ -427,7 +427,7 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  updateThread({
+  async updateThread({
     id,
     title,
     metadata,
@@ -436,10 +436,30 @@ export class LanceStorage extends MastraStorage {
     title: string;
     metadata: Record<string, unknown>;
   }): Promise<StorageThreadType> {
-    throw new Error('Method not implemented.');
+    try {
+      const record = { id, title, metadata: JSON.stringify(metadata) };
+      const table = await this.lanceClient.openTable(TABLE_THREADS);
+      await table.add([record], { mode: 'overwrite' });
+
+      const query = table.query().where(`id = '${id}'`);
+
+      const records = await query.toArray();
+      return this.processResultWithTypeConversion(
+        records[0],
+        await this.getTableSchema(TABLE_THREADS),
+      ) as StorageThreadType;
+    } catch (error: any) {
+      throw new Error(`Failed to update thread: ${error}`);
+    }
   }
-  deleteThread({ threadId }: { threadId: string }): Promise<void> {
-    throw new Error('Method not implemented.');
+
+  async deleteThread({ threadId }: { threadId: string }): Promise<void> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_THREADS);
+      await table.delete(`id = '${threadId}'`);
+    } catch (error: any) {
+      throw new Error(`Failed to delete thread: ${error}`);
+    }
   }
   getMessages({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<MessageType[]> {
     throw new Error('Method not implemented.');
