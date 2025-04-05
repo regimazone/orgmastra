@@ -8,7 +8,7 @@ import type {
   StorageThreadType,
   WorkflowRuns,
 } from '@mastra/core';
-import { MastraStorage, TABLE_THREADS } from '@mastra/core/storage';
+import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
 import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
@@ -461,12 +461,44 @@ export class LanceStorage extends MastraStorage {
       throw new Error(`Failed to delete thread: ${error}`);
     }
   }
-  getMessages({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<MessageType[]> {
-    throw new Error('Method not implemented.');
+
+  async getMessages({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<MessageType[]> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_MESSAGES);
+      const query = table.query().where(`\`threadId\` = '${threadId}'`);
+
+      const records = await query.toArray();
+      return this.processResultWithTypeConversion(records, await this.getTableSchema(TABLE_MESSAGES)) as MessageType[];
+    } catch (error: any) {
+      throw new Error(`Failed to get messages: ${error}`);
+    }
   }
-  saveMessages({ messages }: { messages: MessageType[] }): Promise<MessageType[]> {
-    throw new Error('Method not implemented.');
+
+  async saveMessages({ messages }: { messages: MessageType[] }): Promise<MessageType[]> {
+    try {
+      if (messages.length === 0) {
+        return [];
+      }
+
+      const threadId = messages[0]?.threadId;
+
+      if (!threadId) {
+        throw new Error('Thread ID is required');
+      }
+
+      const transformedMessages = messages.map(message => ({
+        ...message,
+        content: JSON.stringify(message.content),
+      }));
+
+      const table = await this.lanceClient.openTable(TABLE_MESSAGES);
+      await table.add(transformedMessages, { mode: 'overwrite' });
+      return messages;
+    } catch (error: any) {
+      throw new Error(`Failed to save messages: ${error}`);
+    }
   }
+
   getTraces({
     name,
     scope,

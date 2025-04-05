@@ -1,7 +1,7 @@
-import type { StorageThreadType } from '@mastra/core';
+import type { MessageType, StorageThreadType } from '@mastra/core';
 import { TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { LanceStorage } from './index';
 
 /**
@@ -31,6 +31,21 @@ function generateRecords(count: number): MessageRecord[] {
     content: `Test message ${index + 1}`,
     createdAt: new Date(),
     metadata: { testIndex: index, foo: 'bar' },
+  }));
+}
+
+function generateMessageRecords(count: number, threadId?: string): MessageType[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: (index + 1).toString(),
+    content: `Test message ${index + 1}`,
+    role: 'user',
+    createdAt: new Date(),
+    threadId: threadId ?? `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    resourceId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    toolCallIds: [],
+    toolCallArgs: [],
+    toolNames: [],
+    type: 'text',
   }));
 }
 
@@ -430,6 +445,63 @@ describe('LanceStorage tests', async () => {
 
       const loadedThread = await storage.getThreadById({ threadId: thread.id });
       expect(loadedThread).toBeNull();
+    });
+  });
+
+  describe('Message operations', () => {
+    beforeAll(async () => {
+      const messageTableSchema: Record<string, StorageColumn> = {
+        id: { type: 'uuid', nullable: false },
+        content: { type: 'text', nullable: true },
+        role: { type: 'text', nullable: true },
+        createdAt: { type: 'timestamp', nullable: false },
+        threadId: { type: 'uuid', nullable: false },
+        resourceId: { type: 'uuid', nullable: true },
+        toolCallIds: { type: 'text', nullable: true },
+        toolCallArgs: { type: 'jsonb', nullable: true },
+        toolNames: { type: 'text', nullable: true },
+        type: { type: 'text', nullable: true },
+      };
+
+      await storage.createTable({ tableName: TABLE_MESSAGES, schema: messageTableSchema });
+    });
+
+    afterAll(async () => {
+      await storage.dropTable(TABLE_MESSAGES);
+    });
+
+    afterEach(async () => {
+      await storage.clearTable({ tableName: TABLE_MESSAGES });
+    });
+
+    it('should save messages without error', async () => {
+      const messages: MessageType[] = generateMessageRecords(10);
+      expect(async () => {
+        await storage.saveMessages({ messages });
+      }).not.toThrow();
+    });
+
+    it('should get messages by thread ID', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      const messages: MessageType[] = generateMessageRecords(10, threadId);
+      await storage.saveMessages({ messages });
+      const loadedMessages = await storage.getMessages({ threadId });
+
+      expect(loadedMessages).not.toBeNull();
+      expect(loadedMessages.length).toEqual(10);
+
+      loadedMessages.forEach((message, index) => {
+        expect(message.threadId).toEqual(threadId);
+        expect(message.id.toString()).toEqual(messages[index].id);
+        expect(message.content).toEqual(messages[index].content);
+        expect(new Date(message.createdAt)).toEqual(new Date(messages[index].createdAt));
+        expect(message.role).toEqual(messages[index].role);
+        expect(message.resourceId).toEqual(messages[index].resourceId);
+        expect(message.toolCallIds).toEqual('');
+        expect(message.toolCallArgs).toEqual('');
+        expect(message.toolNames).toEqual('');
+        expect(message.type).toEqual(messages[index].type);
+      });
     });
   });
 });
