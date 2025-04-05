@@ -182,6 +182,11 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
+  /**
+   * Insert a single record into a table. This function overwrites the existing record if it exists.
+   * @param tableName The name of the table to insert into.
+   * @param record The record to insert.
+   */
   async insert({ tableName, record }: { tableName: string; record: Record<string, any> }): Promise<void> {
     try {
       const table = await this.lanceClient.openTable(tableName);
@@ -332,18 +337,24 @@ export class LanceStorage extends MastraStorage {
    * @returns Processed result with correct data types
    */
   private processResultWithTypeConversion(
-    rawResult: Record<string, any>,
+    rawResult: Record<string, any> | Record<string, any>[],
     tableSchema: SchemaLike,
-  ): Record<string, any> {
-    const processedResult = { ...rawResult };
-    const fieldTypeMap = new Map();
-
+  ): Record<string, any> | Record<string, any>[] {
     // Build a map of field names to their schema types
+    const fieldTypeMap = new Map();
     tableSchema.fields.forEach((field: any) => {
       const fieldName = field.name;
       const fieldTypeStr = field.type.toString().toLowerCase();
       fieldTypeMap.set(fieldName, fieldTypeStr);
     });
+
+    // Handle array case
+    if (Array.isArray(rawResult)) {
+      return rawResult.map(item => this.processResultWithTypeConversion(item, tableSchema));
+    }
+
+    // Handle single record case
+    const processedResult = { ...rawResult };
 
     // Convert each field according to its schema type
     for (const key in processedResult) {
@@ -383,14 +394,33 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
-    throw new Error('Method not implemented.');
+  async getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_THREADS);
+      // fetches all threads with the given resourceId
+      const query = table.query().where(`\`resourceId\` = '${resourceId}'`);
+
+      const records = await query.toArray();
+      return this.processResultWithTypeConversion(
+        records,
+        await this.getTableSchema(TABLE_THREADS),
+      ) as StorageThreadType[];
+    } catch (error: any) {
+      throw new Error(`Failed to get threads by resource ID: ${error}`);
+    }
   }
 
+  /**
+   * Saves a thread to the database. This function doesn't overwrite existing threads.
+   * @param thread - The thread to save
+   * @returns The saved thread
+   */
   async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
     try {
       const record = { ...thread, metadata: JSON.stringify(thread.metadata) };
-      await this.insert({ tableName: TABLE_THREADS, record });
+      const table = await this.lanceClient.openTable(TABLE_THREADS);
+      await table.add([record], { mode: 'append' });
+
       return thread;
     } catch (error: any) {
       throw new Error(`Failed to save thread: ${error}`);

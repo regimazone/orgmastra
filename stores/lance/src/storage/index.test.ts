@@ -1,6 +1,6 @@
 import { TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { LanceStorage } from './index';
 import { StorageThreadType } from '@mastra/core';
 
@@ -25,7 +25,7 @@ interface MessageRecord {
 function generateRecords(count: number): MessageRecord[] {
   return Array.from({ length: count }, (_, index) => ({
     id: index + 1,
-    threadId: `123e4567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    threadId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
     referenceId: index + 1,
     messageType: 'text',
     content: `Test message ${index + 1}`,
@@ -286,6 +286,10 @@ describe('LanceStorage tests', async () => {
       await storage.dropTable(TABLE_THREADS);
     });
 
+    beforeEach(async () => {
+      await storage.clearTable({ tableName: TABLE_THREADS });
+    });
+
     it('should get thread by ID', async () => {
       const thread = {
         id: '123e4567-e89b-12d3-a456-426614174000',
@@ -328,6 +332,49 @@ describe('LanceStorage tests', async () => {
       expect(new Date(loadedThread?.createdAt)).toEqual(new Date(thread.createdAt));
       expect(new Date(loadedThread?.updatedAt)).toEqual(new Date(thread.updatedAt));
       expect(loadedThread?.metadata).toEqual(thread.metadata);
+    });
+
+    it('should get threads by resource ID', async () => {
+      const resourceId = '123e4567-e89b-12d3-a456-426614174000';
+      const thread1 = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        resourceId,
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      };
+
+      const thread2 = {
+        id: '123e4567-e89b-12d3-a456-426614174001',
+        resourceId,
+        title: 'Test Thread',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: { foo: 'bar' },
+      };
+
+      await storage.saveThread({ thread: thread1 });
+      await storage.saveThread({ thread: thread2 });
+
+      const loadedThreads = await storage.getThreadsByResourceId({ resourceId });
+
+      expect(loadedThreads).not.toBeNull();
+      expect(loadedThreads.length).toEqual(2);
+
+      expect(loadedThreads[0].id).toEqual(thread1.id);
+      expect(loadedThreads[0].resourceId).toEqual(resourceId);
+      expect(loadedThreads[0].title).toEqual(thread1.title);
+      expect(new Date(loadedThreads[0].createdAt)).toEqual(new Date(thread1.createdAt));
+      expect(new Date(loadedThreads[0].updatedAt)).toEqual(new Date(thread1.updatedAt));
+      expect(loadedThreads[0].metadata).toEqual(thread1.metadata);
+
+      expect(loadedThreads[1].id).toEqual(thread2.id);
+      expect(loadedThreads[1].resourceId).toEqual(resourceId);
+      expect(loadedThreads[1].title).toEqual(thread2.title);
+      expect(new Date(loadedThreads[1].createdAt)).toEqual(new Date(thread2.createdAt));
+      expect(new Date(loadedThreads[1].updatedAt)).toEqual(new Date(thread2.updatedAt));
+      expect(loadedThreads[1].metadata).toEqual(thread2.metadata);
     });
   });
 });
