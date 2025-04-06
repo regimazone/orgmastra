@@ -57,7 +57,7 @@ describe('LanceStorage tests', async () => {
   });
 
   it('should create a new instance of LanceStorage', async () => {
-    const storage = await LanceStorage.create('test', 'lancedb');
+    const storage = await LanceStorage.create('test', 'lancedb-storage');
     expect(storage).toBeInstanceOf(LanceStorage);
     expect(storage.name).toBe('test');
   });
@@ -567,37 +567,77 @@ describe('LanceStorage tests', async () => {
       expect(loadedMessages.length).toEqual(0);
     });
 
-    it('should pass threadConfig parameter without affecting results', async () => {
+    it('should throw error when threadConfig is provided', async () => {
       const threadId = '12333d567-e89b-12d3-a456-426614174000';
       const messages: MessageType[] = generateMessageRecords(5, threadId);
       await storage.saveMessages({ messages });
 
-      // Get messages with a threadConfig
+      // Test that providing a threadConfig throws an error
+      await expect(
+        storage.getMessages({
+          threadId,
+          threadConfig: {
+            lastMessages: 10,
+            semanticRecall: {
+              topK: 5,
+              messageRange: { before: 3, after: 3 },
+            },
+            workingMemory: {
+              enabled: true,
+            },
+            threads: {
+              generateTitle: true,
+            },
+          },
+        }),
+      ).rejects.toThrow('ThreadConfig is not supported by LanceDB storage');
+    });
+
+    it('should retrieve messages with context using withPreviousMessages and withNextMessages', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      const messages: MessageType[] = generateMessageRecords(10, threadId);
+      await storage.saveMessages({ messages });
+
+      // Get a specific message with context (previous and next messages)
+      const targetMessageId = messages[5].id;
       const loadedMessages = await storage.getMessages({
         threadId,
-        threadConfig: {
-          lastMessages: 10,
-          semanticRecall: {
-            topK: 5,
-            messageRange: { before: 3, after: 3 },
-          },
-          workingMemory: {
-            enabled: true,
-          },
-          threads: {
-            generateTitle: true,
-          },
+        selectBy: {
+          include: [
+            {
+              id: targetMessageId,
+              withPreviousMessages: 2,
+              withNextMessages: 1,
+            },
+          ],
         },
       });
 
       expect(loadedMessages).not.toBeNull();
-      expect(loadedMessages.length).toEqual(5);
 
-      // Verify that all messages are returned correctly
-      loadedMessages.forEach((message, index) => {
-        expect(message.id.toString()).toEqual(messages[index].id);
-        expect(message.content).toEqual(messages[index].content);
-      });
+      // We should get the target message plus 2 previous and 1 next message
+      // So a total of 4 messages (the target message, 2 before, and 1 after)
+      expect(loadedMessages.length).toEqual(4);
+
+      // Extract the IDs from the results for easier checking
+      const loadedIds = loadedMessages.map(m => m.id.toString());
+
+      // Check that the target message is included
+      expect(loadedIds).toContain(targetMessageId);
+
+      // Check that the previous 2 messages are included (messages[3] and messages[4])
+      expect(loadedIds).toContain(messages[3].id);
+      expect(loadedIds).toContain(messages[4].id);
+
+      // Check that the next message is included (messages[6])
+      expect(loadedIds).toContain(messages[6].id);
+
+      // Verify correct chronological order
+      for (let i = 0; i < loadedMessages.length - 1; i++) {
+        const currentDate = new Date(loadedMessages[i].createdAt).getTime();
+        const nextDate = new Date(loadedMessages[i + 1].createdAt).getTime();
+        expect(currentDate).toBeLessThanOrEqual(nextDate);
+      }
     });
   });
 });
