@@ -465,9 +465,37 @@ export class LanceStorage extends MastraStorage {
   async getMessages({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<MessageType[]> {
     try {
       const table = await this.lanceClient.openTable(TABLE_MESSAGES);
-      const query = table.query().where(`\`threadId\` = '${threadId}'`);
+      let query = table.query().where(`\`threadId\` = '${threadId}'`);
 
-      const records = await query.toArray();
+      // Apply selectBy filters if provided
+      if (selectBy) {
+        // Handle 'include' to fetch specific messages
+        if (selectBy.include && selectBy.include.length > 0) {
+          const includeIds = selectBy.include.map(item => item.id);
+          // Add additional query to include specific message IDs
+          // This will be combined with the threadId filter
+          const includeClause = includeIds.map(id => `\`id\` = '${id}'`).join(' OR ');
+          query = query.where(`(\`threadId\` = '${threadId}' OR (${includeClause}))`);
+        }
+      }
+
+      // Apply threadConfig if needed
+      // In this implementation, we're not using threadConfig for message retrieval
+      // but in a real-world scenario, it might affect how messages are filtered or processed
+
+      let records = await query.toArray();
+
+      records = records.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateA - dateB; // Ascending order
+      });
+
+      // If we're fetching the last N messages, take only the last N after sorting
+      if (selectBy?.last !== undefined && selectBy.last !== false) {
+        records = records.slice(-selectBy.last);
+      }
+
       return this.processResultWithTypeConversion(records, await this.getTableSchema(TABLE_MESSAGES)) as MessageType[];
     } catch (error: any) {
       throw new Error(`Failed to get messages: ${error}`);

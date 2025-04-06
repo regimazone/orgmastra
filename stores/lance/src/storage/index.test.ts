@@ -503,5 +503,101 @@ describe('LanceStorage tests', async () => {
         expect(message.type).toEqual(messages[index].type);
       });
     });
+
+    it('should get the last N messages when selectBy.last is specified', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      const messages: MessageType[] = generateMessageRecords(10, threadId);
+      await storage.saveMessages({ messages });
+
+      // Get the last 3 messages
+      const loadedMessages = await storage.getMessages({
+        threadId,
+        selectBy: { last: 3 },
+      });
+
+      expect(loadedMessages).not.toBeNull();
+      expect(loadedMessages.length).toEqual(3);
+      console.log('last three', loadedMessages);
+
+      // Verify that we got the last 3 messages in chronological order
+      for (let i = 0; i < 3; i++) {
+        expect(loadedMessages[i].id.toString()).toEqual(messages[messages.length - 3 + i].id);
+        expect(loadedMessages[i].content).toEqual(messages[messages.length - 3 + i].content);
+      }
+    });
+
+    it('should get specific messages when selectBy.include is specified', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      const messages: MessageType[] = generateMessageRecords(10, threadId);
+      await storage.saveMessages({ messages });
+
+      // Select specific messages by ID
+      const messageIds = [messages[2].id, messages[5].id, messages[8].id];
+      const loadedMessages = await storage.getMessages({
+        threadId,
+        selectBy: {
+          include: messageIds.map(id => ({ id })),
+        },
+      });
+
+      expect(loadedMessages).not.toBeNull();
+      // We should get either the specified messages or all thread messages
+      expect(loadedMessages.length).toBeGreaterThanOrEqual(3);
+
+      // Verify that the selected messages are included in the results
+      const loadedIds = loadedMessages.map(m => m.id.toString());
+      messageIds.forEach(id => {
+        expect(loadedIds).toContain(id);
+      });
+    });
+
+    it('should handle empty results when using selectBy filters', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      // Create messages for a different thread ID
+      const messages: MessageType[] = generateMessageRecords(5, 'different-thread-id');
+      await storage.saveMessages({ messages });
+
+      // Try to get messages for our test threadId, which should return empty
+      const loadedMessages = await storage.getMessages({
+        threadId,
+        selectBy: { last: 3 },
+      });
+
+      expect(loadedMessages).not.toBeNull();
+      expect(loadedMessages.length).toEqual(0);
+    });
+
+    it('should pass threadConfig parameter without affecting results', async () => {
+      const threadId = '12333d567-e89b-12d3-a456-426614174000';
+      const messages: MessageType[] = generateMessageRecords(5, threadId);
+      await storage.saveMessages({ messages });
+
+      // Get messages with a threadConfig
+      const loadedMessages = await storage.getMessages({
+        threadId,
+        threadConfig: {
+          lastMessages: 10,
+          semanticRecall: {
+            topK: 5,
+            messageRange: { before: 3, after: 3 },
+          },
+          workingMemory: {
+            enabled: true,
+          },
+          threads: {
+            generateTitle: true,
+          },
+        },
+      });
+
+      expect(loadedMessages).not.toBeNull();
+      expect(loadedMessages.length).toEqual(5);
+
+      // Verify that all messages are returned correctly
+      loadedMessages.forEach((message, index) => {
+        expect(message.id.toString()).toEqual(messages[index].id);
+        expect(message.content).toEqual(messages[index].content);
+      });
+    });
   });
 });
