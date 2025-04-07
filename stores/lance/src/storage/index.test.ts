@@ -1,5 +1,5 @@
-import type { MessageType, StorageThreadType } from '@mastra/core';
-import { TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
+import type { MessageType, StorageThreadType, TraceType } from '@mastra/core';
+import { TABLE_MESSAGES, TABLE_SCHEMAS, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { LanceStorage } from './index';
@@ -638,6 +638,61 @@ describe('LanceStorage tests', async () => {
         const nextDate = new Date(loadedMessages[i + 1].createdAt).getTime();
         expect(currentDate).toBeLessThanOrEqual(nextDate);
       }
+    });
+  });
+
+  describe('Trace operations', () => {
+    beforeAll(async () => {
+      const traceTableSchema = TABLE_SCHEMAS[TABLE_TRACES];
+      await storage.createTable({ tableName: TABLE_TRACES, schema: traceTableSchema });
+    });
+
+    afterAll(async () => {
+      await storage.dropTable(TABLE_TRACES);
+    });
+
+    afterEach(async () => {
+      await storage.clearTable({ tableName: TABLE_TRACES });
+    });
+
+    it('should save trace', async () => {
+      const trace = {
+        id: '123e4567-e89b-12d3-a456-426614174023',
+        parentSpanId: '123e4567-e89b-12d3-a456-426614174023',
+        name: 'Test Trace',
+        traceId: '123e4567-e89b-12d3-a456-426614234020',
+        scope: 'test',
+        kind: 0,
+        attributes: { attribute1: 'value1' },
+        status: { code: 0, description: 'OK' },
+        events: { event1: 'value1' },
+        links: { link1: 'value1' },
+        other: { other1: 'value1' },
+        startTime: new Date().getTime(),
+        endTime: new Date().getTime(),
+        createdAt: new Date(),
+      } as TraceType;
+
+      await storage.saveTrace({ trace });
+
+      const loadedTrace = await storage.getTraceById({ traceId: trace.id });
+      console.log(loadedTrace);
+
+      expect(loadedTrace).not.toBeNull();
+      expect(loadedTrace.id).toEqual(trace.id);
+      expect(loadedTrace.name).toEqual('Test Trace');
+      expect(loadedTrace.parentSpanId).toEqual(trace.parentSpanId);
+      expect(loadedTrace.traceId).toEqual(trace.traceId);
+      expect(loadedTrace.scope).toEqual(trace.scope);
+      expect(loadedTrace.kind).toEqual(trace.kind);
+      expect(loadedTrace.attributes).toEqual(trace.attributes);
+      expect(loadedTrace.status).toEqual(trace.status);
+      expect(loadedTrace.events).toEqual(trace.events);
+      expect(loadedTrace.links).toEqual(trace.links);
+      expect(loadedTrace.other).toEqual(trace.other);
+      expect(loadedTrace.startTime).toEqual(trace.startTime);
+      expect(loadedTrace.endTime).toEqual(trace.endTime);
+      expect(new Date(loadedTrace.createdAt)).toEqual(trace.createdAt);
     });
   });
 });

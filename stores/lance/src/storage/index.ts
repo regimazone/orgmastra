@@ -6,9 +6,10 @@ import type {
   StorageColumn,
   StorageGetMessagesArg,
   StorageThreadType,
+  TraceType,
   WorkflowRuns,
 } from '@mastra/core';
-import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
+import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
 import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
@@ -123,7 +124,7 @@ export class LanceStorage extends MastraStorage {
     } catch (error: any) {
       // Don't throw if the table doesn't exist
       if (error.toString().includes('was not found')) {
-        console.debug(`Table '${tableName}' does not exist, skipping drop`);
+        this.logger.debug(`Table '${tableName}' does not exist, skipping drop`);
         return;
       }
       throw new Error(`Failed to drop table: ${error}`);
@@ -199,7 +200,7 @@ export class LanceStorage extends MastraStorage {
           typeof processedRecord[key] === 'object' &&
           !(processedRecord[key] instanceof Date)
         ) {
-          console.log('Converting object to JSON string: ', processedRecord[key]);
+          this.logger.debug('Converting object to JSON string: ', processedRecord[key]);
           processedRecord[key] = JSON.stringify(processedRecord[key]);
         }
       }
@@ -276,14 +277,14 @@ export class LanceStorage extends MastraStorage {
           })
           .join(' AND ');
 
-        console.debug('where clause generated: ', filterConditions);
+        this.logger.debug('where clause generated: ' + filterConditions);
         query.where(filterConditions);
       }
 
       const result = await query.limit(1).toArray();
 
       if (result.length === 0) {
-        console.debug('No record found');
+        this.logger.debug('No record found');
         return null;
       }
 
@@ -374,7 +375,7 @@ export class LanceStorage extends MastraStorage {
             processedResult[key] = JSON.parse(processedResult[key]);
           } catch (e) {
             // If JSON parsing fails, keep the original string
-            console.debug(`Failed to parse JSON for key ${key}: ${e}`);
+            this.logger.debug(`Failed to parse JSON for key ${key}: ${e}`);
           }
         }
       } else if (typeof processedResult[key] === 'bigint') {
@@ -566,7 +567,7 @@ export class LanceStorage extends MastraStorage {
       let records = await query.toArray();
 
       // Sort the records chronologically
-      records.sort((a, b) => {
+      records.sort((a: MessageType, b: MessageType) => {
         const dateA = new Date(a.createdAt).getTime();
         const dateB = new Date(b.createdAt).getTime();
         return dateA - dateB; // Ascending order
@@ -613,6 +614,36 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
+  async saveTrace({ trace }: { trace: TraceType }): Promise<TraceType> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_TRACES);
+      const record = {
+        ...trace,
+        attributes: JSON.stringify(trace.attributes),
+        status: JSON.stringify(trace.status),
+        events: JSON.stringify(trace.events),
+        links: JSON.stringify(trace.links),
+        other: JSON.stringify(trace.other),
+      };
+      await table.add([record], { mode: 'overwrite' });
+
+      return trace;
+    } catch (error: any) {
+      throw new Error(`Failed to save trace: ${error}`);
+    }
+  }
+
+  async getTraceById({ traceId }: { traceId: string }): Promise<TraceType> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_TRACES);
+      const query = table.query().where(`id = '${traceId}'`);
+      const records = await query.toArray();
+      return this.processResultWithTypeConversion(records[0], await this.getTableSchema(TABLE_TRACES)) as TraceType;
+    } catch (error: any) {
+      throw new Error(`Failed to get trace by ID: ${error}`);
+    }
+  }
+
   getTraces({
     name,
     scope,
@@ -628,6 +659,7 @@ export class LanceStorage extends MastraStorage {
   }): Promise<any[]> {
     throw new Error('Method not implemented.');
   }
+
   getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     throw new Error('Method not implemented.');
   }
