@@ -86,8 +86,7 @@ export class LanceStorage extends MastraStorage {
           arrowType = new Int32();
           break;
         case 'bigint':
-          // Use Int64 for bigint fields
-          arrowType = new Int64();
+          arrowType = new Float64();
           break;
         case 'float':
           arrowType = new Float32();
@@ -361,6 +360,12 @@ export class LanceStorage extends MastraStorage {
     for (const key in processedResult) {
       const fieldTypeStr = fieldTypeMap.get(key);
       if (!fieldTypeStr) continue;
+
+      // Skip conversion for ID fields - preserve their original format
+      // if (key === 'id') {
+      //   continue;
+      // }
+
       // Only try to convert string values
       if (typeof processedResult[key] === 'string') {
         // Numeric types
@@ -625,7 +630,7 @@ export class LanceStorage extends MastraStorage {
         links: JSON.stringify(trace.links),
         other: JSON.stringify(trace.other),
       };
-      await table.add([record], { mode: 'overwrite' });
+      await table.add([record], { mode: 'append' });
 
       return trace;
     } catch (error: any) {
@@ -644,11 +649,11 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  getTraces({
+  async getTraces({
     name,
     scope,
-    page,
-    perPage,
+    page = 1,
+    perPage = 10,
     attributes,
   }: {
     name?: string;
@@ -656,8 +661,51 @@ export class LanceStorage extends MastraStorage {
     page: number;
     perPage: number;
     attributes?: Record<string, string>;
-  }): Promise<any[]> {
-    throw new Error('Method not implemented.');
+  }): Promise<TraceType[]> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_TRACES);
+      const query = table.query();
+
+      if (name) {
+        query.where(`name = '${name}'`);
+      }
+
+      if (scope) {
+        query.where(`scope = '${scope}'`);
+      }
+
+      if (attributes) {
+        query.where(`attributes = '${JSON.stringify(attributes)}'`);
+      }
+
+      // Calculate offset based on page and perPage
+      const offset = (page - 1) * perPage;
+
+      // Apply limit for pagination
+      query.limit(perPage);
+
+      // Apply offset if greater than 0
+      if (offset > 0) {
+        query.offset(offset);
+      }
+
+      const records = await query.toArray();
+      return records.map(record => {
+        return {
+          ...record,
+          attributes: JSON.parse(record.attributes),
+          status: JSON.parse(record.status),
+          events: JSON.parse(record.events),
+          links: JSON.parse(record.links),
+          other: JSON.parse(record.other),
+          startTime: new Date(record.startTime),
+          endTime: new Date(record.endTime),
+          createdAt: new Date(record.createdAt),
+        };
+      }) as TraceType[];
+    } catch (error: any) {
+      throw new Error(`Failed to get traces: ${error}`);
+    }
   }
 
   getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {

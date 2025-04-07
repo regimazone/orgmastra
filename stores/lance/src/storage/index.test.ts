@@ -49,6 +49,25 @@ function generateMessageRecords(count: number, threadId?: string): MessageType[]
   }));
 }
 
+function generateTraceRecords(count: number): TraceType[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: (index + 1).toString(),
+    name: `Test trace ${index + 1}`,
+    scope: 'test',
+    kind: 0,
+    parentSpanId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    traceId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    attributes: { attribute1: 'value1' },
+    status: { code: 0, description: 'OK' },
+    events: { event1: 'value1' },
+    links: { link1: 'value1' },
+    other: { other1: 'value1' },
+    startTime: new Date().getTime(),
+    endTime: new Date().getTime(),
+    createdAt: new Date(),
+  }));
+}
+
 describe('LanceStorage tests', async () => {
   let storage!: LanceStorage;
 
@@ -517,7 +536,6 @@ describe('LanceStorage tests', async () => {
 
       expect(loadedMessages).not.toBeNull();
       expect(loadedMessages.length).toEqual(3);
-      console.log('last three', loadedMessages);
 
       // Verify that we got the last 3 messages in chronological order
       for (let i = 0; i < 3; i++) {
@@ -644,6 +662,7 @@ describe('LanceStorage tests', async () => {
   describe('Trace operations', () => {
     beforeAll(async () => {
       const traceTableSchema = TABLE_SCHEMAS[TABLE_TRACES];
+      console.log('Creating trace table:', traceTableSchema);
       await storage.createTable({ tableName: TABLE_TRACES, schema: traceTableSchema });
     });
 
@@ -676,7 +695,6 @@ describe('LanceStorage tests', async () => {
       await storage.saveTrace({ trace });
 
       const loadedTrace = await storage.getTraceById({ traceId: trace.id });
-      console.log(loadedTrace);
 
       expect(loadedTrace).not.toBeNull();
       expect(loadedTrace.id).toEqual(trace.id);
@@ -693,6 +711,59 @@ describe('LanceStorage tests', async () => {
       expect(loadedTrace.startTime).toEqual(trace.startTime);
       expect(loadedTrace.endTime).toEqual(trace.endTime);
       expect(new Date(loadedTrace.createdAt)).toEqual(trace.createdAt);
+    });
+
+    it('should get traces by page', async () => {
+      const traces = generateTraceRecords(10);
+
+      await Promise.all(traces.map(trace => storage.saveTrace({ trace })));
+
+      const loadedTrace = await storage.getTraces({
+        page: 1,
+        perPage: 10,
+      });
+
+      expect(loadedTrace).not.toBeNull();
+      expect(loadedTrace.length).toEqual(10);
+
+      loadedTrace.forEach(trace => {
+        expect(trace.id).toEqual(traces.find(t => t.id === trace.id)?.id);
+        expect(trace.name).toEqual(traces.find(t => t.id === trace.id)?.name);
+        expect(trace.parentSpanId).toEqual(traces.find(t => t.id === trace.id)?.parentSpanId);
+        expect(trace.traceId).toEqual(traces.find(t => t.id === trace.id)?.traceId);
+        expect(trace.scope).toEqual(traces.find(t => t.id === trace.id)?.scope);
+        expect(trace.kind).toEqual(traces.find(t => t.id === trace.id)?.kind);
+        expect(trace.attributes).toEqual(traces.find(t => t.id === trace.id)?.attributes);
+        expect(trace.status).toEqual(traces.find(t => t.id === trace.id)?.status);
+        expect(trace.events).toEqual(traces.find(t => t.id === trace.id)?.events);
+        expect(trace.links).toEqual(traces.find(t => t.id === trace.id)?.links);
+        expect(trace.other).toEqual(traces.find(t => t.id === trace.id)?.other);
+        expect(new Date(trace.startTime)).toEqual(new Date(traces.find(t => t.id === trace.id)?.startTime ?? ''));
+        expect(new Date(trace.endTime)).toEqual(new Date(traces.find(t => t.id === trace.id)?.endTime ?? ''));
+        expect(new Date(trace.createdAt)).toEqual(new Date(traces.find(t => t.id === trace.id)?.createdAt ?? ''));
+      });
+    });
+
+    it('should get trace by name and scope', async () => {
+      const trace = generateTraceRecords(1)[0];
+      await storage.saveTrace({ trace });
+
+      const loadedTrace = await storage.getTraces({ name: trace.name, scope: trace.scope, page: 1, perPage: 10 });
+
+      expect(loadedTrace).not.toBeNull();
+      expect(loadedTrace[0].id).toEqual(trace.id);
+      expect(loadedTrace[0].name).toEqual(trace.name);
+      expect(loadedTrace[0].parentSpanId).toEqual(trace.parentSpanId);
+      expect(loadedTrace[0].scope).toEqual(trace.scope);
+      expect(loadedTrace[0].kind).toEqual(trace.kind);
+      expect(loadedTrace[0].attributes).toEqual(trace.attributes);
+      expect(loadedTrace[0].status).toEqual(trace.status);
+      expect(loadedTrace[0].events).toEqual(trace.events);
+      expect(loadedTrace[0].links).toEqual(trace.links);
+      expect(loadedTrace[0].other).toEqual(trace.other);
+      expect(loadedTrace[0].startTime).toEqual(new Date(trace.startTime));
+      expect(loadedTrace[0].endTime).toEqual(new Date(trace.endTime));
+      expect(loadedTrace[0].createdAt).toEqual(new Date(trace.createdAt));
     });
   });
 });
