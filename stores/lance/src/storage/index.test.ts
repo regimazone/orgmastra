@@ -1,5 +1,12 @@
-import type { EvalRow, MessageType, StorageThreadType, TraceType } from '@mastra/core';
-import { TABLE_EVALS, TABLE_MESSAGES, TABLE_SCHEMAS, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
+import type { EvalRow, MessageType, StorageThreadType, TraceType, WorkflowRuns } from '@mastra/core';
+import {
+  TABLE_EVALS,
+  TABLE_MESSAGES,
+  TABLE_SCHEMAS,
+  TABLE_THREADS,
+  TABLE_TRACES,
+  TABLE_WORKFLOW_SNAPSHOT,
+} from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { LanceStorage } from './index';
@@ -82,6 +89,19 @@ function generateEvalRecords(count: number): EvalRow[] {
     globalRunId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
     createdAt: new Date().toString(),
   }));
+}
+
+function generateWorkflowRuns(count: number): WorkflowRuns {
+  return {
+    runs: Array.from({ length: count }, (_, index) => ({
+      workflowName: `Test workflow ${index + 1}`,
+      runId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+      snapshot: `Test snapshot ${index + 1}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    total: count,
+  };
 }
 
 describe('LanceStorage tests', async () => {
@@ -678,7 +698,6 @@ describe('LanceStorage tests', async () => {
   describe('Trace operations', () => {
     beforeAll(async () => {
       const traceTableSchema = TABLE_SCHEMAS[TABLE_TRACES];
-      console.log('Creating trace table:', traceTableSchema);
       await storage.createTable({ tableName: TABLE_TRACES, schema: traceTableSchema });
     });
 
@@ -808,6 +827,64 @@ describe('LanceStorage tests', async () => {
       expect(loadedEvals[0].result).toEqual(evals[0].result);
       expect(loadedEvals[0].testInfo).toEqual(evals[0].testInfo);
       expect(new Date(loadedEvals[0].createdAt)).toEqual(new Date(evals[0].createdAt));
+    });
+  });
+
+  describe('Workflow operations', () => {
+    beforeAll(async () => {
+      const workflowSchema = TABLE_SCHEMAS[TABLE_WORKFLOW_SNAPSHOT];
+      await storage.createTable({ tableName: TABLE_WORKFLOW_SNAPSHOT, schema: workflowSchema });
+    });
+
+    afterAll(async () => {
+      await storage.dropTable(TABLE_WORKFLOW_SNAPSHOT);
+    });
+
+    // afterEach(async () => {
+    //   await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
+    // });
+
+    it('should save workflow runs', async () => {
+      const runs = generateWorkflowRuns(1);
+      await storage.saveWorkflowRuns({ runs });
+
+      const loadedRuns = await storage.getWorkflowRuns();
+
+      expect(loadedRuns).not.toBeNull();
+      expect(loadedRuns.runs.length).toBe(1);
+      expect(loadedRuns.runs[0].workflowName).toEqual(runs.runs[0].workflowName);
+      expect(loadedRuns.runs[0].runId).toEqual(runs.runs[0].runId);
+      expect(loadedRuns.runs[0].snapshot).toEqual(runs.runs[0].snapshot);
+      expect(loadedRuns.runs[0].createdAt).toEqual(runs.runs[0].createdAt);
+      expect(loadedRuns.runs[0].updatedAt).toEqual(runs.runs[0].updatedAt);
+    });
+
+    it('should get workflow runs by all arguments', async () => {
+      const runs = generateWorkflowRuns(10);
+      await storage.saveWorkflowRuns({ runs });
+
+      const loadedRuns = await storage.getWorkflowRuns({
+        workflowName: runs.runs[0].workflowName,
+        limit: 10,
+        offset: 0,
+        fromDate: runs.runs[0].createdAt,
+        toDate: runs.runs[0].updatedAt,
+      });
+
+      expect(loadedRuns).not.toBeNull();
+      expect(loadedRuns.runs.length).toBe(10);
+
+      loadedRuns.runs.forEach(run => {
+        expect(run.workflowName).toEqual(runs.runs.find(r => r.workflowName === run.workflowName)?.workflowName);
+        expect(run.runId).toEqual(runs.runs.find(r => r.workflowName === run.workflowName)?.runId);
+        expect(run.snapshot).toEqual(runs.runs.find(r => r.workflowName === run.workflowName)?.snapshot);
+        expect(run.createdAt.getDay()).toEqual(
+          runs.runs.find(r => r.workflowName === run.workflowName)?.createdAt.getDay(),
+        );
+        expect(run.updatedAt.getDate()).toEqual(
+          runs.runs.find(r => r.workflowName === run.workflowName)?.updatedAt.getDate(),
+        );
+      });
     });
   });
 });

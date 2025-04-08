@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { connect } from '@lancedb/lancedb';
 import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
 import type {
@@ -9,11 +10,17 @@ import type {
   TraceType,
   WorkflowRuns,
 } from '@mastra/core';
-import { MastraStorage, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
+import {
+  MastraStorage,
+  TABLE_EVALS,
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_TRACES,
+  TABLE_WORKFLOW_SNAPSHOT,
+} from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
 import { Utf8, Int32, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
-import { randomUUID } from 'crypto';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -758,7 +765,25 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  getWorkflowRuns(args?: {
+  async saveWorkflowRuns({ runs }: { runs: WorkflowRuns }): Promise<WorkflowRuns> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
+      const records = runs.runs.map(run => ({
+        workflow_name: run.workflowName,
+        run_id: run.runId,
+        snapshot: run.snapshot,
+        createdAt: run.createdAt.getTime(),
+        updatedAt: run.updatedAt.getTime(),
+      }));
+
+      await table.add(records, { mode: 'append' });
+      return runs;
+    } catch (error: any) {
+      throw new Error(`Failed to save workflow runs: ${error}`);
+    }
+  }
+
+  async getWorkflowRuns(args?: {
     namespace?: string;
     workflowName?: string;
     fromDate?: Date;
@@ -766,6 +791,43 @@ export class LanceStorage extends MastraStorage {
     limit?: number;
     offset?: number;
   }): Promise<WorkflowRuns> {
-    throw new Error('Method not implemented.');
+    try {
+      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
+      const query = table.query();
+
+      if (args?.workflowName) {
+        query.where(`workflow_name = '${args.workflowName}'`);
+      }
+
+      if (args?.fromDate) {
+        query.where(`\`createdAt\` >= ${args.fromDate.getTime()}`);
+      }
+
+      if (args?.toDate) {
+        query.where(`\`createdAt\` <= ${args.toDate.getTime()}`);
+      }
+
+      if (args?.limit) {
+        query.limit(args.limit);
+      }
+
+      if (args?.offset) {
+        query.offset(args.offset);
+      }
+
+      const records = await query.toArray();
+      return {
+        runs: records.map(record => ({
+          workflowName: record.workflow_name,
+          runId: record.run_id,
+          snapshot: record.snapshot,
+          createdAt: new Date(record.createdAt),
+          updatedAt: new Date(record.updatedAt),
+        })),
+        total: records.length,
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get workflow runs: ${error}`);
+    }
   }
 }
