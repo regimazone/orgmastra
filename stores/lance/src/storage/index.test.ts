@@ -1,5 +1,5 @@
-import type { MessageType, StorageThreadType, TraceType } from '@mastra/core';
-import { TABLE_MESSAGES, TABLE_SCHEMAS, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
+import type { EvalRow, MessageType, StorageThreadType, TraceType } from '@mastra/core';
+import { TABLE_EVALS, TABLE_MESSAGES, TABLE_SCHEMAS, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
 import type { StorageColumn } from '@mastra/core/storage';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { LanceStorage } from './index';
@@ -68,6 +68,22 @@ function generateTraceRecords(count: number): TraceType[] {
   }));
 }
 
+function generateEvalRecords(count: number): EvalRow[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: (index + 1).toString(),
+    input: `Test input ${index + 1}`,
+    output: `Test output ${index + 1}`,
+    result: { score: index + 1, info: { testIndex: index + 1 } },
+    agentName: `Test agent ${index + 1}`,
+    metricName: `Test metric ${index + 1}`,
+    instructions: 'Test instructions',
+    testInfo: { testName: `Test ${index + 1}`, testPath: `TestPath ${index + 1}` },
+    runId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    globalRunId: `12333d567-e89b-12d3-a456-${(426614174000 + index).toString()}`,
+    createdAt: new Date().toString(),
+  }));
+}
+
 describe('LanceStorage tests', async () => {
   let storage!: LanceStorage;
 
@@ -118,7 +134,7 @@ describe('LanceStorage tests', async () => {
       // check the types of the fields
       expect(table.fields[0].type.toString().toLowerCase()).toBe('int32');
       expect(table.fields[1].type.toString().toLowerCase()).toBe('utf8');
-      expect(table.fields[2].type.toString().toLowerCase()).toBe('int64');
+      expect(table.fields[2].type.toString().toLowerCase()).toBe('float64');
       expect(table.fields[3].type.toString().toLowerCase()).toBe('utf8');
       expect(table.fields[4].type.toString().toLowerCase()).toBe('utf8');
       expect(table.fields[5].type.toString().toLowerCase()).toBe('float64');
@@ -764,6 +780,34 @@ describe('LanceStorage tests', async () => {
       expect(loadedTrace[0].startTime).toEqual(new Date(trace.startTime));
       expect(loadedTrace[0].endTime).toEqual(new Date(trace.endTime));
       expect(loadedTrace[0].createdAt).toEqual(new Date(trace.createdAt));
+    });
+  });
+
+  describe('Eval operations', () => {
+    beforeAll(async () => {
+      const evalSchema = TABLE_SCHEMAS[TABLE_EVALS];
+      await storage.createTable({ tableName: TABLE_EVALS, schema: evalSchema });
+    });
+
+    afterAll(async () => {
+      await storage.dropTable(TABLE_EVALS);
+    });
+
+    it('should get evals by agent name', async () => {
+      const evals = generateEvalRecords(1);
+      await storage.saveEvals({ evals });
+
+      const loadedEvals = await storage.getEvalsByAgentName(evals[0].agentName);
+
+      expect(loadedEvals).not.toBeNull();
+      expect(loadedEvals.length).toBe(1);
+      expect(loadedEvals[0].input).toEqual(evals[0].input);
+      expect(loadedEvals[0].output).toEqual(evals[0].output);
+      expect(loadedEvals[0].agentName).toEqual(evals[0].agentName);
+      expect(loadedEvals[0].metricName).toEqual(evals[0].metricName);
+      expect(loadedEvals[0].result).toEqual(evals[0].result);
+      expect(loadedEvals[0].testInfo).toEqual(evals[0].testInfo);
+      expect(new Date(loadedEvals[0].createdAt)).toEqual(new Date(evals[0].createdAt));
     });
   });
 });

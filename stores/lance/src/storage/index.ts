@@ -9,10 +9,11 @@ import type {
   TraceType,
   WorkflowRuns,
 } from '@mastra/core';
-import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
+import { MastraStorage, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS, TABLE_TRACES } from '@mastra/core/storage';
 import type { TABLE_NAMES } from '@mastra/core/storage';
 import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Int64, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
+import { Utf8, Int32, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
+import { randomUUID } from 'crypto';
 
 export class LanceStorage extends MastraStorage {
   private lanceClient!: Connection;
@@ -708,8 +709,53 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
-    throw new Error('Method not implemented.');
+  async saveEvals({ evals }: { evals: EvalRow[] }): Promise<EvalRow[]> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_EVALS);
+      const transformedEvals = evals.map(evalRecord => ({
+        id: randomUUID(),
+        input: evalRecord.input,
+        output: evalRecord.output,
+        agent_name: evalRecord.agentName,
+        metric_name: evalRecord.metricName,
+        result: JSON.stringify(evalRecord.result),
+        instructions: evalRecord.instructions,
+        test_info: JSON.stringify(evalRecord.testInfo),
+        global_run_id: evalRecord.globalRunId,
+        run_id: evalRecord.runId,
+        created_at: new Date(evalRecord.createdAt).getTime(),
+      }));
+
+      await table.add(transformedEvals, { mode: 'append' });
+      return evals;
+    } catch (error: any) {
+      throw new Error(`Failed to save evals: ${error}`);
+    }
+  }
+
+  async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
+    try {
+      const table = await this.lanceClient.openTable(TABLE_EVALS);
+      const query = table.query().where(`agent_name = '${agentName}'`);
+      const records = await query.toArray();
+      return records.map(record => {
+        return {
+          id: record.id,
+          input: record.input,
+          output: record.output,
+          agentName: record.agent_name,
+          metricName: record.metric_name,
+          result: JSON.parse(record.result),
+          instructions: record.instructions,
+          testInfo: JSON.parse(record.test_info),
+          globalRunId: record.global_run_id,
+          runId: record.run_id,
+          createdAt: new Date(record.created_at).toString(),
+        };
+      }) as EvalRow[];
+    } catch (error: any) {
+      throw new Error(`Failed to get evals by agent name: ${error}`);
+    }
   }
 
   getWorkflowRuns(args?: {
