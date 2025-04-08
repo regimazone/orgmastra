@@ -127,7 +127,7 @@ export class LanceVectorStore extends MastraVector {
       // Add filter if provided
       if (filter && Object.keys(filter).length > 0) {
         const whereClause = this.filterTranslator(filter);
-        console.debug(`Where clause generated: ${whereClause}`);
+        this.logger.debug(`Where clause generated: ${whereClause}`);
         query = query.where(whereClause);
       }
 
@@ -387,7 +387,7 @@ export class LanceVectorStore extends MastraVector {
         });
       } else {
         // Default to HNSW PQ index
-        console.log('Creating HNSW PQ index with config:', indexConfig);
+        this.logger.debug('Creating HNSW PQ index with config:', indexConfig);
         await table.createIndex(indexName, {
           config: Index.hnswPq({
             m: indexConfig?.hnsw?.m || 16,
@@ -435,7 +435,7 @@ export class LanceVectorStore extends MastraVector {
       const tables = await this.lanceClient.tableNames();
 
       for (const tableName of tables) {
-        console.debug('Checking table:', tableName);
+        this.logger.debug('Checking table:' + tableName);
         const table = await this.lanceClient.openTable(tableName);
         const tableIndices = await table.listIndices();
         const foundIndex = tableIndices.find(index => index.name === indexName);
@@ -547,7 +547,7 @@ export class LanceVectorStore extends MastraVector {
       const tables = await this.lanceClient.tableNames();
 
       for (const tableName of tables) {
-        console.debug('Checking table:', tableName);
+        this.logger.debug('Checking table:' + tableName);
         const table = await this.lanceClient.openTable(tableName);
 
         try {
@@ -555,7 +555,7 @@ export class LanceVectorStore extends MastraVector {
           const hasColumn = schema.fields.some(field => field.name === _indexName);
 
           if (hasColumn) {
-            console.debug(`Found column ${_indexName} in table ${tableName}`);
+            this.logger.debug(`Found column ${_indexName} in table ${tableName}`);
 
             // First, query the existing record to preserve values that aren't being updated
             const existingRecord = await table
@@ -615,7 +615,7 @@ export class LanceVectorStore extends MastraVector {
             return;
           }
         } catch (err) {
-          console.error(`Error checking schema for table ${tableName}:`, err);
+          this.logger.error(`Error checking schema for table ${tableName}:` + err);
           // Continue to the next table if there's an error
           continue;
         }
@@ -646,7 +646,7 @@ export class LanceVectorStore extends MastraVector {
       const tables = await this.lanceClient.tableNames();
 
       for (const tableName of tables) {
-        console.debug('Checking table:', tableName);
+        this.logger.debug('Checking table:' + tableName);
         const table = await this.lanceClient.openTable(tableName);
 
         try {
@@ -655,12 +655,12 @@ export class LanceVectorStore extends MastraVector {
           const hasColumn = schema.fields.some(field => field.name === _indexName);
 
           if (hasColumn) {
-            console.debug(`Found column ${_indexName} in table ${tableName}`);
+            this.logger.debug(`Found column ${_indexName} in table ${tableName}`);
             await table.delete(`id = '${_id}'`);
             return;
           }
         } catch (err) {
-          console.error(`Error checking schema for table ${tableName}:`, err);
+          this.logger.error(`Error checking schema for table ${tableName}:` + err);
           // Continue to the next table if there's an error
           continue;
         }

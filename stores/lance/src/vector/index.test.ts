@@ -39,14 +39,6 @@ describe('Lance vector store tests', () => {
       await vectorDB.createTable(testTableName, generateTableData(300));
     });
 
-    afterAll(async () => {
-      try {
-        await vectorDB.deleteIndex(indexOnColumn);
-      } catch (error) {
-        console.warn('Failed to delete index during cleanup:', error);
-      }
-    });
-
     describe('create index', () => {
       it('should create an index with specified dimensions', async () => {
         await vectorDB.createIndex({
@@ -180,14 +172,6 @@ describe('Lance vector store tests', () => {
 
       beforeAll(async () => {
         vectorDB.deleteAllTables();
-      });
-
-      afterAll(async () => {
-        try {
-          await vectorDB.deleteIndex(indexColumnName + '_idx');
-        } catch (error) {
-          console.warn('Failed to delete index during cleanup:', error);
-        }
       });
 
       it('should delete an existing index', async () => {
@@ -814,8 +798,6 @@ describe('Lance vector store tests', () => {
     const testTableIndexColumn = 'vector';
 
     beforeAll(async () => {
-      vectorDB.deleteAllTables();
-
       const generateTableData = (numRows: number) => {
         return Array.from({ length: numRows }, (_, i) => ({
           id: String(i + 1),
@@ -1107,7 +1089,6 @@ describe('Lance vector store tests', () => {
 
         // should find the score between 80 and 95
         expect(res.length).toBeGreaterThanOrEqual(2);
-        console.log(res);
 
         const scoresFound = res.map(item => item.metadata?.score);
         expect(scoresFound).toContain(85);
