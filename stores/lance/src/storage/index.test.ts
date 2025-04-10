@@ -1,4 +1,4 @@
-import type { EvalRow, MessageType, StorageThreadType, TraceType, WorkflowRuns } from '@mastra/core';
+import type { EvalRow, MessageType, StorageThreadType, TraceType, WorkflowRuns, WorkflowRunState } from '@mastra/core';
 import {
   TABLE_EVALS,
   TABLE_MESSAGES,
@@ -840,10 +840,6 @@ describe('LanceStorage tests', async () => {
       await storage.dropTable(TABLE_WORKFLOW_SNAPSHOT);
     });
 
-    // afterEach(async () => {
-    //   await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
-    // });
-
     it('should save workflow runs', async () => {
       const runs = generateWorkflowRuns(1);
       await storage.saveWorkflowRuns({ runs });
@@ -885,6 +881,84 @@ describe('LanceStorage tests', async () => {
           runs.runs.find(r => r.workflowName === run.workflowName)?.updatedAt.getDate(),
         );
       });
+    });
+    interface WorkflowRunState {
+      value: Record<string, string>;
+      context: {
+        steps: Record<
+          string,
+          {
+            status: 'success' | 'failed' | 'suspended' | 'waiting' | 'skipped';
+            payload?: any;
+            error?: string;
+          }
+        >;
+        triggerData: Record<string, any>;
+        attempts: Record<string, number>;
+      };
+      activePaths: Array<{
+        stepPath: string[];
+        stepId: string;
+        status: string;
+      }>;
+      runId: string;
+      timestamp: number;
+      childStates?: Record<string, WorkflowRunState>;
+      suspendedSteps?: Record<string, string>;
+    }
+
+    it('should save workflow snapshot', async () => {
+      const workflow: {
+        workflowName: string;
+        runId: string;
+        snapshot: WorkflowRunState;
+      } = {
+        workflowName: 'test',
+        runId: '123',
+        snapshot: {
+          value: {
+            key: 'value',
+          },
+          context: {
+            steps: {
+              step1: {
+                status: 'failed',
+                payload: 'payload',
+                error: 'error',
+              },
+            },
+            triggerData: {
+              key: 'value',
+            },
+            attempts: {
+              key: 1,
+            },
+          },
+          activePaths: [
+            {
+              stepPath: [],
+              stepId: '123',
+              status: 'success',
+            },
+          ],
+          runId: '123',
+          timestamp: new Date().getTime(),
+        },
+      };
+
+      await storage.persistWorkflowSnapshot({
+        workflowName: workflow.workflowName,
+        runId: workflow.runId,
+        snapshot: workflow.snapshot,
+      });
+
+      const loadedSnapshot = await storage.loadWorkflowSnapshot({
+        workflowName: workflow.workflowName,
+        runId: workflow.runId,
+      });
+
+      expect(loadedSnapshot).not.toBeNull();
+      expect(loadedSnapshot).toEqual(workflow.snapshot);
     });
   });
 });
