@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { connect } from '@lancedb/lancedb';
 import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
 import type {
@@ -726,7 +725,6 @@ export class LanceStorage extends MastraStorage {
     try {
       const table = await this.lanceClient.openTable(TABLE_EVALS);
       const transformedEvals = evals.map(evalRecord => ({
-        id: randomUUID(),
         input: evalRecord.input,
         output: evalRecord.output,
         agent_name: evalRecord.agentName,

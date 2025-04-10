@@ -1,4 +1,4 @@
-import type { EvalRow, MessageType, StorageThreadType, TraceType, WorkflowRuns, WorkflowRunState } from '@mastra/core';
+import type { EvalRow, MessageType, StorageThreadType, TraceType, WorkflowRuns } from '@mastra/core';
 import {
   TABLE_EVALS,
   TABLE_MESSAGES,
@@ -77,7 +77,6 @@ function generateTraceRecords(count: number): TraceType[] {
 
 function generateEvalRecords(count: number): EvalRow[] {
   return Array.from({ length: count }, (_, index) => ({
-    id: (index + 1).toString(),
     input: `Test input ${index + 1}`,
     output: `Test output ${index + 1}`,
     result: { score: index + 1, info: { testIndex: index + 1 } },
