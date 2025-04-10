@@ -40,7 +40,7 @@ const agent = new Agent({
 });
 ```
 
-[Agent documentation →](https://mastra.ai/docs/agents/00-overview)
+[Agent documentation →](https://mastra.ai/docs/agents/overview)
 
 ### Workflows (`/workflows`)
 
@@ -57,7 +57,7 @@ const workflow = new Workflow({
 });
 ```
 
-[Workflow documentation →](https://mastra.ai/docs/workflows/00-overview)
+[Workflow documentation →](https://mastra.ai/docs/workflows/overview)
 
 ### Memory (`/memory`)
 
@@ -84,7 +84,7 @@ const agent = new Agent({
 });
 ```
 
-[Memory documentation →](https://mastra.ai/docs/reference/memory/Memory)
+[Memory documentation →](https://mastra.ai/reference/memory/Memory)
 
 ### Tools (`/tools`)
 
@@ -106,7 +106,7 @@ const weatherInfo = createTool({
 });
 ```
 
-[Tools documentation →](https://mastra.ai/docs/agents/02-adding-tools)
+[Tools documentation →](https://mastra.ai/docs/agents/adding-tools)
 
 ### Evals (`/eval`)
 
@@ -132,7 +132,7 @@ const agent = new Agent({
 });
 ```
 
-[More evals documentation →](https://mastra.ai/docs/evals/00-overview)
+[More evals documentation →](https://mastra.ai/docs/evals/overview)
 
 ### Logger (`/logger`)
 
@@ -147,7 +147,7 @@ const logger = createLogger({
 });
 ```
 
-[More logging documentation →](https://mastra.ai/docs/reference/observability/logging)
+[More logging documentation →](https://mastra.ai/reference/observability/logging)
 
 ### Telemetry (`/telemetry`)
 
@@ -172,11 +172,11 @@ const mastra = new Mastra({
 });
 ```
 
-[More Telemetry documentation →](https://mastra.ai/docs/reference/observability/telemetry)
+[More Telemetry documentation →](https://mastra.ai/reference/observability/telemetry)
 
 ## Additional Resources
 
 - [Getting Started Guide](https://mastra.ai/docs/getting-started/installation)
-- [API Reference](https://mastra.ai/docs/reference)
+- [API Reference](https://mastra.ai/reference)
 - [Examples](https://mastra.ai/docs/examples)
 - [Deployment Guide](https://mastra.ai/docs/deployment/overview)

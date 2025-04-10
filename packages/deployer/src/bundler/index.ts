@@ -153,12 +153,25 @@ export abstract class Bundler extends MastraBundler {
       }
     }
 
+    // temporary fix for mastra-memory and fastembed
+    if (
+      analyzedBundleInfo.externalDependencies.has('@mastra/memory') ||
+      analyzedBundleInfo.dependencies.has('@mastra/memory')
+    ) {
+      dependenciesToInstall.set('fastembed', 'latest');
+    }
+
     await this.writePackageJson(join(outputDirectory, this.outputDir), dependenciesToInstall);
     await this.writeInstrumentationFile(join(outputDirectory, this.outputDir));
 
     this.logger.info('Bundling Mastra application');
     const inputOptions: InputOptions = await this.getBundlerOptions(serverFile, mastraEntryFile, analyzedBundleInfo);
-    const bundler = await this.createBundler(inputOptions, { dir: bundleLocation });
+    const bundler = await this.createBundler(inputOptions, {
+      dir: bundleLocation,
+      manualChunks: {
+        mastra: ['#mastra'],
+      },
+    });
 
     await bundler.write();
     this.logger.info('Bundling Mastra done');

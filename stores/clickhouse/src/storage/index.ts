@@ -211,7 +211,6 @@ export class ClickhouseStore extends MastraStorage {
     attributes?: Record<string, string>;
     filters?: Record<string, any>;
   }): Promise<any[]> {
-    let idx = 1;
     const limit = perPage;
     const offset = page * perPage;
 
@@ -329,8 +328,8 @@ export class ClickhouseStore extends MastraStorage {
         )
         ENGINE = ${TABLE_ENGINES[tableName]}
         PARTITION BY "createdAt"
-        PRIMARY KEY (createdAt, id)
-        ORDER BY (createdAt, id)
+        PRIMARY KEY (createdAt, ${tableName === TABLE_EVALS ? 'run_id' : 'id'})
+        ORDER BY (createdAt, ${tableName === TABLE_EVALS ? 'run_id' : 'id'})
         ${this.ttl?.[tableName]?.row ? `TTL toDateTime(createdAt) + INTERVAL ${this.ttl[tableName].row.interval} ${this.ttl[tableName].row.unit}` : ''}
         SETTINGS index_granularity = 8192
       `;
@@ -399,7 +398,7 @@ export class ClickhouseStore extends MastraStorage {
       const keyEntries = Object.entries(keys);
       const conditions = keyEntries
         .map(
-          ([key], index) =>
+          ([key]) =>
             `"${key}" = {var_${key}:${COLUMN_TYPES[TABLE_SCHEMAS[tableName as TABLE_NAMES]?.[key]?.type ?? 'text']}}`,
         )
         .join(' AND ');
