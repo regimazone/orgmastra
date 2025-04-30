@@ -7,17 +7,17 @@ import type { ZodObject } from 'zod';
 
 import type { MastraPrimitives } from './action';
 import type { ToolsInput } from './agent';
-import { Container } from './di';
 import type { Logger } from './logger';
 import type { Mastra } from './mastra';
 import type { AiMessageType, MastraMemory } from './memory';
+import { RuntimeContext } from './runtime-context';
 import { Tool } from './tools';
 import type { CoreTool, ToolAction, VercelTool } from './tools';
 
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function jsonSchemaPropertiesToTSTypes(value: any): z.ZodTypeAny {
-  if (!value.type) {
+  if (!value?.type) {
     return z.object({});
   }
 
@@ -55,6 +55,9 @@ export function jsonSchemaPropertiesToTSTypes(value: any): z.ZodTypeAny {
         .describe((value.description || '') + (value.examples ? `\nExamples: ${value.examples.join(', ')}` : ''));
       break;
     case 'array':
+      if (!value.items || !value.items?.type) {
+        value.items = value.items ? { ...value.items, type: 'string' } : { type: 'string' };
+      }
       zodType = z
         .array(jsonSchemaPropertiesToTSTypes(value.items))
         .describe((value.description || '') + (value.examples ? `\nExamples: ${value.examples.join(', ')}` : ''));
@@ -315,7 +318,7 @@ interface ToolOptions {
   logger: Logger;
   description?: string;
   mastra?: (Mastra & MastraPrimitives) | MastraPrimitives;
-  container: Container;
+  runtimeContext: RuntimeContext;
   memory?: MastraMemory;
   agentName?: string;
 }
@@ -353,7 +356,7 @@ function createLogMessageOptions({ agentName, toolName, type }: LogOptions): Log
 
 function createExecute(tool: ToolToConvert, options: ToolOptions, logType?: 'tool' | 'toolset' | 'client-tool') {
   // dont't add memory or mastra to logging
-  const { logger, mastra: _mastra, memory: _memory, container, ...rest } = options;
+  const { logger, mastra: _mastra, memory: _memory, runtimeContext, ...rest } = options;
 
   const { start, error } = createLogMessageOptions({
     agentName: options.agentName,
@@ -375,7 +378,7 @@ function createExecute(tool: ToolToConvert, options: ToolOptions, logType?: 'too
           mastra: options.mastra,
           memory: options.memory,
           runId: options.runId,
-          container: container ?? new Container(),
+          runtimeContext: runtimeContext ?? new RuntimeContext(),
         },
         execOptions,
       ) ?? undefined
@@ -398,7 +401,7 @@ function createExecute(tool: ToolToConvert, options: ToolOptions, logType?: 'too
  * @param value - The value to check
  * @returns True if the value is a Zod type, false otherwise
  */
-function isZodType(value: unknown): value is z.ZodType {
+export function isZodType(value: unknown): value is z.ZodType {
   // Check if it's a Zod schema by looking for common Zod properties and methods
   return (
     typeof value === 'object' &&

@@ -144,11 +144,15 @@ jobs:
         run: pnpm install
 
       - name: Build
-        run: pnpm turbo test --affected
+        run: pnpm build
+
+      - name: Test
+        run: pnpm turbo test --affected --concurrency 1
 
   e2e-monorepo:
     name: E2E monorepo
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Run on main repository or for trusted bot PRs
     if: ${{ github.repository == 'mastra-ai/mastra' }} && ${{ !contains(github.event.pull_request.files.*.path, 'examples/') && !contains(github.event.pull_request.files.*.path, 'docs/') && !contains(github.event.pull_request.files.*.path, '.changeset/') && !contains(github.event.pull_request.files.*.path, 'generated-changesets/') }}
     env:
@@ -195,6 +199,7 @@ jobs:
   e2e-create-mastra:
     name: E2E create-mastra
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Run on main repository or for trusted bot PRs
     if: ${{ github.repository == 'mastra-ai/mastra' }} && ${{ !contains(github.event.pull_request.files.*.path, 'examples/') && !contains(github.event.pull_request.files.*.path, 'docs/') && !contains(github.event.pull_request.files.*.path, '.changeset/') && !contains(github.event.pull_request.files.*.path, 'generated-changesets/') }}
     env:
@@ -239,6 +244,7 @@ jobs:
   e2e-commonjs:
     name: E2E CommonJS
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Run on main repository or for trusted bot PRs
     if: ${{ github.repository == 'mastra-ai/mastra' }} && ${{ !contains(github.event.pull_request.files.*.path, 'examples/') && !contains(github.event.pull_request.files.*.path, 'docs/') && !contains(github.event.pull_request.files.*.path, '.changeset/') && !contains(github.event.pull_request.files.*.path, 'generated-changesets/') }}
     env:

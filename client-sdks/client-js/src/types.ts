@@ -8,9 +8,11 @@ import type {
   StorageThreadType,
   BaseLogMessage,
   WorkflowRunResult as CoreWorkflowRunResult,
+  WorkflowRuns,
 } from '@mastra/core';
 
 import type { AgentGenerateOptions, AgentStreamOptions } from '@mastra/core/agent';
+import type { NewWorkflow, WatchEvent, WorkflowResult as VNextWorkflowResult } from '@mastra/core/workflows/vNext';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 
@@ -54,6 +56,9 @@ export type StreamParams<T extends JSONSchema7 | ZodSchema | undefined = undefin
 
 export interface GetEvalsByAgentIdResponse extends GetAgentResponse {
   evals: any[];
+  instructions: string;
+  name: string;
+  id: string;
 }
 
 export interface GetToolResponse {
@@ -72,12 +77,35 @@ export interface GetWorkflowResponse {
   workflowId?: string;
 }
 
+export type GetWorkflowRunsResponse = WorkflowRuns;
+
 export type WorkflowRunResult = {
   activePaths: Record<string, { status: string; suspendPayload?: any; stepPath: string[] }>;
   results: CoreWorkflowRunResult<any, any, any>['results'];
   timestamp: number;
   runId: string;
 };
+
+export interface GetVNextWorkflowResponse {
+  name: string;
+  steps: {
+    [key: string]: {
+      id: string;
+      description: string;
+      inputSchema: string;
+      outputSchema: string;
+      resumeSchema: string;
+      suspendSchema: string;
+    };
+  };
+  stepGraph: NewWorkflow['serializedStepGraph'];
+  inputSchema: string;
+  outputSchema: string;
+}
+
+export type VNextWorkflowWatchResult = WatchEvent & { runId: string };
+
+export type VNextWorkflowRunResult = VNextWorkflowResult<any, any>;
 export interface UpsertVectorParams {
   indexName: string;
   vectors: number[][];
@@ -118,7 +146,7 @@ export type SaveMessageToMemoryResponse = MessageType[];
 export interface CreateMemoryThreadParams {
   title: string;
   metadata: Record<string, any>;
-  resourceid: string;
+  resourceId: string;
   threadId: string;
   agentId: string;
 }
@@ -135,7 +163,7 @@ export type GetMemoryThreadResponse = StorageThreadType[];
 export interface UpdateMemoryThreadParams {
   title: string;
   metadata: Record<string, any>;
-  resourceid: string;
+  resourceId: string;
 }
 
 export interface GetMemoryThreadMessagesResponse {
