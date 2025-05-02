@@ -1,5 +1,28 @@
 # @mastra/speech-ibm
 
+## 0.1.21-alpha.3
+
+### Patch Changes
+
+- Updated dependencies [967b41c]
+- Updated dependencies [4155f47]
+- Updated dependencies [17826a9]
+  - @mastra/core@0.9.2-alpha.3
+
+## 0.1.21-alpha.2
+
+### Patch Changes
+
+- Updated dependencies [26738f4]
+  - @mastra/core@0.9.2-alpha.2
+
+## 0.1.21-alpha.1
+
+### Patch Changes
+
+- Updated dependencies [b804723]
+  - @mastra/core@0.9.2-alpha.1
+
 ## 0.1.21-alpha.0
 
 ### Patch Changes

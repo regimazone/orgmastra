@@ -1,5 +1,19 @@
 # create-mastra
 
+## 0.3.1-alpha.2
+
+### Patch Changes
+
+- 33b84fd: fix showing sig digits in trace / span duration
+- 4155f47: Add parameters to filter workflow runs
+  Add fromDate and toDate to telemetry parameters
+
+## 0.3.1-alpha.1
+
+### Patch Changes
+
+- 2429c74: Add get workflow runs api to client-js
+
 ## 0.3.1-alpha.0
 
 ### Patch Changes
