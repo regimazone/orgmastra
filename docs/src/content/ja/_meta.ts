@@ -2,7 +2,21 @@ const meta = {
   docs: { title: "ドキュメント", type: "page" },
   examples: { title: "例", type: "page" },
   guides: { title: "ガイド", type: "page" },
-  reference: { title: "リファレンス", type: "page" },
+  reference: { 
+    title: "リファレンス", 
+    type: "page",
+    children: {
+      rag: {
+        title: "RAG",
+        type: "page",
+        children: {
+          "couchbase": "Couchbase",
+          "metadata-filters": "メタデータフィルター",
+          // ... other existing children
+        }
+      }
+    }
+  },
   showcase: {
     title: "ショーケース",
     type: "page",
