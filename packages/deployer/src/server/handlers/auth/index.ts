@@ -91,7 +91,7 @@ export const authorizationMiddleware = async (c: ContextWithMastra, next: Next) 
   }
 
   // Custom rule-based authorization
-  if (authConfig.rules && authConfig.rules.length > 0) {
+  if ('rules' in authConfig && authConfig.rules && authConfig.rules.length > 0) {
     const isAuthorized = await checkRules(authConfig.rules, path, method, user);
 
     if (isAuthorized) {
