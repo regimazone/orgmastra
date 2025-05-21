@@ -16,6 +16,8 @@
     "@mastra/auth-supabase": "latest",
     "@mastra/auth-workos": "latest",
     "@mastra/auth-firebase": "latest",
+    "@mastra/auth-clerk": "latest",
+    "@mastra/auth-auth0": "latest",
     "mastra": "latest",
     "zod": "^3.24.3"
   },
@@ -29,6 +31,8 @@
       "@mastra/auth-supabase": "link:../../auth/supabase",
       "@mastra/auth-workos": "link:../../auth/workos",
       "@mastra/auth-firebase": "link:../../auth/firebase",
+      "@mastra/auth-clerk": "link:../../auth/clerk",
+      "@mastra/auth-auth0": "link:../../auth/auth0",
       "mastra": "link:../../packages/cli"
     }
   },
