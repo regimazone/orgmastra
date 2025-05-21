@@ -1,9 +1,8 @@
+import { createClerkClient } from '@clerk/backend';
+import type { ClerkClient } from '@clerk/backend';
 import { verifyJwks } from '@mastra/auth';
 import type { JwtPayload } from '@mastra/auth';
 import { MastraAuthProvider } from '@mastra/core/server';
-
-import { createClerkClient } from '@clerk/backend';
-import type { ClerkClient } from '@clerk/backend';
 
 interface MastraAuthClerkOptions {
   jwksUri?: string;
