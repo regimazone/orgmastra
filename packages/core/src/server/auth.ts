@@ -1,7 +1,7 @@
 import type { HonoRequest } from 'hono';
 import { MastraBase } from '../base';
 import { InstrumentClass } from '../telemetry';
-import type { MastraAuthConfig, ContextWithMastra } from './types';
+import type { MastraAuthConfig } from './types';
 
 export function defineAuth<TUser>(config: MastraAuthConfig<TUser>): MastraAuthConfig<TUser> {
   return config;
@@ -26,11 +26,9 @@ export abstract class MastraAuthProvider<TUser = unknown> extends MastraBase {
 
   /**
    * Authorize a user for a path and method
-   * @param path - The path to authorize
-   * @param method - The method to authorize
    * @param user - The user to authorize
-   * @param context - The context
+   * @param request - The request
    * @returns The authorization result
    */
-  abstract authorize(path: string, method: string, user: TUser, context: ContextWithMastra): Promise<boolean>;
+  abstract authorizeUser(user: TUser, request: HonoRequest): Promise<boolean>;
 }

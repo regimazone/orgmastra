@@ -18,7 +18,7 @@ export class MastraAuthFirebase extends MastraAuthProvider<FirebaseUser> {
     super({ name: 'firebase' });
 
     this.serviceAccount = options?.serviceAccount ?? process.env.FIREBASE_SERVICE_ACCOUNT;
-    this.databaseId = options?.databaseId ?? process.env.FIRESTORE_DATABASE_ID;
+    this.databaseId = options?.databaseId ?? process.env.FIRESTORE_DATABASE_ID ?? process.env.FIREBASE_DATABASE_ID;
 
     if (!admin.apps.length) {
       admin.initializeApp({
@@ -34,7 +34,7 @@ export class MastraAuthFirebase extends MastraAuthProvider<FirebaseUser> {
     return decoded;
   }
 
-  async authorize(path: string, method: string, user: FirebaseUser) {
+  async authorizeUser(user: FirebaseUser) {
     const db = this.databaseId ? getFirestore(this.databaseId) : getFirestore();
     const userAccess = await db.doc(`/user_access/${user.uid}`).get();
     const userAccessData = userAccess.data();

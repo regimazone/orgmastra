@@ -36,7 +36,7 @@ export class MastraAuthSupabase extends MastraAuthProvider<User> {
     return data.user;
   }
 
-  async authorize(path: string, method: string, user: User) {
+  async authorizeUser(user: User) {
     // Get user data from Supabase
     const { data, error } = await this.supabase.from('users').select('isAdmin').eq('id', user?.id).single();
 

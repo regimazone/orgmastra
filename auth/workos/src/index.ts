@@ -36,7 +36,7 @@ export class MastraAuthWorkos extends MastraAuthProvider<WorkosUser> {
     return user;
   }
 
-  async authorize(path: string, method: string, user: WorkosUser) {
+  async authorizeUser(user: WorkosUser) {
     if (!user) {
       return false;
     }
