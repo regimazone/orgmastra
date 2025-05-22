@@ -133,4 +133,27 @@ describe('MastraAuthFirebase', () => {
       expect(result).toBe(false);
     });
   });
+
+  it('can be overridden with custom authorization logic', async () => {
+    class CustomFirebase extends MastraAuthFirebase {
+      async authorizeUser(user: any): Promise<boolean> {
+        // Custom authorization logic that checks for specific permissions
+        return user?.permissions?.includes('admin') ?? false;
+      }
+    }
+
+    const firebase = new CustomFirebase();
+
+    // Test with admin user
+    const adminUser = { sub: 'user123', permissions: ['admin'] };
+    expect(await firebase.authorizeUser(adminUser)).toBe(true);
+
+    // Test with non-admin user
+    const regularUser = { sub: 'user456', permissions: ['read'] };
+    expect(await firebase.authorizeUser(regularUser)).toBe(false);
+
+    // Test with user without permissions
+    const noPermissionsUser = { sub: 'user789' };
+    expect(await firebase.authorizeUser(noPermissionsUser)).toBe(false);
+  });
 });

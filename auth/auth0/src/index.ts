@@ -1,20 +1,21 @@
 import { MastraAuthProvider } from '@mastra/core/server';
+import type { MastraAuthProviderOptions } from '@mastra/core/server';
 
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { JWTPayload } from 'jose';
 
-interface MastraAuthAuth0Options {
+type Auth0User = JWTPayload;
+
+interface MastraAuthAuth0Options extends MastraAuthProviderOptions<Auth0User> {
   domain?: string; // set this to your Auth0 domain
   audience?: string; // set this to your Auth0 API identifier
 }
-
-type Auth0User = JWTPayload;
 
 export class MastraAuthAuth0 extends MastraAuthProvider<Auth0User> {
   protected domain: string;
   protected audience: string;
   constructor(options?: MastraAuthAuth0Options) {
-    super({ name: 'supabase' });
+    super({ name: options?.name ?? 'auth0' });
 
     const domain = options?.domain ?? process.env.AUTH0_DOMAIN;
     const audience = options?.audience ?? process.env.AUTH0_AUDIENCE;

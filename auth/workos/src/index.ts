@@ -1,20 +1,21 @@
 import { verifyJwks } from '@mastra/auth';
 import type { JwtPayload } from '@mastra/auth';
+import type { MastraAuthProviderOptions } from '@mastra/core/server';
 import { MastraAuthProvider } from '@mastra/core/server';
 import { WorkOS } from '@workos-inc/node';
 
-interface MastraAuthWorkosOptions {
+type WorkosUser = JwtPayload;
+
+interface MastraAuthWorkosOptions extends MastraAuthProviderOptions<WorkosUser> {
   apiKey?: string;
   clientId?: string;
 }
-
-type WorkosUser = JwtPayload;
 
 export class MastraAuthWorkos extends MastraAuthProvider<WorkosUser> {
   protected workos: WorkOS;
 
   constructor(options?: MastraAuthWorkosOptions) {
-    super({ name: 'workos' });
+    super({ name: options?.name ?? 'workos' });
 
     const apiKey = options?.apiKey ?? process.env.WORKOS_API_KEY;
     const clientId = options?.clientId ?? process.env.WORKOS_CLIENT_ID;

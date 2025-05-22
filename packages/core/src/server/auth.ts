@@ -7,13 +7,22 @@ export function defineAuth<TUser>(config: MastraAuthConfig<TUser>): MastraAuthCo
   return config;
 }
 
+export interface MastraAuthProviderOptions<TUser = unknown> {
+  name?: string;
+  authorizeUser?: (user: TUser, request: HonoRequest) => Promise<boolean> | boolean;
+}
+
 @InstrumentClass({
   prefix: 'auth',
   excludeMethods: ['__setTools', '__setLogger', '__setTelemetry', '#log'],
 })
 export abstract class MastraAuthProvider<TUser = unknown> extends MastraBase {
-  constructor(options?: { name?: string }) {
+  constructor(options?: MastraAuthProviderOptions<TUser>) {
     super({ component: 'AUTH', name: options?.name });
+
+    if (options?.authorizeUser) {
+      this.authorizeUser = options.authorizeUser.bind(this);
+    }
   }
 
   /**
@@ -30,5 +39,5 @@ export abstract class MastraAuthProvider<TUser = unknown> extends MastraBase {
    * @param request - The request
    * @returns The authorization result
    */
-  abstract authorizeUser(user: TUser, request: HonoRequest): Promise<boolean>;
+  abstract authorizeUser(user: TUser, request: HonoRequest): Promise<boolean> | boolean;
 }

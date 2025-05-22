@@ -5,6 +5,7 @@ import type { ApiRoute, Methods } from './types';
 
 export type { MastraAuthConfig, ContextWithMastra } from './types';
 export { MastraAuthProvider } from './auth';
+export type { MastraAuthProviderOptions } from './auth';
 
 // Helper type for inferring parameters from a path
 // Thank you Claude!

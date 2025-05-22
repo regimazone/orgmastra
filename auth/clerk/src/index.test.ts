@@ -101,4 +101,27 @@ describe('MastraAuthClerk', () => {
       expect(result).toBe(false);
     });
   });
+
+  it('can be overridden with custom authorization logic', async () => {
+    class CustomClerk extends MastraAuthClerk {
+      async authorizeUser(user: any): Promise<boolean> {
+        // Custom authorization logic that checks for specific permissions
+        return user?.permissions?.includes('admin') ?? false;
+      }
+    }
+
+    const clerk = new CustomClerk(mockOptions);
+
+    // Test with admin user
+    const adminUser = { sub: 'user123', permissions: ['admin'] };
+    expect(await clerk.authorizeUser(adminUser)).toBe(true);
+
+    // Test with non-admin user
+    const regularUser = { sub: 'user456', permissions: ['read'] };
+    expect(await clerk.authorizeUser(regularUser)).toBe(false);
+
+    // Test with user without permissions
+    const noPermissionsUser = { sub: 'user789' };
+    expect(await clerk.authorizeUser(noPermissionsUser)).toBe(false);
+  });
 });

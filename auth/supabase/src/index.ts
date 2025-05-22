@@ -1,9 +1,10 @@
+import type { MastraAuthProviderOptions } from '@mastra/core/server';
 import { MastraAuthProvider } from '@mastra/core/server';
 
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
-interface MastraAuthSupabaseOptions {
+interface MastraAuthSupabaseOptions extends MastraAuthProviderOptions<User> {
   url?: string;
   anonKey?: string;
 }
@@ -12,7 +13,7 @@ export class MastraAuthSupabase extends MastraAuthProvider<User> {
   protected supabase: SupabaseClient;
 
   constructor(options?: MastraAuthSupabaseOptions) {
-    super({ name: 'supabase' });
+    super({ name: options?.name ?? 'supabase' });
 
     const supabaseUrl = options?.url ?? process.env.SUPABASE_URL;
     const supabaseAnonKey = options?.anonKey ?? process.env.SUPABASE_ANON_KEY;

@@ -2,22 +2,23 @@ import { createClerkClient } from '@clerk/backend';
 import type { ClerkClient } from '@clerk/backend';
 import { verifyJwks } from '@mastra/auth';
 import type { JwtPayload } from '@mastra/auth';
+import type { MastraAuthProviderOptions } from '@mastra/core/server';
 import { MastraAuthProvider } from '@mastra/core/server';
 
-interface MastraAuthClerkOptions {
+type ClerkUser = JwtPayload;
+
+interface MastraAuthClerkOptions extends MastraAuthProviderOptions<ClerkUser> {
   jwksUri?: string;
   secretKey?: string;
   publishableKey?: string;
 }
-
-type ClerkUser = JwtPayload;
 
 export class MastraAuthClerk extends MastraAuthProvider<ClerkUser> {
   protected clerk: ClerkClient;
   protected jwksUri: string;
 
   constructor(options?: MastraAuthClerkOptions) {
-    super({ name: 'supabase' });
+    super({ name: options?.name ?? 'clerk' });
 
     const jwksUri = options?.jwksUri ?? process.env.CLERK_JWKS_URI;
     const secretKey = options?.secretKey ?? process.env.CLERK_SECRET_KEY;
