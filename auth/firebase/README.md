@@ -23,6 +23,7 @@ pnpm add @mastra/auth-firebase
 ## Usage
 
 ```typescript
+import { Mastra } from '@mastra/core';
 import { MastraAuthFirebase } from '@mastra/auth-firebase';
 
 // Initialize with default configuration
@@ -32,6 +33,14 @@ const auth = new MastraAuthFirebase();
 const auth = new MastraAuthFirebase({
   serviceAccount: 'path/to/service-account.json',
   databaseId: 'your-database-id',
+});
+
+// Enable auth in Mastra
+const mastra = new Mastra({
+  ...
+  server: {
+    experimental_auth: auth,
+  },
 });
 ```
 

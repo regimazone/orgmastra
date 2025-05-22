@@ -15,6 +15,7 @@ pnpm add @mastra/auth-supabase
 ## Usage
 
 ```typescript
+import { Mastra } from '@mastra/core';
 import { MastraAuthSupabase } from '@mastra/auth-supabase';
 
 // Initialize with environment variables
@@ -24,6 +25,14 @@ const auth = new MastraAuthSupabase();
 const auth = new MastraAuthSupabase({
   url: 'your-supabase-url',
   anonKey: 'your-supabase-anon-key',
+});
+
+// Enable auth in Mastra
+const mastra = new Mastra({
+  ...
+  server: {
+    experimental_auth: auth,
+  },
 });
 ```
 

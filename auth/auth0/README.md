@@ -15,6 +15,7 @@ pnpm add @mastra/auth-auth0
 ## Usage
 
 ```typescript
+import { Mastra } from '@mastra/core';
 import { MastraAuthAuth0 } from '@mastra/auth-auth0';
 
 // Initialize with options
@@ -25,6 +26,14 @@ const auth0Provider = new MastraAuthAuth0({
 
 // Or use environment variables
 const auth0Provider = new MastraAuthAuth0();
+
+// Enable auth in Mastra
+const mastra = new Mastra({
+  ...
+  server: {
+    experimental_auth: auth0Provider,
+  },
+});
 ```
 
 ## Configuration

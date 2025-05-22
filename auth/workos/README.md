@@ -22,6 +22,7 @@ pnpm add @mastra/auth-workos
 ## Usage
 
 ```typescript
+import { Mastra } from '@mastra/core';
 import { MastraAuthWorkos } from '@mastra/auth-workos';
 
 // Initialize with environment variables
@@ -31,6 +32,14 @@ const auth = new MastraAuthWorkos();
 const auth = new MastraAuthWorkos({
   apiKey: 'your_workos_api_key',
   clientId: 'your_workos_client_id',
+});
+
+// Enable auth in Mastra
+const mastra = new Mastra({
+  ...
+  server: {
+    experimental_auth: auth,
+  },
 });
 ```
 
