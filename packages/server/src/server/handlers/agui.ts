@@ -10,7 +10,7 @@ export async function getAGUIHandler({ req, mastra, resourceId }: { req: any; ma
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime,
     serviceAdapter: new ExperimentalEmptyAdapter(),
-    endpoint: '/api/copilotkit',
+    endpoint: `/api/copilotkit?resourceId=${resourceId}`,
   });
 
   return handleRequest(req);
