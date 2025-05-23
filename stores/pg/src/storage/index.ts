@@ -81,6 +81,11 @@ export class PostgresStore extends MastraStorage {
             ssl: config.ssl,
           },
     );
+
+    // Set timezone to UTC for this connection
+    this.db.none('SET timezone TO UTC').catch(err => {
+      console.warn('Failed to set timezone to UTC:', err);
+    });
   }
 
   private getTableName(indexName: string) {

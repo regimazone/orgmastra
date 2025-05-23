@@ -1102,6 +1102,57 @@ describe('PostgresStore', () => {
     });
   });
 
+  it.only('should debug timezone display issues', async () => {
+    const workflowName = 'timezone-debug';
+    const runId = `run-${randomUUID()}`;
+
+    // Get current time in different formats
+    const now = new Date();
+    console.log('Current time in different formats:');
+    console.log('Local time string:', now.toString());
+    console.log('ISO string:', now.toISOString());
+    console.log('UTC string:', now.toUTCString());
+    console.log('Local hours:', now.getHours());
+    console.log('UTC hours:', now.getUTCHours());
+
+    const snapshot = {
+      ...createSampleWorkflowSnapshot('success').snapshot,
+      timestamp: now.getTime(),
+    };
+
+    // Store the snapshot
+    await store.persistWorkflowSnapshot({
+      workflowName,
+      runId,
+      snapshot,
+    });
+
+    // Retrieve the workflow run
+    const { runs } = await store.getWorkflowRuns({
+      workflowName,
+    });
+
+    expect(runs).toHaveLength(1);
+    const retrievedRun = runs[0];
+
+    console.log('\nRetrieved time in different formats:');
+    console.log('Raw createdAt:', retrievedRun.createdAt);
+    console.log('Parsed createdAt:', new Date(retrievedRun.createdAt).toString());
+    console.log('ISO string:', new Date(retrievedRun.createdAt).toISOString());
+    console.log('UTC string:', new Date(retrievedRun.createdAt).toUTCString());
+
+    // Also log the database time directly
+    const dbTime = await (store as any).db.one(
+      `SELECT "createdAt" FROM ${(store as any).getTableName(TABLE_WORKFLOW_SNAPSHOT)} WHERE run_id = $1`,
+      [runId],
+    );
+    console.log('\nDatabase time:');
+    console.log('Raw DB time:', dbTime.createdAt);
+    console.log('Parsed DB time:', new Date(dbTime.createdAt).toString());
+    console.log('ISO string:', new Date(dbTime.createdAt).toISOString());
+    console.log('UTC string:', new Date(dbTime.createdAt).toUTCString());
+  });
+
   afterAll(async () => {
     try {
       await store.close();
