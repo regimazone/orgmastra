@@ -51,7 +51,9 @@
   "keywords": [],
   "author": "",
   "license": "Elastic-2.0",
-  "dependencies": {},
+  "dependencies": {
+    "@copilotkit/runtime": "^1.8.13"
+  },
   "peerDependencies": {
     "@mastra/core": "^0.10.0",
     "zod": "^3.0.0"
@@ -59,6 +61,7 @@
   "devDependencies": {
     "@ai-sdk/openai": "^1.3.2",
     "@internal/lint": "workspace:*",
+    "@mastra/agui": "workspace:*",
     "@mastra/core": "workspace:*",
     "@microsoft/api-extractor": "^7.52.5",
     "@types/node": "^20.17.27",
