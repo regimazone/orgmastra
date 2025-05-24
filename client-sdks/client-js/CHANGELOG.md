@@ -1,5 +1,143 @@
 # @mastra/client-js
 
+## 0.10.1-alpha.0
+
+### Patch Changes
+
+- f622cfa: Make some properties of CreateMemoryThreadParams optional
+- Updated dependencies [6d16390]
+- Updated dependencies [1e4a421]
+  - @mastra/core@0.10.1-alpha.0
+
+## 0.10.0
+
+### Minor Changes
+
+- 83da932: Move @mastra/core to peerdeps
+- 5eb5a99: Remove pino from @mastra/core into @mastra/loggers
+
+### Patch Changes
+
+- b3a3d63: BREAKING: Make vnext workflow the default worklow, and old workflow legacy_workflow
+- 0215b0b: Add description to vnext workflow response
+- f53a6ac: Add VNextWorkflowRuns type
+- ccdabdc: Remove trailing / from mastraClient baseUrl
+- a6e3881: Remove non serializable options from agent stream,generate
+- fddae56: Add telemetry to cliend SDK streamParams
+- 23f258c: Add new list and get routes for mcp servers. Changed route make-up for more consistency with existing API routes. Lastly, added in a lot of extra detail that can be optionally passed to the mcp server per the mcp spec.
+- 5063646: Accept plain obects as runtimeContext
+- 2672a05: Add MCP servers and tool call execution to playground
+- Updated dependencies [b3a3d63]
+- Updated dependencies [344f453]
+- Updated dependencies [0a3ae6d]
+- Updated dependencies [95911be]
+- Updated dependencies [f53a6ac]
+- Updated dependencies [5eb5a99]
+- Updated dependencies [7e632c5]
+- Updated dependencies [1e9fbfa]
+- Updated dependencies [eabdcd9]
+- Updated dependencies [90be034]
+- Updated dependencies [99f050a]
+- Updated dependencies [d0ee3c6]
+- Updated dependencies [b2ae5aa]
+- Updated dependencies [23f258c]
+- Updated dependencies [a7292b0]
+- Updated dependencies [0dcb9f0]
+- Updated dependencies [2672a05]
+  - @mastra/core@0.10.0
+
+## 0.2.0-alpha.1
+
+### Minor Changes
+
+- 83da932: Move @mastra/core to peerdeps
+- 5eb5a99: Remove pino from @mastra/core into @mastra/loggers
+
+### Patch Changes
+
+- b3a3d63: BREAKING: Make vnext workflow the default worklow, and old workflow legacy_workflow
+- 0215b0b: Add description to vnext workflow response
+- 5063646: Accept plain obects as runtimeContext
+- Updated dependencies [b3a3d63]
+- Updated dependencies [344f453]
+- Updated dependencies [0a3ae6d]
+- Updated dependencies [95911be]
+- Updated dependencies [5eb5a99]
+- Updated dependencies [7e632c5]
+- Updated dependencies [1e9fbfa]
+- Updated dependencies [b2ae5aa]
+- Updated dependencies [a7292b0]
+- Updated dependencies [0dcb9f0]
+  - @mastra/core@0.10.0-alpha.1
+
+## 0.1.23-alpha.0
+
+### Patch Changes
+
+- f53a6ac: Add VNextWorkflowRuns type
+- ccdabdc: Remove trailing / from mastraClient baseUrl
+- a6e3881: Remove non serializable options from agent stream,generate
+- fddae56: Add telemetry to cliend SDK streamParams
+- 23f258c: Add new list and get routes for mcp servers. Changed route make-up for more consistency with existing API routes. Lastly, added in a lot of extra detail that can be optionally passed to the mcp server per the mcp spec.
+- 2672a05: Add MCP servers and tool call execution to playground
+- Updated dependencies [f53a6ac]
+- Updated dependencies [eabdcd9]
+- Updated dependencies [90be034]
+- Updated dependencies [99f050a]
+- Updated dependencies [d0ee3c6]
+- Updated dependencies [23f258c]
+- Updated dependencies [2672a05]
+  - @mastra/core@0.9.5-alpha.0
+
+## 0.1.22
+
+### Patch Changes
+
+- c2f9e60: Resolves type issue and listen response string wrapped in text object twice
+- 5c70b8a: [MASTRA-3234] added limit for client-js getMessages
+- b4c6c87: fix: Specify $refStrategy: 'none' when calling zodToJsonSchema.
+- 0c3d117: Add workflows to agent server handlers
+- a5810ce: Add support for experimental_generateMessageId and remove it from client-js types since it's not serializable
+- c2b980b: Fix multiple too-calls in AGUI
+- cb1f698: Set runtimeContext from playground for agents, tools, workflows
+- 0b8b868: Added A2A support + streaming
+- Updated dependencies [396be50]
+- Updated dependencies [ab80e7e]
+- Updated dependencies [c3bd795]
+- Updated dependencies [da082f8]
+- Updated dependencies [a5810ce]
+- Updated dependencies [3e9c131]
+- Updated dependencies [3171b5b]
+- Updated dependencies [973e5ac]
+- Updated dependencies [daf942f]
+- Updated dependencies [0b8b868]
+- Updated dependencies [9e1eff5]
+- Updated dependencies [6fa1ad1]
+- Updated dependencies [c28d7a0]
+- Updated dependencies [edf1e88]
+  - @mastra/core@0.9.4
+
+## 0.1.22-alpha.4
+
+### Patch Changes
+
+- 5c70b8a: [MASTRA-3234] added limit for client-js getMessages
+- Updated dependencies [3e9c131]
+  - @mastra/core@0.9.4-alpha.4
+
+## 0.1.22-alpha.3
+
+### Patch Changes
+
+- c2f9e60: Resolves type issue and listen response string wrapped in text object twice
+- 0c3d117: Add workflows to agent server handlers
+- a5810ce: Add support for experimental_generateMessageId and remove it from client-js types since it's not serializable
+- Updated dependencies [396be50]
+- Updated dependencies [c3bd795]
+- Updated dependencies [da082f8]
+- Updated dependencies [a5810ce]
+  - @mastra/core@0.9.4-alpha.3
+
 ## 0.1.22-alpha.2
 
 ### Patch Changes

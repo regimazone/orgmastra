@@ -5,9 +5,13 @@ import type {
   CreateIndexParams,
   UpsertVectorParams,
   QueryVectorParams,
+  DescribeIndexParams,
+  DeleteIndexParams,
+  DeleteVectorParams,
+  UpdateVectorParams,
 } from '@mastra/core/vector';
 import type { Bucket, Cluster, Collection, Scope } from 'couchbase';
-import { connect, SearchRequest, VectorQuery, VectorSearch } from 'couchbase';
+import { MutateInSpec, connect, SearchRequest, VectorQuery, VectorSearch } from 'couchbase';
 
 type MastraMetric = 'cosine' | 'euclidean' | 'dotproduct';
 type CouchbaseMetric = 'cosine' | 'l2_norm' | 'dot_product';
@@ -15,6 +19,15 @@ export const DISTANCE_MAPPING: Record<MastraMetric, CouchbaseMetric> = {
   cosine: 'cosine',
   euclidean: 'l2_norm',
   dotproduct: 'dot_product',
+};
+
+export type CouchbaseVectorParams = {
+  connectionString: string;
+  username: string;
+  password: string;
+  bucketName: string;
+  scopeName: string;
+  collectionName: string;
 };
 
 export class CouchbaseVector extends MastraVector {
@@ -28,17 +41,10 @@ export class CouchbaseVector extends MastraVector {
   private scope: Scope;
   private vector_dimension: number;
 
-  constructor(
-    cnn_string: string,
-    username: string,
-    password: string,
-    bucketName: string,
-    scopeName: string,
-    collectionName: string,
-  ) {
+  constructor({ connectionString, username, password, bucketName, scopeName, collectionName }: CouchbaseVectorParams) {
     super();
 
-    const baseClusterPromise = connect(cnn_string, {
+    const baseClusterPromise = connect(connectionString, {
       username,
       password,
       configProfile: 'wanDevelopment',
@@ -76,8 +82,7 @@ export class CouchbaseVector extends MastraVector {
     return this.collection;
   }
 
-  async createIndex(params: CreateIndexParams): Promise<void> {
-    const { indexName, dimension, metric = 'dotproduct' as MastraMetric } = params;
+  async createIndex({ indexName, dimension, metric = 'dotproduct' as MastraMetric }: CreateIndexParams): Promise<void> {
     await this.getCollection();
 
     if (!Number.isInteger(dimension) || dimension <= 0) {
@@ -172,8 +177,7 @@ export class CouchbaseVector extends MastraVector {
     }
   }
 
-  async upsert(params: UpsertVectorParams): Promise<string[]> {
-    const { vectors, metadata, ids } = params;
+  async upsert({ vectors, metadata, ids }: UpsertVectorParams): Promise<string[]> {
     await this.getCollection();
 
     if (!vectors || vectors.length === 0) {
@@ -210,12 +214,10 @@ export class CouchbaseVector extends MastraVector {
     return pointIds;
   }
 
-  async query(params: QueryVectorParams): Promise<QueryResult[]> {
-    const { indexName, queryVector, topK = 10, includeVector = false } = params;
-
+  async query({ indexName, queryVector, topK = 10, includeVector = false }: QueryVectorParams): Promise<QueryResult[]> {
     await this.getCollection();
 
-    const index_stats = await this.describeIndex(indexName);
+    const index_stats = await this.describeIndex({ indexName });
     if (queryVector.length !== index_stats.dimension) {
       throw new Error(`Query vector dimension mismatch. Expected ${index_stats.dimension}, got ${queryVector.length}`);
     }
@@ -255,7 +257,13 @@ export class CouchbaseVector extends MastraVector {
     return indexes?.map(index => index.name) || [];
   }
 
-  async describeIndex(indexName: string): Promise<IndexStats> {
+  /**
+   * Retrieves statistics about a vector index.
+   *
+   * @param {string} indexName - The name of the index to describe
+   * @returns A promise that resolves to the index statistics including dimension, count and metric
+   */
+  async describeIndex({ indexName }: DescribeIndexParams): Promise<IndexStats> {
     await this.getCollection();
     if (!(await this.listIndexes()).includes(indexName)) {
       throw new Error(`Index ${indexName} does not exist`);
@@ -276,12 +284,71 @@ export class CouchbaseVector extends MastraVector {
     };
   }
 
-  async deleteIndex(indexName: string): Promise<void> {
+  async deleteIndex({ indexName }: DeleteIndexParams): Promise<void> {
     await this.getCollection();
     if (!(await this.listIndexes()).includes(indexName)) {
       throw new Error(`Index ${indexName} does not exist`);
     }
     await this.scope.searchIndexes().dropIndex(indexName);
     this.vector_dimension = null as unknown as number;
+  }
+
+  /**
+   * Updates a vector by its ID with the provided vector and/or metadata.
+   * @param indexName - The name of the index containing the vector.
+   * @param id - The ID of the vector to update.
+   * @param update - An object containing the vector and/or metadata to update.
+   * @param update.vector - An optional array of numbers representing the new vector.
+   * @param update.metadata - An optional record containing the new metadata.
+   * @returns A promise that resolves when the update is complete.
+   * @throws Will throw an error if no updates are provided or if the update operation fails.
+   */
+  async updateVector({ id, update }: UpdateVectorParams): Promise<void> {
+    if (!update.vector && !update.metadata) {
+      throw new Error('No updates provided');
+    }
+    if (update.vector && this.vector_dimension && update.vector.length !== this.vector_dimension) {
+      throw new Error('Vector dimension mismatch');
+    }
+    const collection = await this.getCollection();
+
+    // Check if document exists
+    try {
+      await collection.get(id);
+    } catch (err: any) {
+      if (err.code === 13 || err.message?.includes('document not found')) {
+        throw new Error(`Vector with id ${id} does not exist`);
+      }
+      throw err;
+    }
+
+    const specs: MutateInSpec[] = [];
+    if (update.vector) specs.push(MutateInSpec.replace('embedding', update.vector));
+    if (update.metadata) specs.push(MutateInSpec.replace('metadata', update.metadata));
+
+    await collection.mutateIn(id, specs);
+  }
+
+  /**
+   * Deletes a vector by its ID.
+   * @param indexName - The name of the index containing the vector.
+   * @param id - The ID of the vector to delete.
+   * @returns A promise that resolves when the deletion is complete.
+   * @throws Will throw an error if the deletion operation fails.
+   */
+  async deleteVector({ id }: DeleteVectorParams): Promise<void> {
+    const collection = await this.getCollection();
+
+    // Check if document exists
+    try {
+      await collection.get(id);
+    } catch (err: any) {
+      if (err.code === 13 || err.message?.includes('document not found')) {
+        throw new Error(`Vector with id ${id} does not exist`);
+      }
+      throw err;
+    }
+
+    await collection.remove(id);
   }
 }

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { openai } from '@ai-sdk/openai';
+import { Mastra } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
+import { fastembed } from '@mastra/fastembed';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { describe, expect, it } from 'vitest';
@@ -8,23 +10,45 @@ import { z } from 'zod';
 import { weatherTool } from './mastra/tools/weather';
 
 describe('Agent Memory Tests', () => {
+  const dbFile = 'file:mastra-agent.db';
+
+  it(`inherits storage from Mastra instance`, async () => {
+    const agent = new Agent({
+      name: 'test',
+      instructions: '',
+      model: openai('gpt-4o-mini'),
+      memory: new Memory({
+        options: {
+          lastMessages: 10,
+        },
+      }),
+    });
+    const mastra = new Mastra({
+      agents: {
+        agent,
+      },
+      storage: new LibSQLStore({
+        url: dbFile,
+      }),
+    });
+    await expect(mastra.getAgent('agent').getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
+    await expect(agent.getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
+  });
+
   describe('Agent memory message persistence', () => {
     // making a separate memory for agent to avoid conflicts with other tests
     const memory = new Memory({
       options: {
         lastMessages: 10,
-        threads: {
-          generateTitle: false,
-        },
         semanticRecall: true,
       },
       storage: new LibSQLStore({
-        url: 'file:mastra-agent.db', // relative path from bundled .mastra/output dir
+        url: dbFile,
       }),
       vector: new LibSQLVector({
-        connectionUrl: 'file:mastra-agent.db', // relative path from bundled .mastra/output dir
+        connectionUrl: dbFile,
       }),
-      embedder: openai.embedding('text-embedding-3-small'),
+      embedder: fastembed,
     });
     const agent = new Agent({
       name: 'test',
@@ -108,9 +132,9 @@ describe('Agent Memory Tests', () => {
         semanticRecall: true,
         lastMessages: 10,
       },
-      storage: new LibSQLStore({ url: 'file:mastra-agent.db' }),
-      vector: new LibSQLVector({ connectionUrl: 'file:mastra-agent.db' }),
-      embedder: openai.embedding('text-embedding-3-small'),
+      storage: new LibSQLStore({ url: dbFile }),
+      vector: new LibSQLVector({ connectionUrl: dbFile }),
+      embedder: fastembed,
     });
     const agentWithTitle = new Agent({
       name: 'title-on',
@@ -127,9 +151,9 @@ describe('Agent Memory Tests', () => {
         semanticRecall: true,
         lastMessages: 10,
       },
-      storage: new LibSQLStore({ url: 'file:mastra-agent.db' }),
-      vector: new LibSQLVector({ connectionUrl: 'file:mastra-agent.db' }),
-      embedder: openai.embedding('text-embedding-3-small'),
+      storage: new LibSQLStore({ url: dbFile }),
+      vector: new LibSQLVector({ connectionUrl: dbFile }),
+      embedder: fastembed,
     });
     const agentNoTitle = new Agent({
       name: 'title-off',

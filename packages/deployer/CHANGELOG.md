@@ -1,5 +1,152 @@
 # @mastra/deployer
 
+## 0.10.1-alpha.0
+
+### Patch Changes
+
+- 6d16390: Support custom bundle externals on mastra Instance
+- Updated dependencies [6d16390]
+- Updated dependencies [1e4a421]
+  - @mastra/core@0.10.1-alpha.0
+
+## 0.10.0
+
+### Minor Changes
+
+- 83da932: Move @mastra/core to peerdeps
+- 5eb5a99: Remove pino from @mastra/core into @mastra/loggers
+- b2ae5aa: Added support for experimental authentication and authorization
+
+### Patch Changes
+
+- b3a3d63: BREAKING: Make vnext workflow the default worklow, and old workflow legacy_workflow
+- 1e9fbfa: Upgrade to OpenTelemetry JS SDK 2.x
+- 8d9feae: Add missing x-mastra-dev-playground headers
+- aaf0e48: Add nodemailer to mastra bundler external deps
+- 48e5910: Mastra server hostname, fallback to undefined
+- 23f258c: Add new list and get routes for mcp servers. Changed route make-up for more consistency with existing API routes. Lastly, added in a lot of extra detail that can be optionally passed to the mcp server per the mcp spec.
+- 2672a05: Add MCP servers and tool call execution to playground
+- Updated dependencies [b3a3d63]
+- Updated dependencies [344f453]
+- Updated dependencies [0215b0b]
+- Updated dependencies [0a3ae6d]
+- Updated dependencies [95911be]
+- Updated dependencies [83da932]
+- Updated dependencies [f53a6ac]
+- Updated dependencies [5eb5a99]
+- Updated dependencies [7e632c5]
+- Updated dependencies [1e9fbfa]
+- Updated dependencies [eabdcd9]
+- Updated dependencies [90be034]
+- Updated dependencies [99f050a]
+- Updated dependencies [d0ee3c6]
+- Updated dependencies [b2ae5aa]
+- Updated dependencies [23f258c]
+- Updated dependencies [a7292b0]
+- Updated dependencies [0dcb9f0]
+- Updated dependencies [2672a05]
+  - @mastra/server@0.10.0
+  - @mastra/core@0.10.0
+
+## 0.4.0-alpha.1
+
+### Minor Changes
+
+- 83da932: Move @mastra/core to peerdeps
+- 5eb5a99: Remove pino from @mastra/core into @mastra/loggers
+- b2ae5aa: Added support for experimental authentication and authorization
+
+### Patch Changes
+
+- b3a3d63: BREAKING: Make vnext workflow the default worklow, and old workflow legacy_workflow
+- 1e9fbfa: Upgrade to OpenTelemetry JS SDK 2.x
+- 8d9feae: Add missing x-mastra-dev-playground headers
+- Updated dependencies [b3a3d63]
+- Updated dependencies [344f453]
+- Updated dependencies [0215b0b]
+- Updated dependencies [0a3ae6d]
+- Updated dependencies [95911be]
+- Updated dependencies [83da932]
+- Updated dependencies [5eb5a99]
+- Updated dependencies [7e632c5]
+- Updated dependencies [1e9fbfa]
+- Updated dependencies [b2ae5aa]
+- Updated dependencies [a7292b0]
+- Updated dependencies [0dcb9f0]
+  - @mastra/server@2.1.0-alpha.1
+  - @mastra/core@0.10.0-alpha.1
+
+## 0.3.5-alpha.0
+
+### Patch Changes
+
+- aaf0e48: Add nodemailer to mastra bundler external deps
+- 48e5910: Mastra server hostname, fallback to undefined
+- 23f258c: Add new list and get routes for mcp servers. Changed route make-up for more consistency with existing API routes. Lastly, added in a lot of extra detail that can be optionally passed to the mcp server per the mcp spec.
+- 2672a05: Add MCP servers and tool call execution to playground
+- Updated dependencies [f53a6ac]
+- Updated dependencies [eabdcd9]
+- Updated dependencies [90be034]
+- Updated dependencies [99f050a]
+- Updated dependencies [d0ee3c6]
+- Updated dependencies [23f258c]
+- Updated dependencies [2672a05]
+  - @mastra/server@2.0.5-alpha.0
+  - @mastra/core@0.9.5-alpha.0
+
+## 0.3.4
+
+### Patch Changes
+
+- 396be50: updated mcp server routes for MCP SSE for use with hono server
+- 5c70b8a: [MASTRA-3234] added limit for client-js getMessages
+- 03c40d1: instructions is only available in playground
+- cb1f698: Set runtimeContext from playground for agents, tools, workflows
+- 0b8b868: Added A2A support + streaming
+- edf1e88: allows ability to pass McpServer into the mastra class and creates an endpoint /api/servers/:serverId/mcp to POST messages to an MCP server
+- Updated dependencies [396be50]
+- Updated dependencies [ab80e7e]
+- Updated dependencies [5c70b8a]
+- Updated dependencies [c3bd795]
+- Updated dependencies [da082f8]
+- Updated dependencies [0c3d117]
+- Updated dependencies [a5810ce]
+- Updated dependencies [3e9c131]
+- Updated dependencies [3171b5b]
+- Updated dependencies [cb1f698]
+- Updated dependencies [973e5ac]
+- Updated dependencies [daf942f]
+- Updated dependencies [0b8b868]
+- Updated dependencies [9e1eff5]
+- Updated dependencies [6fa1ad1]
+- Updated dependencies [c28d7a0]
+- Updated dependencies [edf1e88]
+  - @mastra/core@0.9.4
+  - @mastra/server@2.0.4
+
+## 0.3.4-alpha.4
+
+### Patch Changes
+
+- 5c70b8a: [MASTRA-3234] added limit for client-js getMessages
+- Updated dependencies [5c70b8a]
+- Updated dependencies [3e9c131]
+  - @mastra/server@2.0.4-alpha.4
+  - @mastra/core@0.9.4-alpha.4
+
+## 0.3.4-alpha.3
+
+### Patch Changes
+
+- 396be50: updated mcp server routes for MCP SSE for use with hono server
+- Updated dependencies [396be50]
+- Updated dependencies [c3bd795]
+- Updated dependencies [da082f8]
+- Updated dependencies [0c3d117]
+- Updated dependencies [a5810ce]
+  - @mastra/core@0.9.4-alpha.3
+  - @mastra/server@2.0.4-alpha.3
+
 ## 0.3.4-alpha.2
 
 ### Patch Changes

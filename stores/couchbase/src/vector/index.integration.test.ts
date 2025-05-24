@@ -173,14 +173,14 @@ describe('Integration Testing CouchbaseVector', async () => {
 
   describe('Connection', () => {
     it('should connect to couchbase', async () => {
-      couchbase_client = new CouchbaseVector(
+      couchbase_client = new CouchbaseVector({
         connectionString,
         username,
         password,
-        test_bucketName,
-        test_scopeName,
-        test_collectionName,
-      );
+        bucketName: test_bucketName,
+        scopeName: test_scopeName,
+        collectionName: test_collectionName,
+      });
       expect(couchbase_client).toBeDefined();
       const collection = await couchbase_client.getCollection();
       expect(collection).toBeDefined();
@@ -211,14 +211,14 @@ describe('Integration Testing CouchbaseVector', async () => {
     }, 50000);
 
     it('should describe index', async () => {
-      const stats = await couchbase_client.describeIndex(test_indexName);
+      const stats = await couchbase_client.describeIndex({ indexName: test_indexName });
       expect(stats.dimension).toBe(dimension);
       expect(stats.metric).toBe('euclidean'); // similiarity(=="l2_norm") is mapped to euclidean in couchbase
       expect(typeof stats.count).toBe('number');
     }, 50000);
 
     it('should delete index', async () => {
-      await couchbase_client.deleteIndex(test_indexName);
+      await couchbase_client.deleteIndex({ indexName: test_indexName });
       await new Promise(resolve => setTimeout(resolve, 5000));
       await expect(scope.searchIndexes().getIndex(test_indexName)).rejects.toThrowError();
     }, 50000);
@@ -246,7 +246,7 @@ describe('Integration Testing CouchbaseVector', async () => {
     }, 50000);
 
     afterAll(async () => {
-      await couchbase_client.deleteIndex(test_indexName);
+      await couchbase_client.deleteIndex({ indexName: test_indexName });
       await new Promise(resolve => setTimeout(resolve, 5000));
     }, 50000);
 
@@ -380,6 +380,120 @@ describe('Integration Testing CouchbaseVector', async () => {
         }),
       ).rejects.toThrow('Including vectors in search results is not yet supported by the Couchbase vector store');
     }, 50000);
+
+    it('should upsert vectors with generated ids', async () => {
+      const ids = await couchbase_client.upsert({ indexName: test_indexName, vectors: testVectors });
+      expect(ids).toHaveLength(testVectors.length);
+      ids.forEach(id => expect(typeof id).toBe('string'));
+
+      // Count is not supported by Couchbase
+      const stats = await couchbase_client.describeIndex({ indexName: test_indexName });
+      expect(stats.count).toBe(-1);
+    });
+
+    it('should update existing vectors', async () => {
+      // Initial upsert
+      await couchbase_client.upsert({
+        indexName: test_indexName,
+        vectors: testVectors,
+        metadata: testMetadata,
+        ids: testVectorIds,
+      });
+
+      // Update first vector
+      const updatedVector = [[0.5, 0.5, 0.0]];
+      const updatedMetadata = [{ label: 'updated-x-axis' }];
+      await couchbase_client.upsert({
+        indexName: test_indexName,
+        vectors: updatedVector,
+        metadata: updatedMetadata,
+        ids: [testVectorIds?.[0]!],
+      });
+
+      // Verify update
+      const result = await collection.get(testVectorIds?.[0]!);
+      expect(result.content.embedding).toEqual(updatedVector[0]);
+      expect(result.content.metadata).toEqual(updatedMetadata[0]);
+    });
+
+    it('should update the vector by id', async () => {
+      const ids = await couchbase_client.upsert({ indexName: test_indexName, vectors: testVectors });
+      expect(ids).toHaveLength(3);
+
+      const idToBeUpdated = ids[0];
+      const newVector = [1, 2, 3];
+      const newMetaData = {
+        test: 'updates',
+      };
+
+      const update = {
+        vector: newVector,
+        metadata: newMetaData,
+      };
+
+      await couchbase_client.updateVector({ indexName: test_indexName, id: idToBeUpdated, update });
+
+      const result = await collection.get(idToBeUpdated);
+      expect(result.content.embedding).toEqual(newVector);
+      expect(result.content.metadata).toEqual(newMetaData);
+    });
+
+    it('should only update the metadata by id', async () => {
+      const ids = await couchbase_client.upsert({ indexName: test_indexName, vectors: testVectors });
+      expect(ids).toHaveLength(3);
+
+      const idToBeUpdated = ids[0];
+      const newMetaData = {
+        test: 'updates',
+      };
+
+      const update = {
+        metadata: newMetaData,
+      };
+
+      await couchbase_client.updateVector({ indexName: test_indexName, id: idToBeUpdated, update });
+
+      const result = await collection.get(idToBeUpdated);
+      expect(result.content.embedding).toEqual(testVectors[0]);
+      expect(result.content.metadata).toEqual(newMetaData);
+    });
+
+    it('should only update vector embeddings by id', async () => {
+      const ids = await couchbase_client.upsert({ indexName: test_indexName, vectors: testVectors });
+      expect(ids).toHaveLength(3);
+
+      const idToBeUpdated = ids[0];
+      const newVector = [1, 2, 3];
+
+      const update = {
+        vector: newVector,
+      };
+
+      await couchbase_client.updateVector({ indexName: test_indexName, id: idToBeUpdated, update });
+
+      const result = await collection.get(idToBeUpdated);
+      expect(result.content.embedding).toEqual(newVector);
+    });
+
+    it('should throw exception when no updates are given', async () => {
+      await expect(couchbase_client.updateVector({ indexName: test_indexName, id: 'id', update: {} })).rejects.toThrow(
+        'No updates provided',
+      );
+    });
+
+    it('should delete the vector by id', async () => {
+      const ids = await couchbase_client.upsert({ indexName: test_indexName, vectors: testVectors });
+      expect(ids).toHaveLength(3);
+      const idToBeDeleted = ids[0];
+
+      await couchbase_client.deleteVector({ indexName: test_indexName, id: idToBeDeleted });
+
+      try {
+        await collection.get(idToBeDeleted);
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
   });
 
   describe('Error Cases and Edge Cases', () => {
@@ -409,7 +523,7 @@ describe('Integration Testing CouchbaseVector', async () => {
       expect(allIndexes.find(idx => idx.name === nonExistentIndex)).toBeUndefined();
 
       // Now test the couchbase_client method
-      await expect(couchbase_client.describeIndex(nonExistentIndex)).rejects.toThrow();
+      await expect(couchbase_client.describeIndex({ indexName: nonExistentIndex })).rejects.toThrow();
     }, 50000);
 
     it('should throw error when deleting a non-existent index', async () => {
@@ -420,7 +534,7 @@ describe('Integration Testing CouchbaseVector', async () => {
       expect(allIndexes.find(idx => idx.name === nonExistentIndex)).toBeUndefined();
 
       // Now test the couchbase_client method
-      await expect(couchbase_client.deleteIndex(nonExistentIndex)).rejects.toThrow();
+      await expect(couchbase_client.deleteIndex({ indexName: nonExistentIndex })).rejects.toThrow();
     }, 50000);
 
     it('should throw error for empty vectors array in upsert', async () => {
@@ -489,7 +603,7 @@ describe('Integration Testing CouchbaseVector', async () => {
         infoSpy.mockRestore();
         warnSpy.mockRestore();
         // Cleanup
-        await couchbase_client.deleteIndex(duplicateIndexName);
+        await couchbase_client.deleteIndex({ indexName: duplicateIndexName });
       }
     }, 50000);
   });
@@ -499,7 +613,7 @@ describe('Integration Testing CouchbaseVector', async () => {
       const indexes = await couchbase_client.listIndexes();
       if (indexes.length > 0) {
         for (const index of indexes) {
-          await couchbase_client.deleteIndex(index);
+          await couchbase_client.deleteIndex({ indexName: index });
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
@@ -562,7 +676,7 @@ describe('Integration Testing CouchbaseVector', async () => {
       expect((couchbase_client as any).vector_dimension).toBe(testDimension);
 
       // Delete the index
-      await couchbase_client.deleteIndex(testIndexName);
+      await couchbase_client.deleteIndex({ indexName: testIndexName });
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Verify dimension is reset
@@ -578,7 +692,7 @@ describe('Integration Testing CouchbaseVector', async () => {
       const indexes = await couchbase_client.listIndexes();
       if (indexes.length > 0) {
         for (const index of indexes) {
-          await couchbase_client.deleteIndex(index);
+          await couchbase_client.deleteIndex({ indexName: index });
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
@@ -607,11 +721,11 @@ describe('Integration Testing CouchbaseVector', async () => {
         expect(similarityParam).toBe(couchbaseMetric);
 
         // Verify through our API
-        const stats = await couchbase_client.describeIndex(testIndexName);
+        const stats = await couchbase_client.describeIndex({ indexName: testIndexName });
         expect(stats.metric).toBe(mastraMetric);
 
         // Clean up
-        await couchbase_client.deleteIndex(testIndexName);
+        await couchbase_client.deleteIndex({ indexName: testIndexName });
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }, 50000);
