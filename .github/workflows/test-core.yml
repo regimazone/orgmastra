@@ -1,16 +1,16 @@
-name: Core Package Tests
+# test-core-unprivileged.yml
+name: Core Package Tests (Unprivileged)
 
 on:
-  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
       - 'packages/core/**'
       - '.github/workflows/test-core.yml'
+      - '.github/workflows/test-core-privileged.yml'
 
 jobs:
   test:
-    # Only run on the main repository, not on forks
     if: ${{ github.repository == 'mastra-ai/mastra' }}
     runs-on: ubuntu-latest
     steps:
@@ -32,9 +32,3 @@ jobs:
 
       - name: Build cli
         run: pnpm build:core
-
-      - name: Run Core tests
-        run: pnpm test:core
-        env:
-          NODE_OPTIONS: '--max_old_space_size=8096'
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

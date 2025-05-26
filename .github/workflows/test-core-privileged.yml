@@ -1,0 +1,44 @@
+name: Core Package Tests
+
+# access to secrets
+on:
+  workflow_run:
+    workflows: ['Core Package Tests (Unprivileged)']
+    types:
+      - completed
+
+jobs:
+  test:
+    # Only run on the main repository, not on forks
+    if: ${{ github.repository == 'mastra-ai/mastra' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Log
+        run: |
+          echo "PR: ${{ github.event.workflow_run.event }}"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "ID: ${{ github.event.workflow_run.id }}"
+          echo "Head ref: ${{ github.event.workflow_run.head_branch }}"
+          echo "commit ref: ${{ github.event.workflow_run.head_commit }}"
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.1
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run Core tests
+        run: pnpm test:core
+        env:
+          NODE_OPTIONS: '--max_old_space_size=8096'
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
