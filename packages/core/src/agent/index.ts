@@ -92,7 +92,9 @@ export class Agent<
   /** @deprecated This property is deprecated. Use evals instead. */
   metrics: TMetrics;
   evals: TMetrics;
+
   #voice: CompositeVoice;
+  #inputProcessors?: any[];
 
   constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
     super({ component: RegisteredLogger.AGENT });
@@ -110,6 +112,10 @@ export class Agent<
 
     if (config.workflows) {
       this.#workflows = config.workflows;
+    }
+
+    if (config.inputProcessors) {
+      this.#inputProcessors = config.inputProcessors;
     }
 
     this.#defaultGenerateOptions = config.defaultGenerateOptions || {};
@@ -472,25 +478,25 @@ export class Agent<
       const [memoryMessages, memorySystemMessage] =
         threadId && memory
           ? await Promise.all([
-              memory
-                .rememberMessages({
-                  threadId,
-                  resourceId,
-                  config: memoryConfig,
-                  systemMessage,
-                  vectorMessageSearch: messages
-                    .slice(-1)
-                    .map(m => {
-                      if (typeof m === `string`) {
-                        return m;
-                      }
-                      return m?.content || ``;
-                    })
-                    .join(`\n`),
-                })
-                .then(r => r.messages),
-              memory.getSystemMessage({ threadId, memoryConfig }),
-            ])
+            memory
+              .rememberMessages({
+                threadId,
+                resourceId,
+                config: memoryConfig,
+                systemMessage,
+                vectorMessageSearch: messages
+                  .slice(-1)
+                  .map(m => {
+                    if (typeof m === `string`) {
+                      return m;
+                    }
+                    return m?.content || ``;
+                  })
+                  .join(`\n`),
+              })
+              .then(r => r.messages),
+            memory.getSystemMessage({ threadId, memoryConfig }),
+          ])
           : [[], null];
 
       this.logger.debug('Saved messages to memory', {
@@ -510,9 +516,9 @@ export class Agent<
         messages: [
           memorySystemMessage
             ? {
-                role: 'system' as const,
-                content: memorySystemMessage,
-              }
+              role: 'system' as const,
+              content: memorySystemMessage,
+            }
             : null,
           ...processedMessages,
           ...newMessages,
@@ -565,10 +571,10 @@ export class Agent<
             return undefined;
           })
           ?.filter(Boolean) as Array<{
-          toolCallId: string;
-          toolArgs: Record<string, unknown>;
-          toolName: string;
-        }>;
+            toolCallId: string;
+            toolArgs: Record<string, unknown>;
+            toolName: string;
+          }>;
 
         toolCallIds = assistantToolCalls?.map(toolCall => toolCall.toolCallId);
 
@@ -695,41 +701,41 @@ export class Agent<
               execute:
                 typeof tool?.execute === 'function'
                   ? async (args: any, options: any) => {
-                      try {
-                        this.logger.debug(`[Agent:${this.name}] - Executing memory tool ${k}`, {
-                          name: k,
-                          description: tool.description,
-                          args,
-                          runId,
-                          threadId,
-                          resourceId,
-                        });
-                        return (
-                          tool?.execute?.(
-                            {
-                              context: args,
-                              mastra: mastraProxy as MastraUnion | undefined,
-                              memory,
-                              runId,
-                              threadId,
-                              resourceId,
-                              logger: this.logger,
-                              agentName: this.name,
-                              runtimeContext,
-                            },
-                            options,
-                          ) ?? undefined
-                        );
-                      } catch (err) {
-                        this.logger.error(`[Agent:${this.name}] - Failed memory tool execution`, {
-                          error: err,
-                          runId,
-                          threadId,
-                          resourceId,
-                        });
-                        throw err;
-                      }
+                    try {
+                      this.logger.debug(`[Agent:${this.name}] - Executing memory tool ${k}`, {
+                        name: k,
+                        description: tool.description,
+                        args,
+                        runId,
+                        threadId,
+                        resourceId,
+                      });
+                      return (
+                        tool?.execute?.(
+                          {
+                            context: args,
+                            mastra: mastraProxy as MastraUnion | undefined,
+                            memory,
+                            runId,
+                            threadId,
+                            resourceId,
+                            logger: this.logger,
+                            agentName: this.name,
+                            runtimeContext,
+                          },
+                          options,
+                        ) ?? undefined
+                      );
+                    } catch (err) {
+                      this.logger.error(`[Agent:${this.name}] - Failed memory tool execution`, {
+                        error: err,
+                        runId,
+                        threadId,
+                        resourceId,
+                      });
+                      throw err;
                     }
+                  }
                   : undefined,
             },
           ] as [string, CoreTool];
@@ -1376,6 +1382,10 @@ export class Agent<
       });
     } else {
       messagesToUse = [messages];
+    }
+
+    for (const processor of this.#inputProcessors || []) {
+      messagesToUse = await processor({ messages: messagesToUse, mastra: this.#mastra, runtimeContext });
     }
 
     const runIdToUse = runId || randomUUID();
