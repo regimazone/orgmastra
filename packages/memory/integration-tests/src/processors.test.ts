@@ -11,7 +11,7 @@ import { fastembed } from '@mastra/fastembed';
 import { LibSQLVector, LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { z } from 'zod';
 import { filterToolCallsByName, filterToolResultsByName, generateConversationHistory } from './test-utils';
 
@@ -45,10 +45,20 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  //@ts-ignore
-  await storage.client.close();
-  //@ts-ignore
-  await vector.turso.close();
+  await Promise.all([
+    //@ts-ignore
+    storage.client.close(),
+    //@ts-ignore
+    vector.turso.close(),
+  ]).catch(console.error);
+});
+afterAll(async () => {
+  await Promise.all([
+    //@ts-ignore
+    storage.client.close(),
+    //@ts-ignore
+    vector.turso.close(),
+  ]).catch(console.error);
 });
 
 describe('Memory with Processors', () => {
