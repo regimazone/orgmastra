@@ -1,10 +1,10 @@
+import { openai } from '@ai-sdk/openai';
 import { Memory } from '@mastra/memory';
 import { PostgresStore, PgVector } from '@mastra/pg';
 import dotenv from 'dotenv';
 import { describe } from 'vitest';
 
 import { getResuableTests } from './reusable-tests';
-import { openai } from '@ai-sdk/openai';
 
 dotenv.config({ path: '.env.test' });
 
