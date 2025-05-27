@@ -69,7 +69,7 @@ jobs:
         run: pnpm install
 
       - name: Build vector+store packages
-        run: pnpm turbo build --filter "mastra" --filter "@mastra/memory" --filter ${{ matrix.suite == 'pg' && './stores/pg' || matrix.suite == 'upstash' && './stores/upstash' || matrix.suite == 'libsql' && './stores/libsql' || './stores/libsql' }}
+        run: pnpm turbo build --filter "mastra" --filter "@mastra/memory" ${{ matrix.suite == 'pg' && '--filter "./stores/pg"' || matrix.suite == 'upstash' && '--filter "./stores/upstash" --filter "./stores/libsql"' || '--filter "./stores/libsql"' }}
 
       - name: Run Memory ${{ matrix.suite }} tests
         run: pnpm run test:${{ matrix.suite }}
