@@ -10,7 +10,7 @@ import { createTool } from '@mastra/core/tools';
 import { LibSQLVector, LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 import { filterToolCallsByName, filterToolResultsByName, generateConversationHistory } from './test-utils';
 
@@ -44,20 +44,10 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await Promise.all([
-    //@ts-ignore
-    storage.client.close(),
-    //@ts-ignore
-    vector.turso.close(),
-  ]).catch(console.error);
-});
-afterAll(async () => {
-  await Promise.all([
-    //@ts-ignore
-    storage.client.close(),
-    //@ts-ignore
-    vector.turso.close(),
-  ]).catch(console.error);
+  //@ts-ignore
+  await storage.client.close();
+  //@ts-ignore
+  await vector.turso.close();
 });
 
 describe('Memory with Processors', () => {
