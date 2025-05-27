@@ -328,16 +328,18 @@ export const ragAgent = new Agent({
 <Tabs.Tab>
 ```ts filename="vector-store.ts" showLineNumbers copy
 import { openai } from '@ai-sdk/openai';
-import { COUCHBASE_PROMPT } from "@mastra/couchbase";
 
 export const ragAgent = new Agent({
   name: 'RAG Agent',
   model: openai('gpt-4o-mini'),
   instructions: `
   Process queries using the provided context. Structure responses to be concise and relevant.
-  ${COUCHBASE_PROMPT}
   `,
   tools: { vectorQueryTool },
+});
+```
+</Tabs.Tab>
+
 ### Re-ranking
 
 Initial vector similarity search can sometimes miss nuanced relevance. Re-ranking is a more computationally expensive process, but more accurate algorithm that improves results by:

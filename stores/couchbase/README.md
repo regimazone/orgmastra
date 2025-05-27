@@ -214,6 +214,9 @@ _Note_: Deleting Index does NOT delete the vectors in the associated Couchbase C
 - `listIndexes()`: Lists the names of all Search Indexes in the cluster. Returns fully qualified names (e.g., `bucket.scope.index`).
 - `describeIndex(indexName)`: Gets the configured dimension, metric (Mastra name), and document count (currently returns -1) for a specific Search Index (using its short name).
 - `deleteIndex(indexName)`: Deletes a Search Index (using its short name).
+- `deleteVector(indexName, id)`: Deletes a specific vector entry from an index by its ID.
+- `updateVector(indexName, id, update)`: Updates a specific vector entry by its ID with new vector data and/or metadata.
+- `disconnect()`: Closes the Couchbase client connection. Should be called when done using the store.
 
 ## Configuration Details
 

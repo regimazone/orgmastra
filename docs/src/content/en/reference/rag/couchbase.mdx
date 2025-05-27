@@ -70,7 +70,7 @@ Creates a new vector index in Couchbase.
     {
       name: "indexName",
       type: "string",
-      description: "Name of the index to create (see naming rules below)",
+      description: "Name of the index to create",
     },
     {
       name: "dimension",
@@ -208,7 +208,7 @@ Lists all vector indexes in the Couchbase bucket.
 
 Returns: `Promise<string[]>`
 
-### updateIndexById()
+### updateVector()
 
 Updates a specific vector entry by its ID with new vector data and/or metadata.
 
@@ -244,7 +244,7 @@ Updates a specific vector entry by its ID with new vector data and/or metadata.
   ]}
 />
 
-### deleteIndexById()
+### deleteVector()
 
 Deletes a specific vector entry from an index by its ID.
 
