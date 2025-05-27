@@ -25,9 +25,11 @@ export class MastraAuthSupabase extends MastraAuthProvider<User> {
     }
 
     this.supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    this.registerOptions(options);
   }
 
-  async authenticateToken(token: string) {
+  async authenticateToken(token: string): Promise<User | null> {
     const { data, error } = await this.supabase.auth.getUser(token);
 
     if (error) {

@@ -103,14 +103,13 @@ describe('MastraAuthClerk', () => {
   });
 
   it('can be overridden with custom authorization logic', async () => {
-    class CustomClerk extends MastraAuthClerk {
+    const clerk = new MastraAuthClerk({
+      ...mockOptions,
       async authorizeUser(user: any): Promise<boolean> {
         // Custom authorization logic that checks for specific permissions
         return user?.permissions?.includes('admin') ?? false;
-      }
-    }
-
-    const clerk = new CustomClerk(mockOptions);
+      },
+    });
 
     // Test with admin user
     const adminUser = { sub: 'user123', permissions: ['admin'] };

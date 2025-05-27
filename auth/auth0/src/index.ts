@@ -28,6 +28,8 @@ export class MastraAuthAuth0 extends MastraAuthProvider<Auth0User> {
 
     this.domain = domain;
     this.audience = audience;
+
+    this.registerOptions(options);
   }
 
   async authenticateToken(token: string): Promise<Auth0User | null> {

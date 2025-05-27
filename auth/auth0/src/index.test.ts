@@ -89,14 +89,12 @@ describe('MastraAuthAuth0', () => {
     });
 
     test('can be overridden with custom authorization logic', async () => {
-      class CustomAuth0 extends MastraAuthAuth0 {
+      const auth0 = new MastraAuthAuth0({
         async authorizeUser(user: any): Promise<boolean> {
           // Custom authorization logic that checks for specific permissions
           return user?.permissions?.includes('admin') ?? false;
-        }
-      }
-
-      const auth0 = new CustomAuth0();
+        },
+      });
 
       // Test with admin user
       const adminUser = { sub: 'user123', permissions: ['admin'] };

@@ -29,6 +29,8 @@ export class MastraAuthWorkos extends MastraAuthProvider<WorkosUser> {
     this.workos = new WorkOS(apiKey, {
       clientId,
     });
+
+    this.registerOptions(options);
   }
 
   async authenticateToken(token: string): Promise<WorkosUser | null> {

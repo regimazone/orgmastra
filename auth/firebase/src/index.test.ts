@@ -135,17 +135,15 @@ describe('MastraAuthFirebase', () => {
   });
 
   it('can be overridden with custom authorization logic', async () => {
-    class CustomFirebase extends MastraAuthFirebase {
+    const firebase = new MastraAuthFirebase({
       async authorizeUser(user: any): Promise<boolean> {
         // Custom authorization logic that checks for specific permissions
         return user?.permissions?.includes('admin') ?? false;
-      }
-    }
-
-    const firebase = new CustomFirebase();
+      },
+    });
 
     // Test with admin user
-    const adminUser = { sub: 'user123', permissions: ['admin'] };
+    const adminUser = { sub: 'user123', permissions: ['admin'] } as unknown as DecodedIdToken;
     expect(await firebase.authorizeUser(adminUser)).toBe(true);
 
     // Test with non-admin user

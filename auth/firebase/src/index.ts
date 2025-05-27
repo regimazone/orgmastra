@@ -28,6 +28,8 @@ export class MastraAuthFirebase extends MastraAuthProvider<FirebaseUser> {
           : admin.credential.applicationDefault(),
       });
     }
+
+    this.registerOptions(options);
   }
 
   async authenticateToken(token: string): Promise<FirebaseUser | null> {

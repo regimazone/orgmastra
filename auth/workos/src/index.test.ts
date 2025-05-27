@@ -161,16 +161,13 @@ describe('MastraAuthWorkos', () => {
   });
 
   it('can be overridden with custom authorization logic', async () => {
-    class CustomWorkos extends MastraAuthWorkos {
+    const workos = new MastraAuthWorkos({
+      apiKey: mockApiKey,
+      clientId: mockClientId,
       async authorizeUser(user: any): Promise<boolean> {
         // Custom authorization logic that checks for specific permissions
         return user?.permissions?.includes('admin') ?? false;
-      }
-    }
-
-    const workos = new CustomWorkos({
-      apiKey: mockApiKey,
-      clientId: mockClientId,
+      },
     });
 
     // Test with admin user

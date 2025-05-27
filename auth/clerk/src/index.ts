@@ -35,6 +35,8 @@ export class MastraAuthClerk extends MastraAuthProvider<ClerkUser> {
       secretKey,
       publishableKey,
     });
+
+    this.registerOptions(options);
   }
 
   async authenticateToken(token: string): Promise<ClerkUser | null> {

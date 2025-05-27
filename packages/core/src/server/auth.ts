@@ -40,4 +40,10 @@ export abstract class MastraAuthProvider<TUser = unknown> extends MastraBase {
    * @returns The authorization result
    */
   abstract authorizeUser(user: TUser, request: HonoRequest): Promise<boolean> | boolean;
+
+  protected registerOptions(opts?: MastraAuthProviderOptions<TUser>) {
+    if (opts?.authorizeUser) {
+      this.authorizeUser = opts.authorizeUser.bind(this);
+    }
+  }
 }
