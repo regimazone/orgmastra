@@ -398,7 +398,6 @@ After generating embeddings, you need to store them in a database that supports 
       metadata: chunks?.map((chunk: any) => ({ text: chunk.text })),
     });
     ```
-
   </Tabs.Tab>
 
   <Tabs.Tab>
@@ -436,11 +435,5 @@ After generating embeddings, you need to store them in a database that supports 
       metadata: chunks?.map(chunk => ({ text: chunk.text })),
     });
     ```
-    <br />
-    <hr className="dark:border-[#404040] border-gray-300" />
-    <br />
-    <GithubLink 
-      link={'https://github.com/mastra-ai/mastra/blob/main/examples/basics/rag/insert-embedding-in-couchbase'} 
-    />
   </Tabs.Tab>
 </Tabs>
