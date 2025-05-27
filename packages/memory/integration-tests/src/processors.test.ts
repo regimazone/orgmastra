@@ -7,7 +7,6 @@ import type { CoreMessage, MemoryProcessorOpts } from '@mastra/core';
 import { MemoryProcessor } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
-import { fastembed } from '@mastra/fastembed';
 import { LibSQLVector, LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { TokenLimiter, ToolCallFilter } from '@mastra/memory/processors';
@@ -242,7 +241,7 @@ describe('Memory with Processors', () => {
     const memory = new Memory({
       storage,
       vector,
-      embedder: fastembed,
+      embedder: openai.embedding(`text-embedding-3-small`),
       processors: [new ToolCallFilter(), new ConversationOnlyFilter(), new TokenLimiter(127000)],
       options: {
         lastMessages: 10,
@@ -533,7 +532,7 @@ describe('Memory.chunkText', () => {
     const memory = new Memory({
       storage,
       vector,
-      embedder: fastembed,
+      embedder: openai.embedding(`text-embedding-3-small`),
       options: {
         semanticRecall: true,
         lastMessages: 10,
