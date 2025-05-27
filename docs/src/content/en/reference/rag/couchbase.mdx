@@ -7,6 +7,11 @@ description: Documentation for the CouchbaseVector class in Mastra, which provid
 
 The `CouchbaseVector` class provides vector search using [Couchbase Vector Search](https://docs.couchbase.com/server/current/vector-search/vector-search.html). It enables efficient similarity search and metadata filtering within your Couchbase collections.
 
+## Requirements
+
+- **Couchbase Server 7.6.4+** or a compatible Capella cluster
+- **Search Service enabled** on your Couchbase deployment
+
 ## Installation
 
 ```bash copy
@@ -51,6 +56,16 @@ const store = new CouchbaseVector({
       description: "Name of the Couchbase bucket to use",
     },
     {
+      name: "scopeName",
+      type: "string",
+      description: "Name of the Couchbase scope to use",
+    },
+    {
+      name: "collectionName",
+      type: "string",
+      description: "Name of the Couchbase collection to use",
+    },
+    {
       name: "options",
       type: "CouchbaseClientOptions",
       isOptional: true,
@@ -64,6 +79,8 @@ const store = new CouchbaseVector({
 ### createIndex()
 
 Creates a new vector index in Couchbase.
+
+> **Note:** Index creation is asynchronous. After calling `createIndex`, allow time (typically 1–5 seconds for small datasets, longer for large ones) before querying. For production, implement polling to check index status rather than using fixed delays.
 
 <PropertiesTable
   content={[
@@ -90,6 +107,8 @@ Creates a new vector index in Couchbase.
 ### upsert()
 
 Adds or updates vectors and their metadata in the collection.
+
+> **Note:** You can upsert data before or after creating the index. The `upsert` method does not require the index to exist. Couchbase allows multiple Search indexes over the same collection.
 
 <PropertiesTable
   content={[
@@ -120,7 +139,9 @@ Adds or updates vectors and their metadata in the collection.
 
 ### query()
 
-Searches for similar vectors with optional metadata filtering.
+Searches for similar vectors.
+
+> **Warning:** The `filter` and `includeVector` parameters are not currently supported. Filtering must be performed client-side after retrieving results, or by using the Couchbase SDK's Search capabilities directly. To retrieve the vector embedding, fetch the full document by ID using the Couchbase SDK.
 
 <PropertiesTable
   content={[
@@ -304,12 +325,18 @@ try {
 }
 ```
 
-## Best Practices
+## Notes
 
-- Index metadata fields used in filters for optimal query performance
-- Use consistent field naming in metadata to avoid unexpected query results
-- Regularly monitor index statistics to ensure efficient search
-- Consider using Couchbase's built-in replication and persistence features for data durability
+- **Index Deletion Caveat:** Deleting a Search index does NOT delete the vectors/documents in the associated Couchbase collection. Data remains unless explicitly removed.
+- **Required Permissions:** The Couchbase user must have permissions to connect, read/write documents in the target collection (`kv` role), and manage Search Indexes (`search_admin` role on the relevant bucket/scope).
+- **Index Definition Details & Document Structure:** The `createIndex` method constructs a Search Index definition that indexes the `embedding` field (as type `vector`) and the `content` field (as type `text`), targeting documents within the specified `scopeName.collectionName`. Each document stores the vector in the `embedding` field and metadata in the `metadata` field. If `metadata` contains a `text` property, its value is also copied to a top-level `content` field, which is indexed for text search.
+- **Replication & Durability:** Consider using Couchbase's built-in replication and persistence features for data durability. Monitor index statistics regularly to ensure efficient search.
+
+## Limitations
+
+- Index creation delays may impact immediate querying after creation.
+- No hard enforcement of vector dimension at ingest time (dimension mismatches will error at query time).
+- Vector insertion and index updates are eventually consistent; strong consistency is not guaranteed immediately after writes.
 
 ## Related
 
