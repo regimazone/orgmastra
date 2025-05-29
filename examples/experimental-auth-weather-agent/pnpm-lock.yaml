@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@mastra/core': link:../../packages/core
+  '@mastra/auth': link:../../packages/auth
   '@mastra/auth-supabase': link:../../auth/supabase
   '@mastra/auth-workos': link:../../auth/workos
   '@mastra/auth-firebase': link:../../auth/firebase
@@ -20,6 +21,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.3.22
         version: 1.3.22(zod@3.25.7)
+      '@mastra/auth':
+        specifier: link:../../packages/auth
+        version: link:../../packages/auth
       '@mastra/auth-auth0':
         specifier: link:../../auth/auth0
         version: link:../../auth/auth0

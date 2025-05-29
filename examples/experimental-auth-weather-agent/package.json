@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
     "@mastra/core": "latest",
+    "@mastra/auth": "latest",
     "@mastra/auth-supabase": "latest",
     "@mastra/auth-workos": "latest",
     "@mastra/auth-firebase": "latest",
@@ -28,6 +29,7 @@
   "pnpm": {
     "overrides": {
       "@mastra/core": "link:../../packages/core",
+      "@mastra/auth": "link:../../packages/auth",
       "@mastra/auth-supabase": "link:../../auth/supabase",
       "@mastra/auth-workos": "link:../../auth/workos",
       "@mastra/auth-firebase": "link:../../auth/firebase",

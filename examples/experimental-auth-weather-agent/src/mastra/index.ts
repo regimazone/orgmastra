@@ -5,8 +5,6 @@ import { weatherWorkflow as legacyWeatherWorkflow } from './workflows';
 import { weatherWorkflow } from './workflows/new-workflow';
 import { authConfig } from './auth';
 
-console.log('authConfig', authConfig.authorizeUser.toString());
-
 export const mastra = new Mastra({
   agents: { weatherAgent },
   legacy_workflows: { legacyWeatherWorkflow },

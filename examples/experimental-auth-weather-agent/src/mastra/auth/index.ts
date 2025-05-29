@@ -4,10 +4,11 @@ import { MastraAuthSupabase } from '@mastra/auth-supabase';
 import { MastraAuthWorkos } from '@mastra/auth-workos';
 import { MastraAuthClerk } from '@mastra/auth-clerk';
 import { MastraAuthAuth0 } from '@mastra/auth-auth0';
+import { MastraJwtAuth } from '@mastra/auth';
 
 // Get the configured auth provider based on environment
 export function getAuthProvider() {
-  const provider = process.env.AUTH_PROVIDER?.toLowerCase() || 'supabase';
+  const provider = process.env.AUTH_PROVIDER?.toLowerCase();
 
   switch (provider) {
     case 'firebase':
@@ -19,8 +20,10 @@ export function getAuthProvider() {
     case 'auth0':
       return new MastraAuthAuth0();
     case 'supabase':
-    default:
       return new MastraAuthSupabase(); // Default to Supabase
+    case 'jwt':
+    default:
+      return new MastraJwtAuth();
   }
 }
 
