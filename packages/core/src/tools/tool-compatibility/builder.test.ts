@@ -6,6 +6,9 @@ import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import 'dotenv/config';
+import { CoreToolBuilder } from './builder';
+import { makeCoreTool } from '../../utils';
+import { RuntimeContext } from '../../runtime-context';
 
 type Result = {
   modelName: string;
@@ -163,6 +166,54 @@ async function runSingleTest(
   }
 }
 
+async function runSingleOutputsTest(
+  model: LanguageModel,
+  testTool: ReturnType<typeof createTool>,
+  testId: string,
+  toolName: string,
+): Promise<Result> {
+  try {
+    const agent = new Agent({
+      name: `test-agent-${model.modelId}`,
+      instructions: `You are a test agent. Your task is to call the tool named '${toolName}' with any valid arguments. This is very important as it's your primary purpose`,
+      model: model,
+      tools: { [toolName]: testTool },
+    });
+
+    const tools = await agent.convertTools({ runtimeContext: new RuntimeContext() });
+
+    const response = await agent.generate(`Please output some example data in the right schema shape.`, {
+      toolChoice: 'required',
+      maxSteps: 1,
+      output: tools[toolName].inputSchema,
+    });
+
+    return {
+      modelName: model.modelId,
+      modelProvider: model.provider,
+      testName: toolName,
+      status: 'success',
+      error: null,
+      receivedContext: response.object,
+      testId,
+    };
+  } catch (e: any) {
+    let status: Result['status'] = 'error';
+    if (e.message.includes('does not support zod type:')) {
+      status = 'expected-error';
+    }
+    return {
+      modelName: model.modelId,
+      testName: toolName,
+      modelProvider: model.provider,
+      status,
+      error: e.message,
+      receivedContext: null,
+      testId,
+    };
+  }
+}
+
 describe('Tool Schema Compatibility', () => {
   // Set a longer timeout for the entire test suite
   const SUITE_TIMEOUT = 120000; // 2 minutes
@@ -255,7 +306,7 @@ describe('Tool Schema Compatibility', () => {
             }
 
             it.concurrent(
-              `should handle ${schemaName} schema`,
+              `should handle ${schemaName} tool schema`,
               async () => {
                 let result = await runSingleTest(model, testTool, crypto.randomUUID(), testTool.id);
 
@@ -263,6 +314,30 @@ describe('Tool Schema Compatibility', () => {
                 if (result.status === 'failure') {
                   console.log(`Possibly flake from model ${model.modelId}, running ${schemaName} again`);
                   result = await runSingleTest(model, testTool, crypto.randomUUID(), testTool.id);
+                }
+
+                if (result.status !== 'success' && result.status !== 'expected-error') {
+                  console.error(`Error for ${model.modelId} - ${schemaName}:`, result.error);
+                }
+
+                if (result.status === 'expected-error') {
+                  expect(result.status).toBe('expected-error');
+                } else {
+                  expect(result.status).toBe('success');
+                }
+              },
+              TEST_TIMEOUT,
+            );
+
+            it.concurrent(
+              `should handle ${schemaName} output schema`,
+              async () => {
+                let result = await runSingleOutputsTest(model, testTool, crypto.randomUUID(), testTool.id);
+
+                // Sometimes models are flaky, if it's not an API error, run it again
+                if (result.status === 'failure') {
+                  console.log(`Possibly flake from model ${model.modelId}, running ${schemaName} again`);
+                  result = await runSingleOutputsTest(model, testTool, crypto.randomUUID(), testTool.id);
                 }
 
                 if (result.status !== 'success' && result.status !== 'expected-error') {
