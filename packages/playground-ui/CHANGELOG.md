@@ -1,5 +1,31 @@
 # @mastra/playground-ui
 
+## 5.1.2-alpha.4
+
+### Patch Changes
+
+- 401bbae: Show workflow graph from stepGraph of previous runs when viewing a previous run
+- 4b23936: fix: typos
+
+## 5.1.2-alpha.3
+
+### Patch Changes
+
+- Updated dependencies [c5bf1ce]
+- Updated dependencies [12b7002]
+  - @mastra/client-js@0.10.2-alpha.2
+  - @mastra/core@0.10.2-alpha.4
+
+## 5.1.2-alpha.2
+
+### Patch Changes
+
+- 068b850: fix: able to pass headers to playground components which are using the mastra client
+- Updated dependencies [ab5adbe]
+- Updated dependencies [195c428]
+- Updated dependencies [f73e11b]
+  - @mastra/core@0.10.2-alpha.3
+
 ## 5.1.2-alpha.1
 
 ### Patch Changes

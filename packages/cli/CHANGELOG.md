@@ -1,5 +1,33 @@
 # mastra
 
+## 0.10.2-alpha.5
+
+### Patch Changes
+
+- 401bbae: Show workflow graph from stepGraph of previous runs when viewing a previous run
+
+## 0.10.2-alpha.4
+
+### Patch Changes
+
+- Updated dependencies [c5bf1ce]
+- Updated dependencies [12b7002]
+  - @mastra/core@0.10.2-alpha.4
+  - @mastra/deployer@0.10.2-alpha.4
+
+## 0.10.2-alpha.3
+
+### Patch Changes
+
+- f73e11b: fix telemetry disabled not working on playground
+- 068b850: fix: able to pass headers to playground components which are using the mastra client
+- Updated dependencies [ab5adbe]
+- Updated dependencies [195c428]
+- Updated dependencies [f73e11b]
+- Updated dependencies [f946acf]
+  - @mastra/core@0.10.2-alpha.3
+  - @mastra/deployer@0.10.2-alpha.3
+
 ## 0.10.2-alpha.2
 
 ### Patch Changes
