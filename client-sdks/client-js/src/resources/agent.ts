@@ -1,8 +1,9 @@
 import { processDataStream } from '@ai-sdk/ui-utils';
-import type { GenerateReturn } from '@mastra/core';
+import { type GenerateReturn } from '@mastra/core';
 import type { JSONSchema7 } from 'json-schema';
 import { ZodSchema } from 'zod';
 import { zodToJsonSchema } from '../utils/zod-to-json-schema';
+import { processClientTools } from '../utils/process-client-tools';
 
 import type {
   GenerateParams,
@@ -70,6 +71,14 @@ export class AgentVoice extends BaseResource {
   getSpeakers(): Promise<Array<{ voiceId: string; [key: string]: any }>> {
     return this.request(`/api/agents/${this.agentId}/voice/speakers`);
   }
+
+  /**
+   * Get the listener configuration for the agent's voice provider
+   * @returns Promise containing a check if the agent has listening capabilities
+   */
+  getListener(): Promise<{ enabled: boolean }> {
+    return this.request(`/api/agents/${this.agentId}/voice/listener`);
+  }
 }
 
 export class Agent extends BaseResource {
@@ -104,6 +113,7 @@ export class Agent extends BaseResource {
       output: params.output ? zodToJsonSchema(params.output) : undefined,
       experimental_output: params.experimental_output ? zodToJsonSchema(params.experimental_output) : undefined,
       runtimeContext: parseClientRuntimeContext(params.runtimeContext),
+      clientTools: processClientTools(params.clientTools),
     };
 
     return this.request(`/api/agents/${this.agentId}/generate`, {
@@ -129,6 +139,7 @@ export class Agent extends BaseResource {
       output: params.output ? zodToJsonSchema(params.output) : undefined,
       experimental_output: params.experimental_output ? zodToJsonSchema(params.experimental_output) : undefined,
       runtimeContext: parseClientRuntimeContext(params.runtimeContext),
+      clientTools: processClientTools(params.clientTools),
     };
 
     const response: Response & {
