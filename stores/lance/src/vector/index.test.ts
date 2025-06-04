@@ -52,7 +52,7 @@ describe('Lance vector store tests', () => {
           tableName: testTableName,
         });
 
-        const stats = await vectorDB.describeIndex(indexOnColumn + '_idx');
+        const stats = await vectorDB.describeIndex({ indexName: indexOnColumn + '_idx' });
 
         expect(stats?.dimension).toBe(3);
         expect(stats?.count).toBe(300);
@@ -73,7 +73,7 @@ describe('Lance vector store tests', () => {
           tableName: testTableName,
         });
 
-        const stats = await vectorDB.describeIndex(indexOnColumn + '_idx');
+        const stats = await vectorDB.describeIndex({ indexName: indexOnColumn + '_idx' });
 
         expect(stats?.metric).toBe('l2');
       });
@@ -85,7 +85,7 @@ describe('Lance vector store tests', () => {
 
       afterAll(async () => {
         try {
-          await vectorDB.deleteIndex(indexColumnName + '_idx');
+          await vectorDB.deleteIndex({ indexName: indexColumnName + '_idx' });
         } catch (error) {
           console.warn('Failed to delete index during cleanup:', error);
         }
@@ -124,7 +124,7 @@ describe('Lance vector store tests', () => {
 
       afterAll(async () => {
         try {
-          await vectorDB.deleteIndex(indexColumnName + '_idx');
+          await vectorDB.deleteIndex({ indexName: indexColumnName + '_idx' });
         } catch (error) {
           console.warn('Failed to delete index during cleanup:', error);
         }
@@ -151,7 +151,7 @@ describe('Lance vector store tests', () => {
           tableName: describeIndexTestTable,
         });
 
-        const stats = await vectorDB.describeIndex(indexColumnName + '_idx');
+        const stats = await vectorDB.describeIndex({ indexName: indexColumnName + '_idx' });
 
         expect(stats).toBeDefined();
         expect(stats?.dimension).toBe(3);
@@ -162,7 +162,7 @@ describe('Lance vector store tests', () => {
       it('should throw error for non-existent index', async () => {
         const nonExistentIndex = 'non-existent-index-' + Date.now();
 
-        await expect(vectorDB.describeIndex(nonExistentIndex)).rejects.toThrow('not found');
+        await expect(vectorDB.describeIndex({ indexName: nonExistentIndex })).rejects.toThrow('not found');
       });
     });
 
@@ -198,7 +198,7 @@ describe('Lance vector store tests', () => {
         const indexesBefore = await vectorDB.listIndexes();
         expect(indexesBefore).toContain(indexColumnName + '_idx');
 
-        await vectorDB.deleteIndex(indexColumnName + '_idx');
+        await vectorDB.deleteIndex({ indexName: indexColumnName + '_idx' });
 
         const indexesAfter = await vectorDB.listIndexes();
         expect(indexesAfter).not.toContain(indexColumnName + '_idx');
@@ -207,7 +207,7 @@ describe('Lance vector store tests', () => {
       it('should throw error when deleting non-existent index', async () => {
         const nonExistentIndex = 'non-existent-index-' + Date.now();
 
-        await expect(vectorDB.deleteIndex(nonExistentIndex)).rejects.toThrow('not found');
+        await expect(vectorDB.deleteIndex({ indexName: nonExistentIndex })).rejects.toThrow('not found');
       });
     });
   });
@@ -480,9 +480,13 @@ describe('Lance vector store tests', () => {
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
-        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
-          vector: [0.4, 0.5, 0.6],
-          metadata: { text: 'Updated vector' },
+        await vectorDB.updateVector({
+          indexName: testTableIndexColumn,
+          id: ids[0],
+          update: {
+            vector: [0.4, 0.5, 0.6],
+            metadata: { text: 'Updated vector' },
+          },
         });
 
         const res = await vectorDB.query({
@@ -514,8 +518,12 @@ describe('Lance vector store tests', () => {
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
-        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
-          vector: [0.4, 0.5, 0.6],
+        await vectorDB.updateVector({
+          indexName: testTableIndexColumn,
+          id: ids[0],
+          update: {
+            vector: [0.4, 0.5, 0.6],
+          },
         });
 
         const res = await vectorDB.query({
@@ -547,8 +555,12 @@ describe('Lance vector store tests', () => {
         expect(ids).toHaveLength(1);
         expect(ids.every(id => typeof id === 'string')).toBe(true);
 
-        await vectorDB.updateIndexById(testTableIndexColumn, ids[0], {
-          metadata: { text: 'Updated metadata' },
+        await vectorDB.updateVector({
+          indexName: testTableIndexColumn,
+          id: ids[0],
+          update: {
+            metadata: { text: 'Updated metadata' },
+          },
         });
 
         const res = await vectorDB.query({
@@ -629,7 +641,10 @@ describe('Lance vector store tests', () => {
 
         expect(results).toHaveLength(2);
 
-        await vectorDB.deleteIndexById(testTableIndexColumn, ids[0]);
+        await vectorDB.deleteVector({
+          indexName: testTableIndexColumn,
+          id: ids[0],
+        });
 
         results = await vectorDB.query({
           indexName: testTableIndexColumn,

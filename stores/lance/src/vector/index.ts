@@ -2,12 +2,14 @@ import { connect, Index } from '@lancedb/lancedb';
 import type { Connection, ConnectionOptions, CreateTableOptions, Table, TableLike } from '@lancedb/lancedb';
 
 import type {
-  CreateIndexArgs,
   CreateIndexParams,
+  DeleteIndexParams,
+  DeleteVectorParams,
+  DescribeIndexParams,
   IndexStats,
-  ParamsToArgs,
   QueryResult,
   QueryVectorParams,
+  UpdateVectorParams,
   UpsertVectorParams,
 } from '@mastra/core';
 
@@ -35,8 +37,6 @@ interface LanceQueryVectorParams extends QueryVectorParams {
   columns?: string[];
   includeAllColumns?: boolean;
 }
-
-type LanceCreateIndexArgs = [...CreateIndexArgs, LanceIndexConfig?, boolean?];
 
 export class LanceVectorStore extends MastraVector {
   private lanceClient!: Connection;
@@ -87,21 +87,18 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  async query(...args: ParamsToArgs<LanceQueryVectorParams>): Promise<QueryResult[]> {
+  async query({
+    tableName,
+    queryVector,
+    filter,
+    includeVector = false,
+    topK = 10,
+    columns = [],
+    includeAllColumns = false,
+  }: LanceQueryVectorParams): Promise<QueryResult[]> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
-
-    const params = this.normalizeArgs<LanceQueryVectorParams>('query', args);
-    const {
-      tableName,
-      queryVector,
-      filter,
-      includeVector = false,
-      topK = 10,
-      columns = [],
-      includeAllColumns = false,
-    } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
@@ -219,13 +216,10 @@ export class LanceVectorStore extends MastraVector {
     return translator.translate(prefixedFilter);
   }
 
-  async upsert(...args: ParamsToArgs<LanceUpsertVectorParams>): Promise<string[]> {
+  async upsert({ tableName, vectors, metadata = [], ids = [] }: LanceUpsertVectorParams): Promise<string[]> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
-
-    const params = this.normalizeArgs<LanceUpsertVectorParams>('upsert', args);
-    const { tableName, vectors, metadata = [], ids = [] } = params;
 
     if (!tableName) {
       throw new Error('tableName is required');
@@ -332,17 +326,16 @@ export class LanceVectorStore extends MastraVector {
   /**
    * indexName is actually a column name in a table in lanceDB
    */
-  async createIndex(...args: ParamsToArgs<LanceCreateIndexParams> | LanceCreateIndexArgs): Promise<void> {
+  async createIndex({
+    tableName,
+    indexName,
+    dimension,
+    metric = 'cosine',
+    indexConfig = {},
+  }: LanceCreateIndexParams): Promise<void> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
-
-    const params = this.normalizeArgs<LanceCreateIndexParams, LanceCreateIndexArgs>('createIndex', args, [
-      'indexConfig',
-      'tableName',
-    ]);
-
-    const { tableName, indexName, dimension, metric = 'cosine', indexConfig = {} } = params;
 
     try {
       if (!tableName) {
@@ -422,7 +415,7 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  async describeIndex(indexName: string): Promise<IndexStats> {
+  async describeIndex({ indexName }: DescribeIndexParams): Promise<IndexStats> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
@@ -468,7 +461,7 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  async deleteIndex(indexName: string): Promise<void> {
+  async deleteIndex({ indexName }: DeleteIndexParams): Promise<void> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
@@ -524,20 +517,16 @@ export class LanceVectorStore extends MastraVector {
     }
   }
 
-  async updateIndexById(
-    _indexName: string,
-    _id: string,
-    _update: { vector?: number[]; metadata?: Record<string, any> },
-  ): Promise<void> {
+  async updateVector({ indexName, id, update }: UpdateVectorParams): Promise<void> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
 
-    if (!_indexName) {
+    if (!indexName) {
       throw new Error('indexName is required');
     }
 
-    if (!_id) {
+    if (!id) {
       throw new Error('id is required');
     }
 
@@ -552,26 +541,26 @@ export class LanceVectorStore extends MastraVector {
 
         try {
           const schema = await table.schema();
-          const hasColumn = schema.fields.some(field => field.name === _indexName);
+          const hasColumn = schema.fields.some(field => field.name === indexName);
 
           if (hasColumn) {
-            this.logger.debug(`Found column ${_indexName} in table ${tableName}`);
+            this.logger.debug(`Found column ${indexName} in table ${tableName}`);
 
             // First, query the existing record to preserve values that aren't being updated
             const existingRecord = await table
               .query()
-              .where(`id = '${_id}'`)
+              .where(`id = '${id}'`)
               .select(schema.fields.map(field => field.name))
               .limit(1)
               .toArray();
 
             if (existingRecord.length === 0) {
-              throw new Error(`Record with id '${_id}' not found in table ${tableName}`);
+              throw new Error(`Record with id '${id}' not found in table ${tableName}`);
             }
 
             // Create a clean data object for update
             const rowData: Record<string, any> = {
-              id: _id,
+              id,
             };
 
             // Copy all existing field values except special fields
@@ -579,9 +568,9 @@ export class LanceVectorStore extends MastraVector {
               // Skip special fields
               if (key !== 'id' && key !== '_distance') {
                 // Handle vector field specially to avoid nested properties
-                if (key === _indexName) {
+                if (key === indexName) {
                   // If we're about to update this vector anyway, skip copying
-                  if (!_update.vector) {
+                  if (!update.vector) {
                     // Ensure vector is a plain array
                     if (Array.isArray(value)) {
                       rowData[key] = [...value];
@@ -599,13 +588,13 @@ export class LanceVectorStore extends MastraVector {
             });
 
             // Apply the vector update if provided
-            if (_update.vector) {
-              rowData[_indexName] = _update.vector;
+            if (update.vector) {
+              rowData[indexName] = update.vector;
             }
 
             // Apply metadata updates if provided
-            if (_update.metadata) {
-              Object.entries(_update.metadata).forEach(([key, value]) => {
+            if (update.metadata) {
+              Object.entries(update.metadata).forEach(([key, value]) => {
                 rowData[`metadata_${key}`] = value;
               });
             }
@@ -621,22 +610,22 @@ export class LanceVectorStore extends MastraVector {
         }
       }
 
-      throw new Error(`No table found with column/index '${_indexName}'`);
+      throw new Error(`No table found with column/index '${indexName}'`);
     } catch (error: any) {
       throw new Error(`Failed to update index: ${error.message}`);
     }
   }
 
-  async deleteIndexById(_indexName: string, _id: string): Promise<void> {
+  async deleteVector({ indexName, id }: DeleteVectorParams): Promise<void> {
     if (!this.lanceClient) {
       throw new Error('LanceDB client not initialized. Use LanceVectorStore.create() to create an instance');
     }
 
-    if (!_indexName) {
+    if (!indexName) {
       throw new Error('indexName is required');
     }
 
-    if (!_id) {
+    if (!id) {
       throw new Error('id is required');
     }
 
@@ -652,11 +641,11 @@ export class LanceVectorStore extends MastraVector {
         try {
           // Try to get the schema to check if this table has the column we're looking for
           const schema = await table.schema();
-          const hasColumn = schema.fields.some(field => field.name === _indexName);
+          const hasColumn = schema.fields.some(field => field.name === indexName);
 
           if (hasColumn) {
-            this.logger.debug(`Found column ${_indexName} in table ${tableName}`);
-            await table.delete(`id = '${_id}'`);
+            this.logger.debug(`Found column ${indexName} in table ${tableName}`);
+            await table.delete(`id = '${id}'`);
             return;
           }
         } catch (err) {
@@ -666,7 +655,7 @@ export class LanceVectorStore extends MastraVector {
         }
       }
 
-      throw new Error(`No table found with column/index '${_indexName}'`);
+      throw new Error(`No table found with column/index '${indexName}'`);
     } catch (error: any) {
       throw new Error(`Failed to delete index: ${error.message}`);
     }

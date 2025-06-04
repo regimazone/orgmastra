@@ -2,6 +2,8 @@ import { connect } from '@lancedb/lancedb';
 import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
 import type {
   EvalRow,
+  MastraMessageV1,
+  MastraMessageV2,
   MessageType,
   StorageColumn,
   StorageGetMessagesArg,
@@ -557,7 +559,15 @@ export class LanceStorage extends MastraStorage {
       .map(index => records[index]);
   }
 
-  async getMessages({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<MessageType[]> {
+  public async getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
+  public async getMessages(args: StorageGetMessagesArg & { format: 'v2' }): Promise<MastraMessageV2[]>;
+  public async getMessages({
+    threadId,
+    resourceId,
+    selectBy,
+    format,
+    threadConfig,
+  }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]> {
     try {
       if (threadConfig) {
         throw new Error('ThreadConfig is not supported by LanceDB storage');
