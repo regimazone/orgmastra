@@ -62,9 +62,14 @@ export class MastraError extends Error {
 
   constructor(errorDefinition: IErrorDefinition, originalError?: Error | MastraError | unknown) {
     const message = errorDefinition.text;
-    const error = originalError instanceof Error ? originalError : new Error(String(originalError));
-    super(message, error);
+    let error;
+    if (originalError instanceof Error) {
+      error = originalError;
+    } else if (originalError) {
+      error = new Error(String(originalError));
+    }
 
+    super(message, error);
     this.id = errorDefinition.id;
     this.domain = errorDefinition.domain;
     this.category = errorDefinition.category;
