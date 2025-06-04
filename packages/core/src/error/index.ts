@@ -44,7 +44,7 @@ export interface IErrorDefinition {
    */
   domain: `${Domain | string}`;
   /** Broad category of the error (e.g., USER, SYSTEM, THIRD_PARTY). */
-  category: `${ErrorCategory}`;
+  category: `${ErrorCategory | string}`;
 
   details?: Record<string, Json<Scalar>>;
 }
@@ -56,7 +56,7 @@ export interface IErrorDefinition {
 export class MastraError extends Error {
   public readonly id: string | number;
   public readonly domain: `${Domain | string}`;
-  public readonly category: `${ErrorCategory}`;
+  public readonly category: `${ErrorCategory | string}`;
   public readonly originalError?: Error;
   public readonly details?: Record<string, Json<Scalar>> = {};
 
