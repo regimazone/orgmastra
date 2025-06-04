@@ -60,15 +60,15 @@ export class MastraError extends Error {
   public readonly originalError?: Error;
   public readonly details?: Record<string, Json<Scalar>> = {};
 
-  constructor(errorDefinition: IErrorDefinition, originalError?: Error | MastraError) {
+  constructor(errorDefinition: IErrorDefinition, originalError?: Error | MastraError | unknown) {
     const message = errorDefinition.text;
-
-    super(message, originalError);
+    const error = originalError instanceof Error ? originalError : new Error(String(originalError));
+    super(message, error);
 
     this.id = errorDefinition.id;
     this.domain = errorDefinition.domain;
     this.category = errorDefinition.category;
-    this.originalError = originalError;
+    this.originalError = error;
     this.details = errorDefinition.details ?? {};
 
     Object.setPrototypeOf(this, new.target.prototype);
