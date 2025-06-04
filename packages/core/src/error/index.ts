@@ -16,6 +16,7 @@ export enum ErrorCategory {
   UNKNOWN = 'UNKNOWN',
   USER = 'USER',
   SYSTEM = 'SYSTEM',
+  THIRD_PARTY = 'THIRD_PARTY',
 }
 
 type Scalar = null | boolean | number | string;
@@ -41,7 +42,7 @@ export interface IErrorDefinition {
   /**
    * Functional domain of the error (e.g., CONFIG, BUILD, API).
    */
-  domain: `${Domain}`;
+  domain: `${Domain | string}`;
   /** Broad category of the error (e.g., USER, SYSTEM, THIRD_PARTY). */
   category: `${ErrorCategory}`;
 
@@ -95,15 +96,3 @@ export class MastraError extends Error {
     };
   }
 }
-
-const error = new MastraError({
-  id: 'BASE_TEST_001',
-  text: 'This is a base test error',
-  domain: Domain.AGENT,
-  category: ErrorCategory.UNKNOWN,
-  details: {
-    tset: 'lalal',
-  },
-});
-
-console.log(error.toJSON());
