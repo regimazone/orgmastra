@@ -55,7 +55,7 @@ export interface IErrorDefinition {
  */
 export class MastraError extends Error {
   public readonly id: string | number;
-  public readonly domain: `${Domain}`;
+  public readonly domain: `${Domain | string}`;
   public readonly category: `${ErrorCategory}`;
   public readonly originalError?: Error;
   public readonly details?: Record<string, Json<Scalar>> = {};
