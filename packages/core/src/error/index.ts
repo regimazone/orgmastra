@@ -42,9 +42,9 @@ export interface IErrorDefinition {
   /**
    * Functional domain of the error (e.g., CONFIG, BUILD, API).
    */
-  domain: `${Domain | string}`;
+  domain: `${Domain | Uppercase<string>}`;
   /** Broad category of the error (e.g., USER, SYSTEM, THIRD_PARTY). */
-  category: `${ErrorCategory | string}`;
+  category: `${ErrorCategory | Uppercase<string>}`;
 
   details?: Record<string, Json<Scalar>>;
 }
@@ -55,8 +55,8 @@ export interface IErrorDefinition {
  */
 export class MastraError extends Error {
   public readonly id: string | number;
-  public readonly domain: `${Domain | string}`;
-  public readonly category: `${ErrorCategory | string}`;
+  public readonly domain: `${Domain | Uppercase<string>}`;
+  public readonly category: `${ErrorCategory | Uppercase<string>}`;
   public readonly originalError?: Error;
   public readonly details?: Record<string, Json<Scalar>> = {};
 
