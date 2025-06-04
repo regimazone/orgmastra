@@ -118,16 +118,11 @@ to = "/.netlify/functions/api/:splat"
       });
     });
 
-    if (mastra.getStorage()) {
-      // start storage init in the background
-      mastra.getStorage().init();
-    }
-
     registerHook(AvailableHooks.ON_EVALUATION, async traceObject => {
       const storage = mastra.getStorage();
       if (storage) {
         // Check for required fields
-        const logger = mastra?.getLogger();
+        const logger = mastra.getLogger();
         const areFieldsValid = checkEvalStorageFields(traceObject, logger);
         if (!areFieldsValid) return;
 
@@ -153,5 +148,11 @@ to = "/.netlify/functions/api/:splat"
 
     export default handle(app)
 `;
+  }
+
+  async lint(entryFile: string, outputDirectory: string, toolsPaths: string[]): Promise<void> {
+    await super.lint(entryFile, outputDirectory, toolsPaths);
+
+    // Lint for netlify support
   }
 }

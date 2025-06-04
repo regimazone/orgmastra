@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -38,6 +38,8 @@ jobs:
 
       - name: Lint
         run: pnpm turbo --filter "!./examples/**/*" --filter "!./docs/**/*" --filter "!./integrations/**/*" --filter "!@mastra/playground" lint
+      - name: Format
+        run: pnpm prettier --check .
 
   prebuild:
     name: Prebuild
@@ -62,7 +64,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -97,7 +99,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -137,7 +139,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -177,7 +179,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -224,7 +226,7 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -269,14 +271,14 @@ jobs:
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20.19.1
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
 
       - name: Build
-        run: pnpm turbo --filter "@mastra/core" build
+        run: pnpm turbo --filter "@mastra/core" --filter "@mastra/loggers" build
 
       - name: Install e2e test dependencies
         working-directory: ./e2e-tests/commonjs

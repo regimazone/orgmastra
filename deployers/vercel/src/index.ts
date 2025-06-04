@@ -127,11 +127,6 @@ registerHook(AvailableHooks.ON_GENERATION, ({ input, output, metric, runId, agen
   });
 });
 
-if (mastra.getStorage()) {
-  // start storage init in the background
-  mastra.getStorage().init();
-}
-
 registerHook(AvailableHooks.ON_EVALUATION, async traceObject => {
   const storage = mastra.getStorage();
   if (storage) {
@@ -162,6 +157,10 @@ const app = await createHonoServer(mastra);
 
 export const GET = handle(app);
 export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
+export const OPTIONS = handle(app);
+export const HEAD = handle(app);
 `;
   }
 
@@ -196,8 +195,15 @@ export const POST = handle(app);
     const result = await this._bundle(this.getEntry(), entryFile, outputDirectory, toolsPaths);
 
     // read dist files one level deep in the output directory
-    const files = readdirSync(join(outputDirectory, this.outputDir));
-    this.writeVercelJSON(outputDirectory, files);
+    const files = readdirSync(join(outputDirectory, this.outputDir), {
+      recursive: true,
+    });
+
+    const filesWithoutNodeModules = files.filter(
+      file => typeof file === 'string' && !file.startsWith('node_modules'),
+    ) as string[];
+
+    this.writeVercelJSON(outputDirectory, filesWithoutNodeModules);
 
     return result;
   }
@@ -234,6 +240,22 @@ export const POST = handle(app);
       await this.syncEnv(envVars, { outputDirectory });
     } else {
       this.logger.info('\nAdd your ENV vars to .env or your vercel dashboard.\n');
+    }
+  }
+
+  async lint(entryFile: string, outputDirectory: string, toolsPaths: string[]): Promise<void> {
+    await super.lint(entryFile, outputDirectory, toolsPaths);
+
+    await super.lint(entryFile, outputDirectory, toolsPaths);
+
+    const hasLibsql = (await this.deps.checkDependencies(['@mastra/libsql'])) === `ok`;
+
+    if (hasLibsql) {
+      this.logger.error(
+        `Vercel Deployer does not support @libsql/client(which may have been installed by @mastra/libsql) as a dependency. 
+        Use other Mastra Storage options instead e.g @mastra/pg`,
+      );
+      process.exit(1);
     }
   }
 }

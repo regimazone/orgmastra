@@ -1,6 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, Tbody, Th, Row, Cell, DateTimeCell, UnitCell, TxtCell } from '@/ds/components/Table';
-
 import { Thead } from '@/ds/components/Table';
 import type { RefinedTrace } from '@/domains/traces/types';
 import { Badge } from '@/ds/components/Badge';
@@ -11,20 +10,6 @@ import { useContext } from 'react';
 import { TraceContext } from './context/trace-context';
 import { Check, X } from 'lucide-react';
 import { toSigFigs } from '@/lib/number';
-
-const TracesTableSkeleton = ({ colsCount }: { colsCount: number }) => {
-  return (
-    <Tbody>
-      <Row>
-        {Array.from({ length: colsCount }).map((_, index) => (
-          <Cell key={index}>
-            <Skeleton className="w-1/2" />
-          </Cell>
-        ))}
-      </Row>
-    </Tbody>
-  );
-};
 
 const TracesTableEmpty = ({ colsCount }: { colsCount: number }) => {
   return (
@@ -52,8 +37,7 @@ const TracesTableError = ({ error, colsCount }: { error: { message: string }; co
 
 export interface TracesTableProps {
   traces: RefinedTrace[];
-  isLoading: boolean;
-  error?: { message: string } | null;
+  error: { message: string } | null;
 }
 
 const TraceRow = ({ trace, index, isActive }: { trace: RefinedTrace; index: number; isActive: boolean }) => {
@@ -85,7 +69,7 @@ const TraceRow = ({ trace, index, isActive }: { trace: RefinedTrace; index: numb
   );
 };
 
-export const TracesTable = ({ traces, isLoading, error }: TracesTableProps) => {
+export const TracesTable = ({ traces, error }: TracesTableProps) => {
   const hasNoTraces = !traces || traces.length === 0;
   const { currentTraceIndex } = useContext(TraceContext);
   const colsCount = 4;
@@ -99,18 +83,18 @@ export const TracesTable = ({ traces, isLoading, error }: TracesTableProps) => {
         <Th width={120}>Spans</Th>
         <Th width={120}>Status</Th>
       </Thead>
-      {isLoading ? (
-        <TracesTableSkeleton colsCount={colsCount} />
-      ) : error ? (
+      {error ? (
         <TracesTableError error={error} colsCount={colsCount} />
       ) : hasNoTraces ? (
         <TracesTableEmpty colsCount={colsCount} />
       ) : (
-        <Tbody>
-          {traces.map((trace, index) => (
-            <TraceRow key={trace.traceId} trace={trace} index={index} isActive={index === currentTraceIndex} />
-          ))}
-        </Tbody>
+        <>
+          <Tbody>
+            {traces.map((trace, index) => (
+              <TraceRow key={trace.traceId} trace={trace} index={index} isActive={index === currentTraceIndex} />
+            ))}
+          </Tbody>
+        </>
       )}
     </Table>
   );

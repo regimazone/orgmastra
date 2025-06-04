@@ -5,14 +5,65 @@ import {
   ThreadMessageLike,
   AppendMessage,
   AssistantRuntimeProvider,
+  SimpleImageAttachmentAdapter,
+  CompositeAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
 } from '@assistant-ui/react';
 import { useState, ReactNode, useEffect } from 'react';
+import { RuntimeContext } from '@mastra/core/di';
 
 import { ChatProps } from '@/types';
-import { createMastraClient } from '@/lib/mastra-client';
+
+import { CoreUserMessage } from '@mastra/core';
+import { fileToBase64 } from '@/lib/file';
+import { useMastraClient } from '@/contexts/mastra-client-context';
+import { PDFAttachmentAdapter } from '@/components/assistant-ui/attachment-adapters/pdfs-adapter';
 
 const convertMessage = (message: ThreadMessageLike): ThreadMessageLike => {
   return message;
+};
+
+const convertToAIAttachments = async (attachments: AppendMessage['attachments']): Promise<Array<CoreUserMessage>> => {
+  const promises = attachments
+    .filter(attachment => attachment.type === 'image' || attachment.type === 'document')
+    .map(async attachment => {
+      if (attachment.type === 'document') {
+        if (attachment.contentType === 'application/pdf') {
+          return {
+            role: 'user' as const,
+            content: [
+              {
+                type: 'file' as const,
+                // @ts-expect-error - TODO: fix this type issue somehow
+                data: attachment.content?.[0]?.text || '',
+                mimeType: attachment.contentType,
+                filename: attachment.name,
+              },
+            ],
+          };
+        }
+
+        return {
+          role: 'user' as const,
+          // @ts-expect-error - TODO: fix this type issue somehow
+          content: attachment.content[0]?.text || '',
+        };
+      }
+
+      return {
+        role: 'user' as const,
+
+        content: [
+          {
+            type: 'image' as const,
+            image: await fileToBase64(attachment.file!),
+            mimeType: attachment.file!.type,
+          },
+        ],
+      };
+    });
+
+  return Promise.all(promises);
 };
 
 export function MastraRuntimeProvider({
@@ -22,10 +73,10 @@ export function MastraRuntimeProvider({
   agentName,
   memory,
   threadId,
-  baseUrl,
   refreshThreadList,
   modelSettings = {},
   chatWithGenerate,
+  runtimeContext,
 }: Readonly<{
   children: ReactNode;
 }> &
@@ -36,6 +87,11 @@ export function MastraRuntimeProvider({
 
   const { frequencyPenalty, presencePenalty, maxRetries, maxSteps, maxTokens, temperature, topK, topP, instructions } =
     modelSettings;
+
+  const runtimeContextInstance = new RuntimeContext();
+  Object.entries(runtimeContext ?? {}).forEach(([key, value]) => {
+    runtimeContextInstance.set(key, value);
+  });
 
   useEffect(() => {
     const hasNewInitialMessages = initialMessages && initialMessages?.length > messages?.length;
@@ -50,13 +106,16 @@ export function MastraRuntimeProvider({
             if (message?.toolInvocations?.length > 0) {
               return {
                 ...message,
-                content: message.toolInvocations.map((toolInvocation: any) => ({
-                  type: 'tool-call',
-                  toolCallId: toolInvocation?.toolCallId,
-                  toolName: toolInvocation?.toolName,
-                  args: toolInvocation?.args,
-                  result: toolInvocation?.result,
-                })),
+                content: [
+                  ...(typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : []),
+                  ...message.toolInvocations.map((toolInvocation: any) => ({
+                    type: 'tool-call',
+                    toolCallId: toolInvocation?.toolCallId,
+                    toolName: toolInvocation?.toolName,
+                    args: toolInvocation?.args,
+                    result: toolInvocation?.result,
+                  })),
+                ],
               };
             }
             return message;
@@ -68,14 +127,20 @@ export function MastraRuntimeProvider({
     }
   }, [initialMessages, threadId, memory]);
 
-  const mastra = createMastraClient(baseUrl);
+  const mastra = useMastraClient();
+
   const agent = mastra.getAgent(agentId);
 
   const onNew = async (message: AppendMessage) => {
     if (message.content[0]?.type !== 'text') throw new Error('Only text messages are supported');
 
+    const attachments = await convertToAIAttachments(message.attachments);
+
     const input = message.content[0].text;
-    setMessages(currentConversation => [...currentConversation, { role: 'user', content: input }]);
+    setMessages(currentConversation => [
+      ...currentConversation,
+      { role: 'user', content: input, attachments: message.attachments },
+    ]);
     setIsRunning(true);
 
     try {
@@ -86,6 +151,7 @@ export function MastraRuntimeProvider({
               role: 'user',
               content: input,
             },
+            ...attachments,
           ],
           runId: agentId,
           frequencyPenalty,
@@ -97,6 +163,7 @@ export function MastraRuntimeProvider({
           topK,
           topP,
           instructions,
+          runtimeContext: runtimeContextInstance,
           ...(memory ? { threadId, resourceId: agentId } : {}),
         });
         if (generateResponse.response) {
@@ -190,6 +257,7 @@ export function MastraRuntimeProvider({
               role: 'user',
               content: input,
             },
+            ...attachments,
           ],
           runId: agentId,
           frequencyPenalty,
@@ -201,6 +269,7 @@ export function MastraRuntimeProvider({
           topK,
           topP,
           instructions,
+          runtimeContext: runtimeContextInstance,
           ...(memory ? { threadId, resourceId: agentId } : {}),
         });
 
@@ -208,11 +277,10 @@ export function MastraRuntimeProvider({
           throw new Error('No response body');
         }
 
-        const parts = [];
         let content = '';
-        let currentTextPart: { type: 'text'; text: string } | null = null;
-
         let assistantMessageAdded = false;
+        let assistantToolCallAddedForUpdater = false;
+        let assistantToolCallAddedForContent = false;
 
         function updater() {
           setMessages(currentConversation => {
@@ -223,6 +291,15 @@ export function MastraRuntimeProvider({
 
             if (!assistantMessageAdded) {
               assistantMessageAdded = true;
+              if (assistantToolCallAddedForUpdater) {
+                assistantToolCallAddedForUpdater = false;
+              }
+              return [...currentConversation, message];
+            }
+
+            if (assistantToolCallAddedForUpdater) {
+              // add as new message item in messages array if tool call was added
+              assistantToolCallAddedForUpdater = false;
               return [...currentConversation, message];
             }
             return [...currentConversation.slice(0, -1), message];
@@ -231,16 +308,13 @@ export function MastraRuntimeProvider({
 
         await response.processDataStream({
           onTextPart(value) {
-            if (currentTextPart == null) {
-              currentTextPart = {
-                type: 'text',
-                text: value,
-              };
-              parts.push(currentTextPart);
+            if (assistantToolCallAddedForContent) {
+              // start new content value to add as next message item in messages array
+              assistantToolCallAddedForContent = false;
+              content = value;
             } else {
-              currentTextPart.text += value;
+              content += value;
             }
-            content += value;
             updater();
           },
           async onToolCallPart(value) {
@@ -277,6 +351,9 @@ export function MastraRuntimeProvider({
                       ],
                 };
 
+                assistantToolCallAddedForUpdater = true;
+                assistantToolCallAddedForContent = true;
+
                 // Replace the last message with the updated one
                 return [...currentConversation.slice(0, -1), updatedMessage];
               }
@@ -294,6 +371,8 @@ export function MastraRuntimeProvider({
                   },
                 ],
               };
+              assistantToolCallAddedForUpdater = true;
+              assistantToolCallAddedForContent = true;
               return [...currentConversation, newMessage];
             });
           },
@@ -352,6 +431,13 @@ export function MastraRuntimeProvider({
     messages,
     convertMessage,
     onNew,
+    adapters: {
+      attachments: new CompositeAttachmentAdapter([
+        new SimpleImageAttachmentAdapter(),
+        new SimpleTextAttachmentAdapter(),
+        new PDFAttachmentAdapter(),
+      ]),
+    },
   });
 
   return <AssistantRuntimeProvider runtime={runtime}> {children} </AssistantRuntimeProvider>;

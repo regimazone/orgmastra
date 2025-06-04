@@ -10,6 +10,8 @@ import { deploy } from './commands/deploy/index';
 import { dev } from './commands/dev/dev';
 import { init } from './commands/init/init';
 import { checkAndInstallCoreDeps, checkPkgJson, interactivePrompt } from './commands/init/utils';
+import { lint } from './commands/lint';
+import { start } from './commands/start';
 import { DepsService } from './services/service.deps';
 import { logger } from './utils/logger';
 
@@ -44,7 +46,7 @@ program
 program
   .command('create [project-name]')
   .description('Create a new Mastra project')
-  .option('--default', 'Quick start with defaults(src, OpenAI, no examples)')
+  .option('--default', 'Quick start with defaults(src, OpenAI, examples)')
   .option('-c, --components <components>', 'Comma-separated list of components (agents, tools, workflows)')
   .option('-l, --llm <model-provider>', 'Default model provider (openai, anthropic, groq, google, or cerebras))')
   .option('-k, --llm-api-key <api-key>', 'API key for the model provider')
@@ -56,6 +58,7 @@ program
     '-p, --project-name <string>',
     'Project name that will be used in package.json and as the project directory name.',
   )
+  .option('-m, --mcp <editor>', 'MCP Server for code editor (cursor, cursor-global, windsurf, vscode)')
   .action(async (projectNameArg, args) => {
     // Unify: use argument if present, else option
     const projectName = projectNameArg || args.projectName;
@@ -68,8 +71,9 @@ program
           await create({
             components: ['agents', 'tools', 'workflows'],
             llmProvider: 'openai',
-            addExample: false,
+            addExample: true,
             timeout,
+            mcpServer: args.mcp,
           });
           return;
         }
@@ -81,6 +85,7 @@ program
           timeout,
           projectName,
           directory: args.dir,
+          mcpServer: args.mcp,
         });
       },
       origin,
@@ -90,13 +95,14 @@ program
 program
   .command('init')
   .description('Initialize Mastra in your project')
-  .option('--default', 'Quick start with defaults(src, OpenAI, no examples)')
+  .option('--default', 'Quick start with defaults(src, OpenAI, examples)')
   .option('-d, --dir <directory>', 'Directory for Mastra files to (defaults to src/)')
   .option('-c, --components <components>', 'Comma-separated list of components (agents, tools, workflows)')
   .option('-l, --llm <model-provider>', 'Default model provider (openai, anthropic, groq, google or cerebras))')
   .option('-k, --llm-api-key <api-key>', 'API key for the model provider')
   .option('-e, --example', 'Include example code')
   .option('-n, --no-example', 'Do not include example code')
+  .option('-m, --mcp <editor>', 'MCP Server for code editor (cursor, cursor-global, windsurf, vscode)')
   .action(async args => {
     await analytics.trackCommandExecution({
       command: 'init',
@@ -119,7 +125,8 @@ program
             directory: 'src/',
             components: ['agents', 'tools', 'workflows'],
             llmProvider: 'openai',
-            addExample: false,
+            addExample: true,
+            configureEditorWithDocsMCP: args.mcp,
           });
           return;
         }
@@ -131,8 +138,26 @@ program
           llmProvider: args.llm,
           addExample: args.example,
           llmApiKey: args['llm-api-key'],
+          configureEditorWithDocsMCP: args.mcp,
         });
         return;
+      },
+      origin,
+    });
+  });
+
+program
+  .command('lint')
+  .description('Lint your Mastra project')
+  .option('-d, --dir <path>', 'Path to your Mastra folder')
+  .option('-r, --root <path>', 'Path to your root folder')
+  .option('-t, --tools <toolsDirs>', 'Comma-separated list of paths to tool files to include')
+  .action(async args => {
+    await analytics.trackCommandExecution({
+      command: 'lint',
+      args,
+      execution: async () => {
+        await lint({ dir: args.dir, root: args.root, tools: args.tools ? args.tools.split(',') : [] });
       },
       origin,
     });
@@ -168,7 +193,8 @@ program
 program
   .command('build')
   .description('Build your Mastra project')
-  .option('-d, --dir <path>', 'Path to directory')
+  .option('-d, --dir <path>', 'Path to your Mastra Folder')
+  .option('-r, --root <path>', 'Path to your root folder')
   .option('-t, --tools <toolsDirs>', 'Comma-separated list of paths to tool files to include')
   .action(async args => {
     await analytics.trackCommandExecution({
@@ -176,8 +202,9 @@ program
       args,
       execution: async () => {
         await build({
-          dir: args.dir,
-          tools: args.tools ? args.tools.split(',') : [],
+          dir: args?.dir,
+          root: args?.root,
+          tools: args?.tools ? args.tools.split(',') : [],
         });
       },
       origin,
@@ -199,6 +226,25 @@ program
           Then deploy .mastra/output to your target platform.
           `);
         await deploy({ dir: args.dir });
+      },
+      origin,
+    });
+  });
+
+program
+  .command('start')
+  .description('Start your built Mastra application')
+  .option('-d, --dir <path>', 'Path to your built Mastra output directory (default: .mastra/output)')
+  .option('-nt, --no-telemetry', 'Disable telemetry on start')
+  .action(async args => {
+    await analytics.trackCommandExecution({
+      command: 'start',
+      args,
+      execution: async () => {
+        await start({
+          dir: args.dir,
+          telemetry: !args.noTelemetry,
+        });
       },
       origin,
     });

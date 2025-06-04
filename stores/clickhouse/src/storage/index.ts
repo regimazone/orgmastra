@@ -1,7 +1,9 @@
 import type { ClickHouseClient } from '@clickhouse/client';
 import { createClient } from '@clickhouse/client';
+import { MessageList } from '@mastra/core/agent';
+import type { MastraMessageV2 } from '@mastra/core/agent';
 import type { MetricResult, TestInfo } from '@mastra/core/eval';
-import type { MessageType, StorageThreadType } from '@mastra/core/memory';
+import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
 import {
   MastraStorage,
   TABLE_EVALS,
@@ -337,7 +339,6 @@ export class ClickhouseStore extends MastraStorage {
           ${['id String'].concat(columns)}
         )
         ENGINE = ${TABLE_ENGINES[tableName]}
-        PARTITION BY "createdAt"
         PRIMARY KEY (createdAt, run_id, workflow_name)
         ORDER BY (createdAt, run_id, workflow_name)
         ${rowTtl ? `TTL toDateTime(${rowTtl.ttlKey ?? 'createdAt'}) + INTERVAL ${rowTtl.interval} ${rowTtl.unit}` : ''}
@@ -348,7 +349,6 @@ export class ClickhouseStore extends MastraStorage {
           ${columns}
         )
         ENGINE = ${TABLE_ENGINES[tableName]}
-        PARTITION BY "createdAt"
         PRIMARY KEY (createdAt, ${tableName === TABLE_EVALS ? 'run_id' : 'id'})
         ORDER BY (createdAt, ${tableName === TABLE_EVALS ? 'run_id' : 'id'})
         ${this.ttl?.[tableName]?.row ? `TTL toDateTime(createdAt) + INTERVAL ${this.ttl[tableName].row.interval} ${this.ttl[tableName].row.unit}` : ''}
@@ -627,7 +627,7 @@ export class ClickhouseStore extends MastraStorage {
     try {
       // First delete all messages associated with this thread
       await this.db.command({
-        query: `DELETE FROM "${TABLE_MESSAGES}" WHERE thread_id = '${threadId}';`,
+        query: `DELETE FROM "${TABLE_MESSAGES}" WHERE thread_id = {var_thread_id:String};`,
         query_params: { var_thread_id: threadId },
         clickhouse_settings: {
           output_format_json_quote_64bit_integers: 0,
@@ -648,7 +648,14 @@ export class ClickhouseStore extends MastraStorage {
     }
   }
 
-  async getMessages<T = unknown>({ threadId, selectBy }: StorageGetMessagesArg): Promise<T[]> {
+  public async getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
+  public async getMessages(args: StorageGetMessagesArg & { format: 'v2' }): Promise<MastraMessageV2[]>;
+  public async getMessages({
+    threadId,
+    resourceId,
+    selectBy,
+    format,
+  }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]> {
     try {
       const messages: any[] = [];
       const limit = typeof selectBy?.last === `number` ? selectBy.last : 40;
@@ -755,18 +762,26 @@ export class ClickhouseStore extends MastraStorage {
         }
       });
 
-      return messages as T[];
+      const list = new MessageList({ threadId, resourceId }).add(messages, 'memory');
+      if (format === `v2`) return list.get.all.v2();
+      return list.get.all.v1();
     } catch (error) {
       console.error('Error getting messages:', error);
       throw error;
     }
   }
 
-  async saveMessages({ messages }: { messages: MessageType[] }): Promise<MessageType[]> {
+  async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
+  async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
+  async saveMessages(
+    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
+  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+    const { messages, format = 'v1' } = args;
     if (messages.length === 0) return messages;
 
     try {
       const threadId = messages[0]?.threadId;
+      const resourceId = messages[0]?.resourceId;
       if (!threadId) {
         throw new Error('Thread ID is required');
       }
@@ -786,7 +801,7 @@ export class ClickhouseStore extends MastraStorage {
           content: typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
           createdAt: message.createdAt.toISOString(),
           role: message.role,
-          type: message.type,
+          type: message.type || 'v2',
         })),
         clickhouse_settings: {
           // Allows to insert serialized JS Dates (such as '2023-12-06T10:54:48.000Z')
@@ -796,7 +811,9 @@ export class ClickhouseStore extends MastraStorage {
         },
       });
 
-      return messages;
+      const list = new MessageList({ threadId, resourceId }).add(messages, 'memory');
+      if (format === `v2`) return list.get.all.v2();
+      return list.get.all.v1();
     } catch (error) {
       console.error('Error saving messages:', error);
       throw error;

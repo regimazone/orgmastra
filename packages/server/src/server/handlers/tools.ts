@@ -1,4 +1,4 @@
-import type { RuntimeContext } from '@mastra/core/runtime-context';
+import { RuntimeContext } from '@mastra/core/di';
 import { isVercelTool } from '@mastra/core/tools';
 import type { ToolAction, VercelTool } from '@mastra/core/tools';
 import { stringify } from 'superjson';
@@ -68,7 +68,12 @@ export function executeToolHandler(tools: ToolsContext['tools']) {
     toolId,
     data,
     runtimeContext,
-  }: Pick<ToolsContext, 'mastra' | 'toolId' | 'runId'> & { data?: unknown; runtimeContext: RuntimeContext }) => {
+    runtimeContextFromRequest,
+  }: Pick<ToolsContext, 'mastra' | 'toolId' | 'runId'> & {
+    data?: unknown;
+    runtimeContext: RuntimeContext;
+    runtimeContextFromRequest: Record<string, unknown>;
+  }) => {
     try {
       if (!toolId) {
         throw new HTTPException(400, { message: 'Tool ID is required' });
@@ -91,11 +96,16 @@ export function executeToolHandler(tools: ToolsContext['tools']) {
         return result;
       }
 
+      const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+        ...Array.from(runtimeContext.entries()),
+        ...Array.from(Object.entries(runtimeContextFromRequest ?? {})),
+      ]);
+
       const result = await tool.execute({
         context: data!,
         mastra,
         runId,
-        runtimeContext,
+        runtimeContext: finalRuntimeContext,
       });
       return result;
     } catch (error) {
@@ -110,14 +120,22 @@ export async function executeAgentToolHandler({
   toolId,
   data,
   runtimeContext,
-}: Pick<ToolsContext, 'mastra' | 'toolId'> & { agentId?: string; data: any; runtimeContext: RuntimeContext }) {
+  runtimeContextFromRequest,
+}: Pick<ToolsContext, 'mastra' | 'toolId'> & {
+  agentId?: string;
+  data: any;
+  runtimeContext: RuntimeContext;
+  runtimeContextFromRequest: Record<string, unknown>;
+}) {
   try {
     const agent = agentId ? mastra.getAgent(agentId) : null;
     if (!agent) {
       throw new HTTPException(404, { message: 'Tool not found' });
     }
 
-    const tool = Object.values(agent?.tools || {}).find((tool: any) => tool.id === toolId) as any;
+    const agentTools = await agent.getTools({ runtimeContext });
+
+    const tool = Object.values(agentTools || {}).find((tool: any) => tool.id === toolId) as any;
 
     if (!tool) {
       throw new HTTPException(404, { message: 'Tool not found' });
@@ -132,9 +150,14 @@ export async function executeAgentToolHandler({
     //   return result;
     // }
 
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(runtimeContextFromRequest ?? {})),
+    ]);
+
     const result = await tool.execute({
       context: data,
-      runtimeContext,
+      runtimeContext: finalRuntimeContext,
       mastra,
       runId: agentId,
     });

@@ -7,6 +7,7 @@ import { DepsService } from '../../services/service.deps';
 import { getPackageManagerInstallCommand } from '../utils';
 
 import { installMastraDocsMCPServer } from './mcp-docs-server-install';
+import type { Editor } from './mcp-docs-server-install';
 import {
   createComponentsDir,
   createMastraDir,
@@ -35,7 +36,7 @@ export const init = async ({
   llmProvider: LLMProvider;
   addExample: boolean;
   llmApiKey?: string;
-  configureEditorWithDocsMCP?: undefined | 'windsurf' | 'cursor' | 'cursor-global';
+  configureEditorWithDocsMCP?: Editor;
 }) => {
   s.start('Initializing Mastra');
 
@@ -77,6 +78,11 @@ export const init = async ({
       if (needsMemory) {
         await depService.installPackages(['@mastra/memory']);
       }
+
+      const needsLoggers = (await depService.checkDependencies(['@mastra/loggers'])) !== `ok`;
+      if (needsLoggers) {
+        await depService.installPackages(['@mastra/loggers']);
+      }
     }
 
     const key = await getAPIKey(llmProvider || 'openai');
@@ -100,7 +106,7 @@ export const init = async ({
       ${color.green('Mastra initialized successfully!')}
 
       Add your ${color.cyan(key)} as an environment variable
-      in your ${color.cyan('.env.development')} file
+      in your ${color.cyan('.env')} file
       `);
     } else {
       p.note(`

@@ -1,18 +1,23 @@
 import type {
-  MessageType,
+  MastraMessageV1,
   AiMessageType,
   CoreMessage,
   QueryResult,
+  StorageThreadType,
+  WorkflowRuns,
+  LegacyWorkflowRuns,
+} from '@mastra/core';
+import type { AgentGenerateOptions, AgentStreamOptions, ToolsInput } from '@mastra/core/agent';
+import type { BaseLogMessage } from '@mastra/core/logger';
+
+import type { MCPToolType, ServerInfo } from '@mastra/core/mcp';
+import type { RuntimeContext } from '@mastra/core/runtime-context';
+import type { Workflow, WatchEvent, WorkflowResult } from '@mastra/core/workflows';
+import type {
   StepAction,
   StepGraph,
-  StorageThreadType,
-  BaseLogMessage,
-  WorkflowRunResult as CoreWorkflowRunResult,
-  WorkflowRuns,
-} from '@mastra/core';
-
-import type { AgentGenerateOptions, AgentStreamOptions } from '@mastra/core/agent';
-import type { NewWorkflow, WatchEvent, WorkflowResult as VNextWorkflowResult } from '@mastra/core/workflows/vNext';
+  LegacyWorkflowRunResult as CoreLegacyWorkflowRunResult,
+} from '@mastra/core/workflows/legacy';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 
@@ -38,21 +43,42 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+type WithoutMethods<T> = {
+  [K in keyof T as T[K] extends (...args: any[]) => any
+    ? never
+    : T[K] extends { (): any }
+      ? never
+      : T[K] extends undefined | ((...args: any[]) => any)
+        ? never
+        : K]: T[K];
+};
+
 export interface GetAgentResponse {
   name: string;
   instructions: string;
   tools: Record<string, GetToolResponse>;
+  workflows: Record<string, GetWorkflowResponse>;
   provider: string;
   modelId: string;
+  defaultGenerateOptions: WithoutMethods<AgentGenerateOptions>;
+  defaultStreamOptions: WithoutMethods<AgentStreamOptions>;
 }
 
 export type GenerateParams<T extends JSONSchema7 | ZodSchema | undefined = undefined> = {
   messages: string | string[] | CoreMessage[] | AiMessageType[];
-} & Partial<AgentGenerateOptions<T>>;
+  output?: T;
+  experimental_output?: T;
+  runtimeContext?: RuntimeContext | Record<string, any>;
+  clientTools?: ToolsInput;
+} & WithoutMethods<Omit<AgentGenerateOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools'>>;
 
 export type StreamParams<T extends JSONSchema7 | ZodSchema | undefined = undefined> = {
   messages: string | string[] | CoreMessage[] | AiMessageType[];
-} & Omit<AgentStreamOptions<T>, 'onFinish' | 'onStepFinish' | 'telemetry'>;
+  output?: T;
+  experimental_output?: T;
+  runtimeContext?: RuntimeContext | Record<string, any>;
+  clientTools?: ToolsInput;
+} & WithoutMethods<Omit<AgentStreamOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools'>>;
 
 export interface GetEvalsByAgentIdResponse extends GetAgentResponse {
   evals: any[];
@@ -68,7 +94,7 @@ export interface GetToolResponse {
   outputSchema: string;
 }
 
-export interface GetWorkflowResponse {
+export interface GetLegacyWorkflowResponse {
   name: string;
   triggerSchema: string;
   steps: Record<string, StepAction<any, any, any, any>>;
@@ -85,17 +111,20 @@ export interface GetWorkflowRunsParams {
   resourceId?: string;
 }
 
+export type GetLegacyWorkflowRunsResponse = LegacyWorkflowRuns;
+
 export type GetWorkflowRunsResponse = WorkflowRuns;
 
-export type WorkflowRunResult = {
+export type LegacyWorkflowRunResult = {
   activePaths: Record<string, { status: string; suspendPayload?: any; stepPath: string[] }>;
-  results: CoreWorkflowRunResult<any, any, any>['results'];
+  results: CoreLegacyWorkflowRunResult<any, any, any>['results'];
   timestamp: number;
   runId: string;
 };
 
-export interface GetVNextWorkflowResponse {
+export interface GetWorkflowResponse {
   name: string;
+  description?: string;
   steps: {
     [key: string]: {
       id: string;
@@ -106,14 +135,14 @@ export interface GetVNextWorkflowResponse {
       suspendSchema: string;
     };
   };
-  stepGraph: NewWorkflow['serializedStepGraph'];
+  stepGraph: Workflow['serializedStepGraph'];
   inputSchema: string;
   outputSchema: string;
 }
 
-export type VNextWorkflowWatchResult = WatchEvent & { runId: string };
+export type WorkflowWatchResult = WatchEvent & { runId: string };
 
-export type VNextWorkflowRunResult = VNextWorkflowResult<any, any>;
+export type WorkflowRunResult = WorkflowResult<any, any>;
 export interface UpsertVectorParams {
   indexName: string;
   vectors: number[][];
@@ -145,17 +174,17 @@ export interface GetVectorIndexResponse {
 }
 
 export interface SaveMessageToMemoryParams {
-  messages: MessageType[];
+  messages: MastraMessageV1[];
   agentId: string;
 }
 
-export type SaveMessageToMemoryResponse = MessageType[];
+export type SaveMessageToMemoryResponse = MastraMessageV1[];
 
 export interface CreateMemoryThreadParams {
-  title: string;
-  metadata: Record<string, any>;
+  title?: string;
+  metadata?: Record<string, any>;
   resourceId: string;
-  threadId: string;
+  threadId?: string;
   agentId: string;
 }
 
@@ -172,6 +201,13 @@ export interface UpdateMemoryThreadParams {
   title: string;
   metadata: Record<string, any>;
   resourceId: string;
+}
+
+export interface GetMemoryThreadMessagesParams {
+  /**
+   * Limit the number of messages to retrieve (default: 40)
+   */
+  limit?: number;
 }
 
 export interface GetMemoryThreadMessagesResponse {
@@ -259,4 +295,22 @@ export interface GetNetworkResponse {
     modelId: string;
   };
   state?: Record<string, any>;
+}
+
+export interface McpServerListResponse {
+  servers: ServerInfo[];
+  next: string | null;
+  total_count: number;
+}
+
+export interface McpToolInfo {
+  id: string;
+  name: string;
+  description?: string;
+  inputSchema: string;
+  toolType?: MCPToolType;
+}
+
+export interface McpServerToolListResponse {
+  tools: McpToolInfo[];
 }

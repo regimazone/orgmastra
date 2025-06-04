@@ -31,10 +31,11 @@ export const registryData: RegistryFile = {
     {
       id: 'apify',
       name: 'Apify',
-      description: 'Your full‑stack platform for web scraping',
-      url: 'https://apify.com/',
+      description: 'A MCP marketplace enabling AI agents to use 5,000+ ready-made servers and Actors.',
+      url: 'https://apify.com/store',
       servers_url: 'https://api.apify.com/v2/store',
       tags: ['verified'],
+      count: '5000+',
       postProcessServers: processApifyServers,
     },
     {
@@ -91,6 +92,13 @@ export const registryData: RegistryFile = {
       url: 'https://www.gumloop.com/mcp',
       tags: ['open-source'],
       count: 20,
+    },
+    {
+      id: 'klavisai',
+      name: 'Klavis AI',
+      description: 'Klavis AI is open source MCP integrations for AI Applications',
+      url: 'https://github.com/Klavis-AI/klavis',
+      tags: ['open-source'],
     },
     {
       id: 'make',

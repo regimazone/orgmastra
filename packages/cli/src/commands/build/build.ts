@@ -6,11 +6,12 @@ import { BuildBundler } from './BuildBundler';
 import { getDeployer } from '@mastra/deployer';
 import { logger } from '../../utils/logger';
 
-export async function build({ dir, tools }: { dir?: string; tools?: string[] }) {
-  const mastraDir = dir ? (dir.startsWith('/') ? dir : join(process.cwd(), dir)) : join(process.cwd(), 'src', 'mastra');
-  const outputDirectory = join(process.cwd(), '.mastra');
+export async function build({ dir, tools, root }: { dir?: string; tools?: string[]; root?: string }) {
+  const rootDir = root || process.cwd();
+  const mastraDir = dir ? (dir.startsWith('/') ? dir : join(rootDir, dir)) : join(rootDir, 'src', 'mastra');
+  const outputDirectory = join(rootDir, '.mastra');
 
-  const defaultToolsPath = join(mastraDir, 'tools');
+  const defaultToolsPath = join(mastraDir, 'tools/**/*');
   const discoveredTools = [defaultToolsPath, ...(tools ?? [])];
 
   try {
@@ -37,7 +38,8 @@ export async function build({ dir, tools }: { dir?: string; tools?: string[] }) 
     logger.info('You can now deploy the .mastra/output directory to your target platform.');
   } catch (error) {
     if (error instanceof Error) {
-      logger.debug(`error: ${error.message}`, { error });
+      logger.error(`Mastra Build failed`);
     }
+    process.exit(1);
   }
 }

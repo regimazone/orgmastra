@@ -1,5 +1,5 @@
 import type { Agent } from '@mastra/core/agent';
-import type { RuntimeContext } from '@mastra/core/runtime-context';
+import { RuntimeContext } from '@mastra/core/runtime-context';
 import { stringify } from 'superjson';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { HTTPException } from '../http-exception';
@@ -35,13 +35,35 @@ export async function getAgentsHandler({ mastra, runtimeContext }: Context & { r
           return acc;
         }, {});
 
+        let serializedAgentWorkflows = {};
+
+        if ('getWorkflows' in agent) {
+          const logger = mastra.getLogger();
+          try {
+            const workflows = await agent.getWorkflows({ runtimeContext });
+            serializedAgentWorkflows = Object.entries(workflows || {}).reduce<any>((acc, [key, workflow]) => {
+              return {
+                ...acc,
+                [key]: {
+                  name: workflow.name,
+                },
+              };
+            }, {});
+          } catch (error) {
+            logger.error('Error getting workflows for agent', { agentName: agent.name, error });
+          }
+        }
+
         return {
           id,
           name: agent.name,
           instructions,
           tools: serializedAgentTools,
+          workflows: serializedAgentWorkflows,
           provider: llm?.getProvider(),
           modelId: llm?.getModelId(),
+          defaultGenerateOptions: agent.getDefaultGenerateOptions() as any,
+          defaultStreamOptions: agent.getDefaultStreamOptions() as any,
         };
       }),
     );
@@ -81,6 +103,26 @@ export async function getAgentByIdHandler({
       return acc;
     }, {});
 
+    let serializedAgentWorkflows = {};
+
+    if ('getWorkflows' in agent) {
+      const logger = mastra.getLogger();
+      try {
+        const workflows = await agent.getWorkflows({ runtimeContext });
+
+        serializedAgentWorkflows = Object.entries(workflows || {}).reduce<any>((acc, [key, workflow]) => {
+          return {
+            ...acc,
+            [key]: {
+              name: workflow.name,
+            },
+          };
+        }, {});
+      } catch (error) {
+        logger.error('Error getting workflows for agent', { agentName: agent.name, error });
+      }
+    }
+
     const instructions = await agent.getInstructions({ runtimeContext });
     const llm = await agent.getLLM({ runtimeContext });
 
@@ -88,8 +130,11 @@ export async function getAgentByIdHandler({
       name: agent.name,
       instructions,
       tools: serializedAgentTools,
+      workflows: serializedAgentWorkflows,
       provider: llm?.getProvider(),
       modelId: llm?.getModelId(),
+      defaultGenerateOptions: agent.getDefaultGenerateOptions() as any,
+      defaultStreamOptions: agent.getDefaultStreamOptions() as any,
     };
   } catch (error) {
     return handleError(error, 'Error getting agent');
@@ -148,6 +193,7 @@ export async function generateHandler({
   body: GetBody<'generate'> & {
     // @deprecated use resourceId
     resourceid?: string;
+    runtimeContext?: Record<string, unknown>;
   };
 }) {
   try {
@@ -157,16 +203,22 @@ export async function generateHandler({
       throw new HTTPException(404, { message: 'Agent not found' });
     }
 
-    const { messages, resourceId, resourceid, ...rest } = body;
+    const { messages, resourceId, resourceid, runtimeContext: agentRuntimeContext, ...rest } = body;
     // Use resourceId if provided, fall back to resourceid (deprecated)
     const finalResourceId = resourceId ?? resourceid;
+
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(agentRuntimeContext ?? {})),
+    ]);
+
     validateBody({ messages });
 
     const result = await agent.generate(messages, {
       ...rest,
       // @ts-expect-error TODO fix types
       resourceId: finalResourceId,
-      runtimeContext,
+      runtimeContext: finalRuntimeContext,
     });
 
     return result;
@@ -186,6 +238,7 @@ export async function streamGenerateHandler({
   body: GetBody<'stream'> & {
     // @deprecated use resourceId
     resourceid?: string;
+    runtimeContext?: string;
   };
 }): Promise<Response | undefined> {
   try {
@@ -195,16 +248,22 @@ export async function streamGenerateHandler({
       throw new HTTPException(404, { message: 'Agent not found' });
     }
 
-    const { messages, resourceId, resourceid, ...rest } = body;
+    const { messages, resourceId, resourceid, runtimeContext: agentRuntimeContext, ...rest } = body;
     // Use resourceId if provided, fall back to resourceid (deprecated)
     const finalResourceId = resourceId ?? resourceid;
+
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(agentRuntimeContext ?? {})),
+    ]);
+
     validateBody({ messages });
 
     const streamResult = await agent.stream(messages, {
       ...rest,
       // @ts-expect-error TODO fix types
       resourceId: finalResourceId,
-      runtimeContext,
+      runtimeContext: finalRuntimeContext,
     });
 
     const streamResponse = rest.output

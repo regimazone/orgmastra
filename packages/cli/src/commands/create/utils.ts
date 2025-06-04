@@ -73,7 +73,7 @@ export const createMastraProject = async ({
   createVersionTag?: string;
   timeout?: number;
 }) => {
-  p.intro(color.inverse('Mastra Create'));
+  p.intro(color.inverse(' Mastra Create '));
 
   const projectName =
     name ??
@@ -110,10 +110,12 @@ export const createMastraProject = async ({
   // use npm not ${pm} because this just creates a package.json - compatible with all PMs, each PM has a slightly different init command, ex pnpm does not have a -y flag. Use npm here for simplicity
   await exec(`npm init -y`);
   await exec(`npm pkg set type="module"`);
+  await exec(`npm pkg set engines.node=">=20.9.0"`);
   const depsService = new DepsService();
   await depsService.addScriptsToPackageJson({
     dev: 'mastra dev',
     build: 'mastra build',
+    start: 'mastra start',
   });
 
   s.stop('Project created');

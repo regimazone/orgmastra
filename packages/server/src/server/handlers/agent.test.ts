@@ -96,8 +96,11 @@ describe('Agent Handlers', () => {
           name: 'test-agent',
           instructions: 'test instructions',
           tools: {},
+          workflows: {},
           provider: 'openai.chat',
           modelId: 'gpt-4o',
+          defaultGenerateOptions: {},
+          defaultStreamOptions: {},
         },
       });
     });
@@ -111,8 +114,11 @@ describe('Agent Handlers', () => {
         name: 'test-agent',
         instructions: 'test instructions',
         tools: {},
+        workflows: {},
         provider: 'openai.chat',
         modelId: 'gpt-4o',
+        defaultGenerateOptions: {},
+        defaultStreamOptions: {},
       });
     });
 
@@ -171,6 +177,12 @@ describe('Agent Handlers', () => {
           resourceId: 'test-resource',
           threadId: 'test-thread',
           experimental_output: undefined,
+          // @ts-expect-error
+          runtimeContext: {
+            user: {
+              name: 'test-user',
+            },
+          },
         },
         runtimeContext: new RuntimeContext(),
       });
@@ -188,6 +200,12 @@ describe('Agent Handlers', () => {
             resourceId: 'test-resource',
             threadId: 'test-thread',
             experimental_output: undefined,
+            // @ts-expect-error
+            runtimeContext: {
+              user: {
+                name: 'test-user',
+              },
+            },
           },
           runtimeContext: new RuntimeContext(),
         }),
@@ -211,6 +229,12 @@ describe('Agent Handlers', () => {
           resourceId: 'test-resource',
           threadId: 'test-thread',
           experimental_output: undefined,
+          // @ts-expect-error
+          runtimeContext: {
+            user: {
+              name: 'test-user',
+            },
+          },
         },
         runtimeContext: new RuntimeContext(),
       });
@@ -228,6 +252,12 @@ describe('Agent Handlers', () => {
             resourceId: 'test-resource',
             threadId: 'test-thread',
             experimental_output: undefined,
+            // @ts-expect-error
+            runtimeContext: {
+              user: {
+                name: 'test-user',
+              },
+            },
           },
           runtimeContext: new RuntimeContext(),
         }),
