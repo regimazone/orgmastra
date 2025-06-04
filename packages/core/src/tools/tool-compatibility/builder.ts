@@ -8,6 +8,7 @@ import type { JSONSchema as ZodFromJSONSchema_JSONSchema } from 'zod-from-json-s
 import type { Targets } from 'zod-to-json-schema';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { MastraBase } from '../../base';
+import { MastraError } from '../../error';
 import { RuntimeContext } from '../../runtime-context';
 import { isVercelTool } from '../../tools/toolchecks';
 import { isZodType } from '../../utils';
@@ -19,7 +20,6 @@ import { GoogleToolCompat } from './provider-compats/google';
 import { MetaToolCompat } from './provider-compats/meta';
 import { OpenAIToolCompat } from './provider-compats/openai';
 import { OpenAIReasoningToolCompat } from './provider-compats/openai-reasoning';
-import { MastraError } from '../../error';
 
 export type ToolToConvert = VercelTool | ToolAction<any, any, any>;
 export type LogType = 'tool' | 'toolset' | 'client-tool';
@@ -153,7 +153,7 @@ export class CoreToolBuilder extends MastraBase {
     // dont't add memory or mastra to logging
     const { logger, mastra: _mastra, memory: _memory, runtimeContext, ...rest } = options;
 
-    const { start, error } = this.createLogMessageOptions({
+    const { start } = this.createLogMessageOptions({
       agentName: options.agentName,
       toolName: options.name,
       type: logType,
