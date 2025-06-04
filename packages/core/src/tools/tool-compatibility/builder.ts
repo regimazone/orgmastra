@@ -187,7 +187,7 @@ export class CoreToolBuilder extends MastraBase {
       } catch (err) {
         const error = new MastraError(
           {
-            id: 'tool-execution-error',
+            id: 'TOOL_EXECUTION_FAILED',
             text: 'Failed to execute tool',
             domain: 'TOOL',
             category: 'USER',
