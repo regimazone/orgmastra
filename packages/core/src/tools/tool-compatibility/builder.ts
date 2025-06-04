@@ -19,6 +19,7 @@ import { GoogleToolCompat } from './provider-compats/google';
 import { MetaToolCompat } from './provider-compats/meta';
 import { OpenAIToolCompat } from './provider-compats/openai';
 import { OpenAIReasoningToolCompat } from './provider-compats/openai-reasoning';
+import { MastraError } from '../../error';
 
 export type ToolToConvert = VercelTool | ToolAction<any, any, any>;
 export type LogType = 'tool' | 'toolset' | 'client-tool';
@@ -184,8 +185,22 @@ export class CoreToolBuilder extends MastraBase {
         (options.logger || this.logger).debug(start, { ...rest, args });
         return await execFunction(args, execOptions);
       } catch (err) {
-        (options.logger || this.logger).error(error, { ...rest, error: err, args });
-        throw err;
+        const error = new MastraError(
+          {
+            id: 'tool-execution-error',
+            text: 'Failed to execute tool',
+            domain: 'TOOL',
+            category: 'USER',
+            details: {
+              ...rest,
+              args,
+              model: rest.model?.modelId ?? '',
+            },
+          },
+          err,
+        );
+        (options.logger || this.logger).logException(error);
+        throw error;
       }
     };
   }
