@@ -2,7 +2,7 @@ import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { CoreMessage } from 'ai';
 import { simulateReadableStream } from 'ai';
-import { MockLanguageModelV1 } from 'ai/test';
+import { MockLanguageModelV2 } from 'ai/test';
 import { config } from 'dotenv';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -38,7 +38,7 @@ describe('agent', () => {
 
   let dummyModel;
   beforeEach(() => {
-    dummyModel = new MockLanguageModelV1({
+    dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
@@ -52,7 +52,7 @@ describe('agent', () => {
     const electionAgent = new Agent({
       name: 'US Election agent',
       instructions: 'You know about the past US elections',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         doGenerate: async () => ({
           rawCall: { rawPrompt: null, rawSettings: {} },
           finishReason: 'stop',
@@ -81,7 +81,7 @@ describe('agent', () => {
     const electionAgent = new Agent({
       name: 'US Election agent',
       instructions: 'You know about the past US elections',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: [
@@ -135,7 +135,7 @@ describe('agent', () => {
     const electionAgent = new Agent({
       name: 'US Election agent',
       instructions: 'You know about the past US elections',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         defaultObjectGenerationMode: 'json',
         doGenerate: async () => ({
           rawCall: { rawPrompt: null, rawSettings: {} },
@@ -168,7 +168,7 @@ describe('agent', () => {
       name: 'US Election agent',
       instructions: 'You know about the past US elections',
       // model: openai('gpt-4o'),
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         defaultObjectGenerationMode: 'json',
         doGenerate: async () => ({
           rawCall: { rawPrompt: null, rawSettings: {} },

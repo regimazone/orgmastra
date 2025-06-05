@@ -1,5 +1,8 @@
+// @ts-nocheck
+//
 import { simulateReadableStream } from 'ai';
 
+// @ts-ignore
 import { MockLanguageModelV1 } from 'ai/test';
 
 import { MastraLLM } from './model';

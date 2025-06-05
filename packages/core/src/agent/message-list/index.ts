@@ -174,7 +174,10 @@ export class MessageList {
     }
     return this.systemMessages;
   }
-  public addSystem(messages: AIV5.CoreSystemMessage[] | string | string[] | null, tag?: string) {
+  public addSystem(
+    messages: AIV5.CoreSystemMessage | AIV5.CoreSystemMessage[] | string | string[] | null,
+    tag?: string,
+  ) {
     if (!messages) return this;
     for (const message of Array.isArray(messages) ? messages : [messages]) {
       this.addOneSystem(message, tag);

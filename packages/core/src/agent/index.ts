@@ -14,7 +14,6 @@ import { MastraBase } from '../base';
 import type { Metric } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import type { GenerateReturn, StreamReturn } from '../llm';
-import type { MastraLLMBase } from '../llm/model';
 import { MastraLLM } from '../llm/model';
 import { RegisteredLogger } from '../logger';
 import type { Mastra } from '../mastra';
@@ -304,8 +303,8 @@ export class Agent<
    * @returns A promise that resolves to the LLM instance
    */
   public getLLM({ runtimeContext = new RuntimeContext() }: { runtimeContext?: RuntimeContext } = {}):
-    | MastraLLMBase
-    | Promise<MastraLLMBase> {
+    | MastraLLM
+    | Promise<MastraLLM> {
     const model = this.getModel({ runtimeContext });
 
     return resolveMaybePromise(model, model => {
@@ -1100,7 +1099,7 @@ export class Agent<
               }
 
               const config = memory.getMergedThreadConfig(memoryConfig);
-              const userMessage = this.getMostRecentUserMessage(messageList.get.all.ui());
+              const userMessage = this.getMostRecentUserMessage(messageList.get.all.aiV5.ui());
               const title =
                 config?.threads?.generateTitle && userMessage
                   ? await this.genTitle(userMessage, runtimeContext)
@@ -1135,7 +1134,7 @@ export class Agent<
         }
 
         if (Object.keys(this.evals || {}).length > 0) {
-          const userInputMessages = messageList.get.all.core().filter(m => m.role === 'user');
+          const userInputMessages = messageList.get.all.aiV5.model().filter(m => m.role === 'user');
           const input = userInputMessages
             .map(message => (typeof message.content === 'string' ? message.content : ''))
             .join('\n');

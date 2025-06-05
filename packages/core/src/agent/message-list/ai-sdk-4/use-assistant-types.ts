@@ -19,7 +19,8 @@ export type UseAssistantOptions = {
    * An optional literal that sets the mode of credentials to be used on the request.
    * Defaults to "same-origin".
    */
-  credentials?: RequestCredentials;
+  credentials?: any;
+  // credentials?: RequestCredentials;
 
   /**
    * An optional object of headers to be passed to the API endpoint.

@@ -14,6 +14,8 @@ export type CoreTool = {
   description?: string;
   parameters: ZodSchema | JSONSchema7Type | Schema;
   execute?: (params: any, options: ToolExecutionOptions) => Promise<any>;
+  // TODO: do we need this?
+  // experimental_toToolResultContent?: (result: any) => any;
 } & (
   | {
       type?: 'function' | undefined;
