@@ -10,7 +10,7 @@ on:
     paths:
       - 'packages/schema-compat/src/**'
       - 'packages/schema-compat/vitest.config.ts'
-      - '.github/workflows/test-schema.yml'
+      - '.github/workflows/test-schema-compat.yml'
 
 jobs:
   test:
