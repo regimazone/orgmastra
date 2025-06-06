@@ -38,7 +38,7 @@
     "zod-from-json-schema": "^0.4.1"
   },
   "peerDependencies": {
-    "zod": "^3.0.0",
+    "zod": "^3.25.0",
     "@mastra/core": "^0.10.2-alpha.0"
   },
   "devDependencies": {
