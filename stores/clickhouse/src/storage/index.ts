@@ -20,6 +20,8 @@ import type {
   TABLE_NAMES,
   WorkflowRun,
   WorkflowRuns,
+  PaginationArgs,
+  PaginationInfo,
 } from '@mastra/core/storage';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 
@@ -177,6 +179,71 @@ export class ClickhouseStore extends MastraStorage {
     }
   }
 
+  async getEvals(
+    options: {
+      agentName?: string;
+      type?: 'test' | 'live';
+    } & PaginationArgs = {},
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
+    const { agentName, type, page = 0, perPage = 100, dateRange } = options;
+    const fromDate = dateRange?.start;
+    const toDate = dateRange?.end;
+
+    const conditions: string[] = [];
+    const params: Record<string, any> = {};
+
+    if (agentName) {
+      conditions.push(`agent_name = {var_agent_name:String}`);
+      params.var_agent_name = agentName;
+    }
+
+    if (type === 'test') {
+      conditions.push(`(test_info IS NOT NULL AND JSONExtractString(test_info, 'testPath') IS NOT NULL)`);
+    } else if (type === 'live') {
+      conditions.push(`(test_info IS NULL OR JSONExtractString(test_info, 'testPath') IS NULL)`);
+    }
+
+    if (fromDate) {
+      conditions.push(`created_at >= {var_from_date:DateTime64(3)}`);
+      params.var_from_date = fromDate.getTime() / 1000;
+    }
+
+    if (toDate) {
+      conditions.push(`created_at <= {var_to_date:DateTime64(3)}`);
+      params.var_to_date = toDate.getTime() / 1000;
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countResult = await this.db.query({
+      query: `SELECT COUNT(*) as count FROM ${TABLE_EVALS} ${whereClause}`,
+      query_params: params,
+      format: 'JSONEachRow',
+    });
+    const countJson = await countResult.json();
+    const total = Number((countJson as Array<{ count: string | number }>)[0]?.count ?? 0);
+
+    if (total === 0) {
+      return { evals: [], total: 0, page, perPage, hasMore: false };
+    }
+
+    const dataResult = await this.db.query({
+      query: `SELECT *, toDateTime64(created_at, 3) as createdAt FROM ${TABLE_EVALS} ${whereClause} ORDER BY created_at DESC LIMIT {var_limit:Int64} OFFSET {var_offset:Int64}`,
+      query_params: { ...params, var_limit: perPage, var_offset: page * perPage },
+      clickhouse_settings: {
+        date_time_input_format: 'best_effort',
+        date_time_output_format: 'iso',
+        use_client_time_zone: 1,
+        output_format_json_quote_64bit_integers: 0,
+      },
+    });
+
+    const rows = await dataResult.json();
+    const evals = (rows.data as any[]).map(row => this.transformEvalRow(row));
+
+    return { evals, total, page, perPage, hasMore: page * perPage + evals.length < total };
+  }
+
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
     try {
       await this.db.insert({
@@ -300,6 +367,105 @@ export class ClickhouseStore extends MastraStorage {
       other: safelyParseJSON(row.other as string),
       createdAt: row.createdAt,
     }));
+  }
+
+  public async getTracesPaginated(
+    args: {
+      name?: string;
+      scope?: string;
+      attributes?: Record<string, string>;
+      filters?: Record<string, any>;
+    } & PaginationArgs,
+  ): Promise<PaginationInfo & { traces: any[] }> {
+    const { name, scope, attributes, filters, page = 0, perPage = 100, dateRange } = args;
+    const fromDate = dateRange?.start;
+    const toDate = dateRange?.end;
+
+    const queryArgs: Record<string, any> = {};
+    const conditions: string[] = [];
+    if (name) {
+      conditions.push(`name LIKE CONCAT({var_name:String}, '%')`);
+      queryArgs.var_name = name;
+    }
+    if (scope) {
+      conditions.push(`scope = {var_scope:String}`);
+      queryArgs.var_scope = scope;
+    }
+    if (attributes) {
+      Object.entries(attributes).forEach(([key, value]) => {
+        conditions.push(`JSONExtractString(attributes, '${key}') = {var_attr_${key}:String}`);
+        queryArgs[`var_attr_${key}`] = value;
+      });
+    }
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        conditions.push(`${key} = {var_col_${key}:${COLUMN_TYPES[TABLE_SCHEMAS.mastra_traces?.[key]?.type ?? 'text']}}`);
+        queryArgs[`var_col_${key}`] = value;
+      });
+    }
+    if (fromDate) {
+      conditions.push(`createdAt >= {var_from_date:DateTime64(3)}`);
+      queryArgs.var_from_date = fromDate.getTime() / 1000;
+    }
+    if (toDate) {
+      conditions.push(`createdAt <= {var_to_date:DateTime64(3)}`);
+      queryArgs.var_to_date = toDate.getTime() / 1000;
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countResult = await this.db.query({
+      query: `SELECT COUNT(*) as count FROM ${TABLE_TRACES} ${whereClause}`,
+      query_params: queryArgs,
+      format: 'JSONEachRow',
+    });
+    const countJson = await countResult.json();
+    const total = Number((countJson as Array<{ count: string | number }>)[0]?.count ?? 0);
+
+    if (total === 0) {
+      return { traces: [], total: 0, page, perPage, hasMore: false };
+    }
+
+    const dataResult = await this.db.query({
+      query: `SELECT *, toDateTime64(createdAt, 3) as createdAt FROM ${TABLE_TRACES} ${whereClause} ORDER BY "createdAt" DESC LIMIT {var_limit:Int64} OFFSET {var_offset:Int64}`,
+      query_params: {
+        ...queryArgs,
+        var_limit: perPage,
+        var_offset: page * perPage,
+      },
+      clickhouse_settings: {
+        date_time_input_format: 'best_effort',
+        date_time_output_format: 'iso',
+        use_client_time_zone: 1,
+        output_format_json_quote_64bit_integers: 0,
+      },
+    });
+
+    const resultJson = await dataResult.json();
+    const rows: any[] = resultJson.data;
+    const traces = rows.map(row => ({
+      id: row.id,
+      parentSpanId: row.parentSpanId,
+      traceId: row.traceId,
+      name: row.name,
+      scope: row.scope,
+      kind: row.kind,
+      status: safelyParseJSON(row.status as string),
+      events: safelyParseJSON(row.events as string),
+      links: safelyParseJSON(row.links as string),
+      attributes: safelyParseJSON(row.attributes as string),
+      startTime: row.startTime,
+      endTime: row.endTime,
+      other: safelyParseJSON(row.other as string),
+      createdAt: row.createdAt,
+    }));
+
+    return {
+      traces,
+      total,
+      page,
+      perPage,
+      hasMore: page * perPage + traces.length < total,
+    };
   }
 
   async optimizeTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
@@ -543,6 +709,71 @@ export class ClickhouseStore extends MastraStorage {
     }
   }
 
+  public async getThreadsByResourceIdPaginated(
+    args: { resourceId: string } & PaginationArgs,
+  ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
+    const { resourceId, page = 0, perPage = 100 } = args;
+
+    try {
+      const countResult = await this.db.query({
+        query: `SELECT COUNT(*) as count FROM "${TABLE_THREADS}" WHERE "resourceId" = {var_resourceId:String}`,
+        query_params: { var_resourceId: resourceId },
+        format: 'JSONEachRow',
+      });
+      const countJson = await countResult.json();
+      const total = Number((countJson as Array<{ count: string | number }>)[0]?.count ?? 0);
+
+      if (total === 0) {
+        return { threads: [], total: 0, page, perPage, hasMore: false };
+      }
+
+      const result = await this.db.query({
+        query: `SELECT
+            id,
+            "resourceId",
+            title,
+            metadata,
+            toDateTime64(createdAt, 3) as createdAt,
+            toDateTime64(updatedAt, 3) as updatedAt
+          FROM "${TABLE_THREADS}"
+          WHERE "resourceId" = {var_resourceId:String}
+          ORDER BY "createdAt" DESC
+          LIMIT {var_limit:Int64} OFFSET {var_offset:Int64}`,
+        query_params: {
+          var_resourceId: resourceId,
+          var_limit: perPage,
+          var_offset: page * perPage,
+        },
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          date_time_output_format: 'iso',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      const rows = await result.json();
+      const threads = transformRows(rows.data) as StorageThreadType[];
+      const parsed = threads.map(t => ({
+        ...t,
+        metadata: typeof t.metadata === 'string' ? JSON.parse(t.metadata) : t.metadata,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      }));
+
+      return {
+        threads: parsed,
+        total,
+        page,
+        perPage,
+        hasMore: page * perPage + parsed.length < total,
+      };
+    } catch (error) {
+      console.error(`Error getting threads for resource ${resourceId}:`, error);
+      return { threads: [], total: 0, page, perPage, hasMore: false };
+    }
+  }
+
   async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
     try {
       await this.db.insert({
@@ -769,6 +1000,130 @@ export class ClickhouseStore extends MastraStorage {
       console.error('Error getting messages:', error);
       throw error;
     }
+  }
+
+  public async getMessagesPaginated(
+    args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
+  ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }> {
+    const { threadId, resourceId, selectBy, format } = args;
+    const { page = 0, perPage = 40, dateRange } = selectBy?.pagination || {};
+    const fromDate = dateRange?.start;
+    const toDate = dateRange?.end;
+
+    const messages: any[] = [];
+
+    if (selectBy?.include?.length) {
+      const includeResult = await this.db.query({
+        query: `
+          WITH ordered_messages AS (
+            SELECT *,
+              toDateTime64(createdAt, 3) as createdAt,
+              toDateTime64(updatedAt, 3) as updatedAt,
+              ROW_NUMBER() OVER (ORDER BY "createdAt" DESC) as row_num
+            FROM "${TABLE_MESSAGES}"
+            WHERE thread_id = {var_thread_id:String}
+          )
+          SELECT
+            m.id AS id,
+            m.content as content,
+            m.role as role,
+            m.type as type,
+            m.createdAt as createdAt,
+            m.updatedAt as updatedAt,
+            m.thread_id AS "threadId"
+          FROM ordered_messages m
+          WHERE m.id = ANY({var_include:Array(String)})
+          OR EXISTS (
+            SELECT 1 FROM ordered_messages target
+            WHERE target.id = ANY({var_include:Array(String)})
+            AND (
+              (m.row_num <= target.row_num + {var_withPreviousMessages:Int64} AND m.row_num > target.row_num)
+              OR
+              (m.row_num >= target.row_num - {var_withNextMessages:Int64} AND m.row_num < target.row_num)
+            )
+          )
+          ORDER BY m."createdAt" DESC
+        `,
+        query_params: {
+          var_thread_id: threadId,
+          var_include: selectBy.include.map(i => i.id),
+          var_withPreviousMessages: Math.max(...selectBy.include.map(i => i.withPreviousMessages || 0)),
+          var_withNextMessages: Math.max(...selectBy.include.map(i => i.withNextMessages || 0)),
+        },
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          date_time_output_format: 'iso',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      const rows = await includeResult.json();
+      messages.push(...transformRows(rows.data));
+    }
+
+    const conditions: string[] = ['thread_id = {var_thread_id:String}'];
+    const queryParams: Record<string, any> = { var_thread_id: threadId };
+    if (fromDate) {
+      conditions.push('createdAt >= {var_from_date:DateTime64(3)}');
+      queryParams.var_from_date = fromDate.getTime() / 1000;
+    }
+    if (toDate) {
+      conditions.push('createdAt <= {var_to_date:DateTime64(3)}');
+      queryParams.var_to_date = toDate.getTime() / 1000;
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countResult = await this.db.query({
+      query: `SELECT COUNT(*) as count FROM "${TABLE_MESSAGES}" ${whereClause}`,
+      query_params: queryParams,
+      format: 'JSONEachRow',
+    });
+    const countJson = await countResult.json();
+    const total = Number((countJson as Array<{ count: string | number }>)[0]?.count ?? 0);
+
+    if (total === 0) {
+      return { messages: [], total: 0, page, perPage, hasMore: false };
+    }
+
+    const dataResult = await this.db.query({
+      query: `
+        SELECT id, content, role, type, toDateTime64(createdAt, 3) as createdAt, thread_id AS "threadId"
+        FROM "${TABLE_MESSAGES}" ${whereClause}
+        ORDER BY "createdAt" DESC
+        LIMIT {var_limit:Int64} OFFSET {var_offset:Int64}
+      `,
+      query_params: {
+        ...queryParams,
+        var_limit: perPage,
+        var_offset: page * perPage,
+      },
+      clickhouse_settings: {
+        date_time_input_format: 'best_effort',
+        date_time_output_format: 'iso',
+        use_client_time_zone: 1,
+        output_format_json_quote_64bit_integers: 0,
+      },
+    });
+
+    const rows = await dataResult.json();
+    messages.push(...transformRows(rows.data));
+
+    messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    messages.forEach(m => {
+      if (typeof m.content === 'string') {
+        try {
+          m.content = JSON.parse(m.content);
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+
+    const list = new MessageList({ threadId, resourceId }).add(messages, 'memory');
+    const formatted = format === 'v2' ? list.get.all.v2() : list.get.all.v1();
+
+    return { messages: formatted, total, page, perPage, hasMore: page * perPage + messages.length < total };
   }
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
