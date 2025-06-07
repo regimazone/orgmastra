@@ -1,4 +1,4 @@
-import type { ModelMessage, Schema, StopCondition } from 'ai';
+import type { ModelMessage, Schema, StopCondition, ToolSet } from 'ai';
 import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
@@ -21,6 +21,8 @@ import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
 import type { MastraMemory } from '../../memory/memory';
 import { delay } from '../../utils';
+
+type MessageInput = string | string[] | ModelMessage | ModelMessage[];
 
 export class MastraLLM extends MastraBase {
   #model: MastraLanguageModel;
@@ -80,7 +82,7 @@ export class MastraLLM extends MastraBase {
     messages,
     maxSteps,
     stopWhen,
-    // tools = {},
+    tools = {},
     temperature,
     toolChoice = 'auto',
     onStepFinish,
@@ -90,9 +92,13 @@ export class MastraLLM extends MastraBase {
     resourceId,
     memory,
     runtimeContext,
+    experimental_activeTools,
+    activeTools,
     ...rest
-  }: LLMTextOptions<Z> & { memory?: MastraMemory }) {
+  }: LLMTextOptions<Z> & { memory?: MastraMemory; messages: MessageInput }) {
     const model = this.#model;
+
+    const formattedMessages: ModelMessage[] = this.inputMessagesToModelMessages(messages);
 
     this.logger.debug(`[LLM] - Generating text`, {
       runId,
@@ -100,7 +106,7 @@ export class MastraLLM extends MastraBase {
       maxSteps,
       threadId,
       resourceId,
-      // tools: Object.keys(tools),
+      tools: Object.keys(tools),
     });
 
     let schema: z.ZodType<Z> | Schema<Z> | undefined;
@@ -119,14 +125,18 @@ export class MastraLLM extends MastraBase {
       }
     }
 
-    return await generateText<any, any, any>({
+    const callableTools = Object.fromEntries(
+      Object.entries(tools).filter(([_, tool]) => tool.execute !== undefined),
+    ) as ToolSet;
+
+    return await generateText<ToolSet, any, any>({
       ...rest,
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       temperature,
-      //   tools: {
-      //     ...tools,
-      //   },
+      tools: callableTools,
       toolChoice,
+      experimental_activeTools: experimental_activeTools as string[] | undefined,
+      activeTools: activeTools as string[] | undefined,
       onStepFinish: async (props: any) => {
         await onStepFinish?.(props);
 
@@ -148,7 +158,7 @@ export class MastraLLM extends MastraBase {
         }
       },
       model,
-      messages: messages as ModelMessage[],
+      messages: formattedMessages,
       experimental_telemetry: {
         ...this.experimental_telemetry,
         ...telemetry,
@@ -173,10 +183,11 @@ export class MastraLLM extends MastraBase {
     runtimeContext,
     // onStepFinish,
     // maxSteps = 5,
+    // TODO: seems these aren't allowed here anymore
     // tools = {},
     // toolChoice = 'auto',
     ...rest
-  }: LLMTextObjectOptions<T> & { memory?: MastraMemory }) {
+  }: LLMTextObjectOptions<T> & { memory?: MastraMemory; messages: MessageInput }) {
     const model = this.#model;
 
     this.logger.debug(`[LLM] - Generating a text object`, { runId });
@@ -241,7 +252,7 @@ export class MastraLLM extends MastraBase {
     onFinish,
     maxSteps,
     stopWhen,
-    // tools = {},
+    tools = {},
     runId,
     temperature,
     toolChoice = 'auto',
@@ -252,15 +263,17 @@ export class MastraLLM extends MastraBase {
     memory,
     runtimeContext,
     ...rest
-  }: LLMInnerStreamOptions<Z> & { memory?: MastraMemory }) {
+  }: LLMInnerStreamOptions<Z> & { memory?: MastraMemory; messages: MessageInput }) {
     const model = this.#model;
+    const formattedMessages: ModelMessage[] = this.inputMessagesToModelMessages(messages);
+
     this.logger.debug(`[LLM] - Streaming text`, {
       runId,
       threadId,
       resourceId,
       messages,
       maxSteps,
-      // tools: Object.keys(tools || {}),
+      tools: Object.keys(tools || {}),
     });
 
     let schema: z.ZodType<Z> | Schema<Z> | undefined;
@@ -279,14 +292,16 @@ export class MastraLLM extends MastraBase {
       }
     }
 
+    const callableTools = Object.fromEntries(
+      Object.entries(tools).filter(([_, tool]) => tool.execute !== undefined),
+    ) as ToolSet;
+
     return streamText<any, any, any>({
       ...rest,
       model,
-      messages,
+      messages: formattedMessages,
       temperature,
-      // tools: {
-      //   ...tools,
-      // },
+      tools: callableTools,
       // maxSteps,
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       toolChoice,
@@ -339,8 +354,9 @@ export class MastraLLM extends MastraBase {
   async __streamObject<T extends ZodSchema | JSONSchema7 | undefined>({
     messages,
     runId,
-    // tools = {},
     // maxSteps = 5,
+    // TODO: seems these aren't allowed here anymore
+    // tools = {},
     // toolChoice = 'auto',
     runtimeContext,
     threadId,
@@ -352,7 +368,7 @@ export class MastraLLM extends MastraBase {
     structuredOutput,
     telemetry,
     ...rest
-  }: LLMStreamObjectOptions<T> & { memory?: MastraMemory }) {
+  }: LLMStreamObjectOptions<T> & { memory?: MastraMemory; messages: MessageInput }) {
     const model = this.#model;
     this.logger.debug(`[LLM] - Streaming structured output`, {
       runId,
@@ -435,36 +451,43 @@ export class MastraLLM extends MastraBase {
   }
 
   async generate<Z extends ZodSchema | JSONSchema7 | undefined = undefined>(
-    messages: ModelMessage[],
+    messages: MessageInput,
     { output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
   ): Promise<GenerateReturn<Z>> {
     if (!output) {
       return (await this.__text({
-        messages,
+        messages: this.inputMessagesToModelMessages(messages),
         ...rest,
       })) as unknown as GenerateReturn<Z>;
     }
 
     return (await this.__textObject({
-      messages,
+      messages: this.inputMessagesToModelMessages(messages),
       structuredOutput: output,
       ...rest,
     })) as unknown as GenerateReturn<Z>;
   }
 
+  private inputMessagesToModelMessages(messages: MessageInput): ModelMessage[] {
+    const arrayMessages = Array.isArray(messages) ? messages : [messages];
+    return arrayMessages.map(m => {
+      if (typeof m === `string`) return { role: 'user' as const, content: m };
+      return m;
+    });
+  }
   async stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>(
-    messages: ModelMessage[],
+    messages: MessageInput,
     { output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
   ) {
     if (!output) {
       return (await this.__stream({
-        messages,
+        messages: this.inputMessagesToModelMessages(messages),
         ...rest,
       })) as unknown as StreamReturn<Z>;
     }
 
     return (await this.__streamObject({
-      messages,
+      messages: this.inputMessagesToModelMessages(messages),
       structuredOutput: output,
       ...rest,
     })) as unknown as StreamReturn<Z>;
