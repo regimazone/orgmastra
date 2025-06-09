@@ -23,7 +23,7 @@ import type { z, ZodSchema } from 'zod';
 import type { MastraLanguageModel } from '../agent/types';
 import type { Run } from '../run/types';
 import type { RuntimeContext } from '../runtime-context';
-import type { CoreTool } from '../tools/types';
+import type { ConvertedCoreTool } from '../tools/types';
 
 export { createMockModel } from './model/mock';
 
@@ -119,7 +119,7 @@ export type StopConditionArgs = {
 };
 
 type MastraCustomLLMOptions<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = {
-  tools?: Record<string, CoreTool>;
+  tools?: Record<string, ConvertedCoreTool>;
   onStepFinish?: (step: unknown) => Promise<void> | void;
   experimental_output?: Z;
   telemetry?: TelemetrySettings;

@@ -1,4 +1,4 @@
-import type { ModelMessage, Schema, StopCondition, ToolSet } from 'ai';
+import type { ModelMessage, Schema, StopCondition } from 'ai';
 import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
@@ -20,6 +20,7 @@ import { MastraBase } from '../../base';
 import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
 import type { MastraMemory } from '../../memory/memory';
+import type { ConvertedToolSet } from '../../tools';
 import { delay } from '../../utils';
 
 type MessageInput = string | string[] | ModelMessage | ModelMessage[];
@@ -125,15 +126,11 @@ export class MastraLLM extends MastraBase {
       }
     }
 
-    const callableTools = Object.fromEntries(
-      Object.entries(tools).filter(([_, tool]) => tool.execute !== undefined),
-    ) as ToolSet;
-
-    return await generateText<ToolSet, any, any>({
+    return await generateText<ConvertedToolSet, any, any>({
       ...rest,
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       temperature,
-      tools: callableTools,
+      tools,
       toolChoice,
       experimental_activeTools: experimental_activeTools as string[] | undefined,
       activeTools: activeTools as string[] | undefined,
@@ -181,11 +178,6 @@ export class MastraLLM extends MastraBase {
     resourceId,
     memory,
     runtimeContext,
-    // onStepFinish,
-    // maxSteps = 5,
-    // TODO: seems these aren't allowed here anymore
-    // tools = {},
-    // toolChoice = 'auto',
     ...rest
   }: LLMTextObjectOptions<T> & { memory?: MastraMemory; messages: MessageInput }) {
     const model = this.#model;
@@ -216,33 +208,6 @@ export class MastraLLM extends MastraBase {
         ...this.experimental_telemetry,
         ...telemetry,
       },
-      // TODO: why are these options no longer present on generateObject input args?
-      // Is it because generateObject just does a one step generate object??
-      //
-      // tools: {
-      //   ...tools,
-      // },
-      // toolChoice,
-      // onStepFinish: async (props: any) => {
-      //   await onStepFinish?.(props);
-      //
-      //   this.logger.debug('[LLM] - Step Change:', {
-      //     text: props?.text,
-      //     toolCalls: props?.toolCalls,
-      //     toolResults: props?.toolResults,
-      //     finishReason: props?.finishReason,
-      //     usage: props?.usage,
-      //     runId,
-      //   });
-      //
-      //   if (
-      //     props?.response?.headers?.['x-ratelimit-remaining-tokens'] &&
-      //     parseInt(props?.response?.headers?.['x-ratelimit-remaining-tokens'], 10) < 2000
-      //   ) {
-      //     this.logger.warn('Rate limit approaching, waiting 10 seconds', { runId });
-      //     await delay(10 * 1000);
-      //   }
-      // },
     });
   }
 
@@ -292,17 +257,15 @@ export class MastraLLM extends MastraBase {
       }
     }
 
-    const callableTools = Object.fromEntries(
-      Object.entries(tools).filter(([_, tool]) => tool.execute !== undefined),
-    ) as ToolSet;
-
-    return streamText<any, any, any>({
+    return streamText<ConvertedToolSet, any, any>({
       ...rest,
       model,
       messages: formattedMessages,
+      // TODO: without removing these here there's a type error
+      experimental_activeTools: undefined,
+      activeTools: undefined,
       temperature,
-      tools: callableTools,
-      // maxSteps,
+      tools,
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       toolChoice,
       onStepFinish: async (props: any) => {
@@ -354,10 +317,6 @@ export class MastraLLM extends MastraBase {
   async __streamObject<T extends ZodSchema | JSONSchema7 | undefined>({
     messages,
     runId,
-    // maxSteps = 5,
-    // TODO: seems these aren't allowed here anymore
-    // tools = {},
-    // toolChoice = 'auto',
     runtimeContext,
     threadId,
     resourceId,
@@ -373,11 +332,7 @@ export class MastraLLM extends MastraBase {
     this.logger.debug(`[LLM] - Streaming structured output`, {
       runId,
       messages,
-      // maxSteps,
-      // tools: Object.keys(tools || {}),
     });
-
-    // const finalTools = tools;
 
     let schema: z.ZodType<T> | Schema<T>;
     let output = 'object';
@@ -417,36 +372,6 @@ export class MastraLLM extends MastraBase {
         ...this.experimental_telemetry,
         ...telemetry,
       },
-
-      // TODO: seems these aren't supported anymore
-      //
-      // tools: {
-      //   ...finalTools,
-      // },
-      // maxSteps,
-      // toolChoice,
-      // onStepFinish: async (props: any) => {
-      //   await onStepFinish?.(props);
-      //
-      //   this.logger.debug('[LLM] - Stream Step Change:', {
-      //     text: props?.text,
-      //     toolCalls: props?.toolCalls,
-      //     toolResults: props?.toolResults,
-      //     finishReason: props?.finishReason,
-      //     usage: props?.usage,
-      //     runId,
-      //     threadId,
-      //     resourceId,
-      //   });
-      //
-      //   if (
-      //     props?.response?.headers?.['x-ratelimit-remaining-tokens'] &&
-      //     parseInt(props?.response?.headers?.['x-ratelimit-remaining-tokens'], 10) < 2000
-      //   ) {
-      //     this.logger.warn('Rate limit approaching, waiting 10 seconds', { runId });
-      //     await delay(10 * 1000);
-      //   }
-      // },
     });
   }
 

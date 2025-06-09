@@ -8,7 +8,7 @@ import type { IMastraLogger } from './logger';
 import type { Mastra } from './mastra';
 import type { MastraMemory } from './memory';
 import type { RuntimeContext } from './runtime-context';
-import type { CoreTool, ToolAction, VercelTool } from './tools';
+import type { CoreTool, ToolAction, ToolParameters, VercelTool } from './tools';
 import { CoreToolBuilder } from './tools/tool-compatibility/builder';
 import { isVercelTool } from './tools/toolchecks';
 
@@ -282,12 +282,12 @@ function convertVercelToolParameters(tool: VercelTool): z.ZodType {
  * @param logType - Type of tool to log (tool or toolset)
  * @returns A CoreTool that can be used by the system
  */
-export function makeCoreTool(
+export function makeCoreTool<Parameters = ToolParameters>(
   originalTool: ToolToConvert,
   options: ToolOptions,
   logType?: 'tool' | 'toolset' | 'client-tool',
-): CoreTool {
-  return new CoreToolBuilder({ originalTool, options, logType }).build();
+): CoreTool<Parameters> {
+  return new CoreToolBuilder({ originalTool, options, logType }).build() as CoreTool<Parameters>; // TODO: shouldn't use as here.
 }
 
 /**
