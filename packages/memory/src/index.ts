@@ -1,5 +1,5 @@
 import { deepMerge } from '@mastra/core';
-import type { CoreTool, MastraMessageV1 } from '@mastra/core';
+import type { AllMastraMessageTypesList, CoreTool, MastraMessageV1, MastraMessageV3 } from '@mastra/core';
 import { MessageList } from '@mastra/core/agent';
 import type { MastraMessageV2 } from '@mastra/core/agent';
 import { MastraMemory } from '@mastra/core/memory';
@@ -158,7 +158,7 @@ export class Memory extends MastraMemory {
         return v1Messages as CoreMessage[];
       },
       get uiMessages() {
-        return list.get.all.ui();
+        return list.get.all.aiV5.ui();
       },
       get messagesV2() {
         return list.get.all.v2();
@@ -332,35 +332,45 @@ export class Memory extends MastraMemory {
   }
 
   async saveMessages(args: {
-    messages: (MastraMessageV1 | MastraMessageV2)[] | MastraMessageV1[] | MastraMessageV2[];
+    messages: AllMastraMessageTypesList;
     memoryConfig?: MemoryConfig | undefined;
     format?: 'v1';
   }): Promise<MastraMessageV1[]>;
   async saveMessages(args: {
-    messages: (MastraMessageV1 | MastraMessageV2)[] | MastraMessageV1[] | MastraMessageV2[];
+    messages: AllMastraMessageTypesList;
     memoryConfig?: MemoryConfig | undefined;
     format: 'v2';
   }): Promise<MastraMessageV2[]>;
+  async saveMessages(args: {
+    messages: AllMastraMessageTypesList;
+    memoryConfig?: MemoryConfig | undefined;
+    format: 'v3';
+  }): Promise<MastraMessageV3[]>;
   async saveMessages({
     messages,
     memoryConfig,
     format = `v1`,
   }: {
-    messages: (MastraMessageV1 | MastraMessageV2)[];
+    messages: AllMastraMessageTypesList;
     memoryConfig?: MemoryConfig | undefined;
-    format?: 'v1' | 'v2';
-  }): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+    format?: 'v1' | 'v2' | 'v3';
+  }): Promise<MastraMessageV2[] | MastraMessageV1[] | MastraMessageV3[]> {
     // Then strip working memory tags from all messages
     const updatedMessages = messages
       .map(m => {
         if (MessageList.isMastraMessageV1(m)) {
           return this.updateMessageToHideWorkingMemory(m);
         }
-        // add this to prevent "error saving undefined in the db" if a project is on an earlier storage version but new memory/storage
-        if (!m.type) m.type = `v2`;
-        return this.updateMessageToHideWorkingMemoryV2(m);
+        if (MessageList.isMastraMessageV2(m)) {
+          // add this to prevent "error saving undefined in the db" if a project is on an earlier storage version but new memory/storage
+          if (!m.type) m.type = `v2`;
+          return this.updateMessageToHideWorkingMemoryV2(m);
+        }
+
+        if (!m.type) m.type = `v3`;
+        return m;
       })
-      .filter((m): m is MastraMessageV1 | MastraMessageV2 => Boolean(m));
+      .filter((m): m is MastraMessageV1 | MastraMessageV2 | MastraMessageV3 => Boolean(m));
 
     const config = this.getMergedThreadConfig(memoryConfig);
 

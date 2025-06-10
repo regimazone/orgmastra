@@ -1,6 +1,5 @@
 import type { AssistantContent, UserContent, CoreMessage, EmbeddingModel, UIMessage } from 'ai';
 
-import { MessageList } from '../agent/message-list';
 import type { MastraMessageV2, MastraMessageV3 } from '../agent/message-list';
 import { MastraBase } from '../base';
 import type { MastraStorage, StorageGetMessagesArg } from '../storage';
@@ -8,6 +7,12 @@ import { augmentWithInit } from '../storage/storageWithInit';
 import type { CoreTool } from '../tools';
 import { deepMerge } from '../utils';
 import type { MastraVector } from '../vector';
+
+export type AllMastraMessageTypesList =
+  | (MastraMessageV1 | MastraMessageV2 | MastraMessageV3)[]
+  | MastraMessageV1[]
+  | MastraMessageV2[]
+  | MastraMessageV3[];
 
 import type { SharedMemoryConfig, StorageThreadType, MemoryConfig, MastraMessageV1 } from './types';
 

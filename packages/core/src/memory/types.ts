@@ -1,7 +1,7 @@
 // import type { AssistantContent, CoreMessage, EmbeddingModel, ToolContent, UserContent } from 'ai';
 import type { EmbeddingModel } from 'ai';
 
-export type { MastraMessageV2 } from '../agent';
+export type { MastraMessageV2, MastraMessageV3 } from '../agent';
 import type * as AIV4 from '../agent/message-list/ai-sdk-4';
 import type { MastraStorage } from '../storage';
 import type { MastraVector } from '../vector';
