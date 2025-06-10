@@ -146,7 +146,7 @@ describe('TokenLimiter', () => {
       );
     });
 
-    it.only(`20 messages, 2 tool messages`, async () => {
+    it(`20 messages, 2 tool messages`, async () => {
       await expectTokenEstimate(
         {
           messageCount: 10,
