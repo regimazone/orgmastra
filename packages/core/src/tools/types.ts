@@ -1,5 +1,5 @@
 import type { JSONObject } from '@ai-sdk/provider';
-import type { ToolExecutionOptions, Tool, Schema } from 'ai';
+import type { ToolCallOptions, Tool, Schema } from 'ai';
 import type { JSONSchema7Type } from 'json-schema';
 import type { z } from 'zod';
 // import type { ZodSchema, z } from 'zod';
@@ -20,7 +20,7 @@ export type CoreTool<Parameters = ToolParameters> =
       id?: string;
       description?: string;
       parameters: Parameters;
-      execute?: (params: any, options: ToolExecutionOptions) => Promise<any>;
+      execute?: (params: any, options: ToolCallOptions) => Promise<any>;
       // TODO: do we need this?
       // experimental_toToolResultContent?: (result: any) => any;
     } & (
@@ -50,7 +50,7 @@ export type InternalCoreTool = {
   id?: string;
   description?: string;
   parameters: Schema;
-  execute?: (params: any, options: ToolExecutionOptions) => Promise<any>;
+  execute?: (params: any, options: ToolCallOptions) => Promise<any>;
 } & (
   | {
       type?: 'function' | undefined;
@@ -73,11 +73,11 @@ export interface ToolAction<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
   TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
-> extends IAction<string, TSchemaIn, TSchemaOut, TContext, ToolExecutionOptions> {
+> extends IAction<string, TSchemaIn, TSchemaOut, TContext, ToolCallOptions> {
   description: string;
   execute?: (
     context: TContext,
-    options?: ToolExecutionOptions,
+    options?: ToolCallOptions,
   ) => Promise<TSchemaOut extends z.ZodSchema ? z.infer<TSchemaOut> : unknown>;
   mastra?: Mastra;
 }

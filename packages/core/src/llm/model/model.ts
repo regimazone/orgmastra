@@ -1,5 +1,3 @@
-import type { ModelMessage, Schema, StopCondition } from 'ai';
-import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
 import {
   AnthropicSchemaCompatLayer,
   applyCompatLayer,
@@ -9,6 +7,8 @@ import {
   OpenAIReasoningSchemaCompatLayer,
   OpenAISchemaCompatLayer,
 } from '@mastra/schema-compat';
+import type { ModelMessage, Schema, StopCondition } from 'ai';
+import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod';
