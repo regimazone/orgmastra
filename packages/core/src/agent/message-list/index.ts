@@ -932,7 +932,11 @@ ${JSON.stringify(message, null, 2)}`,
     );
   }
   static isMastraMessageV1(msg: MessageInput): msg is MastraMessageV1 {
-    return !MessageList.isMastraMessageV2(msg) && (`threadId` in msg || `resourceId` in msg);
+    return (
+      !MessageList.isMastraMessageV2(msg) &&
+      !MessageList.isMastraMessageV3(msg) &&
+      (`threadId` in msg || `resourceId` in msg)
+    );
   }
   static isMastraMessageV2(msg: MessageInput): msg is MastraMessageV2 {
     return Boolean(
