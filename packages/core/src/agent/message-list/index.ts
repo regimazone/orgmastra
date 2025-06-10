@@ -494,11 +494,11 @@ ${JSON.stringify(message, null, 2)}`,
     return randomUUID();
   }
 
+  // TODO: need this for easy migration path for playground (and users)
+  // With this we can convert v2 -> uimessage(aiv4) or v2 -> coremessage(aiv4)
   // private mastraMessageV3ToMastraMessageV2(msg: MastraMessageV3): MastraMessageV2 {
-  //   retu
   // }
 
-  // TODO: also need v2 -> v3 converter. then we can do v1 -> v3 by doing v1->2->3
   private mastraMessageV2ToMastraMessageV3(msg: MastraMessageV2): MastraMessageV3 {
     const parts: MastraMessageContentV3['parts'] = [];
     const msgBuffer = {
@@ -508,7 +508,7 @@ ${JSON.stringify(message, null, 2)}`,
         parts,
       },
       role: msg.role,
-      createdAt: msg.createdAt,
+      createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
       resourceId: msg.resourceId,
       threadId: msg.threadId,
       type: msg.type,

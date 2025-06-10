@@ -393,7 +393,7 @@ export class Memory extends MastraMemory {
         }
 
         if (!m.type) m.type = `v3`;
-        return m;
+        return this.updateMessageToHideWorkingMemoryV3(m);
       })
       .filter((m): m is MastraMessageV1 | MastraMessageV2 | MastraMessageV3 => Boolean(m));
 
@@ -508,6 +508,38 @@ export class Memory extends MastraMemory {
     if (newMessage.content.content && typeof newMessage.content.content === 'string') {
       newMessage.content.content = newMessage.content.content.replace(workingMemoryRegex, '').trim();
     }
+
+    if (newMessage.content.parts) {
+      newMessage.content.parts = newMessage.content.parts
+        .filter(part => {
+          if (part.type === 'tool-invocation') {
+            return part.toolInvocation.toolName !== 'updateWorkingMemory';
+          }
+          return true;
+        })
+        .map(part => {
+          if (part.type === 'text') {
+            return {
+              ...part,
+              text: part.text.replace(workingMemoryRegex, '').trim(),
+            };
+          }
+          return part;
+        });
+
+      // If all parts were filtered out (e.g., only contained updateWorkingMemory tool calls) we need to skip the whole message, it was only working memory tool calls/results
+      if (newMessage.content.parts.length === 0) {
+        return null;
+      }
+    }
+
+    return newMessage;
+  }
+
+  protected updateMessageToHideWorkingMemoryV3(message: MastraMessageV3): MastraMessageV3 | null {
+    const workingMemoryRegex = /<working_memory>([^]*?)<\/working_memory>/g;
+
+    const newMessage = { ...message, content: { ...message.content } }; // Deep copy message and content
 
     if (newMessage.content.parts) {
       newMessage.content.parts = newMessage.content.parts
