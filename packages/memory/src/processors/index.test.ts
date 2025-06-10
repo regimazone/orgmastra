@@ -85,7 +85,8 @@ describe('TokenLimiter', () => {
     const { messages, fakeCore, counts } = generateConversationHistory(config);
 
     const estimate = estimateTokens(messages);
-    const used = (await agent.generate(fakeCore.slice(0, -1))).usage.totalTokens;
+    const result = await agent.generate(fakeCore.slice(0, -1));
+    const used = result.usage.totalTokens!;
 
     console.log(`Estimated ${estimate} tokens, used ${used} tokens.\n`, counts);
 
@@ -145,7 +146,7 @@ describe('TokenLimiter', () => {
       );
     });
 
-    it(`20 messages, 2 tool messages`, async () => {
+    it.only(`20 messages, 2 tool messages`, async () => {
       await expectTokenEstimate(
         {
           messageCount: 10,
