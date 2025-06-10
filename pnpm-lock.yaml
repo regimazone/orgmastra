@@ -731,7 +731,7 @@ importers:
         version: 1.2.11(zod@3.25.55)
       '@copilotkit/runtime':
         specifier: ^1.8.13
-        version: 1.8.14(blimskluamw5sntnkma42yv774)
+        version: 1.8.14(1e924eef7838ea3ea25b7de4aa7fc07b)
       hono:
         specifier: ^4.5.1
         version: 4.7.11
@@ -2143,14 +2143,10 @@ importers:
         version: 0.474.0(react@19.1.0)
       motion:
         specifier: ^12.4.2
-<<<<<<< HEAD
         version: 12.16.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-=======
-        version: 12.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
->>>>>>> 557ba600b (wip)
       prism-react-renderer:
         specifier: ^2.4.0
         version: 2.4.1(react@19.1.0)
@@ -2628,11 +2624,7 @@ importers:
         version: 3.0.9(vitest@3.2.2)
       axios:
         specifier: ^1.8.4
-<<<<<<< HEAD
         version: 1.9.0(debug@4.4.1)
-=======
-        version: 1.8.4
->>>>>>> 557ba600b (wip)
       eslint:
         specifier: ^9.28.0
         version: 9.28.0(jiti@2.4.2)
@@ -2680,13 +2672,8 @@ importers:
         specifier: 3.0.9
         version: 3.0.9(vitest@3.2.2)
       axios:
-<<<<<<< HEAD
         specifier: ^1.9.0
         version: 1.9.0(debug@4.4.1)
-=======
-        specifier: ^1.8.4
-        version: 1.8.4
->>>>>>> 557ba600b (wip)
       eslint:
         specifier: ^9.28.0
         version: 9.28.0(jiti@2.4.2)
@@ -21944,7 +21931,7 @@ snapshots:
       '@babel/traverse': 7.27.4
       '@babel/types': 7.27.6
       convert-source-map: 2.0.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -21993,17 +21980,10 @@ snapshots:
 
   '@babel/helper-define-polyfill-provider@0.6.3(@babel/core@7.27.4)':
     dependencies:
-<<<<<<< HEAD
       '@babel/core': 7.27.4
       '@babel/helper-compilation-targets': 7.27.2
       '@babel/helper-plugin-utils': 7.27.1
       debug: 4.4.1(supports-color@8.1.1)
-=======
-      '@babel/core': 7.26.10
-      '@babel/helper-compilation-targets': 7.26.5
-      '@babel/helper-plugin-utils': 7.26.5
-      debug: 4.4.1(supports-color@9.4.0)
->>>>>>> 557ba600b (wip)
       lodash.debounce: 4.0.8
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -22688,21 +22668,12 @@ snapshots:
 
   '@babel/traverse@7.27.4':
     dependencies:
-<<<<<<< HEAD
       '@babel/code-frame': 7.27.1
       '@babel/generator': 7.27.5
       '@babel/parser': 7.27.5
       '@babel/template': 7.27.2
       '@babel/types': 7.27.6
       debug: 4.4.1(supports-color@8.1.1)
-=======
-      '@babel/code-frame': 7.26.2
-      '@babel/generator': 7.27.0
-      '@babel/parser': 7.27.0
-      '@babel/template': 7.27.0
-      '@babel/types': 7.27.0
-      debug: 4.4.1(supports-color@9.4.0)
->>>>>>> 557ba600b (wip)
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -23062,7 +23033,7 @@ snapshots:
 
   '@colors/colors@1.6.0': {}
 
-  '@copilotkit/runtime@1.8.14(blimskluamw5sntnkma42yv774)':
+  '@copilotkit/runtime@1.8.14(1e924eef7838ea3ea25b7de4aa7fc07b)':
     dependencies:
       '@ag-ui/client': 0.0.28
       '@ag-ui/core': 0.0.28
@@ -23071,7 +23042,7 @@ snapshots:
       '@anthropic-ai/sdk': 0.27.3(encoding@0.1.13)
       '@copilotkit/shared': 1.8.14(encoding@0.1.13)
       '@graphql-yoga/plugin-defer-stream': 3.13.4(graphql-yoga@5.13.4(graphql@16.11.0))(graphql@16.11.0)
-      '@langchain/community': 0.3.42(bcctxa6pidpttmg2tsqwbwpiwy)
+      '@langchain/community': 0.3.42(052a1befe1bdbaca9983a63c8acb609f)
       '@langchain/core': 0.3.55(openai@4.104.0(encoding@0.1.13)(ws@8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.55))
       '@langchain/google-gauth': 0.1.8(@langchain/core@0.3.55(openai@4.104.0(encoding@0.1.13)(ws@8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.55)))(encoding@0.1.13)(zod@3.25.55)
       '@langchain/langgraph-sdk': 0.0.70(@langchain/core@0.3.55(openai@4.104.0(encoding@0.1.13)(ws@8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.55)))(react@19.1.0)
@@ -23902,7 +23873,7 @@ snapshots:
   '@eslint/config-array@0.20.0':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -23916,7 +23887,7 @@ snapshots:
   '@eslint/eslintrc@2.1.4':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -23930,7 +23901,7 @@ snapshots:
   '@eslint/eslintrc@3.3.1':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       espree: 10.3.0
       globals: 14.0.0
       ignore: 5.3.2
@@ -24249,7 +24220,7 @@ snapshots:
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -24440,13 +24411,8 @@ snapshots:
   '@inngest/realtime@0.3.1(@vercel/node@5.0.4(@swc/core@1.11.10(@swc/helpers@0.5.15))(encoding@0.1.13)(rollup@4.41.1))(encoding@0.1.13)(express@5.1.0)(fastify@4.29.0)(h3@1.15.1)(hono@4.7.11)(next@15.3.3(@opentelemetry/api@1.9.0)(@playwright/test@1.52.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)(typescript@5.8.3)':
     dependencies:
       '@standard-schema/spec': 1.0.0
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       inngest: 3.39.0(@vercel/node@5.0.4(@swc/core@1.11.10(@swc/helpers@0.5.15))(encoding@0.1.13)(rollup@4.41.1))(encoding@0.1.13)(express@5.1.0)(fastify@4.29.0)(h3@1.15.1)(hono@4.7.11)(next@15.3.3(@opentelemetry/api@1.9.0)(@playwright/test@1.52.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(typescript@5.8.3)
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      inngest: 3.35.1(@vercel/node@5.0.4(@swc/core@1.11.10(@swc/helpers@0.5.15))(encoding@0.1.13)(rollup@4.40.1))(encoding@0.1.13)(express@5.1.0)(fastify@4.29.0)(h3@1.15.1)(hono@4.7.7)(next@15.2.4(@opentelemetry/api@1.9.0)(@playwright/test@1.52.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(typescript@5.8.3)
->>>>>>> 557ba600b (wip)
       react: 19.1.0
       zod: 3.25.55
     transitivePeerDependencies:
@@ -24857,7 +24823,7 @@ snapshots:
       '@lancedb/lancedb-win32-arm64-msvc': 0.18.2
       '@lancedb/lancedb-win32-x64-msvc': 0.18.2
 
-  '@langchain/community@0.3.42(bcctxa6pidpttmg2tsqwbwpiwy)':
+  '@langchain/community@0.3.42(052a1befe1bdbaca9983a63c8acb609f)':
     dependencies:
       '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.52.0)(bufferutil@4.0.9)(deepmerge@4.3.1)(dotenv@16.5.0)(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(ws@8.18.2(bufferutil@4.0.9)(utf-8-validate@6.0.5))(zod@3.25.55))(utf-8-validate@6.0.5)(zod@3.25.55)
       '@ibm-cloud/watsonx-ai': 1.6.5
@@ -25127,6 +25093,21 @@ snapshots:
       globby: 11.1.0
       read-yaml-file: 1.1.0
 
+  '@mapbox/node-pre-gyp@1.0.11(encoding@0.1.13)':
+    dependencies:
+      detect-libc: 2.0.4
+      https-proxy-agent: 5.0.1
+      make-dir: 3.1.0
+      node-fetch: 2.7.0(encoding@0.1.13)
+      nopt: 5.0.0
+      npmlog: 5.0.1
+      rimraf: 3.0.2
+      semver: 7.7.2
+      tar: 6.2.1
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   '@mapbox/node-pre-gyp@1.0.11(encoding@0.1.13)(supports-color@9.4.0)':
     dependencies:
       detect-libc: 2.0.4
@@ -25159,11 +25140,7 @@ snapshots:
 
   '@mendable/firecrawl-js@1.25.5':
     dependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
-=======
-      axios: 1.8.4
->>>>>>> 557ba600b (wip)
       typescript-event-target: 1.1.1
       zod: 3.25.55
       zod-to-json-schema: 3.24.5(zod@3.25.55)
@@ -25404,11 +25381,7 @@ snapshots:
   '@netlify/edge-bundler@12.4.0(encoding@0.1.13)(rollup@4.41.1)':
     dependencies:
       '@import-maps/resolve': 1.0.1
-<<<<<<< HEAD
       '@vercel/nft': 0.27.7(encoding@0.1.13)(rollup@4.41.1)
-=======
-      '@vercel/nft': 0.27.7(encoding@0.1.13)(rollup@4.40.1)(supports-color@9.4.0)
->>>>>>> 557ba600b (wip)
       ajv: 8.17.1
       ajv-errors: 3.0.0(ajv@8.17.1)
       better-ajv-errors: 1.2.0(ajv@8.17.1)
@@ -25577,7 +25550,6 @@ snapshots:
 
   '@netlify/serverless-functions-api@1.41.2': {}
 
-<<<<<<< HEAD
   '@netlify/zip-it-and-ship-it@10.0.4(encoding@0.1.13)(rollup@4.41.1)':
     dependencies:
       '@babel/parser': 7.27.5
@@ -25620,9 +25592,6 @@ snapshots:
       - supports-color
 
   '@netlify/zip-it-and-ship-it@10.0.4(encoding@0.1.13)(rollup@4.41.1)(supports-color@9.4.0)':
-=======
-  '@netlify/zip-it-and-ship-it@10.0.3(encoding@0.1.13)(rollup@4.40.1)(supports-color@9.4.0)':
->>>>>>> 557ba600b (wip)
     dependencies:
       '@babel/parser': 7.27.5
       '@babel/types': 7.26.10
@@ -25848,7 +25817,7 @@ snapshots:
   '@opensearch-project/opensearch@3.5.1':
     dependencies:
       aws4: 1.13.2
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       hpagent: 1.2.0
       json11: 2.0.2
       ms: 2.1.3
@@ -27326,7 +27295,7 @@ snapshots:
 
   '@pnpm/tabtab@0.5.4':
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       enquirer: 2.4.1
       minimist: 1.2.8
       untildify: 4.0.0
@@ -29267,13 +29236,8 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       eslint: 9.28.0(jiti@2.4.2)
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      eslint: 9.25.1(jiti@2.4.2)
->>>>>>> 557ba600b (wip)
       graphemer: 1.4.0
       ignore: 5.3.2
       natural-compare-lite: 1.4.0
@@ -29305,8 +29269,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.8.3)
-      debug: 4.4.1(supports-color@9.4.0)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.8.3)
+      debug: 4.4.1(supports-color@8.1.1)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.8.3
@@ -29319,13 +29283,8 @@ snapshots:
       '@typescript-eslint/types': 8.33.1
       '@typescript-eslint/typescript-estree': 8.33.1(typescript@5.8.3)
       '@typescript-eslint/visitor-keys': 8.33.1
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       eslint: 9.28.0(jiti@2.4.2)
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      eslint: 9.25.1(jiti@2.4.2)
->>>>>>> 557ba600b (wip)
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -29334,7 +29293,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.33.1(typescript@5.8.3)
       '@typescript-eslint/types': 8.33.1
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -29355,9 +29314,9 @@ snapshots:
 
   '@typescript-eslint/type-utils@5.62.0(eslint@8.57.1)(typescript@5.8.3)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.8.3)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.8.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       eslint: 8.57.1
       tsutils: 3.21.0(typescript@5.8.3)
     optionalDependencies:
@@ -29368,15 +29327,9 @@ snapshots:
   '@typescript-eslint/type-utils@8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/typescript-estree': 8.33.1(typescript@5.8.3)
-<<<<<<< HEAD
       '@typescript-eslint/utils': 8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
       debug: 4.4.1(supports-color@8.1.1)
       eslint: 9.28.0(jiti@2.4.2)
-=======
-      '@typescript-eslint/utils': 8.33.1(eslint@9.25.1(jiti@2.4.2))(typescript@5.8.3)
-      debug: 4.4.1(supports-color@9.4.0)
-      eslint: 9.25.1(jiti@2.4.2)
->>>>>>> 557ba600b (wip)
       ts-api-utils: 2.1.0(typescript@5.8.3)
       typescript: 5.8.3
     transitivePeerDependencies:
@@ -29400,13 +29353,27 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@typescript-eslint/typescript-estree@5.62.0(typescript@5.8.3)':
+    dependencies:
+      '@typescript-eslint/types': 5.62.0
+      '@typescript-eslint/visitor-keys': 5.62.0
+      debug: 4.4.1(supports-color@8.1.1)
+      globby: 11.1.0
+      is-glob: 4.0.3
+      semver: 7.7.2
+      tsutils: 3.21.0(typescript@5.8.3)
+    optionalDependencies:
+      typescript: 5.8.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@typescript-eslint/typescript-estree@8.33.1(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/project-service': 8.33.1(typescript@5.8.3)
       '@typescript-eslint/tsconfig-utils': 8.33.1(typescript@5.8.3)
       '@typescript-eslint/types': 8.33.1
       '@typescript-eslint/visitor-keys': 8.33.1
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -29423,7 +29390,7 @@ snapshots:
       '@types/semver': 7.5.8
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.8.3)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.8.3)
       eslint: 8.57.1
       eslint-scope: 5.1.1
       semver: 7.7.2
@@ -29454,7 +29421,7 @@ snapshots:
 
   '@typescript/vfs@1.6.1(typescript@5.8.3)':
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -29647,7 +29614,6 @@ snapshots:
       - rollup
       - supports-color
 
-<<<<<<< HEAD
   '@vercel/nft@0.27.7(encoding@0.1.13)(rollup@4.41.1)':
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.11(encoding@0.1.13)
@@ -29668,9 +29634,6 @@ snapshots:
       - supports-color
 
   '@vercel/nft@0.27.7(encoding@0.1.13)(rollup@4.41.1)(supports-color@9.4.0)':
-=======
-  '@vercel/nft@0.27.7(encoding@0.1.13)(rollup@4.40.1)(supports-color@9.4.0)':
->>>>>>> 557ba600b (wip)
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.11(encoding@0.1.13)(supports-color@9.4.0)
       '@rollup/pluginutils': 5.1.4(rollup@4.41.1)
@@ -29782,7 +29745,7 @@ snapshots:
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
       istanbul-lib-source-maps: 5.0.6
@@ -30211,6 +30174,12 @@ snapshots:
   acorn@8.14.1: {}
 
   agent-base@5.1.1: {}
+
+  agent-base@6.0.2:
+    dependencies:
+      debug: 4.4.1(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
 
   agent-base@6.0.2(supports-color@9.4.0):
     dependencies:
@@ -30654,15 +30623,7 @@ snapshots:
 
   axios@1.7.7:
     dependencies:
-      follow-redirects: 1.15.9(debug@4.4.0)
-      form-data: 4.0.2
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
-
-  axios@1.8.4:
-    dependencies:
-      follow-redirects: 1.15.9(debug@4.4.0)
+      follow-redirects: 1.15.9(debug@4.4.1)
       form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -30872,7 +30833,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       http-errors: 2.0.0
       iconv-lite: 0.6.3
       on-finished: 2.4.1
@@ -31056,7 +31017,7 @@ snapshots:
 
   canvas@2.11.2(encoding@0.1.13):
     dependencies:
-      '@mapbox/node-pre-gyp': 1.0.11(encoding@0.1.13)(supports-color@9.4.0)
+      '@mapbox/node-pre-gyp': 1.0.11(encoding@0.1.13)
       nan: 2.22.2
       simple-get: 3.1.1
     transitivePeerDependencies:
@@ -31324,13 +31285,8 @@ snapshots:
 
   cmake-js@7.3.1:
     dependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
       debug: 4.4.1(supports-color@8.1.1)
-=======
-      axios: 1.8.4(debug@4.4.1)
-      debug: 4.4.1(supports-color@9.4.0)
->>>>>>> 557ba600b (wip)
       fs-extra: 11.3.0
       memory-stream: 1.0.0
       node-api-headers: 1.5.0
@@ -32075,6 +32031,15 @@ snapshots:
 
   detective-stylus@4.0.0: {}
 
+  detective-typescript@11.2.0:
+    dependencies:
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.8.3)
+      ast-module-types: 5.0.0
+      node-source-walk: 6.0.2
+      typescript: 5.8.3
+    transitivePeerDependencies:
+      - supports-color
+
   detective-typescript@11.2.0(supports-color@9.4.0):
     dependencies:
       '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.8.3)
@@ -32531,7 +32496,7 @@ snapshots:
 
   esbuild-register@3.6.0(esbuild@0.19.12):
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       esbuild: 0.19.12
     transitivePeerDependencies:
       - supports-color
@@ -32819,13 +32784,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.33.1
       comment-parser: 1.4.1
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       eslint: 9.28.0(jiti@2.4.2)
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      eslint: 9.25.1(jiti@2.4.2)
->>>>>>> 557ba600b (wip)
       eslint-import-context: 0.1.8(unrs-resolver@1.7.10)
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -33010,7 +32970,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -33058,7 +33018,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       escape-string-regexp: 4.0.0
       eslint-scope: 8.3.0
       eslint-visitor-keys: 4.2.0
@@ -33307,7 +33267,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.2.2
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -33354,7 +33314,7 @@ snapshots:
 
   extract-zip@2.0.1:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       get-stream: 5.2.0
       yauzl: 2.10.0
     optionalDependencies:
@@ -33579,7 +33539,7 @@ snapshots:
 
   finalhandler@2.1.0:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -33694,7 +33654,7 @@ snapshots:
 
   follow-redirects@1.15.9(debug@4.4.1):
     optionalDependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
 
   for-each@0.3.5:
     dependencies:
@@ -33874,7 +33834,7 @@ snapshots:
   gaxios@5.1.3(encoding@0.1.13):
     dependencies:
       extend: 3.0.2
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-stream: 2.0.1
       node-fetch: 2.7.0(encoding@0.1.13)
     transitivePeerDependencies:
@@ -33928,7 +33888,7 @@ snapshots:
   gel@2.0.1:
     dependencies:
       '@petamoriken/float16': 3.9.2
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       env-paths: 3.0.0
       semver: 7.7.2
       shell-quote: 1.8.3
@@ -34507,8 +34467,8 @@ snapshots:
   http-proxy-agent@4.0.1:
     dependencies:
       '@tootallnate/once': 1.1.2
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.1(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
     optional: true
@@ -34516,15 +34476,15 @@ snapshots:
   http-proxy-agent@5.0.0:
     dependencies:
       '@tootallnate/once': 2.0.0
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.1(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -34558,7 +34518,14 @@ snapshots:
   https-proxy-agent@4.0.0:
     dependencies:
       agent-base: 5.1.1
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
+
+  https-proxy-agent@5.0.1:
+    dependencies:
+      agent-base: 6.0.2
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -34572,7 +34539,7 @@ snapshots:
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -34607,7 +34574,7 @@ snapshots:
       '@types/tough-cookie': 4.0.5
       axios: 1.9.0(debug@4.4.1)
       camelcase: 6.3.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       dotenv: 16.5.0
       extend: 3.0.2
       file-type: 16.5.4
@@ -34697,7 +34664,7 @@ snapshots:
       canonicalize: 1.0.8
       chalk: 4.1.2
       cross-fetch: 4.1.0(encoding@0.1.13)
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       hash.js: 1.1.7
       json-stringify-safe: 5.0.1
       ms: 2.1.3
@@ -35122,7 +35089,7 @@ snapshots:
 
   istanbul-lib-source-maps@4.0.1:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
       source-map: 0.6.1
     transitivePeerDependencies:
@@ -35131,7 +35098,7 @@ snapshots:
   istanbul-lib-source-maps@5.0.6:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.25
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
     transitivePeerDependencies:
       - supports-color
@@ -35572,7 +35539,7 @@ snapshots:
       form-data: 4.0.2
       html-encoding-sniffer: 3.0.0
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.18
       parse5: 7.2.1
@@ -35758,7 +35725,7 @@ snapshots:
     dependencies:
       '@types/express': 4.17.21
       '@types/jsonwebtoken': 9.0.9
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       jose: 4.15.9
       limiter: 1.1.5
       lru-memoizer: 2.3.0
@@ -35819,11 +35786,7 @@ snapshots:
       zod: 3.25.55
       zod-to-json-schema: 3.24.5(zod@3.25.55)
     optionalDependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
-=======
-      axios: 1.8.4
->>>>>>> 557ba600b (wip)
     transitivePeerDependencies:
       - encoding
       - openai
@@ -35957,7 +35920,7 @@ snapshots:
     dependencies:
       chalk: 5.4.1
       commander: 13.1.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       execa: 8.0.1
       lilconfig: 3.1.3
       listr2: 8.2.5
@@ -36195,7 +36158,7 @@ snapshots:
       cacache: 15.3.0
       http-cache-semantics: 4.2.0
       http-proxy-agent: 4.0.1
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-lambda: 1.0.1
       lru-cache: 6.0.0
       minipass: 3.3.6
@@ -36641,7 +36604,7 @@ snapshots:
   micromark@4.0.2:
     dependencies:
       '@types/debug': 4.1.12
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       decode-named-character-reference: 1.1.0
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.3
@@ -36668,7 +36631,7 @@ snapshots:
   microsoft-cognitiveservices-speech-sdk@1.44.1(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       '@types/webrtc': 0.0.37
-      agent-base: 6.0.2(supports-color@9.4.0)
+      agent-base: 6.0.2
       bent: 7.3.12
       https-proxy-agent: 4.0.0
       uuid: 9.0.1
@@ -36969,15 +36932,9 @@ snapshots:
       '@netlify/edge-bundler': 12.4.0(encoding@0.1.13)(rollup@4.41.1)
       '@netlify/edge-functions': 2.11.1
       '@netlify/headers-parser': 8.0.0
-<<<<<<< HEAD
       '@netlify/local-functions-proxy': 2.0.3
       '@netlify/redirect-parser': 14.5.1
       '@netlify/zip-it-and-ship-it': 10.0.4(encoding@0.1.13)(rollup@4.41.1)
-=======
-      '@netlify/local-functions-proxy': 1.1.1
-      '@netlify/redirect-parser': 14.5.0
-      '@netlify/zip-it-and-ship-it': 10.0.3(encoding@0.1.13)(rollup@4.40.1)(supports-color@9.4.0)
->>>>>>> 557ba600b (wip)
       '@octokit/rest': 21.1.1
       '@opentelemetry/api': 1.8.0
       '@pnpm/tabtab': 0.5.4
@@ -37215,11 +37172,7 @@ snapshots:
 
   node-ical@0.20.1:
     dependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
-=======
-      axios: 1.8.4
->>>>>>> 557ba600b (wip)
       moment-timezone: 0.5.47
       rrule: 2.8.1
       uuid: 10.0.0
@@ -38069,11 +38022,7 @@ snapshots:
 
   posthog-node@4.16.0:
     dependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
-=======
-      axios: 1.8.4
->>>>>>> 557ba600b (wip)
     transitivePeerDependencies:
       - debug
 
@@ -38093,6 +38042,23 @@ snapshots:
       simple-get: 4.0.1
       tar-fs: 2.1.2
       tunnel-agent: 0.6.0
+
+  precinct@11.0.5:
+    dependencies:
+      '@dependents/detective-less': 4.1.0
+      commander: 10.0.1
+      detective-amd: 5.0.2
+      detective-cjs: 5.0.1
+      detective-es6: 4.0.1
+      detective-postcss: 6.1.3
+      detective-sass: 5.0.3
+      detective-scss: 4.0.3
+      detective-stylus: 4.0.0
+      detective-typescript: 11.2.0
+      module-definition: 5.0.1
+      node-source-walk: 6.0.2
+    transitivePeerDependencies:
+      - supports-color
 
   precinct@11.0.5(supports-color@9.4.0):
     dependencies:
@@ -38751,7 +38717,7 @@ snapshots:
 
   require-in-the-middle@7.5.2:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       module-details-from-path: 1.0.3
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -38815,11 +38781,7 @@ snapshots:
 
   retry-axios@2.6.0(axios@1.9.0):
     dependencies:
-<<<<<<< HEAD
       axios: 1.9.0(debug@4.4.1)
-=======
-      axios: 1.8.4
->>>>>>> 557ba600b (wip)
 
   retry-request@7.0.2(encoding@0.1.13):
     dependencies:
@@ -38881,15 +38843,9 @@ snapshots:
 
   rollup-plugin-esbuild@6.2.1(esbuild@0.25.5)(rollup@4.41.1):
     dependencies:
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       es-module-lexer: 1.7.0
       esbuild: 0.25.5
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      es-module-lexer: 1.6.0
-      esbuild: 0.25.1
->>>>>>> 557ba600b (wip)
       get-tsconfig: 4.10.1
       rollup: 4.41.1
       unplugin-utils: 0.2.4
@@ -38951,7 +38907,7 @@ snapshots:
 
   router@2.2.0:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       depd: 2.0.0
       is-promise: 4.0.0
       parseurl: 1.3.3
@@ -39067,7 +39023,7 @@ snapshots:
 
   send@1.2.0:
     dependencies:
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -39347,8 +39303,8 @@ snapshots:
 
   socks-proxy-agent@6.2.1:
     dependencies:
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.1(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.1(supports-color@8.1.1)
       socks: 2.8.4
     transitivePeerDependencies:
       - supports-color
@@ -39897,7 +39853,7 @@ snapshots:
   teeny-request@10.0.0:
     dependencies:
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       node-fetch: 3.3.2
       stream-events: 1.0.5
     transitivePeerDependencies:
@@ -39906,7 +39862,7 @@ snapshots:
   teeny-request@9.0.0(encoding@0.1.13):
     dependencies:
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       node-fetch: 2.7.0(encoding@0.1.13)
       stream-events: 1.0.5
       uuid: 9.0.1
@@ -39982,7 +39938,7 @@ snapshots:
   threads@1.7.0:
     dependencies:
       callsites: 3.1.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       is-observable: 2.1.0
       observable-fns: 0.6.1
     optionalDependencies:
@@ -40252,14 +40208,9 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.0
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       esbuild: 0.25.5
       fix-dts-default-cjs-exports: 1.0.1
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      esbuild: 0.25.1
->>>>>>> 557ba600b (wip)
       joycon: 3.1.1
       picocolors: 1.1.1
       postcss-load-config: 6.0.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.4)(yaml@2.8.0)
@@ -40791,7 +40742,7 @@ snapshots:
   vite-node@1.6.1(@types/node@20.19.0)(lightningcss@1.29.2)(terser@5.39.0):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       pathe: 1.1.2
       picocolors: 1.1.1
       vite: 5.4.15(@types/node@20.19.0)(lightningcss@1.29.2)(terser@5.39.0)
@@ -40809,13 +40760,8 @@ snapshots:
   vite-node@2.1.9(@types/node@20.19.0)(lightningcss@1.29.2)(terser@5.39.0):
     dependencies:
       cac: 6.7.14
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       es-module-lexer: 1.7.0
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      es-module-lexer: 1.6.0
->>>>>>> 557ba600b (wip)
       pathe: 1.1.2
       vite: 5.4.15(@types/node@20.19.0)(lightningcss@1.29.2)(terser@5.39.0)
     transitivePeerDependencies:
@@ -40832,13 +40778,8 @@ snapshots:
   vite-node@3.2.2(@types/node@20.19.0)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.0)(tsx@4.19.4)(yaml@2.8.0):
     dependencies:
       cac: 6.7.14
-<<<<<<< HEAD
       debug: 4.4.1(supports-color@8.1.1)
       es-module-lexer: 1.7.0
-=======
-      debug: 4.4.1(supports-color@9.4.0)
-      es-module-lexer: 1.6.0
->>>>>>> 557ba600b (wip)
       pathe: 2.0.3
       vite: 6.3.5(@types/node@20.19.0)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.0)(tsx@4.19.4)(yaml@2.8.0)
     transitivePeerDependencies:
@@ -40860,7 +40801,7 @@ snapshots:
       '@microsoft/api-extractor': 7.43.0(@types/node@20.19.0)
       '@rollup/pluginutils': 5.1.4(rollup@4.41.1)
       '@vue/language-core': 1.8.27(typescript@5.8.3)
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       kolorist: 1.8.0
       magic-string: 0.30.17
       typescript: 5.8.3
@@ -40916,7 +40857,7 @@ snapshots:
       '@vitest/utils': 1.6.1
       acorn-walk: 8.3.4
       chai: 4.5.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       execa: 8.0.1
       local-pkg: 0.5.1
       magic-string: 0.30.17
@@ -40953,7 +40894,7 @@ snapshots:
       '@vitest/spy': 2.1.9
       '@vitest/utils': 2.1.9
       chai: 5.2.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       expect-type: 1.2.1
       magic-string: 0.30.17
       pathe: 1.1.2
@@ -40990,7 +40931,7 @@ snapshots:
       '@vitest/spy': 2.1.9
       '@vitest/utils': 2.1.9
       chai: 5.2.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       expect-type: 1.2.1
       magic-string: 0.30.17
       pathe: 1.1.2
@@ -41028,7 +40969,7 @@ snapshots:
       '@vitest/spy': 3.2.2
       '@vitest/utils': 3.2.2
       chai: 5.2.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
       expect-type: 1.2.1
       magic-string: 0.30.17
       pathe: 2.0.3
@@ -41110,7 +41051,7 @@ snapshots:
     dependencies:
       chalk: 4.1.2
       commander: 9.5.0
-      debug: 4.4.1(supports-color@9.4.0)
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 

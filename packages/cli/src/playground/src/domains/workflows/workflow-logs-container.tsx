@@ -17,10 +17,9 @@ export const WorkflowLogsContainer = ({ runId }: WorkflowLogsContainerProps) => 
   return (
     <div
       className={clsx(
-        'fixed bottom-3 rounded-t-lg right-[342px] bg-surface3 border-t-sm border-r-sm border-l-sm border-border1 transition-all duration-300 h-1/2',
-        expanded ? 'translate-y-0' : 'translate-y-[calc(100%-32px)]',
-        open ? 'left-44' : 'left-16',
-        'z-20',
+        'z-20 fixed  bg-surface3 border-t-sm border-border1 transition-all duration-300 right-[13px] overflow-hidden rounded-b-lg',
+        expanded ? 'translate-y-0 h-1/2 bottom-3' : 'translate-y-[calc(100%-32px)] h-content bottom-5',
+        open ? 'left-[173px]' : 'left-14',
       )}
     >
       <Header>
@@ -36,9 +35,11 @@ export const WorkflowLogsContainer = ({ runId }: WorkflowLogsContainerProps) => 
         </button>
       </Header>
 
-      <div className="overflow-y-auto h-full">
-        <WorkflowLogs logs={logs || []} isLoading={isLoading} />
-      </div>
+      {expanded && (
+        <div className={'overflow-y-auto h-full'}>
+          <WorkflowLogs logs={logs || []} isLoading={isLoading} />
+        </div>
+      )}
     </div>
   );
 };
