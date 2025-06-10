@@ -1,5 +1,5 @@
-import { useLogsByRunId } from '@/hooks/use-logs';
-import { Header, Icon, LogsIcon, WorkflowLogs } from '@mastra/playground-ui';
+import { useLogsByRunId, useLogTransports } from '@/hooks/use-logs';
+import { Button, EmptyState, Header, Icon, LogsIcon, WorkflowLogs } from '@mastra/playground-ui';
 import clsx from 'clsx';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
@@ -12,6 +12,8 @@ export interface WorkflowLogsContainerProps {
 export const WorkflowLogsContainer = ({ runId }: WorkflowLogsContainerProps) => {
   const [expanded, setExpanded] = useState(true);
   const { open } = useSidebar();
+  const { transports, isLoading: isLoadingTransports } = useLogTransports();
+  const hasTransport = transports.length > 0;
   const { data: logs = [], isLoading } = useLogsByRunId(runId);
 
   return (
@@ -35,11 +37,22 @@ export const WorkflowLogsContainer = ({ runId }: WorkflowLogsContainerProps) => 
         </button>
       </Header>
 
-      {expanded && (
-        <div className={'overflow-y-auto h-full'}>
-          <WorkflowLogs logs={logs || []} isLoading={isLoading} />
-        </div>
-      )}
+      {expanded ? (
+        hasTransport ? (
+          <div className={'overflow-y-auto h-full'}>
+            <WorkflowLogs logs={logs || []} isLoading={isLoading || isLoadingTransports} />
+          </div>
+        ) : (
+          <div className="w-full flex items-center justify-center h-full">
+            <EmptyState
+              iconSlot={null}
+              titleSlot="Log transport not set"
+              descriptionSlot="To see logs in the playground, you need to set a log transport at the Mastra config level."
+              actionSlot={<Button>See documentation</Button>}
+            />
+          </div>
+        )
+      ) : null}
     </div>
   );
 };
