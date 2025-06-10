@@ -284,12 +284,17 @@ export async function streamGenerateHandler({
 
     const streamResponse = rest.output
       ? streamResult.toTextStreamResponse()
-      : streamResult.toDataStreamResponse({
-          sendUsage: true,
+      : streamResult.toUIMessageStreamResponse({
+          // sendUsage: true, // <- TODO: this doesn't exist anymore. Why?
           sendReasoning: true,
-          getErrorMessage: (error: any) => {
+          sendSources: true, // TODO: this is false by default. Do we need to make this configurable or what?
+          onError: (error: any) => {
             return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
           },
+          // TODO: do we need to do something with these?
+          // messageMetadata(options) {
+          // },
+          // newMessageId: ""
         });
 
     return streamResponse;
