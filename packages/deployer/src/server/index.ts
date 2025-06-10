@@ -120,8 +120,14 @@ export async function createHonoServer(mastra: Mastra, options: ServerBundleOpti
       });
       return acc;
     }, {});
-  } catch {
-    console.error('Failed to import tools');
+  } catch (err: any) {
+    console.error(
+      `Failed to import tools
+reason: ${err.message}
+${err.stack.split('\n').slice(1).join('\n')}
+    `,
+      err,
+    );
   }
 
   // Middleware
@@ -150,21 +156,23 @@ export async function createHonoServer(mastra: Mastra, options: ServerBundleOpti
   app.onError(errorHandler);
 
   // Add Mastra to context
-  app.use('*', function setContext(c, next) {
-    const runtimeContext = new RuntimeContext();
-    const proxyRuntimeContext = new Proxy(runtimeContext, {
-      get(target, prop) {
-        if (prop === 'get') {
-          return function (key: string) {
-            const value = target.get(key);
-            return value ?? `<${key}>`;
-          };
+  app.use('*', async function setContext(c, next) {
+    let runtimeContext = new RuntimeContext();
+    if (c.req.method === 'POST' || c.req.method === 'PUT') {
+      const contentType = c.req.header('content-type');
+      if (contentType?.includes('application/json')) {
+        try {
+          const body = await c.req.json();
+          if (body.runtimeContext) {
+            runtimeContext = new RuntimeContext(Object.entries(body.runtimeContext));
+          }
+        } catch {
+          // Body parsing failed, continue without body
         }
-        return Reflect.get(target, prop);
-      },
-    });
+      }
+    }
 
-    c.set('runtimeContext', proxyRuntimeContext);
+    c.set('runtimeContext', runtimeContext);
     c.set('mastra', mastra);
     c.set('tools', tools);
     c.set('playground', options.playground === true);
@@ -2670,10 +2678,46 @@ export async function createHonoServer(mastra: Mastra, options: ServerBundleOpti
           required: true,
           schema: { type: 'string' },
         },
+        {
+          name: 'fromDate',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'toDate',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'logLevel',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'filters',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'page',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+        },
+        {
+          name: 'perPage',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+        },
       ],
       responses: {
         200: {
-          description: 'List of all logs',
+          description: 'Paginated list of all logs',
         },
       },
     }),
@@ -2712,10 +2756,46 @@ export async function createHonoServer(mastra: Mastra, options: ServerBundleOpti
           required: true,
           schema: { type: 'string' },
         },
+        {
+          name: 'fromDate',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'toDate',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'logLevel',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'filters',
+          in: 'query',
+          required: false,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'page',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+        },
+        {
+          name: 'perPage',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+        },
       ],
       responses: {
         200: {
-          description: 'List of logs for run ID',
+          description: 'Paginated list of logs for run ID',
         },
       },
     }),
@@ -3127,6 +3207,14 @@ export async function createNodeServer(mastra: Mastra, options: ServerBundleOpti
       }
       if (options?.playground) {
         logger.info(`👨‍💻 Playground available at http://${host}:${port}/`);
+      }
+
+      if (process.send) {
+        process.send({
+          type: 'server-ready',
+          port,
+          host,
+        });
       }
     },
   );

@@ -1,5 +1,14 @@
 import type { ModelMessage, Schema, StopCondition } from 'ai';
 import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
+import {
+  AnthropicSchemaCompatLayer,
+  applyCompatLayer,
+  DeepSeekSchemaCompatLayer,
+  GoogleSchemaCompatLayer,
+  MetaSchemaCompatLayer,
+  OpenAIReasoningSchemaCompatLayer,
+  OpenAISchemaCompatLayer,
+} from '@mastra/schema-compat';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod';
@@ -76,6 +85,29 @@ export class MastraLLM extends MastraBase {
       return stepCountIs(args.maxSteps);
     }
     return stepCountIs(5); // our previous default maxSteps
+  }
+
+  private _applySchemaCompat(schema: ZodSchema | JSONSchema7): Schema {
+    const model = this.#model;
+
+    const schemaCompatLayers = [];
+
+    if (model) {
+      schemaCompatLayers.push(
+        new OpenAIReasoningSchemaCompatLayer(model),
+        new OpenAISchemaCompatLayer(model),
+        new GoogleSchemaCompatLayer(model),
+        new AnthropicSchemaCompatLayer(model),
+        new DeepSeekSchemaCompatLayer(model),
+        new MetaSchemaCompatLayer(model),
+      );
+    }
+
+    return applyCompatLayer({
+      schema: schema as any,
+      compatLayers: schemaCompatLayers,
+      mode: 'aiSdkSchema',
+    });
   }
 
   async __text<Z extends ZodSchema | JSONSchema7 | undefined>({
@@ -184,18 +216,13 @@ export class MastraLLM extends MastraBase {
 
     this.logger.debug(`[LLM] - Generating a text object`, { runId });
 
-    let schema: z.ZodType<T> | Schema<T>;
-    let output = 'object';
-
-    if (typeof (structuredOutput as any).parse === 'function') {
-      schema = structuredOutput as z.ZodType<T>;
-      if (schema instanceof z.ZodArray) {
-        output = 'array';
-        schema = schema._def.type as z.ZodType<T>;
-      }
-    } else {
-      schema = jsonSchema(structuredOutput as JSONSchema7) as Schema<T>;
+    let output: any = 'object';
+    if (structuredOutput instanceof z.ZodArray) {
+      output = 'array';
+      structuredOutput = structuredOutput._def.type;
     }
+
+    const processedSchema = this._applySchemaCompat(structuredOutput!);
 
     return await generateObject<any, any, any>({
       ...rest,
@@ -203,7 +230,7 @@ export class MastraLLM extends MastraBase {
       model,
       messages,
       output,
-      schema,
+      schema: processedSchema as Schema<T>,
       experimental_telemetry: {
         ...this.experimental_telemetry,
         ...telemetry,
@@ -334,18 +361,13 @@ export class MastraLLM extends MastraBase {
       messages,
     });
 
-    let schema: z.ZodType<T> | Schema<T>;
-    let output = 'object';
-
-    if (typeof (structuredOutput as any).parse === 'function') {
-      schema = structuredOutput as z.ZodType<T>;
-      if (schema instanceof z.ZodArray) {
-        output = 'array';
-        schema = schema._def.type as z.ZodType<T>;
-      }
-    } else {
-      schema = jsonSchema(structuredOutput as JSONSchema7) as Schema<T>;
+    let output: any = 'object';
+    if (structuredOutput instanceof z.ZodArray) {
+      output = 'array';
+      structuredOutput = structuredOutput._def.type;
     }
+
+    const processedSchema = this._applySchemaCompat(structuredOutput!);
 
     return streamObject<any, any, any>({
       ...rest,
@@ -366,8 +388,8 @@ export class MastraLLM extends MastraBase {
         });
       },
       model,
-      output: output as any,
-      schema,
+      output,
+      schema: processedSchema as Schema<T>,
       experimental_telemetry: {
         ...this.experimental_telemetry,
         ...telemetry,
