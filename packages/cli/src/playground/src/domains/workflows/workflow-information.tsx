@@ -16,7 +16,7 @@ import { useWorkflowRuns } from '@/pages/workflows/workflow/hooks/use-workflow-r
 export function WorkflowInformation({ workflowId, isLegacy }: { workflowId: string; isLegacy?: boolean }) {
   const params = useParams();
   const navigate = useNavigate();
-  const { workflow, isLoading: isWorkflowLoading } = useWorkflow(workflowId, !isLegacy);
+  const { data: workflow, isLoading: isWorkflowLoading } = useWorkflow(workflowId, !isLegacy);
   const { isLoading: isRunsLoading, data: runs } = useWorkflowRuns({ workflowId });
   const { legacyWorkflow, isLoading: isLegacyWorkflowLoading } = useLegacyWorkflow(workflowId, !!isLegacy);
 
