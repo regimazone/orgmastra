@@ -33,7 +33,7 @@ const WorkflowEntity = ({ workflow, agentId }: WorkflowEntityProps) => {
       </EntityIcon>
       <EntityContent>
         <EntityName>
-          <Link ref={linkRef} to={`/workflows/${agentId}/${workflow.id}`}>
+          <Link ref={linkRef} to={`/workflows/${workflow.id}/graph?agentId=${agentId}`}>
             {workflow.id}
           </Link>
         </EntityName>
