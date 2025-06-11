@@ -26,8 +26,8 @@ import type {
 import type { MastraPrimitives } from '../../action';
 import type { MastraLanguageModel } from '../../agent/types';
 import { MastraBase } from '../../base';
-import { RegisteredLogger } from '../../logger';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
+import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
 import type { MastraMemory } from '../../memory/memory';
 import type { ConvertedToolSet } from '../../tools';

@@ -1,5 +1,4 @@
 import { createHash } from 'crypto';
-import type * as AIV5 from 'ai';
 import jsonSchemaToZod from 'json-schema-to-zod';
 import { z } from 'zod';
 import type { MastraPrimitives } from './action';
