@@ -56,7 +56,7 @@ export const AgentOverview = ({ agent, agentId }: AgentOverviewProps) => {
         </Txt>
 
         {workflows.length > 0 ? (
-          <WorkflowList workflows={workflows} />
+          <WorkflowList workflows={workflows} agentId={agentId} />
         ) : (
           <Txt as="p" variant="ui-lg" className="text-icon6">
             No workflows were attached to this agent.

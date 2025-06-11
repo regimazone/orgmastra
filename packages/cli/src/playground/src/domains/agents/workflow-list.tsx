@@ -1,29 +1,19 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useWorkflow } from '@/hooks/use-workflows';
-import {
-  Entity,
-  EntityContent,
-  EntityDescription,
-  EntityIcon,
-  EntityName,
-  Icon,
-  WorkflowIcon,
-  Spinner,
-} from '@mastra/playground-ui';
-import { ExternalLink, EyeOff, Info } from 'lucide-react';
+import { Entity, EntityContent, EntityDescription, EntityIcon, EntityName, WorkflowIcon } from '@mastra/playground-ui';
+
 import { useRef } from 'react';
 import { Link } from 'react-router';
 
 export interface WorkflowListProps {
   workflows: Array<{ id: string; description: string }>;
+  agentId: string;
 }
 
-export function WorkflowList({ workflows }: WorkflowListProps) {
+export function WorkflowList({ workflows, agentId }: WorkflowListProps) {
   return (
     <ul className="space-y-2">
       {workflows.map(workflow => (
         <li key={workflow.id}>
-          <WorkflowEntity workflowId={workflow.id} description={workflow.description} />
+          <WorkflowEntity workflowId={workflow.id} description={workflow.description} agentId={agentId} />
         </li>
       ))}
     </ul>
@@ -33,52 +23,25 @@ export function WorkflowList({ workflows }: WorkflowListProps) {
 interface WorkflowEntityProps {
   workflowId: string;
   description: string;
+  agentId: string;
 }
 
-const WorkflowEntity = ({ workflowId, description }: WorkflowEntityProps) => {
-  const { isLoading, data: workflow } = useWorkflow(workflowId);
-
+const WorkflowEntity = ({ workflowId, description, agentId }: WorkflowEntityProps) => {
   const linkRef = useRef<HTMLAnchorElement>(null);
 
-  const handleClick = () => {
-    linkRef.current?.click();
-  };
-
-  const shouldResolveLink = Boolean(!isLoading && workflow);
-
   return (
-    <Entity onClick={shouldResolveLink ? handleClick : undefined} className="flex items-center gap-2">
+    <Entity onClick={() => linkRef.current?.click()} className="flex items-center gap-2">
       <EntityIcon>
         <WorkflowIcon className="group-hover/entity:text-accent3" />
       </EntityIcon>
       <EntityContent>
-        <EntityName>{workflowId}</EntityName>
+        <EntityName>
+          <Link ref={linkRef} to={`/workflows/${workflowId}/graph?agentId=${agentId}`}>
+            {workflowId}
+          </Link>
+        </EntityName>
         <EntityDescription className="flex items-center justify-between gap-2 w-full">{description}</EntityDescription>
       </EntityContent>
-
-      <div className="text-icon3 text-xs ml-auto">
-        <Icon>
-          {isLoading ? (
-            <Spinner />
-          ) : workflow ? (
-            <Link ref={linkRef} to={`/workflows/${workflowId}/graph`}>
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger>
-                <EyeOff className="h-4 w-4" />
-              </TooltipTrigger>
-              <TooltipContent className="flex items-center gap-2">
-                <Icon size="sm">
-                  <Info />
-                </Icon>
-                Workflows that are not registered at the Mastra class level are not available in the UI.
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </Icon>
-      </div>
     </Entity>
   );
 };
