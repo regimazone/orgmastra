@@ -296,7 +296,7 @@ describe('MessageList', () => {
       ] satisfies MastraMessageV3[]);
     });
 
-    it.only('should correctly convert and add a Mastra V1 MessageType with array content (text and tool-call)', () => {
+    it('should correctly convert and add a Mastra V1 MessageType with array content (text and tool-call)', () => {
       const inputV1Message = {
         id: 'v1-msg-2',
         role: 'assistant',
