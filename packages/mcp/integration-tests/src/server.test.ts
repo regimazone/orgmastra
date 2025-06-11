@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process';
-import { createServer } from 'node:http';
 import { MCPClient } from '@mastra/mcp';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { ServerInfo } from '@mastra/core/mcp';
-import { getPort } from 'get-port';
+import getPort from 'get-port';
 
 vi.setConfig({ testTimeout: 20000, hookTimeout: 20000 });
 
