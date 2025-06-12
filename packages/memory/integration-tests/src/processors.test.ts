@@ -291,7 +291,8 @@ describe('Memory with Processors', () => {
     );
 
     // TODO: why do we need as any here? we didn't in AI SDK v4. Probably this is because of us using generateText<any,any,any> to get around infinite type recursion issues
-    const responseMessages = JSON.parse((res.request.body as any) || '')?.messages;
+    // @ts-expect-error
+    const responseMessages = res.request.body?.messages;
     if (!Array.isArray(responseMessages)) {
       throw new Error(`responseMessages should be an array`);
     }
@@ -316,7 +317,8 @@ describe('Memory with Processors', () => {
     );
 
     // TODO: why do we need as any here? we didn't in AI SDK v4. Probably this is because of us using generateText<any,any,any> to get around infinite type recursion issues
-    const responseMessages2 = JSON.parse((res2.request.body as any) || '')?.messages;
+    // @ts-expect-error
+    const responseMessages2 = res2.request.body?.messages;
     if (!Array.isArray(responseMessages)) {
       throw new Error(`responseMessages should be an array`);
     }

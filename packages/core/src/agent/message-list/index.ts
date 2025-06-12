@@ -154,9 +154,7 @@ export class MessageList {
 
     aiV5: {
       model: () => this.convertToModelMessages(this.input.aiV5.ui()),
-      ui: (): AIV5.UIMessage[] => {
-        throw new Error(`TODO`);
-      },
+      ui: (): AIV5.UIMessage[] => this.input.v3().map(MessageList.toUIMessage),
     },
   };
   private response = {
