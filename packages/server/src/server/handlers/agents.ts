@@ -261,8 +261,6 @@ export async function streamGenerateHandler({
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'stream'> & {
-    // @deprecated use resourceId
-    resourceid?: string;
     runtimeContext?: string;
   };
 }): Promise<Response | undefined> {
@@ -273,9 +271,7 @@ export async function streamGenerateHandler({
       throw new HTTPException(404, { message: 'Agent not found' });
     }
 
-    const { messages, resourceId, resourceid, runtimeContext: agentRuntimeContext, ...rest } = body;
-    // Use resourceId if provided, fall back to resourceid (deprecated)
-    const finalResourceId = resourceId ?? resourceid;
+    const { messages, resourceId, runtimeContext: agentRuntimeContext, ...rest } = body;
 
     const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
       ...Array.from(runtimeContext.entries()),
@@ -287,7 +283,7 @@ export async function streamGenerateHandler({
     const streamResult = await agent.stream(messages, {
       ...rest,
       // @ts-expect-error TODO fix types
-      resourceId: finalResourceId,
+      resourceId,
       runtimeContext: finalRuntimeContext,
     });
 
