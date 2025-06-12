@@ -190,6 +190,7 @@ export function createStep<
   if (params instanceof Agent) {
     return {
       id: params.name,
+      description: params.getDescription(),
       // @ts-ignore
       inputSchema: z.object({
         prompt: z.string(),
@@ -271,6 +272,7 @@ export function createStep<
       // TODO: tool probably should have strong id type
       // @ts-ignore
       id: params.id,
+      description: params.description,
       inputSchema: params.inputSchema,
       outputSchema: params.outputSchema,
       execute: async ({ inputData, mastra, runtimeContext }) => {
