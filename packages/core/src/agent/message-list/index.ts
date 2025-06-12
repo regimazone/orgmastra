@@ -284,21 +284,19 @@ ${JSON.stringify(message, null, 2)}`,
     const latestMessage = this.messages.at(-1);
 
     const singleToolResult =
-      messageV3.role === `assistant` &&
-      messageV3.content.parts.length === 1 &&
-      messageV3.content.parts[0]?.type === `tool-invocation` &&
-      messageV3.content.parts[0].toolInvocation.state === `result` &&
-      messageV3.content.parts[0];
+      MessageList.isAIV5CoreMessage(message) &&
+      message.role === 'tool' &&
+      message.content.filter(c => c.type === `tool-result`)?.length === 1 &&
+      message.content[0];
 
     if (
       singleToolResult &&
       (latestMessage?.role !== `assistant` ||
         !latestMessage.content.parts.some(
-          p =>
-            p.type === `tool-invocation` && p.toolInvocation.toolCallId === singleToolResult.toolInvocation.toolCallId,
+          p => p.type === `tool-invocation` && p.toolInvocation.toolCallId === singleToolResult.toolCallId,
         ))
     ) {
-      // remove any tool results that aren't updating a tool call
+      // remove any tool results that aren't updating a tool call for ModelMessages
       return;
     }
 
