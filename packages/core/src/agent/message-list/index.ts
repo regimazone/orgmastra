@@ -374,11 +374,6 @@ ${JSON.stringify(message, null, 2)}`,
     }
     // Else the last message and this message are not both assistant messages OR an existing message has been updated and should be replaced. add a new message to the array or update an existing one.
     else {
-      if (messageV3.role === 'assistant' && messageV3.content.parts[0]?.type !== `step-start`) {
-        // Add step-start part for new assistant messages
-        messageV3.content.parts.unshift({ type: 'step-start' });
-      }
-
       const existingIndex = (shouldReplace && this.messages.findIndex(m => m.id === id)) || -1;
       const existingMessage = existingIndex !== -1 && this.messages[existingIndex];
 
@@ -614,7 +609,6 @@ ${JSON.stringify(message, null, 2)}`,
         })
       : undefined;
 
-    const content = [...message.content.parts].reverse().find(m => m.type === `text`)?.text;
     const v2Msg: MastraMessageV2 = {
       id: message.id,
       resourceId: message.resourceId,
@@ -665,16 +659,6 @@ ${JSON.stringify(message, null, 2)}`,
       v2Msg.content.toolInvocations = toolInvocations;
     }
     if (message.type) v2Msg.type = message.type;
-    if (content) v2Msg.content.content = content;
-
-    // const fileParts = message.content.parts.filter(p => p.type === `file`);
-    // if (fileParts.length) {
-    //   v2Msg.content.experimental_attachments = fileParts.map(p => ({
-    //     contentType: p.mediaType,
-    //     url: p.url,
-    //     name: new URL(p.url).pathname.split(`/`).at(-1) || 'unknown',
-    //   }));
-    // }
 
     return v2Msg;
   }
@@ -724,7 +708,6 @@ ${JSON.stringify(message, null, 2)}`,
     const toolInvocations: AIV5.ToolInvocation[] = [];
 
     if (typeof coreMessage.content === 'string') {
-      parts.push({ type: 'step-start' });
       parts.push({
         type: 'text',
         text: coreMessage.content,
@@ -825,7 +808,6 @@ ${JSON.stringify(message, null, 2)}`,
     const toolInvocations: AIV5.ToolInvocation[] = [];
 
     if (typeof coreMessage.content === 'string') {
-      parts.push({ type: 'step-start' });
       parts.push({
         type: 'text',
         text: coreMessage.content,

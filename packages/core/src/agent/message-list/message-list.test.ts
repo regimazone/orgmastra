@@ -120,7 +120,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 3,
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello from Core!' }],
+          parts: [{ type: 'text', text: 'Hello from Core!' }],
         },
         threadId,
         resourceId,
@@ -150,7 +150,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 3,
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello from Core!' }],
+          parts: [{ type: 'text', text: 'Hello from Core!' }],
         },
         threadId,
         resourceId,
@@ -218,7 +218,7 @@ describe('MessageList', () => {
         {
           id: expect.any(String),
           role: `user` as const,
-          parts: [{ type: 'step-start' }, { type: 'text' as const, text: messageOne.content }],
+          parts: [{ type: 'text' as const, text: messageOne.content }],
           metadata: { createdAt: expect.any(Date) },
         },
         {
@@ -226,7 +226,6 @@ describe('MessageList', () => {
           role: 'assistant',
           metadata: { createdAt: expect.any(Date) },
           parts: [
-            { type: 'step-start' },
             {
               type: 'tool-invocation',
               toolInvocation: {
@@ -268,7 +267,7 @@ describe('MessageList', () => {
           role: `user` as const,
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text' as const, text: messageOne.content }],
+            parts: [{ type: 'text' as const, text: messageOne.content }],
           },
           createdAt: expect.any(Date),
         },
@@ -279,7 +278,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'tool-invocation',
                 toolInvocation: {
@@ -319,9 +317,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Okay, checking the weather.',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, checking the weather.' },
               {
                 type: 'tool-invocation',
@@ -372,7 +368,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, checking the weather.' },
               {
                 type: 'tool-invocation',
@@ -411,8 +406,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Hello from V1!',
-            parts: [{ type: 'step-start' }, { type: 'text', text: inputV1Message.content }],
+            parts: [{ type: 'text', text: inputV1Message.content }],
           },
           threadId,
           resourceId,
@@ -443,9 +437,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Okay, I can do that.',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I can do that.' },
               {
                 type: 'tool-invocation',
@@ -496,7 +488,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I can do that.' },
               {
                 type: 'tool-invocation',
@@ -549,7 +540,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Initial user query',
             parts: msg1.parts,
           },
           threadId,
@@ -561,9 +551,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Thinking...',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: msg2.content[0].text },
               {
                 type: 'tool-invocation',
@@ -595,7 +583,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here are the results.',
             parts: msg4.parts,
           },
           threadId,
@@ -663,9 +650,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Result of step 1.',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -699,7 +684,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'Step 1: Analyze',
@@ -731,7 +715,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is an image:',
             parts: [
               { type: 'text', text: 'Here is an image:' },
               { type: 'file', mimeType: 'image/png', data: 'AQIDBA==' }, // Base64 of [1, 2, 3, 4]
@@ -796,9 +779,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Analysis complete.',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -838,7 +819,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'Analyzing data...',
@@ -875,7 +855,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is a document:',
             parts: [
               { type: 'text', text: 'Here is a document:' },
               { type: 'file', mimeType: 'application/pdf', data: 'JVBERi0xLjQKJ...' },
@@ -960,9 +939,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Step 1: Call tool A',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 1: Call tool A' },
               {
                 type: 'tool-invocation',
@@ -994,9 +971,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Step 2: Call tool B',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 2: Call tool B' },
               {
                 type: 'tool-invocation',
@@ -1028,8 +1003,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'Final response.' }],
-            content: 'Final response.',
+            parts: [{ type: 'text', text: 'Final response.' }],
           },
           threadId,
           resourceId,
@@ -1077,7 +1051,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 1: Call tool A' },
               {
                 type: 'tool-invocation',
@@ -1101,7 +1074,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 2: Call tool B' },
               {
                 type: 'tool-invocation',
@@ -1124,7 +1096,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'Final response.' }],
+            parts: [{ type: 'text', text: 'Final response.' }],
           },
           threadId,
           resourceId,
@@ -1173,8 +1145,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1185,9 +1156,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: 'Calling data tool...',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -1224,9 +1193,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: 'Task completed successfully with gathered data.',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -1282,7 +1249,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1294,7 +1261,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'First, I need to gather some data.',
@@ -1322,7 +1288,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'Data gathered, now processing.',
@@ -1364,7 +1329,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is an image URL:',
             parts: [
               { type: 'text', text: 'Here is an image URL:' },
               {
@@ -1403,7 +1367,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is another image URL:',
             parts: [
               { type: 'text', text: 'Here is another image URL:' },
               {
@@ -1446,7 +1409,6 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
-          content: 'Message with attachment',
           parts: [
             { type: 'text', text: 'Message with attachment' },
             {
@@ -1529,7 +1491,6 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
-          content: 'Check out this image:',
           parts: [
             { type: 'text', text: 'Check out this image:' },
             {
@@ -1600,8 +1561,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: userMsgV1.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsgV1.content }],
+            parts: [{ type: 'text', text: userMsgV1.content }],
           },
           threadId,
           resourceId,
@@ -1612,9 +1572,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Searching...',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Searching...' },
               {
                 type: 'tool-invocation',
@@ -1646,9 +1604,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is the information I found.',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
           },
@@ -1714,7 +1670,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsgV1.content }],
+            parts: [{ type: 'text', text: userMsgV1.content }],
           },
           threadId,
           resourceId,
@@ -1726,7 +1682,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Searching...' },
               {
                 type: 'tool-invocation',
@@ -1750,7 +1705,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
           },
@@ -1802,8 +1756,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1814,9 +1767,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: 'Okay, I will perform the task.',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will perform the task.' },
               {
                 type: 'tool-invocation',
@@ -1848,8 +1799,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'The task is now complete.' }],
-            content: 'The task is now complete.',
+            parts: [{ type: 'text', text: 'The task is now complete.' }],
           },
           threadId,
           resourceId,
@@ -1899,7 +1849,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1911,7 +1861,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will perform the task.' },
               {
                 type: 'tool-invocation',
@@ -1934,7 +1883,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'The task is now complete.' }],
+            parts: [{ type: 'text', text: 'The task is now complete.' }],
           },
           threadId,
           resourceId,
@@ -1964,7 +1913,6 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Here is an embedded image:',
             parts: [
               { type: 'text', text: 'Here is an embedded image:' },
               {
@@ -2074,9 +2022,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: 'Gathering data...',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -2134,7 +2080,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'First, I need to gather some data.',
@@ -2209,8 +2154,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -2221,9 +2165,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: 'And now for Paris.',
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will check the weather for both cities.' },
               {
                 type: 'tool-invocation',
@@ -2273,9 +2215,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy.",
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy." },
             ],
           },
@@ -2333,7 +2273,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -2345,7 +2285,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will check the weather for both cities.' },
               {
                 type: 'tool-invocation',
@@ -2380,7 +2319,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy." },
             ],
           },
@@ -2409,7 +2347,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -2447,7 +2384,6 @@ describe('MessageList', () => {
           content: {
             format: 3,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 text: 'Thinking step 1...',
@@ -2624,23 +2560,22 @@ describe('MessageList', () => {
           {
             id: 'c59c844b-0f1a-409a-995e-3382a3ee1eaa',
             role: 'user',
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'hi' }],
+            parts: [{ type: 'text', text: 'hi' }],
           },
           {
             id: '7bb920f1-1a89-4f1a-8fb0-6befff982946',
             role: 'assistant',
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello! How can I assist you today?' }],
+            parts: [{ type: 'text', text: 'Hello! How can I assist you today?' }],
           },
           {
             id: '673b1279-9ce5-428e-a646-d19d83ed4d67',
             role: 'user',
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'LA' }],
+            parts: [{ type: 'text', text: 'LA' }],
           },
           {
             id: '6a903ed0-1cf4-463d-8ea0-c13bd0896405',
             role: 'assistant',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'tool-invocation',
                 toolInvocation: {
@@ -2657,7 +2592,6 @@ describe('MessageList', () => {
             id: 'd1fc1d8e-2aca-47a8-8239-0bb761d63fd6',
             role: 'assistant',
             parts: [
-              { type: 'step-start' },
               {
                 type: 'text',
                 text: "Got it! You're in LA. What would you like to talk about or do today?",
@@ -2673,7 +2607,7 @@ describe('MessageList', () => {
           {
             id: 'msg-Cpo828mGmAc8dhWwQcD32Net',
             role: 'assistant',
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello again! How can I help you today?' }],
+            parts: [{ type: 'text', text: 'Hello again! How can I help you today?' }],
           },
           {
             id: 'eab9da82-6120-4630-b60e-0a7cb86b0718',
@@ -2683,7 +2617,7 @@ describe('MessageList', () => {
           {
             id: 'msg-JpZvGeyqVaUo1wthbXf0EVSS',
             role: 'assistant',
-            parts: [{ type: 'step-start' }, { type: 'text', text: "Hi there! What's on your mind?" }],
+            parts: [{ type: 'text', text: "Hi there! What's on your mind?" }],
           },
           {
             id: expect.any(String), // The last message doesn't have an ID in the input, so MessageList generates one
@@ -2716,7 +2650,7 @@ describe('MessageList', () => {
       //     id: newId,
       //     content: 'As a large language model...',
       //     createdAt: expect.any(Date),
-      //     parts: [{ type: 'step-start' }, { type: 'text', text: 'As a large language model...' }],
+      //     parts: [ { type: 'text', text: 'As a large language model...' }],
       //     reasoning: undefined,
       //     toolInvocations: undefined,
       //   } satisfies AIV4.UIMessage,
@@ -2728,7 +2662,7 @@ describe('MessageList', () => {
       //   createdAt: new Date(),
       //   content: 'Do it anyway please',
       //   experimental_attachments: [],
-      //   parts: [{ type: 'step-start' }, { type: 'text', text: 'Do it anyway please' }],
+      //   parts: [ { type: 'text', text: 'Do it anyway please' }],
       // } satisfies AIV4.Message;
       //
       // const newUIMessages3 = appendClientMessage({
@@ -2769,9 +2703,9 @@ describe('MessageList', () => {
       //     id: expect.any(String),
       //     createdAt: expect.any(Date),
       //     parts: [
-      //       { type: 'step-start' },
+      //
       //       { type: 'text', text: "Ok fine I'll call a tool then" },
-      //       { type: 'step-start' },
+      //
       //       {
       //         type: 'tool-invocation',
       //         toolInvocation: {
