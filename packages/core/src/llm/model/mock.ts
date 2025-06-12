@@ -154,7 +154,6 @@ export class MockProvider extends MastraLLM {
               type: 'text' as const, // Changed type to 'text'
 
               text: word + ' ', // Changed property name to 'text'
-
             }) as unknown as LanguageModelV2StreamPart,
         );
 
