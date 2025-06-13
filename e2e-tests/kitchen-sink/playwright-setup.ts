@@ -14,4 +14,4 @@ async function setup() {
   stopVerdaccio();
 }
 
-setup();
+export default setup;
