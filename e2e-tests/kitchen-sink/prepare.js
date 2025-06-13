@@ -13,7 +13,8 @@ export async function setupTestProject(pathToStoreFiles) {
   await mkdir(newPath, { recursive: true });
   await cp(projectPath, newPath, { recursive: true });
 
-  stdout.write('Installing dependencies...');
+  process.stdout.write('Global setup completed successfully\n');
+
   spawnSync('pnpm', ['install'], {
     cwd: newPath,
     stdio: 'inherit',
@@ -27,7 +28,8 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  stdout.write('Starting Mastra server...');
+  process.stdout.write('Global setup completed successfully\n');
+
   await pingMastraServer();
 }
 
