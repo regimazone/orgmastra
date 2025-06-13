@@ -25,6 +25,7 @@ export default async function setup() {
   const tag = 'monorepo-test';
   global.tag = tag;
   global.registry = registry.toString();
+  process.env.npm_config_registry = registry.toString();
 
   await publishPackages(['--filter="mastra^..."', '--filter="mastra"'], tag, rootDir, registry);
 
