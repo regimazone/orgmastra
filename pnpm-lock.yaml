@@ -488,7 +488,7 @@ importers:
         version: 7.52.8(@types/node@20.19.0)
       '@rollup/plugin-image':
         specifier: ^3.0.3
-        version: 3.0.3(rollup@3.29.5)
+        version: 3.0.3(rollup@4.43.0)
       '@size-limit/preset-small-lib':
         specifier: ^11.2.0
         version: 11.2.0(size-limit@11.2.0)
@@ -552,7 +552,7 @@ importers:
         version: 7.52.8(@types/node@20.19.0)
       '@rollup/plugin-image':
         specifier: ^3.0.3
-        version: 3.0.3(rollup@4.43.0)
+        version: 3.0.3(rollup@3.29.5)
       '@size-limit/preset-small-lib':
         specifier: ^11.2.0
         version: 11.2.0(size-limit@11.2.0)
@@ -2027,6 +2027,9 @@ importers:
 
   packages/playground-ui:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: 3.0.0-alpha.12
+        version: 3.0.0-alpha.12(zod@3.25.57)
       '@ai-sdk/ui-utils':
         specifier: ^1.2.11
         version: 1.2.11(zod@3.25.57)
@@ -2123,6 +2126,9 @@ importers:
       '@xyflow/react':
         specifier: ^12.6.4
         version: 12.6.4(@types/react@19.1.7)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      ai:
+        specifier: 5.0.0-alpha.12
+        version: 5.0.0-alpha.12(zod@3.25.57)
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.1.6(@types/react@19.1.7))(@types/react@19.1.7)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -3533,6 +3539,12 @@ packages:
     peerDependencies:
       zod: ^3.25.49
 
+  '@ai-sdk/gateway@1.0.0-alpha.12':
+    resolution: {integrity: sha512-HFdan7OSX1T5v4SXZDIGBsi489Tn6EdEr+7A66SYf6UjD4rYju4XOrFquTrK5lcAucCFVjj9ySSrkNWLRy5N3A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.49
+
   '@ai-sdk/openai@1.3.22':
     resolution: {integrity: sha512-QwA+2EkG0QyjVR+7h6FE7iOu2ivNqAVMm9UJZkVxxTk5OIq5fFJDTEI/zICEMuHImTTXR2JjsL6EirJ28Jc4cw==}
     engines: {node: '>=18'}
@@ -3578,6 +3590,12 @@ packages:
     peerDependencies:
       zod: ^3.25.49
 
+  '@ai-sdk/provider-utils@3.0.0-alpha.12':
+    resolution: {integrity: sha512-crwRIg3n6ab+ElkxBaTStu7mF7S1yMeTLBQr+3VsnJxXQuggMWjpxIQ1DE019HqVV6NXvrdzk2aeO3JU5eSR0w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.49
+
   '@ai-sdk/provider-utils@3.0.0-alpha.8':
     resolution: {integrity: sha512-unF27VpLGWpbj1lyUNBTPSiS9HDSi0CDrGgEYAUNBBL7t8m9A6KokQTv26mkM0fyVzU39YmUbiMYsgnVryDoxA==}
     engines: {node: '>=18'}
@@ -3598,6 +3616,10 @@ packages:
 
   '@ai-sdk/provider@2.0.0-alpha.11':
     resolution: {integrity: sha512-AQwaa9ffyBlieBoWXTQNs4AjZXifj/03QDPuMr94noG1fahhCRL+Ko3dyaz1kyWtLdxeEK/VPRGeWRAVIke4BA==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@2.0.0-alpha.12':
+    resolution: {integrity: sha512-Sln9EjB7fWPC3zM20o3NX+p16n3Gxzg0UOol4/fLkctY/ZblQJ2K8ZQ4lzbsKQECzyTZU9n8F0QIXS0J3gF/EQ==}
     engines: {node: '>=18'}
 
   '@ai-sdk/provider@2.0.0-alpha.8':
@@ -6309,6 +6331,7 @@ packages:
   '@lancedb/lancedb@0.18.2':
     resolution: {integrity: sha512-mWrijjkUVmf7HseX2SnZVh5M1tYAnO+pB1f81AVMKiSMfR4OqpA/6lQ2hk6qeQqJ6NNc/8pIgjkvwfGyp1QOag==}
     engines: {node: '>= 18'}
+    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
@@ -10207,6 +10230,12 @@ packages:
     peerDependencies:
       zod: ^3.25.49
 
+  ai@5.0.0-alpha.12:
+    resolution: {integrity: sha512-5V6txd1jAQsGTb3xnwdFjnPegj89sESIVn6sexLvPXVu0yIswl3GSTF/otfcSovvJ81QnIW8X2SKQ7CEaEoHKQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.49
+
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
     peerDependencies:
@@ -14016,6 +14045,7 @@ packages:
 
   libsql@0.5.13:
     resolution: {integrity: sha512-5Bwoa/CqzgkTwySgqHA5TsaUDRrdLIbdM4egdPcaAnqO3aC+qAgS6BwdzuZwARA5digXwiskogZ8H7Yy4XfdOg==}
+    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   light-my-request@5.14.0:
@@ -18107,6 +18137,12 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.0-alpha.11(zod@3.25.57)
       zod: 3.25.57
 
+  '@ai-sdk/gateway@1.0.0-alpha.12(zod@3.25.57)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0-alpha.12
+      '@ai-sdk/provider-utils': 3.0.0-alpha.12(zod@3.25.57)
+      zod: 3.25.57
+
   '@ai-sdk/openai@1.3.22(zod@3.25.57)':
     dependencies:
       '@ai-sdk/provider': 1.1.3
@@ -18155,6 +18191,13 @@ snapshots:
       zod: 3.25.57
       zod-to-json-schema: 3.24.5(zod@3.25.57)
 
+  '@ai-sdk/provider-utils@3.0.0-alpha.12(zod@3.25.57)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0-alpha.12
+      '@standard-schema/spec': 1.0.0
+      zod: 3.25.57
+      zod-to-json-schema: 3.24.5(zod@3.25.57)
+
   '@ai-sdk/provider-utils@3.0.0-alpha.8(zod@3.25.57)':
     dependencies:
       '@ai-sdk/provider': 2.0.0-alpha.8
@@ -18175,6 +18218,10 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@2.0.0-alpha.11':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@2.0.0-alpha.12':
     dependencies:
       json-schema: 0.4.0
 
@@ -26120,6 +26167,14 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       zod: 3.25.57
 
+  ai@5.0.0-alpha.12(zod@3.25.57):
+    dependencies:
+      '@ai-sdk/gateway': 1.0.0-alpha.12(zod@3.25.57)
+      '@ai-sdk/provider': 2.0.0-alpha.12
+      '@ai-sdk/provider-utils': 3.0.0-alpha.12(zod@3.25.57)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.57
+
   ajv-draft-04@1.0.0(ajv@8.13.0):
     optionalDependencies:
       ajv: 8.13.0
@@ -27674,7 +27729,7 @@ snapshots:
       eslint-config-prettier: 8.10.0(eslint@8.57.1)
       eslint-plugin-flowtype: 8.0.3(@babel/plugin-syntax-flow@7.26.0(@babel/core@7.27.4))(@babel/plugin-transform-react-jsx@7.25.9(@babel/core@7.27.4))(eslint@8.57.1)
       eslint-plugin-import: 2.31.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)
-      eslint-plugin-jest: 27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3)
+      eslint-plugin-jest: 27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@8.57.1)
       eslint-plugin-prettier: 4.2.1(eslint-config-prettier@8.10.0(eslint@8.57.1))(eslint@8.57.1)(prettier@2.8.8)
       eslint-plugin-react: 7.37.5(eslint@8.57.1)
@@ -28243,7 +28298,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-jest@27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3):
+  eslint-plugin-jest@27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3):
     dependencies:
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
       eslint: 8.57.1
