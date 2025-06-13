@@ -1,6 +1,6 @@
 import { setupTestProject } from './prepare.js';
 import setupVerdaccio from './setup.js';
-import { chromium, type FullConfig } from '@playwright/test';
+import { spawn } from 'child_process';
 import { mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';

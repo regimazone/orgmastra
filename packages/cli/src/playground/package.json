@@ -1,7 +1,7 @@
 {
   "name": "@mastra/playground",
   "private": true,
-  "version": "0.0.0-create-mastra-e2e-test-20250613085031",
+  "version": "0.0.0-create-mastra-e2e-test-20250613091002",
   "type": "module",
   "scripts": {
     "dev": "vite",
