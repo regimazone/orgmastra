@@ -18,12 +18,9 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  const child = spawnSync('pnpm', ['build'], {
+  const child = spawn('pnpm', ['build'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
-    detached: true,
   });
-
-  process.kill(child.pid);
 }
