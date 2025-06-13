@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { cp, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 export async function setupTestProject(pathToStoreFiles) {
@@ -12,7 +13,7 @@ export async function setupTestProject(pathToStoreFiles) {
   await mkdir(newPath, { recursive: true });
   await cp(projectPath, newPath, { recursive: true });
 
-  console.log('Installing dependencies...');
+  stdout.write('Installing dependencies...');
   spawnSync('pnpm', ['install'], {
     cwd: newPath,
     stdio: 'inherit',
@@ -26,7 +27,7 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  console.log('Ping Mastra server...');
+  stdout.write('Starting Mastra server...');
   await pingMastraServer();
 }
 
