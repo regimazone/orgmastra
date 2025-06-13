@@ -18,16 +18,9 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  spawnSync('pnpm', ['build'], {
+  spawnSync('pnpm', ['dev', '&'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
-  });
-
-  spawn('pnpm', ['start', '&'], {
-    cwd: newPath,
-    stdio: 'inherit',
-    shell: true,
-    detached: true,
   });
 }

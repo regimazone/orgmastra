@@ -14,4 +14,24 @@ async function setup() {
   stopVerdaccio();
 }
 
+const ping = async () => {
+  let counter = 0;
+  return new Promise((resolve, reject) => {
+    const intervalId = setInterval(() => {
+      fetch('http://localhost:4111').then(res => {
+        if (res.ok) {
+          resolve(undefined);
+        } else if (counter > 10) {
+          clearInterval(intervalId);
+          reject(new Error(`Failed after ${counter} attempts`));
+        }
+      });
+
+      counter++;
+    }, 1000);
+  });
+};
+
+ping();
+
 export default setup;
