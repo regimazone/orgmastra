@@ -25,6 +25,7 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
+  console.log('Starting Mastra server...');
   spawn('pnpm', ['start'], {
     cwd: newPath,
     stdio: 'inherit',
@@ -32,6 +33,7 @@ export async function setupTestProject(pathToStoreFiles) {
     detached: true,
   });
 
+  console.log('Ping Mastra server...');
   await pingMastraServer();
 }
 

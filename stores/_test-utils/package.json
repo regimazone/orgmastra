@@ -1,6 +1,6 @@
 {
   "name": "@internal/storage-test-utils",
-  "version": "0.0.0-create-mastra-e2e-test-20250613092615",
+  "version": "0.0.0-create-mastra-e2e-test-20250613092709",
   "description": "",
   "type": "module",
   "main": "src/default-tests.ts",
