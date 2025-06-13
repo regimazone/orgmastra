@@ -11,6 +11,7 @@ async function globalSetup() {
 
   await setupVerdaccio();
   await setupTestProject(projectPath);
+  console.log('SXUUUUUPO');
 }
 
 export default globalSetup;
