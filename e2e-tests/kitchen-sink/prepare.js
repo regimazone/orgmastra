@@ -30,5 +30,9 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
+  server.on('error', error => {
+    console.error('Failed to start app:', error);
+  });
+
   process.env.APP_PROCESS_PID = server.pid?.toString();
 }
