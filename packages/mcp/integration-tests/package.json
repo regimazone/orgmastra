@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-integration-tests",
   "private": true,
-  "version": "0.0.0-create-mastra-e2e-test-20250613140700",
+  "version": "0.0.0-create-mastra-e2e-test-20250613140818",
   "scripts": {
     "test:mcp": "vitest run ./src/server.test.ts",
     "dev": "mastra dev"

@@ -24,7 +24,7 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  spawn('pnpm', ['start'], {
+  spawn('pnpm', ['start', '&'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
