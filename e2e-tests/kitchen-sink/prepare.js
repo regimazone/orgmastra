@@ -24,10 +24,11 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  spawn('pnpm', ['start'], {
+  const server = spawn('pnpm', ['start'], {
     cwd: newPath,
-    stdio: 'inherit',
+    stdio: 'pipe',
     shell: true,
-    detached: true,
   });
+
+  process.env.APP_PROCESS_PID = server.pid?.toString();
 }
