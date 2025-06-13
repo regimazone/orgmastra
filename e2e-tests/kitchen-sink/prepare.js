@@ -23,16 +23,4 @@ export async function setupTestProject(pathToStoreFiles) {
     stdio: 'inherit',
     shell: true,
   });
-
-  const server = spawn('pnpm', ['start'], {
-    cwd: newPath,
-    stdio: 'inherit',
-    shell: true,
-  });
-
-  server.on('error', error => {
-    console.error('Failed to start app:', error);
-  });
-
-  process.env.APP_PROCESS_PID = server.pid?.toString();
 }
