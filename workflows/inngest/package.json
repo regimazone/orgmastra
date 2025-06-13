@@ -1,6 +1,6 @@
 {
   "name": "@mastra/inngest",
-  "version": "0.10.5-alpha.0",
+  "version": "0.0.0-create-mastra-e2e-test-20250613084806",
   "description": "Mastra Inngest integration",
   "type": "module",
   "main": "dist/index.js",
@@ -49,6 +49,6 @@
     "vitest": "^2.1.9"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.2-alpha.0"
+    "@mastra/core": "*"
   }
 }

@@ -1,5 +1,15 @@
 # @internal/lint
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 0.0.8
 
 ### Patch Changes

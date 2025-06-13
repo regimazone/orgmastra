@@ -9,8 +9,8 @@ async function globalSetup() {
   const fixturePath = await mkdtemp(join(tmpdir(), 'mastra-kitchen-sink-test-'));
   const projectPath = join(fixturePath, 'project');
 
-  setupVerdaccio();
-  setupTestProject(projectPath);
+  await setupVerdaccio();
+  await setupTestProject(projectPath);
 }
 
 export default globalSetup;

@@ -1,6 +1,6 @@
 {
   "name": "@mastra/agui",
-  "version": "1.0.3-alpha.0",
+  "version": "0.0.0-create-mastra-e2e-test-20250613084806",
   "description": "AGUI protocol helpers for Mastra",
   "type": "module",
   "files": [
@@ -37,7 +37,7 @@
     "rxjs": "7.8.1"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.0-alpha.0",
+    "@mastra/core": "*",
     "zod": "^3.0.0"
   },
   "devDependencies": {

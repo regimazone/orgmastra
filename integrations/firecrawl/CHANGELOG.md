@@ -1,5 +1,20 @@
 # @mastra/firecrawl
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`zod@^3.25.57` ↗︎](https://www.npmjs.com/package/zod/v/3.25.57) (from `^3.25.56`, in `dependencies`)
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+- Updated dependencies [75136cd]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/rag@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 1.2.4-alpha.0
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "mastra",
-  "version": "0.10.6-alpha.0",
+  "version": "0.0.0-create-mastra-e2e-test-20250613084806",
   "license": "Elastic-2.0",
   "description": "cli for mastra",
   "type": "module",
@@ -98,6 +98,6 @@
     "vitest": "^3.2.3"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.2-alpha.0"
+    "@mastra/core": "*"
   }
 }

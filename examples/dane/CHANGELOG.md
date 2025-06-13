@@ -1,5 +1,28 @@
 # @mastra/dane
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+- Updated dependencies [704d1ca]
+- Updated dependencies [75136cd]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/github@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/libsql@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/mcp@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/memory@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/rag@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/upstash@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 0.0.27-alpha.0
 
 ### Patch Changes

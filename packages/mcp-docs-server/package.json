@@ -1,6 +1,6 @@
 {
   "name": "@mastra/mcp-docs-server",
-  "version": "0.13.1-alpha.0",
+  "version": "0.0.0-create-mastra-e2e-test-20250613084806",
   "description": "MCP server for accessing Mastra.ai documentation, changelogs, and news.",
   "type": "module",
   "main": "dist/index.js",
@@ -58,6 +58,6 @@
     "vitest": "^3.2.3"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.0-alpha.0"
+    "@mastra/core": "*"
   }
 }

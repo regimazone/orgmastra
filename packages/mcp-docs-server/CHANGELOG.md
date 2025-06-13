@@ -1,5 +1,22 @@
 # @mastra/mcp-docs-server
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.12.1` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.12.1) (from `^1.9.0`, in `dependencies`)
+  - Updated dependency [`jsdom@^26.1.0` ↗︎](https://www.npmjs.com/package/jsdom/v/26.1.0) (from `^26.0.0`, in `dependencies`)
+  - Updated dependency [`turndown@^7.2.0` ↗︎](https://www.npmjs.com/package/turndown/v/7.2.0) (from `^7.1.2`, in `dependencies`)
+  - Updated dependency [`zod@^3.25.57` ↗︎](https://www.npmjs.com/package/zod/v/3.25.57) (from `^3.25.56`, in `dependencies`)
+- Updated dependencies [63f6b7d]
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+  - @mastra/mcp@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 0.13.1-alpha.0
 
 ### Patch Changes

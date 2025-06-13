@@ -1,5 +1,17 @@
 # @mastra/chroma
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`chromadb@^2.4.6` ↗︎](https://www.npmjs.com/package/chromadb/v/2.4.6) (from `^2.2.0`, in `dependencies`)
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 0.10.3-alpha.0
 
 ### Patch Changes

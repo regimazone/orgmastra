@@ -1,5 +1,17 @@
 # @mastra/voice-openai-realtime
 
+## 0.0.0-create-mastra-e2e-test-20250613084806
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`ws@^8.18.2` ↗︎](https://www.npmjs.com/package/ws/v/8.18.2) (from `^8.18.1`, in `dependencies`)
+- Updated dependencies [63f6b7d]
+- Updated dependencies [36f1c36]
+- Updated dependencies [10d352e]
+- Updated dependencies [53d3c37]
+  - @mastra/core@0.0.0-create-mastra-e2e-test-20250613084806
+
 ## 0.10.2-alpha.0
 
 ### Patch Changes
