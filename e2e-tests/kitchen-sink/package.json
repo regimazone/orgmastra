@@ -6,7 +6,6 @@
   "description": "E2E tests for @mastra/create-mastra",
   "scripts": {
     "test": "vitest run",
-    "test:e2e:warmup": "tsx test-warmup.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

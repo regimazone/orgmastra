@@ -4,15 +4,18 @@ import { mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-async function warmup() {
-  console.log('Warming up...');
+async function setup() {
   const fixturePath = await mkdtemp(join(tmpdir(), 'mastra-kitchen-sink-test-'));
   const projectPath = join(fixturePath, 'project');
 
-  await setupVerdaccio();
+  const cleanup = await setupVerdaccio();
   await setupTestProject(projectPath);
 
-  console.log('Warmed up!');
+  console.log('Project prepared!');
+
+  return () => {
+    cleanup();
+  };
 }
 
-warmup();
+export default setup;
