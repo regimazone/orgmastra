@@ -8,14 +8,10 @@ async function setup() {
   const fixturePath = await mkdtemp(join(tmpdir(), 'mastra-kitchen-sink-test-'));
   const projectPath = join(fixturePath, 'project');
 
-  const cleanup = await setupVerdaccio();
+  const stopVerdaccio = await setupVerdaccio();
   await setupTestProject(projectPath);
 
-  console.log('Project prepared!');
-
-  return () => {
-    cleanup();
-  };
+  stopVerdaccio();
 }
 
-export default setup;
+setup();
