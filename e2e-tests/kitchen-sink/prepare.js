@@ -1,4 +1,4 @@
-import { exec, execSync, spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { cp, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,10 +18,9 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  execSync('pnpm', ['build'], {
+  spawnSync('pnpm', ['build'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
-    detached: true,
   });
 }
