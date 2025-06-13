@@ -26,7 +26,7 @@ export async function setupTestProject(pathToStoreFiles) {
 
   const server = spawn('pnpm', ['start'], {
     cwd: newPath,
-    stdio: 'pipe',
+    stdio: 'inherit',
     shell: true,
   });
 
