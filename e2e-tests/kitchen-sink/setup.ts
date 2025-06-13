@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 import getPort from 'get-port';
 import { copyFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { startRegistry } from '../_local-registry-setup';
-import { publishPackages } from '../_local-registry-setup/publish';
+import { startRegistry } from '../_local-registry-setup/index.js';
+import { publishPackages } from '../_local-registry-setup/publish.js';
 
 export default async function setup() {
   const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,21 +16,36 @@ export default async function setup() {
 
   const verdaccioPath = require.resolve('verdaccio/bin/verdaccio');
   const port = await getPort();
-  const registryLocation = await mkdtemp(join(tmpdir(), 'mastra-create-test-registry'));
+  const registryLocation = await mkdtemp(join(tmpdir(), 'kitchen-sink-test-registry'));
   console.log('registryLocation', registryLocation);
   console.log('verdaccioPath', verdaccioPath);
   await copyFile(join(__dirname, '../_local-registry-setup/verdaccio.yaml'), join(registryLocation, 'verdaccio.yaml'));
   const registry = await startRegistry(verdaccioPath, port, registryLocation);
 
-  const tag = 'monorepo-test';
+  console.log('registry', registry.toString());
+
+  const tag = 'kitchen-sink-e2e-test';
   global.tag = tag;
   global.registry = registry.toString();
 
-  await publishPackages(['--filter="mastra^..."', '--filter="mastra"'], tag, rootDir, registry);
+  await publishPackages(
+    ['--filter="mastra^..."', '--filter="@mastra/loggers^..."', '--filter="@mastra/loggers"', '--filter="mastra"'],
+    tag,
+    rootDir,
+    registry,
+  );
 
   return () => {
-    teardown();
-    registry.kill();
+    try {
+      teardown();
+    } catch {
+      // ignore
+    }
+    try {
+      registry.kill();
+    } catch {
+      // ignore
+    }
   };
 }
 
