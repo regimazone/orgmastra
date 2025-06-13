@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { cp, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,37 +24,10 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  spawnSync('pnpm', ['start'], {
+  spawn('pnpm', ['start'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
+    detached: true,
   });
-
-  await pingMastraServer();
 }
-
-const pingMastraServer = async () => {
-  let intervalCount = 0;
-
-  return new Promise((resolve, reject) => {
-    const intervalId = setInterval(async () => {
-      if (intervalCount > 10) {
-        clearInterval(intervalId);
-        reject(new Error('Mastra server not responding'));
-      }
-
-      fetch('http://localhost:4111/agents')
-        .then(res => {
-          if (res.ok) {
-            clearInterval(intervalId);
-            resolve();
-          }
-        })
-        .catch(() => {
-          console.log(`Server sleeping... Attempt: ${intervalCount}`);
-        });
-
-      intervalCount++;
-    }, 100);
-  });
-};
