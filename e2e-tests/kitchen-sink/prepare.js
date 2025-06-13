@@ -22,5 +22,6 @@ export async function setupTestProject(pathToStoreFiles) {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
+    detached: true,
   });
 }

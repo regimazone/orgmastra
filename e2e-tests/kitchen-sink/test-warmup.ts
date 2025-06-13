@@ -11,6 +11,8 @@ async function warmup() {
 
   await setupVerdaccio();
   await setupTestProject(projectPath);
+
+  console.log('Warmed up!');
 }
 
 warmup();
