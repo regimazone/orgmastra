@@ -27,6 +27,7 @@ export default async function setup() {
   const tag = 'kitchen-sink-e2e-test';
   global.tag = tag;
   global.registry = registry.toString();
+  process.env.npm_config_registry = registry.toString();
 
   await publishPackages(
     ['--filter="mastra^..."', '--filter="@mastra/loggers^..."', '--filter="@mastra/loggers"', '--filter="mastra"'],
