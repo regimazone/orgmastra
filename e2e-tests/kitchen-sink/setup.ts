@@ -1,4 +1,3 @@
-import type { TestProject } from 'vitest/node';
 import { prepareMonorepo } from '../_local-registry-setup/prepare.js';
 import { globby } from 'globby';
 import { dirname, join } from 'node:path';

@@ -10,28 +10,35 @@ async function setup() {
 
   const stopVerdaccio = await setupVerdaccio();
   await setupTestProject(projectPath);
+  await ping();
 
   stopVerdaccio();
 }
 
 const ping = async () => {
   let counter = 0;
+
   return new Promise((resolve, reject) => {
     const intervalId = setInterval(() => {
-      fetch('http://localhost:4111').then(res => {
-        if (res.ok) {
-          resolve(undefined);
-        } else if (counter > 10) {
-          clearInterval(intervalId);
-          reject(new Error(`Failed after ${counter} attempts`));
-        }
-      });
+      fetch('http://localhost:4111')
+        .then(res => {
+          if (res.ok) {
+            resolve(undefined);
+          } else if (counter > 10) {
+            clearInterval(intervalId);
+            reject(new Error(`Failed after ${counter} attempts`));
+          }
+        })
+        .catch(() => {
+          if (counter > 10) {
+            clearInterval(intervalId);
+            reject(new Error(`Failed after ${counter} attempts`));
+          }
+        });
 
       counter++;
-    }, 1000);
+    }, 200);
   });
 };
-
-ping();
 
 export default setup;
