@@ -1,24 +1,27 @@
 import { client } from '@/lib/client';
+import { GetLogParams } from '@mastra/client-js';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useInView } from './use-in-view';
 
-export const useLogsByRunId = (runId: string) => {
+export const useLogsByRunId = (runId: string, opts?: Pick<GetLogParams, 'logLevel' | 'fromDate' | 'toDate'>) => {
   const { transports, isLoading: isLoadingTransports } = useLogTransports();
 
   const transportId = transports[0];
 
-  const { isLoading, ...data } = useInfiniteQuery({
-    queryKey: ['logs', runId],
-    staleTime: 0,
-    gcTime: 0,
+  const { inView: isEndOfListInView, setRef: setEndOfListElement } = useInView();
+
+  const query = useInfiniteQuery({
+    queryKey: ['logs', { runId, opts }],
     queryFn: async ({ pageParam }) => {
       const res = await client.getLogForRun({
         transportId,
         runId,
         page: pageParam,
         perPage: 50,
+        ...opts,
       });
 
       return res;
@@ -31,11 +34,19 @@ export const useLogsByRunId = (runId: string) => {
     },
     initialPageParam: 0,
     enabled: Boolean(transportId),
-    refetchInterval: 1000,
+    refetchInterval: 2000,
     select: data => data.pages.flatMap(page => page.logs),
+    staleTime: 0,
+    gcTime: 0,
   });
 
-  return { ...data, isLoading: isLoading || isLoadingTransports };
+  useEffect(() => {
+    if (isEndOfListInView && query.hasNextPage && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [isEndOfListInView, query.hasNextPage, query.isFetchingNextPage]);
+
+  return { ...query, isLoading: query.isLoading || isLoadingTransports, setEndOfListElement };
 };
 
 export const useLogTransports = () => {

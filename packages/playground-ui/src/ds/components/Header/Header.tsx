@@ -6,14 +6,19 @@ import { Txt } from '../Txt';
 export interface HeaderProps {
   children?: React.ReactNode;
   border?: boolean;
+  className?: string;
 }
 
-export const Header = ({ children, border = true }: HeaderProps) => {
+export const Header = ({ children, border = true, className }: HeaderProps) => {
   return (
     <header
-      className={clsx('h-header-default z-50 flex w-full items-center gap-[18px] bg-transparent px-5', {
-        'border-b-sm border-border1': border,
-      })}
+      className={clsx(
+        'h-header-default z-50 flex w-full items-center gap-[18px] bg-transparent px-5',
+        border && {
+          'border-b-sm border-border1': border,
+        },
+        className,
+      )}
     >
       {children}
     </header>
