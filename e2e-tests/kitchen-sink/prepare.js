@@ -18,8 +18,13 @@ export async function setupTestProject(pathToStoreFiles) {
     shell: true,
   });
 
-  console.log('Building project...');
   spawnSync('pnpm', ['build'], {
+    cwd: newPath,
+    stdio: 'inherit',
+    shell: true,
+  });
+
+  spawnSync('pnpm', ['start'], {
     cwd: newPath,
     stdio: 'inherit',
     shell: true,
