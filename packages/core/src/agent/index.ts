@@ -489,7 +489,7 @@ export class Agent<
     // need to use text, not object output or it will error for models that don't support structured output (eg Deepseek R1)
     const llm = await this.getLLM({ runtimeContext });
 
-    const normMessage = new MessageList().add(message, 'user').get.all.ui().at(-1);
+    const normMessage = new MessageList().add(message, 'user').get.all.aiV5.ui().at(-1);
     if (!normMessage) {
       throw new Error(`Could not generate title from input ${JSON.stringify(message)}`);
     }
@@ -544,7 +544,7 @@ export class Agent<
     let title = `New Thread ${new Date().toISOString()}`;
     try {
       if (userMessage) {
-        const normMessage = new MessageList().add(userMessage, 'user').get.all.ui().at(-1);
+        const normMessage = new MessageList().add(userMessage, 'user').get.all.aiV5.ui().at(-1);
         if (normMessage) {
           title = await this.generateTitleFromUserMessage({
             message: normMessage,
@@ -644,7 +644,7 @@ export class Agent<
             k,
             {
               description: tool.description,
-              parameters: tool.parameters,
+              inputSchema: `inputSchema` in tool ? tool.inputSchema : undefined,
               execute:
                 typeof tool?.execute === 'function'
                   ? async (args: any, options: any) => {
@@ -885,7 +885,7 @@ export class Agent<
         (memo, [workflowName, workflow]) => {
           memo[workflowName] = {
             description: workflow.description || `Workflow: ${workflowName}`,
-            parameters: workflow.inputSchema || { type: 'object', properties: {} },
+            inputSchema: workflow.inputSchema || { type: 'object', properties: {} },
             execute: async (args: any) => {
               try {
                 this.logger.debug(`[Agent:${this.name}] - Executing workflow as tool ${workflowName}`, {
