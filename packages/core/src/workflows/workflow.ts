@@ -934,7 +934,7 @@ export class Workflow<
    * @param options Optional configuration for the run
    * @returns A Run instance that can be used to execute the workflow
    */
-  createRun(options?: { runId?: string }): Run<TEngineType, TSteps, TInput, TOutput> {
+  async createRun(options?: { runId?: string }): Promise<Run<TEngineType, TSteps, TInput, TOutput>> {
     if (this.stepFlow.length === 0) {
       throw new Error(
         'Execution flow of workflow is not defined. Add steps to the workflow via .then(), .branch(), etc.',
@@ -991,7 +991,7 @@ export class Workflow<
   }): Promise<z.infer<TOutput>> {
     this.__registerMastra(mastra);
 
-    const run = resume?.steps?.length ? this.createRun({ runId: resume.runId }) : this.createRun();
+    const run = await (resume?.steps?.length ? this.createRun({ runId: resume.runId }) : this.createRun());
     const unwatch = run.watch(event => {
       emitter.emit('nested-watch', { event, workflowId: this.id, runId: run.runId, isResume: !!resume?.steps?.length });
     });
