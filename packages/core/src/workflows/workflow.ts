@@ -959,6 +959,24 @@ export class Workflow<
         cleanup: () => this.#runs.delete(runIdToUse),
       });
 
+    await this.mastra?.getStorage()?.persistWorkflowSnapshot({
+      workflowName: this.id,
+      runId: runIdToUse,
+      snapshot: {
+        runId: runIdToUse,
+        status: 'pending',
+        value: {},
+        context: {},
+        activePaths: [],
+        serializedStepGraph: this.serializedStepGraph,
+        suspendedPaths: {},
+        result: undefined,
+        error: undefined,
+        // @ts-ignore
+        timestamp: Date.now(),
+      },
+    });
+
     this.#runs.set(runIdToUse, run);
 
     return run;
