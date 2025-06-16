@@ -426,10 +426,12 @@ describe('Working Memory Tests', () => {
       // It actually should return V1 for now (CoreMessage compatible)
 
       // Pure text message should be present
-      expect(saved.some(m => m.content.content === 'Another normal message')).toBe(true);
+      expect(
+        saved.some(m => `text` in m.content.parts[1] && m.content.parts[1].text === 'Another normal message'),
+      ).toBe(true);
       // User message should be present
       expect(
-        saved.some(m => typeof m.content.content === 'string' && m.content.content.includes('User says something')),
+        saved.some(m => m.content.parts.find(p => p.type === 'text' && p.text?.includes?.('User says something'))),
       ).toBe(true);
     });
   });
