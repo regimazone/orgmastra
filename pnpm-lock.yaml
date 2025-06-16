@@ -488,7 +488,7 @@ importers:
         version: 7.52.8(@types/node@20.19.0)
       '@rollup/plugin-image':
         specifier: ^3.0.3
-        version: 3.0.3(rollup@4.43.0)
+        version: 3.0.3(rollup@3.29.5)
       '@size-limit/preset-small-lib':
         specifier: ^11.2.0
         version: 11.2.0(size-limit@11.2.0)
@@ -552,7 +552,7 @@ importers:
         version: 7.52.8(@types/node@20.19.0)
       '@rollup/plugin-image':
         specifier: ^3.0.3
-        version: 3.0.3(rollup@3.29.5)
+        version: 3.0.3(rollup@4.43.0)
       '@size-limit/preset-small-lib':
         specifier: ^11.2.0
         version: 11.2.0(size-limit@11.2.0)
@@ -1264,8 +1264,8 @@ importers:
         version: 5.19.4
     devDependencies:
       '@ai-sdk/openai':
-        specifier: 2.0.0-alpha.10
-        version: 2.0.0-alpha.10(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@babel/core':
         specifier: ^7.27.4
         version: 7.27.4
@@ -1549,8 +1549,8 @@ importers:
         version: 3.25.57
     devDependencies:
       '@ai-sdk/openai':
-        specifier: latest
-        version: 1.3.22(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@internal/lint':
         specifier: workspace:*
         version: link:../_config
@@ -1678,8 +1678,8 @@ importers:
         specifier: ^1.2.12
         version: 1.2.12(zod@3.25.57)
       '@ai-sdk/openai':
-        specifier: 2.0.0-alpha.10
-        version: 2.0.0-alpha.10(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@hono/node-server':
         specifier: ^1.14.4
         version: 1.14.4(hono@4.7.11)
@@ -1857,11 +1857,11 @@ importers:
   packages/mcp/integration-tests:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^1.3.22
-        version: 1.3.22(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@ai-sdk/react':
-        specifier: ^1.2.12
-        version: 1.2.12(react@19.1.0)(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(react@19.1.0)(zod@3.25.57)
       '@mastra/client-js':
         specifier: workspace:*
         version: link:../../../client-sdks/client-js
@@ -1928,8 +1928,8 @@ importers:
         version: 3.25.57
     devDependencies:
       '@ai-sdk/openai':
-        specifier: 2.0.0-alpha.10
-        version: 2.0.0-alpha.10(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@internal/lint':
         specifier: workspace:*
         version: link:../_config
@@ -1964,11 +1964,11 @@ importers:
   packages/memory/integration-tests:
     dependencies:
       '@ai-sdk/openai':
-        specifier: 2.0.0-alpha.11
-        version: 2.0.0-alpha.11(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@ai-sdk/react':
-        specifier: 2.0.0-alpha.11
-        version: 2.0.0-alpha.11(react@19.1.0)(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(react@19.1.0)(zod@3.25.57)
       '@mastra/fastembed':
         specifier: workspace:*
         version: link:../../fastembed
@@ -2370,8 +2370,8 @@ importers:
   packages/server:
     devDependencies:
       '@ai-sdk/openai':
-        specifier: 2.0.0-alpha.11
-        version: 2.0.0-alpha.11(zod@3.25.57)
+        specifier: 2.0.0-alpha.14
+        version: 2.0.0-alpha.14(zod@3.25.57)
       '@internal/lint':
         specifier: workspace:*
         version: link:../_config
@@ -3564,12 +3564,6 @@ packages:
     peerDependencies:
       zod: ^3.25.49
 
-  '@ai-sdk/gateway@1.0.0-alpha.11':
-    resolution: {integrity: sha512-q33Um+GlUvWPIPgx/MKRkArbtanXcK8aJzfR6meW6BSwxuE2lh6l4m4v97/Wyt/IEnkfz5wBPVFXiLC91l9JzQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
   '@ai-sdk/gateway@1.0.0-alpha.13':
     resolution: {integrity: sha512-S5MN+roZZjdF+IkakZ+JWFJw/rhPEGuTBu1KeCjFCBl1A6IifBtcj5E9bOBkT7Rq2Mc4F6nawvnjxVPGwQycpA==}
     engines: {node: '>=18'}
@@ -3587,18 +3581,6 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
-
-  '@ai-sdk/openai@2.0.0-alpha.10':
-    resolution: {integrity: sha512-F8KeauWiLc8xgWhj/kxQLnkhn/mNi3RKikOYsUGX2V1WXQ/o+bBDtguVK6PMACeI2wJOa85IevC14M/ctj+L6Q==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
-  '@ai-sdk/openai@2.0.0-alpha.11':
-    resolution: {integrity: sha512-Rk+Mu0kGyMaXGyPeryRC9PMinH/tstTodXCqE5zzBCW1XsrusqgY2zI8/0TTkWyVopAHCcqLtHrCakV9bEcT9Q==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
 
   '@ai-sdk/openai@2.0.0-alpha.14':
     resolution: {integrity: sha512-HsC2Qyx0OoIHH82+AsuxVxK+fohXINwBKSlKzR8tiEbtLTZeYqK27QOmIuFbQJvTta/SvnchLgAJ7886yGBHjg==}
@@ -3621,18 +3603,6 @@ packages:
     peerDependencies:
       zod: ^3.23.8
 
-  '@ai-sdk/provider-utils@3.0.0-alpha.10':
-    resolution: {integrity: sha512-gmGZXo3phA5O6IRVBhMBKGalx8SOGlUTNQjHyfKyA6Zee6K6sBJ33kGbqW8DPDaJJPkdebsXSZS+UR8HQigbQw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
-  '@ai-sdk/provider-utils@3.0.0-alpha.11':
-    resolution: {integrity: sha512-CizT3etWfGnSixJ4MDleEcD+eugWwgLPsyf+xPRik1/UEYpo/yEgP6E7Mzme7oMIE+ctnZSQkFLM3kVvYtekrg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
   '@ai-sdk/provider-utils@3.0.0-alpha.13':
     resolution: {integrity: sha512-gP9RXbV+dUh3YeKdVRp2XiwZdl+vaRlsc2oCrF50xHjtlqrlf/VlNJX+1vVMO+jYo/H2HSKlFsEAmVnK+xMu1w==}
     engines: {node: '>=18'}
@@ -3653,14 +3623,6 @@ packages:
     resolution: {integrity: sha512-qZMxYJ0qqX/RfnuIaab+zp8UAeJn/ygXXAffR5I4N0n1IrvA6qBsjc8hXLmBiMV2zoXlifkacF7sEFnYnjBcqg==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/provider@2.0.0-alpha.10':
-    resolution: {integrity: sha512-CKScjnFGO90x18Awp1rp2sHMB1GarXojKAiYiVAwdQk5iS0GSPp/vFnvp7pEqcZwcf88HgAhu1PZZ+76QbkccQ==}
-    engines: {node: '>=18'}
-
-  '@ai-sdk/provider@2.0.0-alpha.11':
-    resolution: {integrity: sha512-AQwaa9ffyBlieBoWXTQNs4AjZXifj/03QDPuMr94noG1fahhCRL+Ko3dyaz1kyWtLdxeEK/VPRGeWRAVIke4BA==}
-    engines: {node: '>=18'}
-
   '@ai-sdk/provider@2.0.0-alpha.13':
     resolution: {integrity: sha512-F78YeaDu6W2ZNXK+oa2cmyuhvw2C/8RjC++F8jUsrtJ/GWCdXlodlmfacVKlRGhfQzWZ4tLMNQ61Yj5YDLS+4Q==}
     engines: {node: '>=18'}
@@ -3669,18 +3631,8 @@ packages:
     resolution: {integrity: sha512-MWPnfK8lRJLKXT8PdTCxFbeHDpOzhfic79KwGwyc5uScFmpBIOqV9WNG4o88ReVvkqhxevEvmKRH0oCSlBLaQg==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/react@1.2.12':
-    resolution: {integrity: sha512-jK1IZZ22evPZoQW3vlkZ7wvjYGYF+tRBKXtrcolduIkQ/m/sOAVcVeVDUDvh1T91xCnWCdUGCPZg2avZ90mv3g==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^18 || ^19 || ^19.0.0-rc
-      zod: ^3.23.8
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
-  '@ai-sdk/react@2.0.0-alpha.11':
-    resolution: {integrity: sha512-el3AiETva3c93sZ1sgnIRh6za8kAIBKiqr9BtCbbmN7YbVpFs1nIPoJXfdonbIFTwWPS9L5r3OE16N8kaMZ9vA==}
+  '@ai-sdk/react@2.0.0-alpha.14':
+    resolution: {integrity: sha512-g1DouP+rzUCa4FoItDR4ccl1i/HXjsv8nvPEC0GGEMGeCM3aG6k9O7j3pOvWTvDdqIMXovQrJaSjHXyMob88GQ==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ^19 || ^19.0.0-rc
@@ -6420,7 +6372,6 @@ packages:
   '@lancedb/lancedb@0.18.2':
     resolution: {integrity: sha512-mWrijjkUVmf7HseX2SnZVh5M1tYAnO+pB1f81AVMKiSMfR4OqpA/6lQ2hk6qeQqJ6NNc/8pIgjkvwfGyp1QOag==}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
@@ -10298,12 +10249,6 @@ packages:
     resolution: {integrity: sha512-0poP0T7el6Vq3rstR8Mn4V/IQrpBLO6POkUSrN7RhyY+GF/InCFShQzsQ39T25gkHhLgSLByyAz+Kjb+c2L98w==}
     engines: {node: '>=12'}
 
-  ai@5.0.0-alpha.11:
-    resolution: {integrity: sha512-7LqMFHJwbV7SQFXSYW3pcsXG8iSxr73Xxl0q+OhnwLxOHygdtCb23rKr5CSn4eoDOonD279Rl03CZwi1579duQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
   ai@5.0.0-alpha.13:
     resolution: {integrity: sha512-D3oQcVJIuo8Hu/KxnGmOyRPz0SnfbWQNnHPWHxKebg1klD3nsnyzdRtImtzMquGbrxJpw/+vyssO9AXGPxmZzA==}
     engines: {node: '>=18'}
@@ -14117,7 +14062,6 @@ packages:
 
   libsql@0.5.13:
     resolution: {integrity: sha512-5Bwoa/CqzgkTwySgqHA5TsaUDRrdLIbdM4egdPcaAnqO3aC+qAgS6BwdzuZwARA5digXwiskogZ8H7Yy4XfdOg==}
-    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   light-my-request@5.14.0:
@@ -18197,12 +18141,6 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.0-alpha.14(zod@3.25.57)
       zod: 3.25.57
 
-  '@ai-sdk/gateway@1.0.0-alpha.11(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-alpha.11
-      '@ai-sdk/provider-utils': 3.0.0-alpha.11(zod@3.25.57)
-      zod: 3.25.57
-
   '@ai-sdk/gateway@1.0.0-alpha.13(zod@3.25.57)':
     dependencies:
       '@ai-sdk/provider': 2.0.0-alpha.13
@@ -18219,18 +18157,6 @@ snapshots:
     dependencies:
       '@ai-sdk/provider': 1.1.3
       '@ai-sdk/provider-utils': 2.2.8(zod@3.25.57)
-      zod: 3.25.57
-
-  '@ai-sdk/openai@2.0.0-alpha.10(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-alpha.10
-      '@ai-sdk/provider-utils': 3.0.0-alpha.10(zod@3.25.57)
-      zod: 3.25.57
-
-  '@ai-sdk/openai@2.0.0-alpha.11(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-alpha.11
-      '@ai-sdk/provider-utils': 3.0.0-alpha.11(zod@3.25.57)
       zod: 3.25.57
 
   '@ai-sdk/openai@2.0.0-alpha.14(zod@3.25.57)':
@@ -18255,20 +18181,6 @@ snapshots:
       secure-json-parse: 2.7.0
       zod: 3.25.57
 
-  '@ai-sdk/provider-utils@3.0.0-alpha.10(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-alpha.10
-      '@standard-schema/spec': 1.0.0
-      zod: 3.25.57
-      zod-to-json-schema: 3.24.5(zod@3.25.57)
-
-  '@ai-sdk/provider-utils@3.0.0-alpha.11(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-alpha.11
-      '@standard-schema/spec': 1.0.0
-      zod: 3.25.57
-      zod-to-json-schema: 3.24.5(zod@3.25.57)
-
   '@ai-sdk/provider-utils@3.0.0-alpha.13(zod@3.25.57)':
     dependencies:
       '@ai-sdk/provider': 2.0.0-alpha.13
@@ -18291,14 +18203,6 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/provider@2.0.0-alpha.10':
-    dependencies:
-      json-schema: 0.4.0
-
-  '@ai-sdk/provider@2.0.0-alpha.11':
-    dependencies:
-      json-schema: 0.4.0
-
   '@ai-sdk/provider@2.0.0-alpha.13':
     dependencies:
       json-schema: 0.4.0
@@ -18307,20 +18211,10 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@1.2.12(react@19.1.0)(zod@3.25.57)':
+  '@ai-sdk/react@2.0.0-alpha.14(react@19.1.0)(zod@3.25.57)':
     dependencies:
-      '@ai-sdk/provider-utils': 2.2.8(zod@3.25.57)
-      '@ai-sdk/ui-utils': 1.2.11(zod@3.25.57)
-      react: 19.1.0
-      swr: 2.3.3(react@19.1.0)
-      throttleit: 2.1.0
-    optionalDependencies:
-      zod: 3.25.57
-
-  '@ai-sdk/react@2.0.0-alpha.11(react@19.1.0)(zod@3.25.57)':
-    dependencies:
-      '@ai-sdk/provider-utils': 3.0.0-alpha.11(zod@3.25.57)
-      ai: 5.0.0-alpha.11(zod@3.25.57)
+      '@ai-sdk/provider-utils': 3.0.0-alpha.14(zod@3.25.57)
+      ai: 5.0.0-alpha.14(zod@3.25.57)
       react: 19.1.0
       swr: 2.3.3(react@19.1.0)
       throttleit: 2.1.0
@@ -26393,14 +26287,6 @@ snapshots:
       clean-stack: 4.2.0
       indent-string: 5.0.0
 
-  ai@5.0.0-alpha.11(zod@3.25.57):
-    dependencies:
-      '@ai-sdk/gateway': 1.0.0-alpha.11(zod@3.25.57)
-      '@ai-sdk/provider': 2.0.0-alpha.11
-      '@ai-sdk/provider-utils': 3.0.0-alpha.11(zod@3.25.57)
-      '@opentelemetry/api': 1.9.0
-      zod: 3.25.57
-
   ai@5.0.0-alpha.13(zod@3.25.57):
     dependencies:
       '@ai-sdk/gateway': 1.0.0-alpha.13(zod@3.25.57)
@@ -27969,7 +27855,7 @@ snapshots:
       eslint-config-prettier: 8.10.0(eslint@8.57.1)
       eslint-plugin-flowtype: 8.0.3(@babel/plugin-syntax-flow@7.26.0(@babel/core@7.27.4))(@babel/plugin-transform-react-jsx@7.25.9(@babel/core@7.27.4))(eslint@8.57.1)
       eslint-plugin-import: 2.31.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)
-      eslint-plugin-jest: 27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3)
+      eslint-plugin-jest: 27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@8.57.1)
       eslint-plugin-prettier: 4.2.1(eslint-config-prettier@8.10.0(eslint@8.57.1))(eslint@8.57.1)(prettier@2.8.8)
       eslint-plugin-react: 7.37.5(eslint@8.57.1)
@@ -28538,7 +28424,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-jest@27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3):
+  eslint-plugin-jest@27.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@8.57.1)(typescript@5.8.3))(eslint@8.57.1)(jest@29.7.0(@types/node@20.19.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.10(@swc/helpers@0.5.17))(@types/node@20.19.0)(typescript@5.8.3)))(typescript@5.8.3):
     dependencies:
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.8.3)
       eslint: 8.57.1
