@@ -43,7 +43,10 @@ import type {
 } from './types';
 
 export { MessageList };
+
 export * from './types';
+export * from './message-list/ai-sdk-5/index';
+
 type IDGenerator = () => string;
 
 function resolveMaybePromise<T, R = void>(value: T | Promise<T>, cb: (value: T) => R) {

@@ -1,6 +1,6 @@
 import { deepMerge } from '@mastra/core';
 import type { AllMastraMessageTypesList, CoreTool, MastraMessageV1, MastraMessageV3 } from '@mastra/core';
-import { MessageList } from '@mastra/core/agent';
+import { getToolName, MessageList } from '@mastra/core/agent';
 import type { MastraMessageV2 } from '@mastra/core/agent';
 import { MastraMemory } from '@mastra/core/memory';
 import type {
@@ -11,7 +11,7 @@ import type {
   WorkingMemoryTemplate,
 } from '@mastra/core/memory';
 import type { StorageGetMessagesArg } from '@mastra/core/storage';
-import { embedMany, getToolName, isToolUIPart } from 'ai';
+import { embedMany, isToolUIPart } from 'ai';
 import type { CoreMessage, TextPart, UIMessage } from 'ai';
 
 import xxhash from 'xxhash-wasm';

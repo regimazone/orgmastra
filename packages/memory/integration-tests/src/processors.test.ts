@@ -99,7 +99,7 @@ describe('Memory with Processors', () => {
           type: 'tool-result',
           toolCallId: 'tool-9',
           toolName: 'weather',
-          result: 'Pretty hot',
+          output: 'Pretty hot',
         },
       ],
     });
