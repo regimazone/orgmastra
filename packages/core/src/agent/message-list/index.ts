@@ -53,7 +53,7 @@ export type MastraMessageV1 = {
   type: 'text' | 'tool-call' | 'tool-result';
 };
 
-type MessageInput =
+export type MessageInput =
   | AIV5.UIMessage
   | AIV5.ModelMessage
   // db messages in AIV4.CoreMessage format
