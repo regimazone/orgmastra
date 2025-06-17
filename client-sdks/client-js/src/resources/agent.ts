@@ -105,16 +105,16 @@ export class Agent extends BaseResource {
    * @param params - Generation parameters including prompt
    * @returns Promise containing the generated response
    */
-  generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
+  async generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
     params: GenerateParams<T> & { output?: never; experimental_output?: never },
   ): Promise<GenerateReturn<T>>;
-  generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
+  async generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
     params: GenerateParams<T> & { output: T; experimental_output?: never },
   ): Promise<GenerateReturn<T>>;
-  generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
+  async generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
     params: GenerateParams<T> & { output?: never; experimental_output: T },
   ): Promise<GenerateReturn<T>>;
-  generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
+  async generate<T extends JSONSchema7 | ZodSchema | undefined = undefined>(
     params: GenerateParams<T>,
   ): Promise<GenerateReturn<T>> {
     const processedParams = {
@@ -125,10 +125,28 @@ export class Agent extends BaseResource {
       clientTools: processClientTools(params.clientTools),
     };
 
-    return this.request(`/api/agents/${this.agentId}/generate`, {
+    const result = (await this.request(`/api/agents/${this.agentId}/generate`, {
       method: 'POST',
       body: processedParams,
-    });
+    })) as GenerateReturn;
+
+    if (result.finishReason === 'tool-calls' && result.toolCalls?.length) {
+      for (const toolCall of result.toolCalls) {
+        const toolCallName = toolCall.toolName;
+        if (params.clientTools?.[toolCallName] && typeof params.clientTools[toolCallName].execute === 'function') {
+          const toolResult = await params.clientTools[toolCallName].execute(
+            {
+              context: toolCall.args,
+            },
+            { toolCallId: toolCall.toolCallId, messages: [] },
+          );
+
+          console.log(toolResult);
+        }
+      }
+    }
+
+    return result as GenerateReturn<T>;
   }
 
   /**

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { MastraClient } from './client';
 // import type { WorkflowRunResult } from './types';
 
@@ -8,38 +9,34 @@ import { MastraClient } from './client';
     baseUrl: 'http://localhost:4111',
   });
 
-  console.log('Starting agent...');
+  const agent = client.getAgent('chefAgent');
 
-  try {
-    const agent = client.getAgent('weatherAgent');
-    const response = await agent.stream({
-      messages: 'what is the weather in new york?',
-    });
+  const result = await agent.generate({
+    messages: 'Please use my cooking tool to cook a meal. Ingredient pizza.',
+    clientTools: {
+      cookingTool: {
+        id: 'cookingTool',
+        description: 'A tool for cooking',
+        inputSchema: z.object({
+          ingredient: z.string(),
+        }),
+        execute: async ({ context }) => {
+          return {
+            result: `I am cooking with ${context.ingredient}`,
+          };
+        },
+      },
+    },
+  });
 
-    response.processDataStream({
-      onTextPart: text => {
-        process.stdout.write(text);
-      },
-      onFilePart: file => {
-        console.log(file);
-      },
-      onDataPart: data => {
-        console.log(data);
-      },
-      onErrorPart: error => {
-        console.error(error);
-      },
-    });
-  } catch (error) {
-    console.error(error);
-  }
+  console.log(result);
 })();
 
 // Workflow
 // (async () => {
-//   const client = new MastraClient({
-//     baseUrl: 'http://localhost:4111',
-//   });
+// const client = new MastraClient({
+//   baseUrl: 'http://localhost:4111',
+// });
 
 //   try {
 //     const workflowId = 'myWorkflow';
