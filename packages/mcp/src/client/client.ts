@@ -1,8 +1,8 @@
 import { MastraBase } from '@mastra/core/base';
 
-import type { RuntimeContext } from '@mastra/core/di';
+import { RuntimeContext } from '@mastra/core/di';
 import { createTool } from '@mastra/core/tools';
-import { isZodType } from '@mastra/core/utils';
+import { isZodType, makeCoreTool } from '@mastra/core/utils';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -520,8 +520,23 @@ export class InternalMastraMCPClient extends MastraBase {
           },
         });
 
+        const options = {
+          name: tool.name,
+          logger: this.logger,
+          runtimeContext: new RuntimeContext(),
+          description: tool.description,
+        };
+
+        const coreTool = makeCoreTool(mastraTool, options);
+
         if (tool.name) {
-          toolsRes[tool.name] = mastraTool;
+          toolsRes[tool.name] = {
+            name: tool.name,
+            description: coreTool.description,
+            parameters: coreTool.parameters,
+            execute: coreTool.execute!,
+            toolType: 'mcp'
+          };
         }
       } catch (toolCreationError: unknown) {
         // Catch errors during tool creation itself (e.g., if createTool has issues)
