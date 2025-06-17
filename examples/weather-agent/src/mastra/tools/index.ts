@@ -1,5 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { mastra } from '../index.ts';
+import { forecastSchema } from '../workflows/new-workflow';
 
 interface WeatherResponse {
   current: {
@@ -93,3 +95,51 @@ function getWeatherCondition(code: number): string {
   };
   return conditions[code] || 'Unknown';
 }
+
+export const startWeatherTool = createTool({
+  id: 'start-weather-tool',
+  description: 'Start the weather tool',
+  inputSchema: z.object({}),
+  outputSchema: z.object({
+    runId: z.string(),
+  }),
+  execute: async ({ context }) => {
+    console.log('startWeatherTool');
+    const workflow = mastra.getWorkflow('weatherWorkflowWithSuspend');
+    const run = await workflow.createRun();
+    await run.start({
+      inputData: {},
+    });
+
+    console.log('runId', run.runId);
+    return {
+      runId: run.runId,
+    };
+  },
+});
+
+export const resumeWeatherTool = createTool({
+  id: 'resume-weather-tool',
+  description: 'Resume the weather tool',
+  inputSchema: z.object({
+    runId: z.string(),
+    city: z.string().describe('City name'),
+  }),
+  outputSchema: forecastSchema,
+  execute: async ({ context }) => {
+    console.log('resumeWeatherTool');
+    const workflow = mastra.getWorkflow('weatherWorkflowWithSuspend');
+    const run = await workflow.createRun({
+      runId: context.runId,
+    });
+    console.log('runId', run.runId);
+    const result = await run.resume({
+      step: 'fetch-weather',
+      resumeData: {
+        city: context.city,
+      },
+    });
+    console.log('resume result', JSON.stringify(result, null, 2));
+    return result.result;
+  },
+});
