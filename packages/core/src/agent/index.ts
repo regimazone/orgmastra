@@ -8,8 +8,8 @@ import type {
   TextPart,
   UIMessage,
 } from 'ai';
-import type { JSONSchema7, JSONSchema7Type } from 'json-schema';
 import deepEqual from 'fast-deep-equal';
+import type { JSONSchema7, JSONSchema7Type } from 'json-schema';
 import type { z, ZodSchema } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
