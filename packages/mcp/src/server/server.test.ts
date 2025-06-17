@@ -60,7 +60,7 @@ const mockAgentGenerate = vi.fn(async (query: string) => {
     rawCall: { rawPrompt: null, rawSettings: {} },
     finishReason: 'stop',
     usage: { promptTokens: 10, completionTokens: 20 },
-    text: `{"content":"Agent response to: "${JSON.stringify(query)}"}`,
+    content: [{ type: 'text', text: `Agent response to: ${query}` }],
   };
 });
 
@@ -1152,7 +1152,8 @@ describe('MCPServer - Agent to Tool Conversion', () => {
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
       expect(mockAgentGenerate).toHaveBeenCalledWith(queryInput.message);
-      expect(result.text).toBe(`{"content":"Agent response to: ""Hello Agent""}`);
+      expect(result.text).toBe('Agent response to: Hello Agent');
+      expect(result.content).toEqual([{ type: 'text', text: 'Agent response to: Hello Agent' }]);
     } else {
       throw new Error('Agent tool or its execute function is undefined');
     }
