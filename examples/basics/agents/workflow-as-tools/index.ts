@@ -114,7 +114,6 @@ export const startWeatherTool = createTool({
       inputData: {},
     });
 
-    console.log('runId', run.runId);
     return {
       runId: run.runId,
     };
@@ -134,14 +133,12 @@ export const resumeWeatherTool = createTool({
     const run = await workflow.createRun({
       runId: context.runId,
     });
-    console.log('runId', run.runId);
     const result = await run.resume({
       step: 'fetch-weather',
       resumeData: {
         city: context.city,
       },
     });
-    console.log('resume result', JSON.stringify(result, null, 2));
     return result.result;
   },
 });
