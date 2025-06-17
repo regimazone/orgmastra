@@ -319,7 +319,7 @@ describe('Agent with message processors', () => {
       resourceId,
     });
 
-    const secondResponseRequestMessages: CoreMessage[] = JSON.parse(secondResponse.request.body as string).messages;
+    const secondResponseRequestMessages: CoreMessage[] = (secondResponse.request.body as any).messages;
 
     expect(secondResponseRequestMessages.length).toBe(4);
     // Filter out tool messages and tool results, should be the same as above.
