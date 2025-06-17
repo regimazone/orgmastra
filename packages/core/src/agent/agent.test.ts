@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { TestIntegration } from '../integration/openapi-toolset.mock';
 import { Mastra } from '../mastra';
 import { MastraMemory } from '../memory';
-import type { StorageThreadType, MemoryConfig } from '../memory';
+import type { StorageThreadType, MemoryConfig, WorkingMemoryTemplate } from '../memory';
 import { RuntimeContext } from '../runtime-context';
 import { createTool } from '../tools';
 import { CompositeVoice, MastraVoice } from '../voice';
@@ -1157,6 +1157,16 @@ describe('agent memory with metadata', () => {
       this._hasOwnStorage = true;
     }
 
+    getWorkingMemory(_: {
+      threadId: string;
+      format?: 'json' | 'markdown';
+    }): Promise<Record<string, any> | string | null> {
+      throw new Error('Method not implemented.');
+    }
+    getWorkingMemoryTemplate(): Promise<WorkingMemoryTemplate | null> {
+      throw new Error('Method not implemented.');
+    }
+
     async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
       return this.threads[threadId] || null;
     }
@@ -1194,16 +1204,25 @@ describe('agent memory with metadata', () => {
 
   let dummyModel;
   beforeEach(() => {
-    dummyModel = new MockLanguageModelV1({
+    dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
-        usage: { promptTokens: 10, completionTokens: 20 },
-        text: `Dummy response`,
+        warnings: [],
+        usage: {
+          promptTokens: 10,
+          completionTokens: 20,
+          cachedInputTokens: 0,
+          inputTokens: 10,
+          outputTokens: 100,
+          reasoningTokens: 0,
+          totalTokens: 110,
+        },
+        content: [{ type: 'text', text: `Dummy response` }],
       }),
       doStream: async () => ({
         stream: simulateReadableStream({
-          chunks: [{ type: 'text-delta', textDelta: 'dummy' }],
+          chunks: [{ type: 'text', text: 'dummy' }],
         }),
         rawCall: { rawPrompt: null, rawSettings: {} },
       }),
