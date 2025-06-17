@@ -29,8 +29,9 @@
     "dev": "mastra dev"
   },
   "dependencies": {
-    "@ai-sdk/openai": "2.0.0-alpha.14",
-    "@ai-sdk/react": "2.0.0-alpha.14",
+    "@ai-sdk/google": "2.0.0-alpha.15",
+    "@ai-sdk/openai": "2.0.0-alpha.15",
+    "@ai-sdk/react": "2.0.0-alpha.15",
     "@mastra/fastembed": "workspace:*",
     "@mastra/libsql": "workspace:*",
     "@mastra/memory": "workspace:*",

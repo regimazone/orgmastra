@@ -1568,6 +1568,7 @@ export class Agent<
         resourceId,
         memory: this.getMemory(),
         runtimeContext,
+        telemetry,
         ...args,
       });
 
