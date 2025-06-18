@@ -402,4 +402,3 @@ export function getTextContent(message: UIMessage): string {
 
 // Re-export types for external use
 export type { UIMessage, TextUIPart, ReasoningUIPart } from 'ai';
-
