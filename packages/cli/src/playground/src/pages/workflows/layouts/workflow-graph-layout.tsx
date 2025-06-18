@@ -1,7 +1,7 @@
 import { WorkflowInformation } from '@/domains/workflows/workflow-information';
-import { MainContentContent } from '@mastra/playground-ui';
 import { useParams } from 'react-router';
-import { MastraResizablePanel } from '@mastra/playground-ui';
+import { MastraResizablePanel, MainContent, MainContentContent } from '@mastra/playground-ui';
+import { useNewUI } from '@/hooks/use-new-ui';
 
 export interface WorkflowGraphLayoutProps {
   children: React.ReactNode;
@@ -9,8 +9,16 @@ export interface WorkflowGraphLayoutProps {
 
 export const WorkflowGraphLayout = ({ children }: WorkflowGraphLayoutProps) => {
   const { workflowId } = useParams();
+  const newUIEnabled = false; // useNewUI();
 
-  return (
+  return newUIEnabled ? (
+    <MainContent variant="forWorkflow">
+      {children}
+      <MastraResizablePanel defaultWidth={50} minimumWidth={20} maximumWidth={100}>
+        <WorkflowInformation workflowId={workflowId!} />
+      </MastraResizablePanel>
+    </MainContent>
+  ) : (
     <MainContentContent isDivided={true} className="flex">
       {children}
       <MastraResizablePanel

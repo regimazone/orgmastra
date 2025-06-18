@@ -3,15 +3,21 @@ import { useNetwork } from '@/hooks/use-networks';
 import { NetworkDetails } from './network-details';
 import { NetworkAgents } from './network-agents';
 import { NetworkEndpoints } from './network-endpoints';
+import { useNewUI } from '@/hooks/use-new-ui';
+import { NetworkPanel } from '@mastra/playground-ui';
 
 export function NetworkInformation({ networkId }: { networkId: string }) {
   const { network, isLoading } = useNetwork(networkId);
+
+  const newUIEnabled = useNewUI();
 
   if (!network || isLoading) {
     return null;
   }
 
-  return (
+  return newUIEnabled ? (
+    <NetworkPanel network={network} />
+  ) : (
     <Tabs defaultValue="details" className="overflow-y-auto grid grid-rows-[auto_1fr] h-full">
       <TabsList className="flex shrink-0 border-b">
         <TabsTrigger value="details" className="group">
