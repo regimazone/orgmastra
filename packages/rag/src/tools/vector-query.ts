@@ -132,6 +132,5 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
         return { relevantContext: [], sources: [] };
       }
     },
-    // Use any for output schema as the structure of the output causes type inference issues
-  }) as RagTool<typeof inputSchema, any>;
+  });
 };
