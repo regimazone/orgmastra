@@ -114,7 +114,6 @@ export function MastraRuntimeProvider({
       if (initialMessages && threadId && memory) {
         const convertedMessages: ThreadMessageLike[] = initialMessages
           ?.map((message: any) => {
-            
             const toolInvocationsAsContentParts = (message.toolInvocations || []).map((toolInvocation: any) => ({
               type: 'tool-call',
               toolCallId: toolInvocation?.toolCallId,
@@ -135,38 +134,40 @@ export function MastraRuntimeProvider({
 
             // Handle different content formats from memory
             let contentParts: any[] = [];
-            
+
             if (message.parts && Array.isArray(message.parts)) {
               // UIMessage format: message has parts array (from our new streaming client)
-              
+
               // Convert UIMessage parts to ThreadMessageLike content format
-              contentParts = message.parts.map((part: any) => {
-                if (part.type === 'text') {
-                  return { type: 'text', text: (part as any).text };
-                } else if (part.type === 'reasoning') {
-                  return { type: 'text', text: `[Reasoning: ${(part as any).text}]` };
-                } else if (isToolUIPart(part)) {
-                  // Handle tool parts using AI SDK utilities
-                  const toolName = getToolName(part);
-                  return {
-                    type: 'tool-call',
-                    toolCallId: (part as any).toolCallId,
-                    toolName: toolName,
-                    args: (part as any).input,
-                    result: (part as any).output,
-                  };
-                } else if (part.type === 'file') {
-                  return { type: 'text', text: `[File: ${(part as any).filename || 'Unknown'}]` };
-                } else if (part.type === 'source-url' || part.type === 'source-document') {
-                  return { type: 'text', text: `[Source: ${(part as any).title || (part as any).url || 'Unknown'}]` };
-                } else if (part.type === 'step-start') {
-                  // Skip step boundaries - they're just markers
-                  return null;
-                } else {
-                  // For any unhandled part types, convert to text representation
-                  return { type: 'text', text: `[${part.type}]` };
-                }
-              }).filter(Boolean);
+              contentParts = message.parts
+                .map((part: any) => {
+                  if (part.type === 'text') {
+                    return { type: 'text', text: (part as any).text };
+                  } else if (part.type === 'reasoning') {
+                    return { type: 'text', text: `[Reasoning: ${(part as any).text}]` };
+                  } else if (isToolUIPart(part)) {
+                    // Handle tool parts using AI SDK utilities
+                    const toolName = getToolName(part);
+                    return {
+                      type: 'tool-call',
+                      toolCallId: (part as any).toolCallId,
+                      toolName: toolName,
+                      args: (part as any).input,
+                      result: (part as any).output,
+                    };
+                  } else if (part.type === 'file') {
+                    return { type: 'text', text: `[File: ${(part as any).filename || 'Unknown'}]` };
+                  } else if (part.type === 'source-url' || part.type === 'source-document') {
+                    return { type: 'text', text: `[Source: ${(part as any).title || (part as any).url || 'Unknown'}]` };
+                  } else if (part.type === 'step-start') {
+                    // Skip step boundaries - they're just markers
+                    return null;
+                  } else {
+                    // For any unhandled part types, convert to text representation
+                    return { type: 'text', text: `[${part.type}]` };
+                  }
+                })
+                .filter(Boolean);
             } else if (typeof message.content === 'string') {
               // Legacy format: content is a string
               contentParts.push({ type: 'text', text: message.content });
@@ -178,11 +179,7 @@ export function MastraRuntimeProvider({
               contentParts.push(message.content);
             }
 
-            const finalContent = [
-              ...contentParts,
-              ...toolInvocationsAsContentParts,
-              ...attachmentsAsContentParts,
-            ];
+            const finalContent = [...contentParts, ...toolInvocationsAsContentParts, ...attachmentsAsContentParts];
 
             return {
               ...message,
