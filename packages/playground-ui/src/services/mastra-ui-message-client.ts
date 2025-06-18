@@ -4,10 +4,10 @@ import { z } from 'zod';
 
 /**
  * @fileoverview Mastra UI Message Streaming Client
- * 
+ *
  * This module provides a generic client for processing Mastra agent streams using proper AI SDK v5 patterns.
  * It constructs official UIMessage objects and provides real-time callbacks for UI updates.
- * 
+ *
  * @example
  * ```typescript
  * const client = new MastraUIMessageClient({
@@ -16,7 +16,7 @@ import { z } from 'zod';
  *   onMessageUpdate: (message) => updateUI(message),
  *   onComplete: (finalMessage) => console.log('Stream complete:', finalMessage),
  * });
- * 
+ *
  * const response = await agent.stream({ messages: [...] });
  * const finalMessage = await client.processStream(response);
  * ```
@@ -49,7 +49,7 @@ const uiMessageStreamPartSchema = z.union([
     input: z.unknown(),
   }),
   z.strictObject({
-    type: z.literal('tool-output-available'),  
+    type: z.literal('tool-output-available'),
     toolCallId: z.string(),
     output: z.unknown(),
     providerMetadata: z.any().optional(),
@@ -140,10 +140,10 @@ export interface StreamResponse {
 
 /**
  * Mastra UI Message Streaming Client
- * 
+ *
  * A generic client that processes Mastra agent streams using proper AI SDK v5 patterns.
  * It constructs official UIMessage objects and provides real-time callbacks for UI updates.
- * 
+ *
  * Key features:
  * - Uses AI SDK's parseJsonEventStream for robust parsing
  * - Constructs proper UIMessage objects with correct IDs
@@ -164,10 +164,7 @@ export class MastraUIMessageClient {
    * @param userMessage Optional user message to include in conversation
    * @returns Promise that resolves with the complete assistant message
    */
-  async processStream(
-    streamResponse: StreamResponse,
-    userMessage?: UIMessage
-  ): Promise<UIMessage | null> {
+  async processStream(streamResponse: StreamResponse, userMessage?: UIMessage): Promise<UIMessage | null> {
     if (!streamResponse.body) {
       const error = 'Stream response body is null';
       this.callbacks.onError?.(error);
@@ -269,7 +266,7 @@ export class MastraUIMessageClient {
                 };
                 toolCalls.set(streamPart.toolCallId, toolInputPart);
                 assistantMessage.parts.push(toolInputPart as any);
-                
+
                 this.callbacks.onToolCall?.({
                   toolCallId: streamPart.toolCallId,
                   toolName: streamPart.toolName,
@@ -283,7 +280,7 @@ export class MastraUIMessageClient {
                 if (existingTool) {
                   existingTool.state = 'output-available';
                   existingTool.output = streamPart.output;
-                  
+
                   this.callbacks.onToolResult?.({
                     toolCallId: streamPart.toolCallId,
                     result: streamPart.output,
@@ -340,7 +337,6 @@ export class MastraUIMessageClient {
       // Notify completion
       this.callbacks.onComplete?.(assistantMessage);
       return assistantMessage;
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.callbacks.onError?.(errorMessage);
@@ -358,11 +354,11 @@ export class MastraUIMessageClient {
 
 /**
  * Helper function to create a user message in UIMessage format
- * 
+ *
  * @param content - The text content of the message
  * @param attachments - Optional array of attachments
  * @returns A properly formatted UIMessage for user input
- * 
+ *
  * @example
  * ```typescript
  * const userMessage = createUserMessage("Hello, how are you?");
@@ -387,10 +383,10 @@ export function createUserMessage(content: string, attachments?: any[]): UIMessa
 
 /**
  * Extract text content from a UIMessage
- * 
+ *
  * @param message - The UIMessage to extract text from
  * @returns The concatenated text content from all text parts
- * 
+ *
  * @example
  * ```typescript
  * const message = { role: 'assistant', parts: [{ type: 'text', text: 'Hello' }] };
@@ -406,3 +402,4 @@ export function getTextContent(message: UIMessage): string {
 
 // Re-export types for external use
 export type { UIMessage, TextUIPart, ReasoningUIPart } from 'ai';
+
