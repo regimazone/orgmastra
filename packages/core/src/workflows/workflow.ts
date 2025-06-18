@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import EventEmitter from 'events';
 import { z } from 'zod';
 import type { Mastra, WorkflowRun } from '..';
-import type { MastraPrimitives } from '../action';
+import type { MastraPrimitives, MastraUnion } from '../action';
 import { Agent } from '../agent';
 import { MastraBase } from '../base';
 import { RuntimeContext } from '../di';
@@ -153,15 +153,15 @@ export function createStep<
   agent: Agent<TStepId, any, any>,
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
-export function createStep<
-  TSchemaIn extends z.ZodType<any>,
-  TSchemaOut extends z.ZodType<any>,
-  TContext extends ToolExecutionContext<TSchemaIn>,
->(
-  tool: Tool<TSchemaIn, TSchemaOut, TContext> & {
+export function createStep<TSchemaIn extends z.ZodType<any>, TSchemaOut extends z.ZodType<any>>(
+  tool: Tool<TSchemaIn, TSchemaOut, any> & {
     inputSchema: TSchemaIn;
     outputSchema: TSchemaOut;
-    execute: (context: TContext) => Promise<any>;
+    execute: (context: {
+      context: TSchemaIn extends z.ZodSchema ? z.infer<TSchemaIn> : any;
+      mastra?: MastraUnion;
+      runtimeContext: RuntimeContext;
+    }) => Promise<any>;
   },
 ): Step<string, TSchemaIn, TSchemaOut, z.ZodType<any>, z.ZodType<any>, DefaultEngineType>;
 
@@ -192,7 +192,11 @@ export function createStep<
     | (Tool<TStepInput, TStepOutput, any> & {
         inputSchema: TStepInput;
         outputSchema: TStepOutput;
-        execute: (context: ToolExecutionContext<TStepInput>) => Promise<any>;
+        execute: (context: {
+          context: TStepInput extends z.ZodSchema ? z.infer<TStepInput> : any;
+          mastra?: MastraUnion;
+          runtimeContext: RuntimeContext;
+        }) => Promise<any>;
       }),
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType> {
   if (params instanceof Agent) {

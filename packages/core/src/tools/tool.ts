@@ -6,7 +6,7 @@ import type { ToolAction, ToolExecutionContext } from './types';
 export class Tool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
-  TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
+  TContext = any,
 > implements ToolAction<TSchemaIn, TSchemaOut, TContext>
 {
   id: string;
@@ -29,22 +29,16 @@ export class Tool<
 export function createTool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
-  TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
-  TExecute extends ToolAction<TSchemaIn, TSchemaOut, TContext>['execute'] = ToolAction<
-    TSchemaIn,
-    TSchemaOut,
-    TContext
-  >['execute'],
 >(
-  opts: ToolAction<TSchemaIn, TSchemaOut, TContext> & {
-    execute?: TExecute;
+  opts: ToolAction<TSchemaIn, TSchemaOut, any> & {
+    execute?: (context: any) => Promise<any>;
   },
-): [TSchemaIn, TSchemaOut, TExecute] extends [z.ZodSchema, z.ZodSchema, Function]
-  ? Tool<TSchemaIn, TSchemaOut, TContext> & {
+): [TSchemaIn, TSchemaOut] extends [z.ZodSchema, z.ZodSchema]
+  ? Tool<TSchemaIn, TSchemaOut, any> & {
       inputSchema: TSchemaIn;
       outputSchema: TSchemaOut;
-      execute: (context: TContext) => Promise<any>;
+      execute: (context: any) => Promise<any>;
     }
-  : Tool<TSchemaIn, TSchemaOut, TContext> {
+  : Tool<TSchemaIn, TSchemaOut, any> {
   return new Tool(opts) as any;
 }
