@@ -154,7 +154,7 @@ export function createStep<
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
 export function createStep<TSchemaIn extends z.ZodType<any>, TSchemaOut extends z.ZodType<any>>(
-  tool: Tool<TSchemaIn, TSchemaOut, ToolExecutionContext<TSchemaIn>> & {
+  tool: Tool<TSchemaIn, TSchemaOut, any> & {
     inputSchema: TSchemaIn;
     outputSchema: TSchemaOut;
     execute: (context: ToolExecutionContext<TSchemaIn>) => Promise<any>;
