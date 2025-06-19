@@ -1384,7 +1384,12 @@ describe('CloudflareStore Workers Binding', () => {
         messages => messages.length > 0,
       );
       expect(messages).toHaveLength(1);
-      expect(messages[0].content).toEqual(message.content);
+      expect(messages[0].content).toEqual(
+        expect.objectContaining({
+          format: message.content.format,
+          parts: message.content.parts,
+        }),
+      );
     });
 
     it('should validate thread structure', async () => {

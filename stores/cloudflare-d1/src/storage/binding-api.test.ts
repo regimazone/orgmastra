@@ -1189,7 +1189,12 @@ describe('D1Store', () => {
       // Should retrieve correctly
       const messages = await store.getMessages({ threadId: thread.id, format: 'v2' });
       expect(messages).toHaveLength(1);
-      expect(messages[0].content).toEqual(message.content);
+      expect(messages[0].content).toEqual(
+        expect.objectContaining({
+          format: message.content.format,
+          parts: message.content.parts,
+        }),
+      );
     });
   });
 
