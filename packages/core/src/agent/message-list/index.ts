@@ -510,23 +510,24 @@ ${JSON.stringify(message, null, 2)}`,
   // private mastraMessageV3ToMastraMessageV2(msg: MastraMessageV3): MastraMessageV2 {
   // }
 
-  private mastraMessageV2ToMastraMessageV3(msg: MastraMessageV2): MastraMessageV3 {
+  private mastraMessageV2ToMastraMessageV3(v2Msg: MastraMessageV2): MastraMessageV3 {
     const parts: MastraMessageContentV3['parts'] = [];
-    const msgBuffer = {
-      id: msg.id,
+    const v3Msg = {
+      id: v2Msg.id,
       content: {
         format: 3 as const,
         parts,
+        metadata: v2Msg.content.metadata,
       },
-      role: msg.role,
-      createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
-      resourceId: msg.resourceId,
-      threadId: msg.threadId,
-      type: msg.type,
+      role: v2Msg.role,
+      createdAt: v2Msg.createdAt instanceof Date ? v2Msg.createdAt : new Date(v2Msg.createdAt),
+      resourceId: v2Msg.resourceId,
+      threadId: v2Msg.threadId,
+      type: v2Msg.type,
     };
 
     const fileUrls = new Set<string>();
-    for (const part of msg.content.parts) {
+    for (const part of v2Msg.content.parts) {
       switch (part.type) {
         case 'step-start':
         case 'text':
@@ -589,8 +590,16 @@ ${JSON.stringify(message, null, 2)}`,
       }
     }
 
-    if (msg.content.experimental_attachments?.length) {
-      for (const attachment of msg.content.experimental_attachments) {
+    if (
+      v2Msg.content.content &&
+      !v3Msg.content.parts?.some(p => p.type === `text` && p.text === v2Msg.content.content)
+    ) {
+      // If the content string has no text part, make one for it
+      v3Msg.content.parts.push({ type: 'text', text: v2Msg.content.content });
+    }
+
+    if (v2Msg.content.experimental_attachments?.length) {
+      for (const attachment of v2Msg.content.experimental_attachments) {
         if (fileUrls.has(attachment.url)) continue;
 
         parts.push({
@@ -601,7 +610,7 @@ ${JSON.stringify(message, null, 2)}`,
       }
     }
 
-    return msgBuffer;
+    return v3Msg;
   }
   private mastraMessageV1ToMastraMessageV2(message: MastraMessageV1, messageSource: MessageSource): MastraMessageV2 {
     const coreV2 = this.aiV4CoreMessageToMastraMessageV2(
@@ -651,6 +660,7 @@ ${JSON.stringify(message, null, 2)}`,
       role: message.role,
       content: {
         format: 2,
+        metadata: message.content.metadata as any, // unknown here doesn't work, but we don't have actual metadata types right now anyway. It's any object.
         parts: message.content.parts
           .map((p): MastraMessageV2['content']['parts'][0] | null => {
             if (AIV5.isToolUIPart(p)) {
@@ -723,6 +733,7 @@ ${JSON.stringify(message, null, 2)}`,
     const content: MastraMessageContentV3 = {
       format: 3,
       parts: message.parts,
+      metadata: message.metadata,
     };
 
     // Not sure if this is correct, however they've removed the Message type that was a UIMessage w/ createdAt..

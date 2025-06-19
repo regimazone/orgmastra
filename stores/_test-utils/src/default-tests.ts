@@ -134,7 +134,7 @@ export const createSampleMessageV2 = ({
     createdAt: createdAt || new Date(),
     content: {
       format: 2,
-      parts: content?.parts || [{ type: 'text', text: content?.content ?? '' }],
+      parts: content?.parts || typeof content?.content === `string` ? [{ type: 'text', text: content.content! }] : [],
       content: content?.content || `Sample content ${randomUUID()}`,
       ...content,
     },
