@@ -48,6 +48,7 @@ export { MessageList };
 
 export * from './types';
 export * from './message-list/ai-sdk-5/index';
+export * from './v5-to-v4-stream';
 
 type IDGenerator = () => string;
 
