@@ -1,12 +1,14 @@
 import type { z } from 'zod';
 
+import type { MastraUnion } from '../action';
 import type { Mastra } from '../mastra';
+import type { RuntimeContext } from '../runtime-context';
 import type { ToolAction, ToolExecutionContext } from './types';
 
 export class Tool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
-  TContext = any,
+  TContext = ToolExecutionContext<TSchemaIn>,
 > implements ToolAction<TSchemaIn, TSchemaOut, TContext>
 {
   id: string;
@@ -30,15 +32,28 @@ export function createTool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
 >(
-  opts: ToolAction<TSchemaIn, TSchemaOut, any> & {
-    execute?: (context: any) => Promise<any>;
+  opts: {
+    id: string;
+    description: string;
+    inputSchema?: TSchemaIn;
+    outputSchema?: TSchemaOut;
+    execute?: (context: {
+      context: TSchemaIn extends z.ZodSchema ? z.infer<TSchemaIn> : any;
+      mastra?: MastraUnion;
+      runtimeContext: RuntimeContext;
+    }) => Promise<TSchemaOut extends z.ZodSchema ? z.infer<TSchemaOut> : unknown>;
+    mastra?: Mastra;
   },
 ): [TSchemaIn, TSchemaOut] extends [z.ZodSchema, z.ZodSchema]
   ? Tool<TSchemaIn, TSchemaOut, any> & {
       inputSchema: TSchemaIn;
       outputSchema: TSchemaOut;
-      execute: (context: any) => Promise<any>;
+      execute: (context: {
+        context: TSchemaIn extends z.ZodSchema ? z.infer<TSchemaIn> : any;
+        mastra?: MastraUnion;
+        runtimeContext: RuntimeContext;
+      }) => Promise<TSchemaOut extends z.ZodSchema ? z.infer<TSchemaOut> : unknown>;
     }
   : Tool<TSchemaIn, TSchemaOut, any> {
-  return new Tool(opts) as any;
+  return new Tool(opts as any) as any;
 }

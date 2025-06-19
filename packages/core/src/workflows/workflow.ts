@@ -154,14 +154,10 @@ export function createStep<
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
 export function createStep<TSchemaIn extends z.ZodType<any>, TSchemaOut extends z.ZodType<any>>(
-  tool: Tool<TSchemaIn, TSchemaOut, any> & {
+  tool: Tool<TSchemaIn, TSchemaOut, ToolExecutionContext<TSchemaIn>> & {
     inputSchema: TSchemaIn;
     outputSchema: TSchemaOut;
-    execute: (context: {
-      context: TSchemaIn extends z.ZodSchema ? z.infer<TSchemaIn> : any;
-      mastra?: MastraUnion;
-      runtimeContext: RuntimeContext;
-    }) => Promise<any>;
+    execute: (context: ToolExecutionContext<TSchemaIn>) => Promise<any>;
   },
 ): Step<string, TSchemaIn, TSchemaOut, z.ZodType<any>, z.ZodType<any>, DefaultEngineType>;
 
@@ -189,14 +185,10 @@ export function createStep<
         >;
       }
     | Agent<any, any, any>
-    | (Tool<TStepInput, TStepOutput, any> & {
+    | (Tool<TStepInput, TStepOutput, ToolExecutionContext<TStepInput>> & {
         inputSchema: TStepInput;
         outputSchema: TStepOutput;
-        execute: (context: {
-          context: TStepInput extends z.ZodSchema ? z.infer<TStepInput> : any;
-          mastra?: MastraUnion;
-          runtimeContext: RuntimeContext;
-        }) => Promise<any>;
+        execute: (context: ToolExecutionContext<TStepInput>) => Promise<any>;
       }),
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType> {
   if (params instanceof Agent) {
