@@ -146,6 +146,10 @@ export class MessageList {
       ui: (): AIV5.UIMessage[] => this.messages.map(MessageList.toUIMessage),
     },
 
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.all.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+    },
+
     prompt: () => {
       const coreMessages = this.all.aiV5.model();
 
@@ -167,6 +171,10 @@ export class MessageList {
       model: () => this.convertToModelMessages(this.remembered.aiV5.ui()),
       ui: (): AIV5.UIMessage[] => this.messages.map(MessageList.toUIMessage),
     },
+
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.remembered.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+    },
   };
   private input = {
     v3: () => this.messages.filter(m => this.newUserMessages.has(m)),
@@ -176,6 +184,10 @@ export class MessageList {
     aiV5: {
       model: () => this.convertToModelMessages(this.input.aiV5.ui()),
       ui: (): AIV5.UIMessage[] => this.input.v3().map(MessageList.toUIMessage),
+    },
+
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.input.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
     },
   };
   private response = {
@@ -724,6 +736,12 @@ ${JSON.stringify(message, null, 2)}`,
       v2Msg.content.metadata = v3Msg.content.metadata as any; // unknown here doesn't work, but we don't have actual metadata types right now anyway. It's any object.
     }
 
+    // Extract text content from parts and set as content.content string
+    const textParts = v2Msg.content.parts.filter(p => p.type === 'text');
+    if (textParts.length > 0) {
+      v2Msg.content.content = textParts.map(p => p.text).join('');
+    }
+
     if (toolInvocations?.length) {
       v2Msg.content.toolInvocations = toolInvocations;
     }
@@ -731,6 +749,86 @@ ${JSON.stringify(message, null, 2)}`,
 
     return v2Msg;
   }
+
+  private static mastraMessageV2ToAIV4UIMessage(v2Msg: MastraMessageV2): AIV4.UIMessage {
+    const parts: AIV4.UIMessage['parts'] = [];
+    
+    // Convert v2 parts to v4 format
+    for (const part of v2Msg.content.parts) {
+      switch (part.type) {
+        case 'text':
+          parts.push({
+            type: 'text',
+            text: part.text,
+          });
+          break;
+
+        case 'tool-invocation':
+          parts.push({
+            type: 'tool-invocation',
+            toolInvocation: part.toolInvocation,
+          });
+          break;
+
+        case 'reasoning':
+          parts.push({
+            type: 'reasoning',
+            reasoning: part.reasoning,
+            details: part.details,
+          });
+          break;
+
+        case 'source':
+          parts.push({
+            type: 'source',
+            source: part.source,
+          });
+          break;
+
+        case 'file':
+          parts.push({
+            type: 'file',
+            mimeType: part.mimeType,
+            data: part.data,
+          });
+          break;
+
+        case 'step-start':
+          parts.push({
+            type: 'step-start',
+          });
+          break;
+      }
+    }
+
+    const uiMessage: AIV4.UIMessage = {
+      id: v2Msg.id,
+      role: v2Msg.role,
+      content: v2Msg.content.content ?? '',
+      createdAt: v2Msg.createdAt,
+      parts,
+    };
+
+    // Add optional fields if they exist
+    if (v2Msg.content.toolInvocations?.length) {
+      uiMessage.toolInvocations = v2Msg.content.toolInvocations;
+    }
+
+    if (v2Msg.content.experimental_attachments?.length) {
+      uiMessage.experimental_attachments = v2Msg.content.experimental_attachments;
+    }
+
+    if (v2Msg.content.reasoning) {
+      uiMessage.reasoning = v2Msg.content.reasoning;
+    }
+
+    if (v2Msg.content.annotations) {
+      uiMessage.annotations = v2Msg.content.annotations;
+    }
+
+    return uiMessage;
+  }
+
   private hydrateMastraMessageV3Fields(message: MastraMessageV3): MastraMessageV3 {
     if (!(message.createdAt instanceof Date)) message.createdAt = new Date(message.createdAt);
     return message;

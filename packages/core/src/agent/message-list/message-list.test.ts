@@ -2817,4 +2817,231 @@ describe('MessageList', () => {
       ]);
     });
   });
+
+  describe('AI SDK v4 UIMessage conversion', () => {
+    it('should convert text messages to v4 format', () => {
+      const input = {
+        id: 'text-msg-1',
+        role: 'user',
+        parts: [{ type: 'text', text: 'Hello from user!' }],
+      } satisfies AIV5.UIMessage;
+
+      const list = new MessageList({ threadId, resourceId }).add(input, 'user');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1);
+      expect(v4Messages[0]).toEqual({
+        id: 'text-msg-1',
+        role: 'user',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [
+          {
+            type: 'text',
+            text: 'Hello from user!',
+          },
+        ],
+      });
+    });
+
+    it('should convert tool invocation messages to v4 format', () => {
+      const input = {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Let me use a tool' },
+          { type: 'tool-call', toolName: 'testTool', toolCallId: 'call-1', input: { param: 'value' } },
+        ],
+      } satisfies AIV5.ModelMessage;
+
+      const list = new MessageList({ threadId, resourceId }).add(input, 'response');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1);
+      expect(v4Messages[0]).toEqual({
+        id: expect.any(String),
+        role: 'assistant',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [
+          {
+            type: 'text',
+            text: 'Let me use a tool',
+          },
+          {
+            type: 'tool-invocation',
+            toolInvocation: {
+              state: 'call',
+              toolCallId: 'call-1',
+              toolName: 'testTool',
+              args: { param: 'value' },
+            },
+          },
+        ],
+        toolInvocations: [
+          {
+            state: 'call',
+            toolCallId: 'call-1',
+            toolName: 'testTool',
+            args: { param: 'value' },
+          },
+        ],
+      });
+    });
+
+    it('should convert tool result messages to v4 format', () => {
+      // First add a tool call
+      const toolCall = {
+        role: 'assistant',
+        content: [
+          { type: 'tool-call', toolName: 'testTool', toolCallId: 'call-1', input: { param: 'value' } },
+        ],
+      } satisfies AIV5.ModelMessage;
+
+      // Then add a tool result
+      const toolResult = {
+        role: 'tool',
+        content: [
+          { type: 'tool-result', toolName: 'testTool', toolCallId: 'call-1', output: 'Tool output' },
+        ],
+      } satisfies AIV5.ModelMessage;
+
+      const list = new MessageList({ threadId, resourceId })
+        .add(toolCall, 'response')
+        .add(toolResult, 'response');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1); // Should be merged into one assistant message
+      expect(v4Messages[0]).toEqual({
+        id: expect.any(String),
+        role: 'assistant',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [
+          {
+            type: 'tool-invocation',
+            toolInvocation: {
+              state: 'result',
+              toolCallId: 'call-1',
+              toolName: 'testTool',
+              args: { param: 'value' },
+              result: 'Tool output',
+            },
+          },
+        ],
+        toolInvocations: [
+          {
+            state: 'result',
+            toolCallId: 'call-1',
+            toolName: 'testTool',
+            args: { param: 'value' },
+            result: 'Tool output',
+          },
+        ],
+      });
+    });
+
+    it('should convert file messages to v4 format', () => {
+      const input = {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Here is a file:' },
+          { type: 'file', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', mediaType: 'image/png' },
+        ],
+      } satisfies AIV5.ModelMessage;
+
+      const list = new MessageList({ threadId, resourceId }).add(input, 'user');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1);
+      expect(v4Messages[0]).toEqual({
+        id: expect.any(String),
+        role: 'user',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [
+          {
+            type: 'text',
+            text: 'Here is a file:',
+          },
+          {
+            type: 'file',
+            mimeType: 'image/png',
+            data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+          },
+        ],
+      });
+    });
+
+    it('should convert reasoning messages to v4 format', () => {
+      const input = {
+        role: 'assistant',
+        content: [
+          { type: 'reasoning', text: 'Let me think about this...' },
+          { type: 'text', text: 'Based on my reasoning, the answer is 42.' },
+        ],
+      } satisfies AIV5.ModelMessage;
+
+      const list = new MessageList({ threadId, resourceId }).add(input, 'response');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1);
+      expect(v4Messages[0]).toEqual({
+        id: expect.any(String),
+        role: 'assistant',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [
+          {
+            type: 'reasoning',
+            reasoning: '',
+            details: [{ type: 'text', text: 'Let me think about this...' }],
+          },
+          {
+            type: 'text',
+            text: 'Based on my reasoning, the answer is 42.',
+          },
+        ],
+      });
+    });
+
+    it('should handle empty or undefined content', () => {
+      const input = {
+        id: 'empty-msg',
+        role: 'assistant',
+        parts: [],
+      } satisfies AIV5.UIMessage;
+
+      const list = new MessageList({ threadId, resourceId }).add(input, 'response');
+      const v4Messages = list.get.all.aiV4.ui();
+
+      expect(v4Messages).toHaveLength(1);
+      expect(v4Messages[0]).toEqual({
+        id: 'empty-msg',
+        role: 'assistant',
+        content: '',
+        createdAt: expect.any(Date),
+        parts: [],
+      });
+    });
+
+    it('should preserve message metadata and properties', () => {
+      const input = {
+        id: 'msg-with-content',
+        role: 'user',
+        parts: [{ type: 'text', text: 'Hello!' }],
+        metadata: { customField: 'customValue' },
+      } satisfies AIV5.UIMessage;
+
+      // First convert to V3, then V2, then back to V4 to test the full conversion pipeline
+      const list = new MessageList({ threadId, resourceId }).add(input, 'user');
+      
+      // Check that we preserve the string content when available
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages[0].content.content).toBeUndefined();
+      
+      const v4Messages = list.get.all.aiV4.ui();
+      expect(v4Messages[0].content).toBe('');
+      expect(v4Messages[0].id).toBe('msg-with-content');
+    });
+  });
 });

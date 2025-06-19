@@ -213,6 +213,10 @@ export interface GetMemoryThreadMessagesParams {
    * Limit the number of messages to retrieve (default: 40)
    */
   limit?: number;
+  /**
+   * Format of UI messages to return (default: aiv5)
+   */
+  format?: 'aiv4' | 'aiv5';
 }
 
 export interface GetMemoryThreadMessagesResponse {

@@ -146,6 +146,7 @@ export async function getMessagesHandler(c: Context) {
     const agentId = c.req.query('agentId');
     const threadId = c.req.param('threadId');
     const rawLimit = c.req.query('limit');
+    const format = c.req.query('format') as 'aiv4' | 'aiv5' | undefined;
     let limit: number | undefined = undefined;
 
     if (rawLimit !== undefined) {
@@ -160,6 +161,7 @@ export async function getMessagesHandler(c: Context) {
       agentId,
       threadId,
       limit,
+      format,
     });
 
     return c.json(result);

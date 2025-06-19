@@ -119,6 +119,54 @@ export function getResuableTests(memory: Memory, workerTestConfig?: WorkerTestCo
         expect(result.messages).toHaveLength(4);
         expect(result.messages.map(m => m.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
       });
+
+      it('should return uiMessagesV4 in query results for v4 compatibility', async () => {
+        const testMessages = [
+          createTestMessage(thread.id, 'Hello from user', 'user'),
+          createTestMessage(thread.id, 'Hello from assistant', 'assistant'),
+        ];
+
+        await memory.saveMessages({ messages: testMessages });
+        
+        const queryResult = await memory.query({
+          threadId: thread.id,
+          resourceId,
+          selectBy: { last: 10 },
+        });
+
+        // Verify all expected properties exist
+        expect(queryResult).toHaveProperty('messages');
+        expect(queryResult).toHaveProperty('uiMessages');
+        expect(queryResult).toHaveProperty('uiMessagesV4');
+        expect(queryResult).toHaveProperty('messagesV2');
+
+        // Verify uiMessagesV4 has the correct structure for AI SDK v4
+        expect(queryResult.uiMessagesV4).toHaveLength(2);
+        
+        const userMessage = queryResult.uiMessagesV4.find(m => m.role === 'user');
+        const assistantMessage = queryResult.uiMessagesV4.find(m => m.role === 'assistant');
+
+        expect(userMessage).toBeDefined();
+        expect(userMessage).toMatchObject({
+          id: expect.any(String),
+          role: 'user',
+          content: expect.any(String),
+          parts: expect.any(Array),
+          createdAt: expect.any(Date),
+        });
+
+        expect(assistantMessage).toBeDefined();
+        expect(assistantMessage).toMatchObject({
+          id: expect.any(String),
+          role: 'assistant',
+          content: expect.any(String),
+          parts: expect.any(Array),
+          createdAt: expect.any(Date),
+        });
+
+        // Verify that both v5 and v4 messages contain the same basic content
+        expect(queryResult.uiMessages).toHaveLength(queryResult.uiMessagesV4.length);
+      });
     });
 
     describe('Semantic Search', () => {

@@ -1,22 +1,23 @@
 /**
  * AI SDK v5 to v4 Stream Transformer
  * Converts v5 UIMessageStream format to v4 DataStream format for backwards compatibility
+ *
+ * Single file implementation with inline tool call tracking and ID generation
  */
 
-// V5 Stream Part Types (from AI SDK v5)
+// Import actual AI SDK v5 types and extend them for broader compatibility
+import type { UIMessageStreamPart as BaseUIMessageStreamPart } from 'ai';
+
+// Extended type that includes common events we might encounter
 export type UIMessageStreamPart =
-  | { type: 'text'; text: string }
-  | { type: 'error'; errorText: string }
-  | { type: 'tool-input-start'; toolCallId: string; toolName: string }
-  | { type: 'tool-input-delta'; toolCallId: string; inputTextDelta: string }
-  | { type: 'tool-input-available'; toolCallId: string; toolName: string; input: unknown }
-  | { type: 'tool-output-available'; toolCallId: string; output: unknown }
-  | { type: 'reasoning'; text: string; providerMetadata?: object }
-  | { type: 'reasoning-part-finish' }
-  | { type: 'start'; messageId?: string; messageMetadata?: unknown }
-  | { type: 'finish'; messageMetadata?: unknown }
-  | { type: 'start-step' }
-  | { type: 'finish-step' };
+  | BaseUIMessageStreamPart
+  // Legacy/custom events that might appear in streams
+  | { type: 'response-metadata'; id: string; modelId: string; timestamp: Date }
+  | { type: 'source'; id: string; title?: string; url?: string; content?: unknown } // Legacy source format
+  | { type: 'file'; id: string; name: string; mimeType: string; content: unknown } // Legacy file format for tests
+  | { type: 'data'; data: unknown }
+  | { type: 'reasoning-signature'; signature: string; hash: string; metadata?: object }
+  | { type: 'redacted-reasoning'; text: string; redactionReason: string; originalLength: number };
 
 // V4 Stream Prefixes (from AI SDK v4)
 const DataStreamStringPrefixes = {
@@ -38,48 +39,80 @@ const DataStreamStringPrefixes = {
   file: 'k',
 } as const;
 
+// Per-stream state interface
+interface StreamState {
+  messageCounter: number;
+  stepCounter: number;
+  toolCalls: Map<string, { name: string; input?: unknown }>;
+}
+
+export function createStreamState(): StreamState {
+  return {
+    messageCounter: 0,
+    stepCounter: 0,
+    toolCalls: new Map<string, { name: string; input?: unknown }>(),
+  };
+}
+
+function generateId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 /**
  * Parse Server-Sent Events stream into individual JSON objects
  */
 export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPart> {
   const decoder = new TextDecoder();
   let buffer = '';
+  const maxBufferSize = 1024 * 1024; // 1MB limit
 
   return new TransformStream({
     transform(chunk, controller) {
-      buffer += decoder.decode(chunk, { stream: true });
+      try {
+        const text = decoder.decode(chunk, { stream: true });
 
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        // Prevent unbounded buffer growth
+        if (buffer.length + text.length > maxBufferSize) {
+          console.warn('SSE parser: Buffer size limit exceeded, truncating');
+          buffer = buffer.slice(buffer.length / 2);
+        }
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
+        buffer += text;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-          // Check for stream end marker
-          if (data === '[DONE]') {
-            return;
-          }
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
 
-          try {
-            const parsed = JSON.parse(data) as UIMessageStreamPart;
-            controller.enqueue(parsed);
-          } catch (error) {
-            console.warn('Failed to parse SSE data:', data, error);
+            // Check for stream end marker
+            if (data === '[DONE]') {
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data) as UIMessageStreamPart;
+              controller.enqueue(parsed);
+            } catch {
+              console.warn('Failed to parse SSE data:', data.slice(0, 50) + '...');
+            }
           }
         }
+      } catch (streamError) {
+        console.error('Stream processing error:', streamError);
+        controller.error(streamError);
       }
     },
 
     flush(controller) {
       if (buffer.startsWith('data: ')) {
-        const data = buffer.slice(6);
+        const data = buffer.slice('data: '.length);
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data) as UIMessageStreamPart;
             controller.enqueue(parsed);
-          } catch (error) {
-            console.warn('Failed to parse final SSE data:', data, error);
+          } catch {
+            console.warn('Failed to parse final SSE data:', data.slice(0, 50) + '...');
           }
         }
       }
@@ -90,15 +123,41 @@ export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPar
 /**
  * Transform v5 UIMessageStreamPart to v4 DataStream format
  */
-export function transformV5ToV4Part(part: UIMessageStreamPart): string | null {
+export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamState): string | null {
   switch (part.type) {
     case 'text':
       return `${DataStreamStringPrefixes.text}:${JSON.stringify(part.text)}\n`;
 
     case 'error':
-      return `${DataStreamStringPrefixes.error}:${JSON.stringify(part.errorText)}\n`;
+      try {
+        const errorData =
+          typeof part.errorText === 'string'
+            ? { message: part.errorText, code: 'STREAM_ERROR', timestamp: Date.now() }
+            : part.errorText;
+        return `${DataStreamStringPrefixes.error}:${JSON.stringify(errorData)}\n`;
+      } catch (err) {
+        console.warn('Error formatting error part:', err);
+        return `${DataStreamStringPrefixes.error}:${JSON.stringify({ message: 'Stream error', code: 'TRANSFORM_ERROR' })}\n`;
+      }
+
+    case 'tool-input-start':
+      state.toolCalls.set(part.toolCallId, { name: part.toolName });
+      return `${DataStreamStringPrefixes.tool_call_streaming_start}:${JSON.stringify({
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+      })}\n`;
+
+    case 'tool-input-delta':
+      return `${DataStreamStringPrefixes.tool_call_delta}:${JSON.stringify({
+        toolCallId: part.toolCallId,
+        argsTextDelta: part.inputTextDelta,
+      })}\n`;
 
     case 'tool-input-available':
+      const toolCall = state.toolCalls.get(part.toolCallId);
+      if (toolCall) {
+        toolCall.input = part.input;
+      }
       return `${DataStreamStringPrefixes.tool_call}:${JSON.stringify({
         toolCallId: part.toolCallId,
         toolName: part.toolName,
@@ -106,6 +165,7 @@ export function transformV5ToV4Part(part: UIMessageStreamPart): string | null {
       })}\n`;
 
     case 'tool-output-available':
+      state.toolCalls.delete(part.toolCallId); // Clean up
       return `${DataStreamStringPrefixes.tool_result}:${JSON.stringify({
         toolCallId: part.toolCallId,
         result: part.output,
@@ -115,44 +175,114 @@ export function transformV5ToV4Part(part: UIMessageStreamPart): string | null {
       return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify(part.text)}\n`;
 
     case 'start':
-      return `${DataStreamStringPrefixes.start_step}:${JSON.stringify({
-        messageId: part.messageId,
-        metadata: part.messageMetadata,
-      })}\n`;
+      state.messageCounter++;
+      const messageId = part.messageId || generateId(`msg-${state.messageCounter}`);
+      return `${DataStreamStringPrefixes.message_annotations}:${JSON.stringify([
+        {
+          messageId,
+          metadata: part.messageMetadata,
+        },
+      ])}\n`;
 
     case 'finish':
       return `${DataStreamStringPrefixes.finish_message}:${JSON.stringify({
+        finishReason: 'stop',
         metadata: part.messageMetadata,
       })}\n`;
 
     case 'start-step':
-      // V4 start_step expects: f:{messageId:string}
-      // Since V5 doesn't provide messageId in start-step, we'll use a generated one
-      return `${DataStreamStringPrefixes.start_step}:${JSON.stringify({ messageId: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` })}\n`;
+      state.stepCounter++;
+      const stepId = generateId(`step-${state.stepCounter}`);
+      return `${DataStreamStringPrefixes.start_step}:${JSON.stringify({ messageId: stepId })}\n`;
 
     case 'finish-step':
-      // V4 finish_step expects: e:{finishReason, usage, isContinued}
-      // Since V5 doesn't provide this data in finish-step, we'll use defaults
       return `${DataStreamStringPrefixes.finish_step}:${JSON.stringify({
         finishReason: 'stop',
         usage: { promptTokens: 0, completionTokens: 0 },
         isContinued: false,
       })}\n`;
 
-    case 'reasoning-part-finish':
+    case 'message-metadata':
+      return `${DataStreamStringPrefixes.message_annotations}:${JSON.stringify([
+        {
+          messageId: generateId('msg'),
+          metadata: part.messageMetadata,
+        },
+      ])}\n`;
+
+    case 'file':
+      // Handle both new AI SDK v5 format and legacy test format
+      if ('url' in part && 'mediaType' in part) {
+        // New AI SDK v5 format
+        return `${DataStreamStringPrefixes.file}:${JSON.stringify({
+          url: part.url,
+          mediaType: part.mediaType,
+        })}\n`;
+      } else if ('id' in part && 'name' in part) {
+        // Legacy test format
+        return `${DataStreamStringPrefixes.file}:${JSON.stringify({
+          id: part.id,
+          name: part.name,
+          type: part.mimeType,
+          content: part.content,
+        })}\n`;
+      }
       return null;
 
-    case 'tool-input-start':
-      return `${DataStreamStringPrefixes.tool_call_streaming_start}:${JSON.stringify({
-        toolCallId: part.toolCallId,
-        toolName: part.toolName,
+    case 'source-url':
+      return `${DataStreamStringPrefixes.source}:${JSON.stringify({
+        id: part.sourceId,
+        title: part.title,
+        url: part.url,
       })}\n`;
 
-    case 'tool-input-delta':
-      return `${DataStreamStringPrefixes.tool_call_delta}:${JSON.stringify({
-        toolCallId: part.toolCallId,
-        delta: part.inputTextDelta,
+    case 'source-document':
+      return `${DataStreamStringPrefixes.source}:${JSON.stringify({
+        id: part.sourceId,
+        title: part.title,
+        mediaType: part.mediaType,
+        filename: part.filename,
       })}\n`;
+
+    case 'source': // Legacy source format for backward compatibility with tests
+      return `${DataStreamStringPrefixes.source}:${JSON.stringify({
+        id: part.id,
+        title: part.title,
+        url: part.url,
+        content: part.content,
+      })}\n`;
+
+    case 'response-metadata':
+      // Map to message_annotations with metadata info
+      return `${DataStreamStringPrefixes.message_annotations}:${JSON.stringify([
+        {
+          messageId: part.id,
+          metadata: {
+            modelId: part.modelId,
+            timestamp: part.timestamp.toISOString(),
+          },
+        },
+      ])}\n`;
+
+    case 'data':
+      return `${DataStreamStringPrefixes.data}:${JSON.stringify(part.data)}\n`;
+
+    case 'reasoning-signature':
+      return `${DataStreamStringPrefixes.reasoning_signature}:${JSON.stringify({
+        signature: part.signature,
+        hash: part.hash,
+        metadata: part.metadata,
+      })}\n`;
+
+    case 'redacted-reasoning':
+      return `${DataStreamStringPrefixes.redacted_reasoning}:${JSON.stringify({
+        text: part.text,
+        redactionReason: part.redactionReason,
+        originalLength: part.originalLength,
+      })}\n`;
+
+    case 'reasoning-part-finish':
+      return null; // Skip this event type
 
     default:
       console.warn('Unknown v5 stream part type:', (part as any).type);
@@ -164,11 +294,19 @@ export function transformV5ToV4Part(part: UIMessageStreamPart): string | null {
  * Create a TransformStream that converts v5 parts to v4 format
  */
 export function createV5ToV4Transformer(): TransformStream<UIMessageStreamPart, string> {
+  // Create isolated state for this specific stream instance
+  const streamState = createStreamState();
+
   return new TransformStream({
     transform(part, controller) {
-      const v4Part = transformV5ToV4Part(part);
-      if (v4Part) {
-        controller.enqueue(v4Part);
+      try {
+        const v4Part = transformV5ToV4Part(part, streamState);
+        if (v4Part) {
+          controller.enqueue(v4Part);
+        }
+      } catch (transformError) {
+        console.warn('Transform error for part type:', (part as any).type, transformError);
+        // Continue processing - don't break the whole stream
       }
     },
   });

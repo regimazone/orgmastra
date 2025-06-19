@@ -93,14 +93,28 @@ export function MastraRuntimeProvider({
     runtimeContextInstance.set(key, value);
   });
 
+  const mastra = useMastraClient();
+
   useEffect(() => {
     const hasNewInitialMessages = initialMessages && initialMessages?.length > messages?.length;
+    console.log('🔄 MastraRuntimeProvider useEffect triggered', {
+      threadId,
+      currentThreadId,
+      messagesLength: messages.length,
+      hasInitialMessages: !!initialMessages,
+      initialMessagesLength: initialMessages?.length || 0,
+      hasNewInitialMessages,
+      memory: !!memory,
+      agentId
+    });
+    
     if (
       messages.length === 0 ||
       currentThreadId !== threadId ||
       (hasNewInitialMessages && currentThreadId === threadId)
     ) {
       if (initialMessages && threadId && memory) {
+        console.log('📄 MastraRuntimeProvider: Using initialMessages path');
         const convertedMessages: ThreadMessageLike[] = initialMessages
           ?.map((message: any) => {
             const toolInvocationsAsContentParts = (message.toolInvocations || []).map((toolInvocation: any) => ({
@@ -133,11 +147,88 @@ export function MastraRuntimeProvider({
           .filter(Boolean);
         setMessages(convertedMessages);
         setCurrentThreadId(threadId);
+      } else if (threadId && memory && agentId && !initialMessages) {
+        console.log('🔍 MastraRuntimeProvider: Using memory API path');
+        // Fetch messages from memory API when no initialMessages provided
+        
+        const loadMessagesFromMemory = async () => {
+          try {
+            const memoryThread = mastra.getMemoryThread(threadId, agentId);
+            const result = await memoryThread.getMessages({ limit: 50, format: 'aiv4' });
+            
+            console.log('📥 MastraRuntimeProvider: Memory API response', {
+              threadId,
+              messageCount: result?.uiMessages?.length || 0,
+              firstMessage: result?.uiMessages?.[0]
+            });
+            
+            if (result?.uiMessages && result.uiMessages.length > 0) {
+              const convertedMessages: ThreadMessageLike[] = result.uiMessages
+                ?.map((message: any) => {
+                  const toolInvocationsAsContentParts = (message.toolInvocations || []).map((toolInvocation: any) => ({
+                    type: 'tool-call',
+                    toolCallId: toolInvocation?.toolCallId,
+                    toolName: toolInvocation?.toolName,
+                    args: toolInvocation?.args,
+                    result: toolInvocation?.result,
+                  }));
+
+                  const attachmentsAsContentParts = (message.experimental_attachments || []).map((image: any) => ({
+                    type: image.contentType.startsWith(`image/`)
+                      ? 'image'
+                      : image.contentType.startsWith(`audio/`)
+                        ? 'audio'
+                        : 'file',
+                    mimeType: image.contentType,
+                    image: image.url,
+                  }));
+
+                  return {
+                    ...message,
+                    content: [
+                      ...(typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : []),
+                      ...toolInvocationsAsContentParts,
+                      ...attachmentsAsContentParts,
+                    ],
+                  };
+                })
+                .filter(Boolean);
+              
+              console.log('✅ MastraRuntimeProvider: Converted memory messages', {
+                originalCount: result.uiMessages.length,
+                convertedCount: convertedMessages.length,
+                firstConverted: convertedMessages[0]
+              });
+              
+              setMessages(convertedMessages);
+            } else {
+              setMessages([]);
+            }
+            setCurrentThreadId(threadId);
+          } catch (error) {
+            console.error('❌ MastraRuntimeProvider: Error loading messages from memory', {
+              threadId,
+              agentId,
+              error
+            });
+            setMessages([]);
+            setCurrentThreadId(threadId);
+          }
+        };
+        
+        loadMessagesFromMemory();
+      } else {
+        console.log('⚠️ MastraRuntimeProvider: No action taken', {
+          threadId,
+          memory: !!memory,
+          agentId,
+          hasInitialMessages: !!initialMessages,
+          messagesLength: messages.length,
+          currentThreadId
+        });
       }
     }
-  }, [initialMessages, threadId, memory]);
-
-  const mastra = useMastraClient();
+  }, [initialMessages, threadId, memory, agentId, mastra]);
 
   const agent = mastra.getAgent(agentId);
 
@@ -168,7 +259,7 @@ export function MastraRuntimeProvider({
           presencePenalty,
           maxRetries,
           maxSteps,
-          maxTokens,
+          maxOutputTokens: maxTokens,
           temperature,
           topK,
           topP,
@@ -232,7 +323,7 @@ export function MastraRuntimeProvider({
                 if (toolResult) {
                   const newContent = _content.map(c => {
                     if (c.type === 'tool-call' && c.toolCallId === toolResult?.toolCallId) {
-                      return { ...c, result: toolResult.result };
+                      return { ...c, result: toolResult.output };
                     }
                     return c;
                   });
@@ -244,7 +335,7 @@ export function MastraRuntimeProvider({
                       ? newContent
                       : [
                           ..._content,
-                          { type: 'tool-result', toolCallId: toolResult.toolCallId, result: toolResult.result },
+                          { type: 'tool-result', toolCallId: toolResult.toolCallId, result: toolResult.output },
                         ],
                   } as ThreadMessageLike;
                 }
@@ -274,7 +365,7 @@ export function MastraRuntimeProvider({
           presencePenalty,
           maxRetries,
           maxSteps,
-          maxTokens,
+          maxOutputTokens: maxTokens,
           temperature,
           topK,
           topP,

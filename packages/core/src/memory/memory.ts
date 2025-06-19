@@ -322,7 +322,7 @@ export abstract class MastraMemory extends MastraBase {
     threadId,
     resourceId,
     selectBy,
-  }: StorageGetMessagesArg): Promise<{ messages: CoreMessage[]; uiMessages: UIMessage[] }>;
+  }: StorageGetMessagesArg): Promise<{ messages: CoreMessage[]; uiMessages: UIMessage[]; uiMessagesV4: any[]; messagesV2: MastraMessageV2[] }>;
 
   /**
    * Helper method to create a new thread

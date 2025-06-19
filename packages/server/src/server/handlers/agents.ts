@@ -1,3 +1,4 @@
+import { createV4CompatibleResponse } from '@mastra/core/agent';
 import type { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { stringify } from 'superjson';
@@ -297,19 +298,21 @@ export async function streamGenerateHandler({
 
     const streamResponse = rest.output
       ? streamResult.toTextStreamResponse({ headers })
-      : streamResult.toUIMessageStreamResponse({
-          headers,
-          // sendUsage: true, // <- TODO: this doesn't exist anymore. Why?
-          sendReasoning: true,
-          sendSources: true, // TODO: this is false by default. Do we need to make this configurable or what?
-          onError: (error: any) => {
-            return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
-          },
-          // TODO: do we need to do something with these?
-          // messageMetadata(options) {
-          // },
-          // newMessageId: ""
-        });
+      : createV4CompatibleResponse(
+          streamResult.toUIMessageStreamResponse({
+            headers,
+            // sendUsage: true, // <- TODO: this doesn't exist anymore. Why?
+            sendReasoning: true,
+            sendSources: true, // TODO: this is false by default. Do we need to make this configurable or what?
+            onError: (error: any) => {
+              return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
+            },
+            // TODO: do we need to do something with these?
+            // messageMetadata(options) {
+            // },
+            // newMessageId: ""
+          }).body!,
+        );
 
     return streamResponse;
   } catch (error) {

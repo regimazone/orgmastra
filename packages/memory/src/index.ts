@@ -14,6 +14,19 @@ import type { StorageGetMessagesArg } from '@mastra/core/storage';
 import { embedMany, isToolUIPart } from 'ai';
 import type { CoreMessage, TextPart, UIMessage } from 'ai';
 
+// AI SDK v4 UIMessage type definition (extracted to avoid import issues)
+interface AIV4UIMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'data';
+  content: string;
+  createdAt?: Date;
+  parts: Array<any>;
+  toolInvocations?: Array<any>;
+  experimental_attachments?: Array<any>;
+  reasoning?: string;
+  annotations?: Array<any>;
+}
+
 import xxhash from 'xxhash-wasm';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { updateWorkingMemoryTool } from './tools/working-memory';
@@ -77,7 +90,7 @@ export class Memory extends MastraMemory {
     threadConfig,
   }: StorageGetMessagesArg & {
     threadConfig?: MemoryConfig;
-  }): Promise<{ messages: CoreMessage[]; uiMessages: UIMessage[]; messagesV2: MastraMessageV2[] }> {
+  }): Promise<{ messages: CoreMessage[]; uiMessages: UIMessage[]; uiMessagesV4: AIV4UIMessage[]; messagesV2: MastraMessageV2[] }> {
     if (resourceId) await this.validateThreadIsOwnedByResource(threadId, resourceId);
 
     const vectorResults: {
@@ -190,6 +203,9 @@ export class Memory extends MastraMemory {
       },
       get uiMessages() {
         return list.get.all.aiV5.ui();
+      },
+      get uiMessagesV4() {
+        return list.get.all.aiV4.ui();
       },
       get messagesV2() {
         return list.get.all.v2();

@@ -225,8 +225,10 @@ export async function getMessagesHandler({
   agentId,
   threadId,
   limit,
+  format,
 }: Pick<MemoryContext, 'mastra' | 'agentId' | 'threadId'> & {
   limit?: number;
+  format?: 'aiv4' | 'aiv5';
 }) {
   if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
     throw new HTTPException(400, { message: 'Invalid limit: must be a positive integer' });
@@ -249,6 +251,12 @@ export async function getMessagesHandler({
       threadId: threadId!,
       ...(limit && { selectBy: { last: limit } }),
     });
+
+    // Return v4 format if requested, otherwise default to v5
+    if (format === 'aiv4') {
+      return { messages: result.messages, uiMessages: result.uiMessagesV4 };
+    }
+    
     return { messages: result.messages, uiMessages: result.uiMessages };
   } catch (error) {
     return handleError(error, 'Error getting messages');
