@@ -512,12 +512,11 @@ ${JSON.stringify(message, null, 2)}`,
 
   private mastraMessageV2ToMastraMessageV3(v2Msg: MastraMessageV2): MastraMessageV3 {
     const parts: MastraMessageContentV3['parts'] = [];
-    const v3Msg = {
+    const v3Msg: MastraMessageV3 = {
       id: v2Msg.id,
       content: {
         format: 3 as const,
         parts,
-        metadata: v2Msg.content.metadata,
       },
       role: v2Msg.role,
       createdAt: v2Msg.createdAt instanceof Date ? v2Msg.createdAt : new Date(v2Msg.createdAt),
@@ -525,6 +524,10 @@ ${JSON.stringify(message, null, 2)}`,
       threadId: v2Msg.threadId,
       type: v2Msg.type,
     };
+
+    if (v2Msg.content.metadata) {
+      v3Msg.content.metadata = v2Msg.content.metadata;
+    }
 
     const fileUrls = new Set<string>();
     for (const part of v2Msg.content.parts) {
@@ -630,8 +633,8 @@ ${JSON.stringify(message, null, 2)}`,
       content: coreV2.content,
     };
   }
-  private static mastraMessageV3ToV2(message: MastraMessageV3): MastraMessageV2 {
-    const toolInvocationParts = message.content.parts.filter(p => AIV5.isToolUIPart(p));
+  private static mastraMessageV3ToV2(v3Msg: MastraMessageV3): MastraMessageV2 {
+    const toolInvocationParts = v3Msg.content.parts.filter(p => AIV5.isToolUIPart(p));
     const toolInvocations = toolInvocationParts.length
       ? toolInvocationParts.map(p => {
           if (p.state === `output-available`) {
@@ -653,15 +656,14 @@ ${JSON.stringify(message, null, 2)}`,
       : undefined;
 
     const v2Msg: MastraMessageV2 = {
-      id: message.id,
-      resourceId: message.resourceId,
-      threadId: message.threadId,
-      createdAt: message.createdAt,
-      role: message.role,
+      id: v3Msg.id,
+      resourceId: v3Msg.resourceId,
+      threadId: v3Msg.threadId,
+      createdAt: v3Msg.createdAt,
+      role: v3Msg.role,
       content: {
         format: 2,
-        metadata: message.content.metadata as any, // unknown here doesn't work, but we don't have actual metadata types right now anyway. It's any object.
-        parts: message.content.parts
+        parts: v3Msg.content.parts
           .map((p): MastraMessageV2['content']['parts'][0] | null => {
             if (AIV5.isToolUIPart(p)) {
               const shared = { state: p.state, args: p.input, toolCallId: p.toolCallId, toolName: getToolName(p) };
@@ -718,10 +720,14 @@ ${JSON.stringify(message, null, 2)}`,
       },
     };
 
+    if (v3Msg.content.metadata) {
+      v2Msg.content.metadata = v3Msg.content.metadata as any; // unknown here doesn't work, but we don't have actual metadata types right now anyway. It's any object.
+    }
+
     if (toolInvocations?.length) {
       v2Msg.content.toolInvocations = toolInvocations;
     }
-    if (message.type) v2Msg.type = message.type;
+    if (v3Msg.type) v2Msg.type = v3Msg.type;
 
     return v2Msg;
   }

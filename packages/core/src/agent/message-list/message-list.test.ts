@@ -34,6 +34,9 @@ describe('MessageList', () => {
         content: {
           format: 3,
           parts: [{ type: 'text', text: 'Hello from UI!' }],
+          metadata: {
+            createdAt: input.metadata.createdAt,
+          },
         },
         threadId,
         resourceId,
@@ -1583,6 +1586,9 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            metadata: {
+              createdAt: expect.any(Date),
+            },
             parts: [
               { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
@@ -1680,6 +1686,9 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 3,
+            metadata: {
+              createdAt: expect.any(Date),
+            },
             parts: [
               { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
