@@ -407,6 +407,7 @@ describe('D1Store', () => {
       const result = await store.saveMessages({ messages: [] });
       expect(result).toEqual([]);
     });
+
     it('should save and retrieve messages', async () => {
       const thread = createSampleThread();
       await store.saveThread({ thread });
@@ -415,13 +416,28 @@ describe('D1Store', () => {
 
       // Save messages
       const savedMessages = await store.saveMessages({ messages, format: 'v2' });
-      expect(savedMessages).toEqual(messages.map(m => expect.objectContaining(m)));
+      expect(savedMessages).toEqual(
+        messages.map(m =>
+          expect.objectContaining({
+            content: {
+              format: 2,
+              parts: [{ type: 'text', text: m.content.content }],
+            },
+          }),
+        ),
+      );
 
       // Retrieve messages
       const retrievedMessages = await store.getMessages({ threadId: thread.id, format: 'v2' });
       const checkMessages = messages.map(m => {
-        const { resourceId, type, ...rest } = m;
-        return rest;
+        const { resourceId, type, content, ...rest } = m;
+        return {
+          ...rest,
+          content: {
+            format: 2,
+            parts: [{ type: 'text', text: content.content }],
+          },
+        };
       });
       expect(retrievedMessages).toEqual(expect.arrayContaining(checkMessages));
     });
@@ -448,7 +464,13 @@ describe('D1Store', () => {
 
       // Verify order is maintained
       retrievedMessages.forEach((msg, idx) => {
-        expect(msg.content).toEqual(messages[idx].content);
+        const match = messages[idx].content;
+        expect(msg.content).toEqual(
+          expect.objectContaining({
+            format: 2,
+            parts: match.parts,
+          }),
+        );
       });
     });
 
