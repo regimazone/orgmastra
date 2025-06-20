@@ -13,5 +13,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+
       - name: Check links
-        run: npx --force --ignore-engine github:wardpeet/broken-link-checker ${{ github.event.deployment_status.target_url }}/docs -roef
+        run: npx --force --ignore-engine github:wardpeet/broken-link-checker@main ${{ github.event.deployment_status.target_url }}/docs -roef
