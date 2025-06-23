@@ -1312,12 +1312,6 @@ export class Run<
       cb({ type: event.type, payload: this.getState() as any, eventTimestamp: event.eventTimestamp });
     };
 
-    if (type === 'watch') {
-      this.emitter.on('watch', watchCb);
-    } else if (type === 'watch-v2') {
-      this.emitter.on('watch-v2', cb);
-    }
-
     const nestedWatchCb = ({ event, workflowId }: { event: WatchEvent; workflowId: string }) => {
       try {
         const { type, payload, eventTimestamp } = event;
@@ -1342,19 +1336,25 @@ export class Run<
         console.error(e);
       }
     };
-    this.emitter.on('nested-watch', nestedWatchCb);
-    this.emitter.on('nested-watch-v2', (event: WatchEvent) => {
-      this.emitter.emit('watch-v2', event);
-    });
+
+    if (type === 'watch') {
+      this.emitter.on('watch', watchCb);
+      this.emitter.on('nested-watch', nestedWatchCb);
+    } else if (type === 'watch-v2') {
+      this.emitter.on('watch-v2', cb);
+      this.emitter.on('nested-watch-v2', (event: WatchEvent) => {
+        this.emitter.emit('watch-v2', event);
+      });
+    }
 
     return () => {
       if (type === 'watch-v2') {
         this.emitter.off('watch-v2', cb);
+        this.emitter.off('nested-watch-v2', nestedWatchCb);
+      } else {
+        this.emitter.off('watch', watchCb);
+        this.emitter.off('nested-watch', nestedWatchCb);
       }
-
-      this.emitter.off('watch', watchCb);
-      this.emitter.off('nested-watch', nestedWatchCb);
-      this.emitter.off('nested-watch-v2', nestedWatchCb);
     };
   }
 
