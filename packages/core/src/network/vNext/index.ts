@@ -933,6 +933,9 @@ export class NewAgentNetwork extends MastraBase {
         isComplete: z.boolean().optional(),
         completionReason: z.string().optional(),
         iteration: z.number(),
+        threadId: z.string().optional(),
+        threadResourceId: z.string().optional(),
+        isOneOff: z.boolean(),
       }),
     })
       .then(routingStep)
@@ -970,6 +973,18 @@ export class NewAgentNetwork extends MastraBase {
         iteration: {
           step: [routingStep, agentStep, workflowStep, toolStep],
           path: 'iteration',
+        },
+        isOneOff: {
+          step: [routingStep],
+          path: 'isOneOff',
+        },
+        threadId: {
+          step: [routingStep],
+          path: 'threadId',
+        },
+        threadResourceId: {
+          step: [routingStep],
+          path: 'threadResourceId',
         },
       })
       .commit();
