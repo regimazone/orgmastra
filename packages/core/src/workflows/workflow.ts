@@ -1030,7 +1030,7 @@ export class Workflow<
     }, 'watch-v2');
     const unwatch = run.watch(event => {
       emitter.emit('nested-watch', { event, workflowId: this.id, runId: run.runId, isResume: !!resume?.steps?.length });
-    });
+    }, 'watch');
     const res = resume?.steps?.length
       ? await run.resume({ resumeData, step: resume.steps as any, runtimeContext })
       : await run.start({ inputData, runtimeContext });
