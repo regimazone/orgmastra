@@ -351,9 +351,13 @@ export class NewAgentNetwork extends MastraBase {
     {
       runtimeContext,
       maxIterations,
+      threadId,
+      resourceId,
     }: {
       runtimeContext?: RuntimeContext;
       maxIterations?: number;
+      threadId?: string;
+      resourceId?: string;
     },
   ) {
     const networkWorkflow = this.createWorkflow({ runtimeContext });
@@ -379,7 +383,12 @@ export class NewAgentNetwork extends MastraBase {
       inputSchema: z.object({
         iteration: z.number(),
         task: z.string(),
+        resourceId: z.string(),
         resourceType: RESOURCE_TYPES,
+        result: z.string().optional(),
+        threadId: z.string().optional(),
+        threadResourceId: z.string().optional(),
+        isOneOff: z.boolean(),
       }),
       outputSchema: z.object({
         text: z.string(),
@@ -394,11 +403,31 @@ export class NewAgentNetwork extends MastraBase {
 
     const run = mainWorkflow.createRun();
 
+    const memory = await this.getMemory({ runtimeContext: runtimeContext || new RuntimeContext() });
+    await memory?.saveMessages({
+      messages: [
+        {
+          id: randomUUID() as string,
+          type: 'text',
+          role: 'user',
+          content: { parts: [{ type: 'text', text: message }], format: 2 },
+          createdAt: new Date(),
+          threadId: threadId || run.runId,
+          resourceId: resourceId || this.name,
+        },
+      ] as MastraMessageV2[],
+      format: 'v2',
+    });
+
     return run.stream({
       inputData: {
-        task: message,
+        task: `You are executing just one primitive based on the following: ${message}`,
+        resourceId: '',
         resourceType: 'none',
         iteration: 0,
+        threadResourceId: resourceId,
+        threadId,
+        isOneOff: false,
       },
     });
   }
