@@ -1025,6 +1025,9 @@ export class Workflow<
     this.__registerMastra(mastra);
 
     const run = resume?.steps?.length ? this.createRun({ runId: resume.runId }) : this.createRun();
+    const unwatchV2 = run.watch(event => {
+      emitter.emit('nested-watch-v2', event);
+    }, 'watch-v2');
     const unwatch = run.watch(event => {
       emitter.emit('nested-watch', { event, workflowId: this.id, runId: run.runId, isResume: !!resume?.steps?.length });
     });
@@ -1032,6 +1035,7 @@ export class Workflow<
       ? await run.resume({ resumeData, step: resume.steps as any, runtimeContext })
       : await run.start({ inputData, runtimeContext });
     unwatch();
+    unwatchV2();
     const suspendedSteps = Object.entries(res.steps).filter(([_stepName, stepResult]) => {
       const stepRes: StepResult<any, any, any, any> = stepResult as StepResult<any, any, any, any>;
       return stepRes?.status === 'suspended';
