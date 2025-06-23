@@ -1266,13 +1266,11 @@ export class Run<
     const unwatch = this.watch(async event => {
       try {
         // watch-v2 events are data stream events, so we need to cast them to the correct type
-        console.log('writing v2 event', event);
         await writer.write(event as any);
       } catch {}
     }, 'watch-v2');
 
     this.closeStreamAction = async () => {
-      console.log('closing stream==');
       this.emitter.emit('watch-v2', {
         type: 'finish',
         payload: { runId: this.runId },

@@ -160,7 +160,6 @@ export async function loopStreamVNextNetworkHandler(c: Context) {
 
           let chunkResult;
           while ((chunkResult = await reader.read()) && !chunkResult.done) {
-            console.log('chunkResult in deployer', JSON.stringify(chunkResult.value, null, 2));
             await stream.write(JSON.stringify(chunkResult.value) + '\x1E');
           }
         } catch (err) {

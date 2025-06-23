@@ -167,7 +167,6 @@ export class VNextNetwork extends BaseResource {
     }
 
     for await (const record of this.streamProcessor(response.body)) {
-      console.log('record in client js', JSON.stringify(record, null, 2));
       if (typeof record === 'string') {
         onRecord(JSON.parse(record));
       } else {

@@ -1,3 +1,4 @@
+import { NetworkContext } from '@/domains/networks';
 import React, { createContext, useContext, ReactNode, useState } from 'react';
 
 //the whole workflow execution state.
@@ -18,8 +19,10 @@ type VNextNetworkChatContextType = {
 
 const VNextNetworkChatContext = createContext<VNextNetworkChatContextType | undefined>(undefined);
 
-export const VNextNetworkChatProvider = ({ children, networkId }: { children: ReactNode; networkId: string }) => {
+export const VNextNetworkChatProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<State>({});
+
+  // const { chatWithLoop } = useContext(NetworkContext);
 
   const handleStep = (uuid: string, record: Record<string, any>) => {
     const id = record?.type === 'finish' ? 'finish' : record.type === 'start' ? 'start' : record.payload?.id;
@@ -39,6 +42,10 @@ export const VNextNetworkChatProvider = ({ children, networkId }: { children: Re
       if (record.type === 'step-finish') {
         endTime = Date.now();
       }
+
+      // const newPayload = chatWithLoop
+      //   ? { ...(state[uuid]?.steps?.[id]?.[record.type] || {}), ...record.payload }
+      //   : record.payload;
 
       return {
         ...prevState,
