@@ -1308,14 +1308,13 @@ export class Run<
 
   watch(cb: (event: WatchEvent) => void, type: 'watch' | 'watch-v2' = 'watch'): () => void {
     const watchCb = (event: WatchEvent) => {
-      if (type === 'watch') {
-        this.updateState(event.payload);
-        cb({ type: event.type, payload: this.getState() as any, eventTimestamp: event.eventTimestamp });
-      }
+      this.updateState(event.payload);
+      cb({ type: event.type, payload: this.getState() as any, eventTimestamp: event.eventTimestamp });
     };
 
-    this.emitter.on('watch', watchCb);
-    if (type === 'watch-v2') {
+    if (type === 'watch') {
+      this.emitter.on('watch', watchCb);
+    } else if (type === 'watch-v2') {
       this.emitter.on('watch-v2', cb);
     }
 
