@@ -22,7 +22,7 @@ export const EVALS_V2_SCHEMA = {
   traceId: {
     type: 'text',
   },
-  run_id: {
+  runId: {
     type: 'text',
   },
   evaluator: {
@@ -40,7 +40,11 @@ export const EVALS_V2_SCHEMA = {
   output: {
     type: 'jsonb',
   },
-  context: {
+  additionalContext: {
+    type: 'jsonb',
+    nullable: true,
+  },
+  runtimeContext: {
     type: 'jsonb',
     nullable: true,
   },
