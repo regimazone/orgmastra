@@ -1026,9 +1026,11 @@ export class Workflow<
 
     const run = resume?.steps?.length ? this.createRun({ runId: resume.runId }) : this.createRun();
     const unwatchV2 = run.watch(event => {
+      console.log('recorded v2 event', event, data);
       emitter.emit('nested-watch-v2', event);
     }, 'watch-v2');
     const unwatch = run.watch(event => {
+      console.log('recorded v1 event', event);
       emitter.emit('nested-watch', { event, workflowId: this.id, runId: run.runId, isResume: !!resume?.steps?.length });
     }, 'watch');
     const res = resume?.steps?.length
@@ -1319,6 +1321,7 @@ export class Run<
     }
 
     const nestedWatchCb = ({ event, workflowId }: { event: WatchEvent; workflowId: string }) => {
+      console.log('nested watch v1 event', event);
       try {
         const { type, payload, eventTimestamp } = event;
         const prefixedSteps = Object.fromEntries(
@@ -1344,6 +1347,7 @@ export class Run<
     };
     this.emitter.on('nested-watch', nestedWatchCb);
     this.emitter.on('nested-watch-v2', (event: WatchEvent, data: any) => {
+      console.log('nested v2 event', event, data);
       this.emitter.emit('watch-v2', event, data);
     });
 
