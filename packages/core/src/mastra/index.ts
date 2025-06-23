@@ -17,8 +17,7 @@ import type { MastraVector } from '../vector';
 import type { Workflow } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
 
-export type AiSdkCompatMode = 'v4' | 'v5' | 'auto';
-export { shouldUseV4Compatibility, shouldUseV4CompatibilityFromRequest, extractHeaders, extractQuery } from '../agent/ai-sdk-compat';
+export type AiSdkCompatMode = 'v4' | 'v5';
 
 export interface Config<
   TAgents extends Record<string, Agent<any>> = Record<string, Agent<any>>,
@@ -49,7 +48,6 @@ export interface Config<
    * @default 'v5' - Use native AI SDK v5 format
    * @option 'v4' - Always return v4-compatible streams/responses for backwards compatibility
    * @option 'v5' - Use native v5 format (recommended for new projects)
-   * @option 'auto' - Auto-detect based on client headers or query parameters
    */
   aiSdkCompat?: AiSdkCompatMode;
 

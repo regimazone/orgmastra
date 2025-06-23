@@ -1,5 +1,4 @@
 import type { MastraMemory } from '@mastra/core/memory';
-import { shouldUseV4CompatibilityFromRequest } from '@mastra/core/agent';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 
@@ -262,11 +261,8 @@ export async function getMessagesHandler({
     } else if (format === 'aiv5') {
       useV4Format = false;
     } else {
-      // No explicit format - use auto-detection based on Mastra config and request
-      useV4Format = shouldUseV4CompatibilityFromRequest(
-        mastra.getAiSdkCompatMode(),
-        request
-      );
+      // No explicit format - use Mastra config
+      useV4Format = mastra.getAiSdkCompatMode() === 'v4';
     }
 
     // Return appropriate format

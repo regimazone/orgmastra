@@ -163,7 +163,7 @@ export const mastra = new Mastra({
     });
   });
 
-  describe('Auto-Detection Mode Tests', () => {
+  describe('V5 Native Mode Tests', () => {
     let mastraServer: ReturnType<typeof spawn>;
     let port: number;
     const threadId = randomUUID();
@@ -171,8 +171,8 @@ export const mastra = new Mastra({
     beforeAll(async () => {
       port = await getAvailablePort();
 
-      // Create test directory with mastra config for auto-detection
-      const testDir = path.resolve(import.meta.dirname, 'test-auto-compat');
+      // Create test directory with mastra config for v5 native mode
+      const testDir = path.resolve(import.meta.dirname, 'test-v5-native');
       await import('fs').then(fs => fs.promises.mkdir(testDir, { recursive: true }));
 
       const configContent = `
@@ -194,7 +194,7 @@ const memory = new LibsqlMemory({
 export const mastra = new Mastra({
   agents: { 'test-agent': testAgent },
   memory,
-  aiSdkCompat: 'auto', // Auto-detection mode
+  aiSdkCompat: 'v5', // Native v5 mode
 });
 `;
 
@@ -241,12 +241,11 @@ export const mastra = new Mastra({
       }
     });
 
-    it('should use v4 format when X-AI-SDK-Version header is v4', async () => {
+    it('should use v5 native format when aiSdkCompat is v5', async () => {
       const response = await fetch(`http://localhost:${port}/api/agents/test-agent/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-AI-SDK-Version': 'v4',
         },
         body: JSON.stringify({
           messages: [{ role: 'user', content: 'Hello' }],
@@ -265,20 +264,5 @@ export const mastra = new Mastra({
         reader.releaseLock();
       }
     });
-
-    it('should use v4 format when aisdk query parameter is v4', async () => {
-      const response = await fetch(
-        `http://localhost:${port}/api/memory/threads/${threadId}/messages?agentId=test-agent&aisdk=v4`,
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        expect(data.uiMessages).toBeDefined();
-      } else if (response.status === 404) {
-        // Memory API not configured, skip test
-        console.log('Memory API not available, skipping query parameter test');
-      }
-    });
   });
 });
-

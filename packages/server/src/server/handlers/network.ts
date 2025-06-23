@@ -1,6 +1,6 @@
 import type { AgentNetwork } from '@mastra/core/network';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
-import { createV4CompatibleResponse, shouldUseV4CompatibilityFromRequest } from '@mastra/core/agent';
+import { createV4CompatibleResponse } from '@mastra/core/agent';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 import { handleError } from './error';
@@ -153,10 +153,7 @@ export async function streamGenerateHandler({
     });
 
     // Determine compatibility mode
-    const useV4Compat = shouldUseV4CompatibilityFromRequest(
-      mastra.getAiSdkCompatMode(),
-      request
-    );
+    const useV4Compat = mastra.getAiSdkCompatMode() === 'v4';
 
     const streamResponse = output
       ? streamResult.toTextStreamResponse()

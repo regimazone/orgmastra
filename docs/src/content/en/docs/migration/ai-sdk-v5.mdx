@@ -15,24 +15,9 @@ export const mastra = new Mastra({
   // v4 compatibility mode
   aiSdkCompat: 'v4',
   
-  // Auto-detect mode (use headers/query params)
-  aiSdkCompat: 'auto',
-  
   // Native v5 mode (default)
   aiSdkCompat: 'v5',
 });
-```
-
-### Auto-Detection
-
-When using `aiSdkCompat: 'auto'`, clients can specify format:
-
-```http
-# Header
-X-AI-SDK-Version: v4
-
-# Query parameter  
-GET /api/agents/myAgent/stream?aisdk=v4
 ```
 
 ## Breaking Changes

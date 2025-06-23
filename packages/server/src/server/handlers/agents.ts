@@ -1,4 +1,4 @@
-import { createV4CompatibleResponse, shouldUseV4CompatibilityFromRequest } from '@mastra/core/agent';
+import { createV4CompatibleResponse } from '@mastra/core/agent';
 import type { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { stringify } from 'superjson';
@@ -304,10 +304,7 @@ export async function streamGenerateHandler({
     }
 
     // For UI message streams, determine compatibility mode
-    const useV4Compat = shouldUseV4CompatibilityFromRequest(
-      mastra.getAiSdkCompatMode(),
-      request
-    );
+    const useV4Compat = mastra.getAiSdkCompatMode() === 'v4';
 
     const uiMessageStream = streamResult.toUIMessageStreamResponse({
       headers,
