@@ -35,28 +35,28 @@ export const EVALS_V2_SCHEMA = {
     type: 'jsonb',
   },
   input: {
-    type: 'jsonb',
+    type: 'jsonb', // MESSAGE INPUT
   },
   output: {
-    type: 'jsonb',
+    type: 'jsonb', // MESSAGE OUTPUT
   },
   additionalContext: {
-    type: 'jsonb',
+    type: 'jsonb', // DATA FROM THE CONTEXT PARAM ON AN AGENT
     nullable: true,
   },
   runtimeContext: {
-    type: 'jsonb',
+    type: 'jsonb', // THE EVALUATE RUNTIME CONTEXT FOR THE RUN
     nullable: true,
   },
   /**
    * Things you can evaluate
    */
   entityType: {
-    type: 'text',
+    type: 'text', // WORKFLOW, AGENT, TOOL, STEP, NETWORK
     nullable: true,
   },
   entity: {
-    type: 'jsonb',
+    type: 'jsonb', // MINIMAL JSON DATA ABOUT WORKFLOW, AGENT, TOOL, STEP, NETWORK
     nullable: true,
   },
   source: {
