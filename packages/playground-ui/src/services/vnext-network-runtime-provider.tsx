@@ -200,13 +200,14 @@ export function VNextMastraNetworkRuntimeProvider({
     setIsRunning(true);
 
     try {
-      await network.stream(
+      await network.loopStream(
         {
           message: input,
           threadId,
           resourceId: networkId,
         },
         record => {
+          console.log('record in vnext-network-runtime-provider', record);
           if (runIdRef.current) {
             if ((record as any).type === 'tool-call-delta') {
               appendToLastMessage((record as any).argsTextDelta);

@@ -6,6 +6,7 @@ import {
   generateVNextNetworkHandler as getOriginalGenerateVNextNetworkHandler,
   streamGenerateVNextNetworkHandler as getOriginalStreamGenerateVNextNetworkHandler,
   loopVNextNetworkHandler as getOriginalLoopVNextNetworkHandler,
+  loopStreamVNextNetworkHandler as getOriginalLoopStreamVNextNetworkHandler,
 } from '@mastra/server/handlers/vNextNetwork';
 import type { Context } from 'hono';
 import { stream } from 'hono/streaming';
@@ -127,5 +128,50 @@ export async function loopVNextNetworkHandler(c: Context) {
     return c.json(result);
   } catch (error) {
     return handleError(error, 'Error looping from network');
+  }
+}
+
+export async function loopStreamVNextNetworkHandler(c: Context) {
+  try {
+    const mastra: Mastra = c.get('mastra');
+    const runtimeContext: RuntimeContext = c.get('runtimeContext');
+    const logger = mastra.getLogger();
+    const networkId = c.req.param('networkId');
+    const body = await c.req.json();
+
+    c.header('Transfer-Encoding', 'chunked');
+
+    return stream(
+      c,
+      async stream => {
+        try {
+          const result = await getOriginalLoopStreamVNextNetworkHandler({
+            mastra,
+            runtimeContext,
+            networkId,
+            body,
+          });
+
+          const reader = result.stream.getReader();
+
+          stream.onAbort(() => {
+            void reader.cancel('request aborted');
+          });
+
+          let chunkResult;
+          while ((chunkResult = await reader.read()) && !chunkResult.done) {
+            console.log('chunkResult in deployer', JSON.stringify(chunkResult.value, null, 2));
+            await stream.write(JSON.stringify(chunkResult.value) + '\x1E');
+          }
+        } catch (err) {
+          mastra.getLogger().error('Error in watch stream: ' + ((err as Error)?.message ?? 'Unknown error'));
+        }
+      },
+      async err => {
+        logger.error('Error in watch stream: ' + err?.message);
+      },
+    );
+  } catch (error) {
+    return handleError(error, 'Error streaming network loop');
   }
 }
