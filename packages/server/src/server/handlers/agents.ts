@@ -301,16 +301,11 @@ export async function streamGenerateHandler({
       : createV4CompatibleResponse(
           streamResult.toUIMessageStreamResponse({
             headers,
-            // sendUsage: true, // <- TODO: this doesn't exist anymore. Why?
             sendReasoning: true,
-            sendSources: true, // TODO: this is false by default. Do we need to make this configurable or what?
+            sendSources: true,
             onError: (error: any) => {
               return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
             },
-            // TODO: do we need to do something with these?
-            // messageMetadata(options) {
-            // },
-            // newMessageId: ""
           }).body!,
         );
 
