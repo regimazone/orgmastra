@@ -1026,7 +1026,7 @@ export class Workflow<
 
     const run = resume?.steps?.length ? this.createRun({ runId: resume.runId }) : this.createRun();
     const unwatchV2 = run.watch(event => {
-      console.log('recorded v2 event', event, data);
+      console.log('recorded v2 event', event);
       emitter.emit('nested-watch-v2', event);
     }, 'watch-v2');
     const unwatch = run.watch(event => {
