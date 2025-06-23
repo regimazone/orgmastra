@@ -70,7 +70,7 @@ export class Deps extends MastraBase {
       cmd: `${this.packageManager} pack --pack-destination ${destination}`,
       args: [],
       env: {
-        PATH: env.PATH!,
+        PATH: process.env.PATH!,
       },
     });
   }
