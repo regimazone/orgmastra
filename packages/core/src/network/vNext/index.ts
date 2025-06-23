@@ -421,7 +421,7 @@ export class NewAgentNetwork extends MastraBase {
 
     return run.stream({
       inputData: {
-        task: `You are executing just one primitive based on the following: ${message}`,
+        task: `${message}`,
         resourceId: '',
         resourceType: 'none',
         iteration: 0,
