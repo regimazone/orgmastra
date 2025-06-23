@@ -1,6 +1,7 @@
 const meta = {
   index: "Introduction",
   "getting-started": { title: "Getting Started" },
+  migration: { title: "Migration Guides" },
   agents: { title: "Agents" },
   "tools-mcp": { title: "Tools & MCP", theme: { collapsed: true } },
   memory: { title: "Memory", theme: { collapsed: true } },

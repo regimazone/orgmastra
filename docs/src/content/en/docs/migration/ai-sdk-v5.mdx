@@ -1,0 +1,90 @@
+# AI SDK v5 Migration Guide
+
+This guide covers migrating from AI SDK v4 to v5 with Mastra.
+
+## Backend Migration
+
+Mastra provides compatibility mode to help with migration:
+
+```typescript
+import { Mastra } from '@mastra/core';
+
+export const mastra = new Mastra({
+  agents: { myAgent },
+  
+  // v4 compatibility mode
+  aiSdkCompat: 'v4',
+  
+  // Auto-detect mode (use headers/query params)
+  aiSdkCompat: 'auto',
+  
+  // Native v5 mode (default)
+  aiSdkCompat: 'v5',
+});
+```
+
+### Auto-Detection
+
+When using `aiSdkCompat: 'auto'`, clients can specify format:
+
+```http
+# Header
+X-AI-SDK-Version: v4
+
+# Query parameter  
+GET /api/agents/myAgent/stream?aisdk=v4
+```
+
+## Breaking Changes
+
+### Agent API
+
+- **maxSteps**: Still supported for backwards compatibility, but `stopWhen: stepCountIs(x)` is preferred
+- **Stream events renamed**: 
+  - `step-start` → `start-step`
+  - `step-finish` → `finish-step`
+  - `text-delta` → `text`
+
+### Language Model
+
+- **generateObject/streamObject**: No longer accept `tools`, `maxSteps`, `toolChoice`, `onStepFinish`
+- **New parameter**: `stopSequences` added to `streamText`
+- **Renamed parameters**:
+  - `maxTokens` → `maxOutputTokens`
+  - `mode` → `responseFormat`
+- **Temperature**: No longer has default value
+
+### Example Migration
+
+**Before (v4):**
+```typescript
+const result = await streamText({
+  model: llm,
+  maxSteps: 5,
+  maxTokens: 100,
+  mode: 'json',
+  temperature: 0,
+});
+```
+
+**After (v5):**
+```typescript
+const result = await streamText({
+  model: llm,
+  stopWhen: stepCountIs(5),
+  maxOutputTokens: 100,
+  responseFormat: 'json',
+  temperature: 0.3, // now explicit
+});
+```
+
+## Migration Strategy
+
+1. **Upgrade backend**: Bump Mastra to the new alpha version and set `aiSdkCompat: 'v4'`
+2. **Fix backend issues**: Update your backend code for v5 breaking changes, test that your frontend still works
+3. **Upgrade frontend**: Update your frontend to AI SDK v5
+4. **Remove compatibility**: Set `aiSdkCompat: 'v5'` (or remove the config) and ensure everything works
+
+The compatibility mode handles stream format conversion during the transition.
+
+For more details on AI SDK v5 changes, see the [official AI SDK v5 documentation](https://v5.ai-sdk.dev/docs/announcing-ai-sdk-5-alpha).

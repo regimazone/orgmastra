@@ -1,4 +1,4 @@
-import { createV4CompatibleResponse } from '@mastra/core/agent';
+import { createV4CompatibleResponse, shouldUseV4CompatibilityFromRequest } from '@mastra/core/agent';
 import type { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { stringify } from 'superjson';
@@ -262,12 +262,14 @@ export async function streamGenerateHandler({
   runtimeContext,
   agentId,
   body,
+  request,
 }: Context & {
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'stream'> & {
     runtimeContext?: string;
   };
+  request?: import('@mastra/core/agent').RequestLike; // Request-like object for compatibility detection
 }): Promise<Response | undefined> {
   try {
     const agent = mastra.getAgent(agentId);
@@ -296,18 +298,30 @@ export async function streamGenerateHandler({
       'Transfer-Encoding': 'chunked',
     };
 
-    const streamResponse = rest.output
-      ? streamResult.toTextStreamResponse({ headers })
-      : createV4CompatibleResponse(
-          streamResult.toUIMessageStreamResponse({
-            headers,
-            sendReasoning: true,
-            sendSources: true,
-            onError: (error: any) => {
-              return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
-            },
-          }).body!,
-        );
+    // Handle text output mode (always returns raw text stream)
+    if (rest.output) {
+      return streamResult.toTextStreamResponse({ headers });
+    }
+
+    // For UI message streams, determine compatibility mode
+    const useV4Compat = shouldUseV4CompatibilityFromRequest(
+      mastra.getAiSdkCompatMode(),
+      request
+    );
+
+    const uiMessageStream = streamResult.toUIMessageStreamResponse({
+      headers,
+      sendReasoning: true,
+      sendSources: true,
+      onError: (error: any) => {
+        return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
+      },
+    });
+
+    // Apply v4 compatibility transformation if needed
+    const streamResponse = useV4Compat
+      ? createV4CompatibleResponse(uiMessageStream.body!)
+      : uiMessageStream;
 
     return streamResponse;
   } catch (error) {

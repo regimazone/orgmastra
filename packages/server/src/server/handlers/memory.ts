@@ -1,4 +1,5 @@
 import type { MastraMemory } from '@mastra/core/memory';
+import { shouldUseV4CompatibilityFromRequest } from '@mastra/core/agent';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 
@@ -226,9 +227,11 @@ export async function getMessagesHandler({
   threadId,
   limit,
   format,
+  request,
 }: Pick<MemoryContext, 'mastra' | 'agentId' | 'threadId'> & {
   limit?: number;
   format?: 'aiv4' | 'aiv5';
+  request?: import('@mastra/core/agent').RequestLike; // Request-like object for compatibility detection
 }) {
   if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
     throw new HTTPException(400, { message: 'Invalid limit: must be a positive integer' });
@@ -252,8 +255,22 @@ export async function getMessagesHandler({
       ...(limit && { selectBy: { last: limit } }),
     });
 
-    // Return v4 format if requested, otherwise default to v5
+    // Determine format: explicit format parameter, auto-detection, or default to v5
+    let useV4Format = false;
     if (format === 'aiv4') {
+      useV4Format = true;
+    } else if (format === 'aiv5') {
+      useV4Format = false;
+    } else {
+      // No explicit format - use auto-detection based on Mastra config and request
+      useV4Format = shouldUseV4CompatibilityFromRequest(
+        mastra.getAiSdkCompatMode(),
+        request
+      );
+    }
+
+    // Return appropriate format
+    if (useV4Format) {
       return { messages: result.messages, uiMessages: result.uiMessagesV4 };
     }
     

@@ -17,6 +17,9 @@ import type { MastraVector } from '../vector';
 import type { Workflow } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
 
+export type AiSdkCompatMode = 'v4' | 'v5' | 'auto';
+export { shouldUseV4Compatibility, shouldUseV4CompatibilityFromRequest, extractHeaders, extractQuery } from '../agent/ai-sdk-compat';
+
 export interface Config<
   TAgents extends Record<string, Agent<any>> = Record<string, Agent<any>>,
   TLegacyWorkflows extends Record<string, LegacyWorkflow> = Record<string, LegacyWorkflow>,
@@ -40,6 +43,15 @@ export interface Config<
   server?: ServerConfig;
   mcpServers?: TMCPServers;
   bundler?: BundlerConfig;
+
+  /**
+   * AI SDK compatibility mode for backwards compatibility with existing frontends
+   * @default 'v5' - Use native AI SDK v5 format
+   * @option 'v4' - Always return v4-compatible streams/responses for backwards compatibility
+   * @option 'v5' - Use native v5 format (recommended for new projects)
+   * @option 'auto' - Auto-detect based on client headers or query parameters
+   */
+  aiSdkCompat?: AiSdkCompatMode;
 
   /**
    * Server middleware functions to be applied to API routes
@@ -87,6 +99,7 @@ export class Mastra<
   #server?: ServerConfig;
   #mcpServers?: TMCPServers;
   #bundler?: BundlerConfig;
+  #aiSdkCompat: AiSdkCompatMode;
 
   /**
    * @deprecated use getTelemetry() instead
@@ -110,6 +123,9 @@ export class Mastra<
   }
 
   constructor(config?: Config<TAgents, TLegacyWorkflows, TWorkflows, TVectors, TTTS, TLogger, TNetworks, TMCPServers>) {
+    // Initialize AI SDK compatibility mode (default to v5 for new projects)
+    this.#aiSdkCompat = config?.aiSdkCompat ?? 'v5';
+
     // Store server middleware with default path
     if (config?.serverMiddleware) {
       this.#serverMiddleware = config.serverMiddleware.map(m => ({
@@ -641,6 +657,10 @@ do:
 
   public getBundlerConfig() {
     return this.#bundler;
+  }
+
+  public getAiSdkCompatMode(): AiSdkCompatMode {
+    return this.#aiSdkCompat;
   }
 
   /**
