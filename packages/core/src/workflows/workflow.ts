@@ -1346,9 +1346,9 @@ export class Run<
       }
     };
     this.emitter.on('nested-watch', nestedWatchCb);
-    this.emitter.on('nested-watch-v2', (event: WatchEvent, data: any) => {
-      console.log('nested v2 event', event, data);
-      this.emitter.emit('watch-v2', event, data);
+    this.emitter.on('nested-watch-v2', (event: WatchEvent) => {
+      console.log('nested v2 event', event);
+      this.emitter.emit('watch-v2', event);
     });
 
     return () => {
