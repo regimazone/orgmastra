@@ -97,24 +97,70 @@ export function MastraRuntimeProvider({
 
   useEffect(() => {
     const hasNewInitialMessages = initialMessages && initialMessages?.length > messages?.length;
-    console.log('🔄 MastraRuntimeProvider useEffect triggered', {
-      threadId,
-      currentThreadId,
-      messagesLength: messages.length,
-      hasInitialMessages: !!initialMessages,
-      initialMessagesLength: initialMessages?.length || 0,
-      hasNewInitialMessages,
-      memory: !!memory,
-      agentId
-    });
-    
     if (
       messages.length === 0 ||
       currentThreadId !== threadId ||
       (hasNewInitialMessages && currentThreadId === threadId)
     ) {
-      if (initialMessages && threadId && memory) {
-        console.log('📄 MastraRuntimeProvider: Using initialMessages path');
+      // When switching threads with memory enabled, always fetch from memory API for correct format
+      // this prevents errors where the frontend stops displaying data when switching back/forth between threads
+      if (threadId && memory && agentId && currentThreadId !== threadId) {
+        const loadMessagesFromMemory = async () => {
+          try {
+            const memoryThread = mastra.getMemoryThread(threadId, agentId);
+            const result = await memoryThread.getMessages({ limit: 50, format: 'aiv4' });
+
+            if (result?.uiMessages && result.uiMessages.length > 0) {
+              const convertedMessages: ThreadMessageLike[] = result.uiMessages
+                ?.map((message: any) => {
+                  const toolInvocationsAsContentParts = (message.toolInvocations || []).map((toolInvocation: any) => ({
+                    type: 'tool-call',
+                    toolCallId: toolInvocation?.toolCallId,
+                    toolName: toolInvocation?.toolName,
+                    args: toolInvocation?.args,
+                    result: toolInvocation?.result,
+                  }));
+
+                  const attachmentsAsContentParts = (message.experimental_attachments || []).map((image: any) => ({
+                    type: image.contentType.startsWith(`image/`)
+                      ? 'image'
+                      : image.contentType.startsWith(`audio/`)
+                        ? 'audio'
+                        : 'file',
+                    mimeType: image.contentType,
+                    image: image.url,
+                  }));
+
+                  return {
+                    ...message,
+                    content: [
+                      ...(typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : []),
+                      ...toolInvocationsAsContentParts,
+                      ...attachmentsAsContentParts,
+                    ],
+                  };
+                })
+                .filter(Boolean);
+
+              setMessages(convertedMessages);
+            } else {
+              console.log('🗑️ MastraRuntimeProvider: Clearing messages (no results)', { threadId });
+              setMessages([]);
+            }
+            setCurrentThreadId(threadId);
+          } catch (error) {
+            console.error('❌ MastraRuntimeProvider: Error loading messages from memory', {
+              threadId,
+              agentId,
+              error,
+            });
+            setMessages([]);
+            setCurrentThreadId(threadId);
+          }
+        };
+
+        loadMessagesFromMemory();
+      } else if (initialMessages && threadId && memory) {
         const convertedMessages: ThreadMessageLike[] = initialMessages
           ?.map((message: any) => {
             const toolInvocationsAsContentParts = (message.toolInvocations || []).map((toolInvocation: any) => ({
@@ -148,20 +194,11 @@ export function MastraRuntimeProvider({
         setMessages(convertedMessages);
         setCurrentThreadId(threadId);
       } else if (threadId && memory && agentId && !initialMessages) {
-        console.log('🔍 MastraRuntimeProvider: Using memory API path');
         // Fetch messages from memory API when no initialMessages provided
-        
         const loadMessagesFromMemory = async () => {
           try {
             const memoryThread = mastra.getMemoryThread(threadId, agentId);
             const result = await memoryThread.getMessages({ limit: 50, format: 'aiv4' });
-            
-            console.log('📥 MastraRuntimeProvider: Memory API response', {
-              threadId,
-              messageCount: result?.uiMessages?.length || 0,
-              firstMessage: result?.uiMessages?.[0]
-            });
-            
             if (result?.uiMessages && result.uiMessages.length > 0) {
               const convertedMessages: ThreadMessageLike[] = result.uiMessages
                 ?.map((message: any) => {
@@ -193,13 +230,6 @@ export function MastraRuntimeProvider({
                   };
                 })
                 .filter(Boolean);
-              
-              console.log('✅ MastraRuntimeProvider: Converted memory messages', {
-                originalCount: result.uiMessages.length,
-                convertedCount: convertedMessages.length,
-                firstConverted: convertedMessages[0]
-              });
-              
               setMessages(convertedMessages);
             } else {
               setMessages([]);
@@ -209,23 +239,13 @@ export function MastraRuntimeProvider({
             console.error('❌ MastraRuntimeProvider: Error loading messages from memory', {
               threadId,
               agentId,
-              error
+              error,
             });
             setMessages([]);
             setCurrentThreadId(threadId);
           }
         };
-        
         loadMessagesFromMemory();
-      } else {
-        console.log('⚠️ MastraRuntimeProvider: No action taken', {
-          threadId,
-          memory: !!memory,
-          agentId,
-          hasInitialMessages: !!initialMessages,
-          messagesLength: messages.length,
-          currentThreadId
-        });
       }
     }
   }, [initialMessages, threadId, memory, agentId, mastra]);
