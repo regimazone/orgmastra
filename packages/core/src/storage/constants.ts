@@ -2,6 +2,7 @@ import type { StorageColumn } from './types';
 
 export const TABLE_WORKFLOW_SNAPSHOT = 'mastra_workflow_snapshot';
 export const TABLE_EVALS = 'mastra_evals';
+export const TABLE_EVALS_V2 = 'mastra_evals_v2';
 export const TABLE_MESSAGES = 'mastra_messages';
 export const TABLE_THREADS = 'mastra_threads';
 export const TABLE_TRACES = 'mastra_traces';
@@ -12,6 +13,57 @@ export type TABLE_NAMES =
   | typeof TABLE_MESSAGES
   | typeof TABLE_THREADS
   | typeof TABLE_TRACES;
+
+export const EVALS_V2_SCHEMA = {
+  name: {
+    type: 'text',
+  },
+  run_id: {
+    type: 'text',
+  },
+  evaluator: {
+    type: 'jsonb',
+  },
+  result: {
+    type: 'jsonb',
+  },
+  metadata: {
+    type: 'jsonb',
+  },
+  global_run_id: {
+    type: 'text',
+  },
+  input: {
+    type: 'jsonb',
+  },
+  output: {
+    type: 'jsonb',
+  },
+  context: {
+    type: 'jsonb',
+    nullable: true,
+  },
+  agent: {
+    type: 'jsonb',
+  },
+  source: {
+    type: 'text',
+  },
+  resourceId: {
+    type: 'text',
+    nullable: true,
+  },
+  threadId: {
+    type: 'text',
+    nullable: true,
+  },
+  createdAt: {
+    type: 'timestamp',
+  },
+  updatedAt: {
+    type: 'timestamp',
+  },
+};
 
 export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> = {
   [TABLE_WORKFLOW_SNAPSHOT]: {
