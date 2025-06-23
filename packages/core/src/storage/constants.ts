@@ -15,7 +15,11 @@ export type TABLE_NAMES =
   | typeof TABLE_TRACES;
 
 export const EVALS_V2_SCHEMA = {
+  id: { type: 'text', nullable: false, primaryKey: true },
   name: {
+    type: 'text',
+  },
+  traceId: {
     type: 'text',
   },
   run_id: {
@@ -30,9 +34,6 @@ export const EVALS_V2_SCHEMA = {
   metadata: {
     type: 'jsonb',
   },
-  global_run_id: {
-    type: 'text',
-  },
   input: {
     type: 'jsonb',
   },
@@ -43,8 +44,16 @@ export const EVALS_V2_SCHEMA = {
     type: 'jsonb',
     nullable: true,
   },
-  agent: {
+  /**
+   * Things you can evaluate
+   */
+  entityType: {
+    type: 'text',
+    nullable: true,
+  },
+  entity: {
     type: 'jsonb',
+    nullable: true,
   },
   source: {
     type: 'text',
