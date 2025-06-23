@@ -391,7 +391,13 @@ export class NewAgentNetwork extends MastraBase {
         isOneOff: z.boolean(),
       }),
       outputSchema: z.object({
-        text: z.string(),
+        task: z.string(),
+        resourceId: z.string(),
+        resourceType: RESOURCE_TYPES,
+        prompt: z.string(),
+        result: z.string(),
+        isComplete: z.boolean().optional(),
+        completionReason: z.string().optional(),
         iteration: z.number(),
       }),
     })
