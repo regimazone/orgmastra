@@ -1308,9 +1308,8 @@ export class Run<
 
   watch(cb: (event: WatchEvent) => void, type: 'watch' | 'watch-v2' = 'watch'): () => void {
     const watchCb = (event: WatchEvent) => {
-      this.updateState(event.payload);
-
-      if (type !== 'watch-v2') {
+      if (type === 'watch') {
+        this.updateState(event.payload);
         cb({ type: event.type, payload: this.getState() as any, eventTimestamp: event.eventTimestamp });
       }
     };
