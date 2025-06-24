@@ -322,7 +322,9 @@ describe('Workflow', () => {
             return Promise.resolve({
               stream: simulateReadableStream({
                 chunks: [
-                  { type: 'text', text: 'Paris' },
+                  { type: 'text-start', id: 'text-1' },
+                  { type: 'text-delta', id: 'text-1', delta: 'Paris' },
+                  { type: 'text-end', id: 'text-1' },
                   {
                     type: 'finish',
                     finishReason: 'stop',
@@ -349,7 +351,9 @@ describe('Workflow', () => {
           doStream: async () => ({
             stream: simulateReadableStream({
               chunks: [
-                { type: 'text', text: 'London' },
+                { type: 'text-start', id: 'text-1' },
+                { type: 'text-delta', id: 'text-1', delta: 'London' },
+                { type: 'text-end', id: 'text-1' },
                 {
                   type: 'finish',
                   finishReason: 'stop',
@@ -497,12 +501,20 @@ describe('Workflow', () => {
             "type": "start",
           },
           {
+            "id": "text-1",
+            "type": "text-start",
+          },
+          {
             "args": {
               "prompt": "Capital of France, just the name",
             },
             "argsTextDelta": "Paris",
             "name": "test-agent-1",
             "type": "tool-call-delta",
+          },
+          {
+            "id": "text-1",
+            "type": "text-end",
           },
           {
             "payload": {
@@ -561,12 +573,20 @@ describe('Workflow', () => {
             "type": "start",
           },
           {
+            "id": "text-1",
+            "type": "text-start",
+          },
+          {
             "args": {
               "prompt": "Capital of UK, just the name",
             },
             "argsTextDelta": "London",
             "name": "test-agent-2",
             "type": "tool-call-delta",
+          },
+          {
+            "id": "text-1",
+            "type": "text-end",
           },
           {
             "payload": {
@@ -5087,7 +5107,9 @@ describe('Workflow', () => {
           doStream: async () => ({
             stream: simulateReadableStream({
               chunks: [
-                { type: 'text', text: 'Paris' },
+                { type: 'text-start', id: 'text-1' },
+                { type: 'text-delta', id: 'text-1', delta: 'Paris' },
+                { type: 'text-end', id: 'text-1' },
                 {
                   type: 'finish',
                   finishReason: 'stop',
@@ -5108,7 +5130,9 @@ describe('Workflow', () => {
           doStream: async () => ({
             stream: simulateReadableStream({
               chunks: [
-                { type: 'text', text: 'London' },
+                { type: 'text-start', id: 'text-1' },
+                { type: 'text-delta', id: 'text-1', delta: 'London' },
+                { type: 'text-end', id: 'text-1' },
                 {
                   type: 'finish',
                   finishReason: 'stop',
@@ -5223,7 +5247,9 @@ describe('Workflow', () => {
           doStream: async () => ({
             stream: simulateReadableStream({
               chunks: [
-                { type: 'text', text: 'Paris' },
+                { type: 'text-start', id: 'text-1' },
+                { type: 'text-delta', id: 'text-1', delta: 'Paris' },
+                { type: 'text-end', id: 'text-1' },
                 {
                   type: 'finish',
                   finishReason: 'stop',
@@ -5244,7 +5270,9 @@ describe('Workflow', () => {
           doStream: async () => ({
             stream: simulateReadableStream({
               chunks: [
-                { type: 'text', text: 'London' },
+                { type: 'text-start', id: 'text-1' },
+                { type: 'text-delta', id: 'text-1', delta: 'London' },
+                { type: 'text-end', id: 'text-1' },
                 {
                   type: 'finish',
                   finishReason: 'stop',
