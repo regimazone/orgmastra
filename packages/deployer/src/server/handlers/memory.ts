@@ -162,7 +162,6 @@ export async function getMessagesHandler(c: Context) {
       threadId,
       limit,
       format,
-      request: c.req,
     });
 
     return c.json(result);

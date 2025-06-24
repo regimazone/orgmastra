@@ -98,7 +98,6 @@ export async function streamGenerateHandler(c: Context): Promise<Response | unde
       agentId,
       runtimeContext,
       body,
-      request: c.req,
     });
 
     return streamResponse;

@@ -1,6 +1,6 @@
+import { createV4CompatibleResponse } from '@mastra/core/agent';
 import type { AgentNetwork } from '@mastra/core/network';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
-import { createV4CompatibleResponse } from '@mastra/core/agent';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 import { handleError } from './error';
@@ -130,11 +130,9 @@ export async function streamGenerateHandler({
   networkId,
   body,
   runtimeContext,
-  request,
 }: NetworkContext & {
   runtimeContext: RuntimeContext;
   body: { messages?: Parameters<AgentNetwork['stream']>[0] } & Parameters<AgentNetwork['stream']>[1];
-  request?: import('@mastra/core/agent').RequestLike; // Request-like object for compatibility detection
 }) {
   try {
     const network = mastra.getNetwork(networkId!);
@@ -166,9 +164,7 @@ export async function streamGenerateHandler({
         });
 
     // Apply v4 compatibility transformation if needed
-    return useV4Compat && !output
-      ? createV4CompatibleResponse(streamResponse.body!)
-      : streamResponse;
+    return useV4Compat && !output ? createV4CompatibleResponse(streamResponse.body!) : streamResponse;
   } catch (error) {
     return handleError(error, 'Error streaming from network');
   }

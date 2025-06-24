@@ -262,14 +262,12 @@ export async function streamGenerateHandler({
   runtimeContext,
   agentId,
   body,
-  request,
 }: Context & {
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'stream'> & {
     runtimeContext?: string;
   };
-  request?: import('@mastra/core/agent').RequestLike; // Request-like object for compatibility detection
 }): Promise<Response | undefined> {
   try {
     const agent = mastra.getAgent(agentId);
@@ -316,9 +314,7 @@ export async function streamGenerateHandler({
     });
 
     // Apply v4 compatibility transformation if needed
-    const streamResponse = useV4Compat
-      ? createV4CompatibleResponse(uiMessageStream.body!)
-      : uiMessageStream;
+    const streamResponse = useV4Compat ? createV4CompatibleResponse(uiMessageStream.body!) : uiMessageStream;
 
     return streamResponse;
   } catch (error) {
