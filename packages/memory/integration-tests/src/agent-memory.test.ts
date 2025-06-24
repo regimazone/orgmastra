@@ -129,11 +129,11 @@ describe('Agent Memory Tests', () => {
       }
 
       expect(flattenAssistantMessages(assistantMessages)).toEqual(
-        expect.arrayContaining([expect.stringContaining('2 + 2'), expect.stringContaining('"result"')]),
+        expect.arrayContaining([expect.stringMatching(/2[\s\+]*2/), expect.stringContaining('"result"')]),
       );
 
       expect(flattenAssistantMessages(assistantUiMessages)).toEqual(
-        expect.arrayContaining([expect.stringContaining('2 + 2'), expect.stringContaining('"result"')]),
+        expect.arrayContaining([expect.stringMatching(/2[\s\+]*2/), expect.stringContaining('"result"')]),
       );
     });
 
@@ -321,7 +321,8 @@ describe('Agent with message processors', () => {
       resourceId,
     });
 
-    const secondResponseRequestMessages: CoreMessage[] = (secondResponse.request.body as any).messages;
+    // AI SDK v5 with Responses API has a different structure - access via steps array
+    const secondResponseRequestMessages: CoreMessage[] = (secondResponse as any).steps[0].request.body.input;
 
     expect(secondResponseRequestMessages.length).toBe(4);
     // Filter out tool messages and tool results, should be the same as above.

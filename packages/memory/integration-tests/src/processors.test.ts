@@ -99,7 +99,10 @@ describe('Memory with Processors', () => {
           type: 'tool-result',
           toolCallId: 'tool-9',
           toolName: 'weather',
-          output: 'Pretty hot',
+          output: {
+            type: 'text',
+            value: 'Pretty hot',
+          },
         },
       ],
     });
@@ -290,15 +293,18 @@ describe('Memory with Processors', () => {
       },
     );
 
-    // TODO: why do we need as any here? we didn't in AI SDK v4. Probably this is because of us using generateText<any,any,any> to get around infinite type recursion issues
-    // @ts-expect-error
-    const responseMessages = res.request.body?.messages;
+    // AI SDK v5 with Responses API has a different structure - access via steps array
+    const responseMessages = (res as any).steps[0].request.body.input;
     if (!Array.isArray(responseMessages)) {
       throw new Error(`responseMessages should be an array`);
     }
 
-    const userMessagesByContent = responseMessages.filter(m => m.content === userMessage);
-    expect(userMessagesByContent).toEqual([expect.objectContaining({ role: 'user', content: userMessage })]); // should only be one
+    // In AI SDK v5, user message content is an array with input_text objects
+    const userMessagesByContent = responseMessages.filter(m => 
+      m.role === 'user' && 
+      Array.isArray(m.content) && 
+      m.content.some(part => part.type === 'input_text' && part.text === userMessage)
+    );
     expect(userMessagesByContent.length).toBe(1); // if there's more than one we have duplicate messages
 
     const userMessage2 = 'Tell me something else interesting about space';
@@ -316,19 +322,22 @@ describe('Memory with Processors', () => {
       },
     );
 
-    // TODO: why do we need as any here? we didn't in AI SDK v4. Probably this is because of us using generateText<any,any,any> to get around infinite type recursion issues
-    // @ts-expect-error
-    const responseMessages2 = res2.request.body?.messages;
-    if (!Array.isArray(responseMessages)) {
-      throw new Error(`responseMessages should be an array`);
+    // AI SDK v5 with Responses API has a different structure - access via steps array
+    const responseMessages2 = (res2 as any).steps[0].request.body.input;
+    if (!Array.isArray(responseMessages2)) {
+      throw new Error(`responseMessages2 should be an array`);
     }
 
-    const userMessagesByContent2 = responseMessages2.filter((m: ModelMessage) => m.content === userMessage2);
-    expect(userMessagesByContent2).toEqual([expect.objectContaining({ role: 'user', content: userMessage2 })]); // should only be one
+    // In AI SDK v5, user message content is an array with input_text objects
+    const userMessagesByContent2 = responseMessages2.filter((m: any) => 
+      m.role === 'user' && 
+      Array.isArray(m.content) && 
+      m.content.some((part: any) => part.type === 'input_text' && part.text === userMessage2)
+    );
     expect(userMessagesByContent2.length).toBe(1); // if there's more than one we have duplicate messages
 
     // make sure all user messages are there
-    const allUserMessages = responseMessages2.filter((m: ModelMessage) => m.role === 'user');
+    const allUserMessages = responseMessages2.filter((m: any) => m.role === 'user');
     expect(allUserMessages.length).toBe(3);
 
     const remembered = await memory.query({
