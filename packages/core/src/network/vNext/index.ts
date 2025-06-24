@@ -937,7 +937,9 @@ export class NewAgentNetwork extends MastraBase {
         threadResourceId: z.string().optional(),
         isOneOff: z.boolean(),
       }),
-    })
+    });
+
+    networkWorkflow
       .then(routingStep)
       .branch([
         [async ({ inputData }) => !inputData.isComplete && inputData.resourceType === 'agent', agentStep],
@@ -975,15 +977,15 @@ export class NewAgentNetwork extends MastraBase {
           path: 'iteration',
         },
         isOneOff: {
-          step: [routingStep],
+          initData: networkWorkflow,
           path: 'isOneOff',
         },
         threadId: {
-          step: [routingStep],
+          initData: networkWorkflow,
           path: 'threadId',
         },
         threadResourceId: {
-          step: [routingStep],
+          initData: networkWorkflow,
           path: 'threadResourceId',
         },
       })
