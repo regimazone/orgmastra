@@ -398,6 +398,7 @@ describe('CloudflareStore Workers Binding', () => {
         return {
           ...rest,
           content: {
+            content: content.content,
             format: 2,
             parts: [{ type: 'text', text: content.content }],
           },

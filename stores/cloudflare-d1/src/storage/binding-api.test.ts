@@ -434,6 +434,7 @@ describe('D1Store', () => {
         return {
           ...rest,
           content: {
+            content: content.content,
             format: 2,
             parts: [{ type: 'text', text: content.content }],
           },
