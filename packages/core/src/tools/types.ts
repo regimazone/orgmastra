@@ -54,6 +54,7 @@ export type InternalCoreTool = {
   id?: string;
   description?: string;
   inputSchema: Schema;
+  outputSchema?: Schema;
   execute?: (params: any, options: ToolCallOptions) => Promise<any>;
 } & (
   | {
