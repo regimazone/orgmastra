@@ -3,7 +3,7 @@ import { Brain, ChevronDown, RefreshCw } from 'lucide-react';
 import { Agent } from '@/components/ui/agent-logo';
 import { GetNetworkResponse, GetVNextNetworkResponse } from '@mastra/client-js';
 import { useContext } from 'react';
-import { NetworkContext, Txt } from '@mastra/playground-ui';
+import { NetworkContext, Txt, WorkflowIcon } from '@mastra/playground-ui';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -42,7 +42,7 @@ export function NetworkDetails({ network, isVNext }: NetworkDetailsProps) {
           <div className="flex items-center gap-2">
             <Agent />
             <Badge variant="outline" className="text-xs">
-              {network.agents?.length || 0} agents
+              {network.agents?.length || 0} agent{network.agents?.length === 1 ? '' : 's'}
             </Badge>
           </div>
         </div>
@@ -51,9 +51,10 @@ export function NetworkDetails({ network, isVNext }: NetworkDetailsProps) {
           <div>
             <h3 className="text-sm font-medium text-mastra-el-5 mb-1">Workflows</h3>
             <div className="flex items-center gap-2">
-              <Agent />
+              <WorkflowIcon />
               <Badge variant="outline" className="text-xs">
-                {(network as GetVNextNetworkResponse).workflows?.length || 0} workflows
+                {(network as GetVNextNetworkResponse).workflows?.length || 0} workflow
+                {(network as GetVNextNetworkResponse).workflows?.length === 1 ? '' : 's'}
               </Badge>
             </div>
           </div>
@@ -68,7 +69,7 @@ export function NetworkDetails({ network, isVNext }: NetworkDetailsProps) {
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-mastra-el-5 mb-1">Rounting Model Settings</h3>
+          <h3 className="text-sm font-medium text-mastra-el-5 mb-1">Routing Model Settings</h3>
           {isVNext ? (
             <div className="flex flex-col gap-3 text-mastra-el-5 pb-4">
               <Entry label="Chat Method">

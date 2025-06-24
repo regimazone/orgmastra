@@ -22,9 +22,10 @@ const VNextNetworkChatContext = createContext<VNextNetworkChatContextType | unde
 export const VNextNetworkChatProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<State>({});
 
-  // const { chatWithLoop } = useContext(NetworkContext);
+  const { chatWithLoop } = useContext(NetworkContext);
 
   const handleStep = (uuid: string, record: Record<string, any>) => {
+    const addFinishStep = chatWithLoop && record.type === 'step-finish' && record.payload?.id === 'final-step';
     const id = record?.type === 'finish' ? 'finish' : record.type === 'start' ? 'start' : record.payload?.id;
     if (id.includes('mapping_')) return;
 
@@ -52,7 +53,9 @@ export const VNextNetworkChatProvider = ({ children }: { children: ReactNode }) 
         [uuid]: {
           ...current,
           runId: current?.runId || record?.payload?.runId,
-          executionSteps: current?.steps?.[id] ? current?.executionSteps : [...(current?.executionSteps || []), id],
+          executionSteps: current?.steps?.[id]
+            ? [...current?.executionSteps, ...(addFinishStep ? ['finish'] : [])]
+            : [...(current?.executionSteps || []), id],
           steps: {
             ...current?.steps,
             [id]: {

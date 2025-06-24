@@ -218,6 +218,8 @@ export function VNextMastraNetworkRuntimeProvider({
           });
         };
 
+        let isAgentNetworkOuterWorkflowCompleted = false;
+
         await network.loopStream(
           {
             message: input,
@@ -266,11 +268,11 @@ export function VNextMastraNetworkRuntimeProvider({
                   (record as any).type === 'step-finish' &&
                   (record as any).payload?.id === 'Agent-Network-Outer-Workflow'
                 ) {
-                  //finish step
-                  handleStep(runIdRef.current, { ...record, type: 'finish' });
-                  runIdRef.current = undefined;
+                  if (!isAgentNetworkOuterWorkflowCompleted) {
+                    handleStep(runIdRef.current, { ...record, type: 'finish' });
+                    runIdRef.current = undefined;
+                  }
                 } else if ((record as any).type === 'step-result' && (record as any).payload?.id === 'workflow-step') {
-                  //workflow step result
                   handleStep(runIdRef.current, record);
                   const parsedResult = JSON.parse(record?.payload?.output?.result ?? '{}') ?? {};
                   const runResult = parsedResult?.runResult ?? {};
@@ -295,10 +297,28 @@ export function VNextMastraNetworkRuntimeProvider({
                   ]);
 
                   run(JSON.stringify(runResult), formatedOutputId);
+                } else if (
+                  record.payload?.id === 'Agent-Network-Outer-Workflow' ||
+                  record.payload?.id === 'finish-step'
+                ) {
+                  if (record.type === 'step-result' && record.payload?.id === 'Agent-Network-Outer-Workflow') {
+                    isAgentNetworkOuterWorkflowCompleted = record?.payload?.output?.isComplete;
+                  }
                 } else {
                   handleStep(runIdRef.current, record);
                 }
               }
+            }
+
+            if (record.type === 'step-result' && record.payload?.id === 'final-step') {
+              setMessages(msgs => [
+                ...msgs,
+                { role: 'assistant', content: [{ type: 'text', text: record.payload?.output?.result }] },
+              ]);
+            }
+
+            if (record.type === 'step-finish' && record.payload?.id === 'final-step') {
+              runIdRef.current = undefined;
             }
 
             setTimeout(() => {
