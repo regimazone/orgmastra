@@ -27,6 +27,7 @@ export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> & (
   | {
       type?: 'function' | undefined;
       id?: string;
+      __isMastraTool: true;
     }
   // Vercel AI SDK v5 Tool (pass-through with extracted properties)
   | {
@@ -71,6 +72,7 @@ export type InternalCoreTool = {
   | {
       type?: 'function' | undefined;
       id?: string;
+      __isMastraTool: true;
     }
 );
 

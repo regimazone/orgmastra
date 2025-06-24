@@ -18,7 +18,9 @@ export function isVercelV5Tool(tool: unknown): tool is Tool<any, any> {
     'inputSchema' in tool &&
     'execute' in tool &&
     typeof (tool as any).execute === 'function' &&
-    // Check for v5-specific properties
+    // Exclude Mastra tools by checking for the unique __isMastraTool property
+    !('__isMastraTool' in tool) &&
+    // Check for v5-specific properties (and NOT Mastra Tool properties)
     (!('parameters' in tool) || (tool as any).parameters === undefined)
   );
 }

@@ -206,6 +206,7 @@ export class CoreToolBuilder extends MastraBase {
       type: 'function' as const,
       description: toolAny.description,
       inputSchema: this.getParameters(),
+      __isMastraTool: true as const,
       execute: toolAny.execute
         ? this.createExecute(
             this.originalTool,

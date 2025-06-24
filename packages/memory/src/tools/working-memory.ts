@@ -9,6 +9,7 @@ export const updateWorkingMemoryTool = ({ format }: { format: WorkingMemoryForma
       .string()
       .describe(`The ${format === 'json' ? 'JSON' : 'Markdown'} formatted working memory content to store`),
   }),
+  __isMastraTool: true,
   execute: async (params: any) => {
     const { context, threadId, memory, resourceId } = params;
     if (!threadId || !memory) {

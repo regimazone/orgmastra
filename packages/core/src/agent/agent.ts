@@ -983,6 +983,7 @@ export class Agent<
           memo[workflowName] = {
             description: workflow.description || `Workflow: ${workflowName}`,
             inputSchema: workflow.inputSchema || { type: 'object', properties: {} },
+            __isMastraTool: true,
             execute: async (args: any) => {
               try {
                 this.logger.debug(`[Agent:${this.name}] - Executing workflow as tool ${workflowName}`, {
