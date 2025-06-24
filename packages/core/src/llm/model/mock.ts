@@ -61,13 +61,27 @@ export function createMockModel({
       }
 
       const text = typeof mockText === 'string' ? mockText : JSON.stringify(mockText);
-      const wordChunks: LanguageModelV2StreamPart[] = text.split(' ').map(
-        word =>
-          ({
-            type: 'text' as const,
-            text: word + ' ',
-          }) as LanguageModelV2Text,
-      );
+      const textId = 'text-1';
+      
+      // Create proper streaming events for AI SDK v5
+      const streamParts: LanguageModelV2StreamPart[] = [
+        // Start the text block
+        {
+          type: 'text-start',
+          id: textId,
+        },
+        // Split text into words and create delta events
+        ...text.split(' ').map(word => ({
+          type: 'text-delta' as const,
+          id: textId,
+          delta: word + ' ',
+        })),
+        // End the text block
+        {
+          type: 'text-end',
+          id: textId,
+        },
+      ];
 
       const finishChunk: LanguageModelV2StreamPart = {
         type: 'finish',
@@ -83,7 +97,7 @@ export function createMockModel({
 
       return {
         stream: simulateReadableStream({
-          chunks: [...wordChunks, finishChunk] as LanguageModelV2StreamPart[], // Type the chunks array
+          chunks: [...streamParts, finishChunk] as LanguageModelV2StreamPart[], // Type the chunks array
         }),
         request: {}, // Added empty request object
         response: {}, // Added empty response object

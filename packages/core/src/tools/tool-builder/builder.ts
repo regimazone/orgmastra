@@ -52,7 +52,7 @@ export class CoreToolBuilder extends MastraBase {
   private buildProviderTool<T>(tool: ToolToConvert): (CoreTool<T> & { id: `${string}.${string}` }) | undefined {
     if (
       'type' in tool &&
-      tool.type === 'provider-defined-server' &&
+      (tool.type === 'provider-defined-server' || tool.type === 'provider-defined') &&
       'id' in tool &&
       typeof tool.id === 'string' &&
       tool.id.includes('.')

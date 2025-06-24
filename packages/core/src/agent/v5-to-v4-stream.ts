@@ -11,13 +11,16 @@ import type { UIMessageStreamPart as BaseUIMessageStreamPart } from 'ai';
 // Extended type that includes common events we might encounter
 export type UIMessageStreamPart =
   | BaseUIMessageStreamPart
-  // Legacy/custom events that might appear in streams
+  // Legacy/custom events that might appear in streams  
   | { type: 'response-metadata'; id: string; modelId: string; timestamp: Date }
   | { type: 'source'; id: string; title?: string; url?: string; content?: unknown } // Legacy source format
   | { type: 'file'; id: string; name: string; mimeType: string; content: unknown } // Legacy file format for tests
   | { type: 'data'; data: unknown }
   | { type: 'reasoning-signature'; signature: string; hash: string; metadata?: object }
-  | { type: 'redacted-reasoning'; text: string; redactionReason: string; originalLength: number };
+  | { type: 'redacted-reasoning'; text: string; redactionReason: string; originalLength: number }
+  // These events exist in AI SDK v5 but may not be in our base type
+  | { type: 'reasoning'; text: string; providerMetadata?: Record<string, any> }
+  | { type: 'reasoning-part-finish' };
 
 // V4 Stream Prefixes (from AI SDK v4)
 const DataStreamStringPrefixes = {
@@ -125,8 +128,16 @@ export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPar
  */
 export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamState): string | null {
   switch (part.type) {
-    case 'text':
-      return `${DataStreamStringPrefixes.text}:${JSON.stringify(part.text)}\n`;
+    case 'text-start':
+      // Start of text block - no output needed for v4
+      return null;
+      
+    case 'text-delta':
+      return `${DataStreamStringPrefixes.text}:${JSON.stringify(part.delta)}\n`;
+      
+    case 'text-end':
+      // End of text block - no output needed for v4
+      return null;
 
     case 'error':
       try {
@@ -171,8 +182,16 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
         result: part.output,
       })}\n`;
 
-    case 'reasoning':
-      return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify(part.text)}\n`;
+    case 'reasoning-start':
+      // Start of reasoning block - no output needed for v4
+      return null;
+      
+    case 'reasoning-delta':
+      return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify(part.delta)}\n`;
+      
+    case 'reasoning-end':
+      // End of reasoning block - no output needed for v4
+      return null;
 
     case 'start':
       state.messageCounter++;
@@ -281,6 +300,10 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
         originalLength: part.originalLength,
       })}\n`;
 
+    // Handle legacy reasoning format that still exists in v5
+    case 'reasoning':
+      return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify((part as any).text)}\n`;
+      
     case 'reasoning-part-finish':
       return null; // Skip this event type
 

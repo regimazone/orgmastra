@@ -47,7 +47,10 @@ export type ToolSet<Parameters = ToolParameters> = Record<
   string,
   CoreTool<Parameters> & Pick<CoreTool<Parameters>, 'execute'>
 >;
-export type ConvertedToolSet = ToolSet<Exclude<ToolParameters, JSONSchema7Type>>;
+export type ConvertedToolSet = Record<
+  string,
+  CoreTool<Exclude<ToolParameters, JSONSchema7Type>> & Pick<Tool<any, any>, 'execute' | 'onInputAvailable' | 'onInputStart' | 'onInputDelta'>
+>;
 
 // Duplicate of CoreTool but with parameters as Schema to make it easier to work with internally
 export type InternalCoreTool = {
