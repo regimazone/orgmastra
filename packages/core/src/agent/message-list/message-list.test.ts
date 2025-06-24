@@ -211,7 +211,12 @@ describe('MessageList', () => {
       const messageThree = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'testTool', toolCallId: 'call-3', output: 'Tool execution successful' },
+          {
+            type: 'tool-result',
+            toolName: 'testTool',
+            toolCallId: 'call-3',
+            output: { type: 'text', value: 'Tool execution successful' },
+          },
         ],
       } satisfies AIV5.CoreMessage;
 
@@ -255,7 +260,12 @@ describe('MessageList', () => {
       const messageThree = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'testTool', toolCallId: 'call-3', output: 'Tool execution successful' },
+          {
+            type: 'tool-result',
+            toolName: 'testTool',
+            toolCallId: 'call-3',
+            output: { type: 'text', value: 'Tool execution successful' },
+          },
         ],
       } satisfies AIV5.CoreMessage;
 
@@ -433,7 +443,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Okay, I can do that.",
+            content: 'Okay, I can do that.',
             parts: [
               { type: 'text', text: 'Okay, I can do that.' },
               {
@@ -516,7 +526,7 @@ describe('MessageList', () => {
       const msg3 = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'searchTool', toolCallId: 'call-seq-1', output: 'Search results data' },
+          { type: 'tool-result', toolName: 'searchTool', toolCallId: 'call-seq-1', output: { type: 'text', value: 'Search results data' } },
         ],
       } satisfies AIV5.ModelMessage;
       const msg4 = {
@@ -534,7 +544,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Initial user query",
+            content: 'Initial user query',
             parts: msg1.parts,
           },
           threadId,
@@ -546,7 +556,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Thinking...",
+            content: 'Thinking...',
             parts: [
               { type: 'text', text: msg2.content[0].text },
               {
@@ -556,7 +566,7 @@ describe('MessageList', () => {
                   toolName: msg2.content[1].toolName,
                   toolCallId: msg2.content[1].toolCallId,
                   args: msg2.content[1].input,
-                  result: msg3.content[0].output,
+                  result: 'Search results data',
                 },
               },
             ],
@@ -566,7 +576,7 @@ describe('MessageList', () => {
                 toolName: msg2.content[1].toolName,
                 toolCallId: msg2.content[1].toolCallId,
                 args: msg2.content[1].input,
-                result: msg3.content[0].output,
+                result: 'Search results data',
               },
             ],
           },
@@ -579,7 +589,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here are the results.",
+            content: 'Here are the results.',
             parts: msg4.parts,
           },
           threadId,
@@ -647,7 +657,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Result of step 1.",
+            content: 'Result of step 1.',
             parts: [
               {
                 type: 'reasoning',
@@ -713,7 +723,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is an image:",
+            content: 'Here is an image:',
             parts: [
               { type: 'text', text: 'Here is an image:' },
               { type: 'file', mimeType: 'image/png', data: 'AQIDBA==' }, // Base64 of [1, 2, 3, 4]
@@ -778,7 +788,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Analysis complete.",
+            content: 'Analysis complete.',
             parts: [
               {
                 type: 'reasoning',
@@ -855,7 +865,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is a document:",
+            content: 'Here is a document:',
             parts: [
               { type: 'text', text: 'Here is a document:' },
               { type: 'file', mimeType: 'application/pdf', data: 'JVBERi0xLjQKJ...' },
@@ -911,7 +921,7 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg2 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: 'Result A' }],
+        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: { type: 'text', value: 'Result A' } }],
       } satisfies AIV5.ModelMessage;
       const msg3 = {
         role: 'assistant',
@@ -922,7 +932,7 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg4 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: 'Result B' }],
+        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: { type: 'text', value: 'Result B' } }],
       } satisfies AIV5.ModelMessage;
       const msg5 = {
         role: 'assistant',
@@ -940,7 +950,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Step 1: Call tool A",
+            content: 'Step 1: Call tool A',
             parts: [
               { type: 'text', text: 'Step 1: Call tool A' },
               {
@@ -973,7 +983,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Step 2: Call tool B",
+            content: 'Step 2: Call tool B',
             parts: [
               { type: 'text', text: 'Step 2: Call tool B' },
               {
@@ -1006,7 +1016,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Final response.",
+            content: 'Final response.',
             parts: [{ type: 'text', text: 'Final response.' }],
           },
           threadId,
@@ -1025,7 +1035,7 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg2 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: 'Result A' }],
+        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: { type: 'text', value: 'Result A' } }],
       } satisfies AIV5.ModelMessage;
       const msg3 = {
         role: 'assistant',
@@ -1036,7 +1046,7 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg4 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: 'Result B' }],
+        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: { type: 'text', value: 'Result B' } }],
       } satisfies AIV5.ModelMessage;
       const msg5 = {
         role: 'assistant',
@@ -1061,7 +1071,7 @@ describe('MessageList', () => {
                 state: 'output-available',
                 toolCallId: 'call-a-1',
                 input: {},
-                output: 'Result A',
+                output: { type: 'text', value: 'Result A' },
               },
             ],
           },
@@ -1081,7 +1091,7 @@ describe('MessageList', () => {
                 state: 'output-available',
                 toolCallId: 'call-b-1',
                 input: {},
-                output: 'Result B',
+                output: { type: 'text', value: 'Result B' },
               },
             ],
           },
@@ -1120,7 +1130,12 @@ describe('MessageList', () => {
       const toolResultMsg = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'dataTool', toolCallId: 'call-data-1', output: '{"data": "gathered"}' },
+          {
+            type: 'tool-result',
+            toolName: 'dataTool',
+            toolCallId: 'call-data-1',
+            output: { type: 'text', value: '{"data": "gathered"}' },
+          },
         ],
       } satisfies AIV5.ModelMessage;
 
@@ -1155,7 +1170,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "Calling data tool...",
+            content: 'Calling data tool...',
             parts: [
               {
                 type: 'reasoning',
@@ -1193,7 +1208,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "Task completed successfully with gathered data.",
+            content: 'Task completed successfully with gathered data.',
             parts: [
               {
                 type: 'reasoning',
@@ -1227,7 +1242,12 @@ describe('MessageList', () => {
       const toolResultMsg = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'dataTool', toolCallId: 'call-data-1', output: '{"data": "gathered"}' },
+          {
+            type: 'tool-result',
+            toolName: 'dataTool',
+            toolCallId: 'call-data-1',
+            output: { type: 'text', value: '{"data": "gathered"}' },
+          },
         ],
       } satisfies AIV5.ModelMessage;
 
@@ -1272,7 +1292,7 @@ describe('MessageList', () => {
                 state: 'output-available', // State should be updated to output-available
                 toolCallId: 'call-data-1',
                 input: { query: 'required data' },
-                output: '{"data": "gathered"}', // Result from the tool message
+                output: { type: 'text', value: '{"data": "gathered"}' }, // Result from the tool message
               },
             ],
           },
@@ -1327,7 +1347,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is an image URL:",
+            content: 'Here is an image URL:',
             parts: [
               { type: 'text', text: 'Here is an image URL:' },
               {
@@ -1366,7 +1386,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is another image URL:",
+            content: 'Here is another image URL:',
             parts: [
               { type: 'text', text: 'Here is another image URL:' },
               {
@@ -1409,7 +1429,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
-          content: "Message with attachment",
+          content: 'Message with attachment',
           parts: [
             { type: 'text', text: 'Message with attachment' },
             {
@@ -1492,7 +1512,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
-          content: "Check out this image:",
+          content: 'Check out this image:',
           parts: [
             { type: 'text', text: 'Check out this image:' },
             {
@@ -1535,7 +1555,12 @@ describe('MessageList', () => {
         id: 'v1-tool-1',
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'searchTool', toolCallId: 'call-mix-1', result: 'Found relevant data.' },
+          {
+            type: 'tool-result',
+            toolName: 'searchTool',
+            toolCallId: 'call-mix-1',
+            result: 'Found relevant data.',
+          },
         ],
         threadId,
         resourceId,
@@ -1575,7 +1600,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Searching...",
+            content: 'Searching...',
             parts: [
               { type: 'text', text: 'Searching...' },
               {
@@ -1608,7 +1633,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is the information I found.",
+            content: 'Here is the information I found.',
             metadata: {
               createdAt: expect.any(Date),
             },
@@ -1650,7 +1675,12 @@ describe('MessageList', () => {
         id: 'v1-tool-1',
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'searchTool', toolCallId: 'call-mix-1', result: 'Found relevant data.' },
+          {
+            type: 'tool-result',
+            toolName: 'searchTool',
+            toolCallId: 'call-mix-1',
+            result: 'Found relevant data.',
+          },
         ],
         threadId,
         resourceId,
@@ -1696,7 +1726,7 @@ describe('MessageList', () => {
                 state: 'output-available', // State should be updated to result
                 toolCallId: 'call-mix-1',
                 input: { query: 'info' },
-                output: 'Found relevant data.', // Result from the tool message
+                output: { type: 'text', value: 'Found relevant data.' }, // Result from the tool message
               },
             ],
           },
@@ -1743,7 +1773,7 @@ describe('MessageList', () => {
             type: 'tool-result',
             toolName: 'taskTool',
             toolCallId: 'call-task-1',
-            output: 'Task completed successfully.',
+            output: { type: 'text', value: 'Task completed successfully.' },
           },
         ],
       } satisfies AIV5.ModelMessage;
@@ -1776,7 +1806,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "Okay, I will perform the task.",
+            content: 'Okay, I will perform the task.',
             parts: [
               { type: 'text', text: 'Okay, I will perform the task.' },
               {
@@ -1809,7 +1839,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "The task is now complete.",
+            content: 'The task is now complete.',
             parts: [{ type: 'text', text: 'The task is now complete.' }],
           },
           threadId,
@@ -1839,7 +1869,7 @@ describe('MessageList', () => {
             type: 'tool-result',
             toolName: 'taskTool',
             toolCallId: 'call-task-1',
-            output: 'Task completed successfully.',
+            output: { type: 'text', value: 'Task completed successfully.' },
           },
         ],
       } satisfies AIV5.ModelMessage;
@@ -1878,7 +1908,7 @@ describe('MessageList', () => {
                 state: 'output-available',
                 toolCallId: 'call-task-1',
                 input: { task: 'perform' },
-                output: 'Task completed successfully.',
+                output: { type: 'text', value: 'Task completed successfully.' },
               },
             ],
           },
@@ -1921,7 +1951,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Here is an embedded image:",
+            content: 'Here is an embedded image:',
             parts: [
               { type: 'text', text: 'Here is an embedded image:' },
               {
@@ -2031,7 +2061,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
-            content: "Gathering data...",
+            content: 'Gathering data...',
             parts: [
               {
                 type: 'reasoning',
@@ -2131,12 +2161,26 @@ describe('MessageList', () => {
 
       const toolResultLondon = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'weatherTool', toolCallId: 'call-london', output: '20°C, sunny' }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'weatherTool',
+            toolCallId: 'call-london',
+            output: { type: 'text', value: '20°C, sunny' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
 
       const toolResultParis = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'weatherTool', toolCallId: 'call-paris', output: '15°C, cloudy' }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'weatherTool',
+            toolCallId: 'call-paris',
+            output: { type: 'text', value: '15°C, cloudy' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
 
       const assistantMsgWithFinalText = {
@@ -2173,7 +2217,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            content: "Okay, I will check the weather for both cities.And now for Paris.",
+            content: 'Okay, I will check the weather for both cities.And now for Paris.',
             parts: [
               { type: 'text', text: 'Okay, I will check the weather for both cities.' },
               {
@@ -2253,12 +2297,26 @@ describe('MessageList', () => {
 
       const toolResultLondon = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'weatherTool', toolCallId: 'call-london', output: '20°C, sunny' }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'weatherTool',
+            toolCallId: 'call-london',
+            output: { type: 'text', value: '20°C, sunny' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
 
       const toolResultParis = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'weatherTool', toolCallId: 'call-paris', output: '15°C, cloudy' }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'weatherTool',
+            toolCallId: 'call-paris',
+            output: { type: 'text', value: '15°C, cloudy' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
 
       const assistantMsgWithFinalText = {
@@ -2301,7 +2359,7 @@ describe('MessageList', () => {
                 state: 'output-available',
                 toolCallId: 'call-london',
                 input: { city: 'London' },
-                output: '20°C, sunny',
+                output: { type: 'text', value: '20°C, sunny' },
               },
               { type: 'text', text: 'And now for Paris.' },
               {
@@ -2309,7 +2367,7 @@ describe('MessageList', () => {
                 state: 'output-available',
                 toolCallId: 'call-paris',
                 input: { city: 'Paris' },
-                output: '15°C, cloudy',
+                output: { type: 'text', value: '15°C, cloudy' },
               },
             ],
           },
@@ -2844,7 +2902,7 @@ describe('MessageList', () => {
       const finalToolMsg = coreMessages.find(m => m.role === 'tool');
       expect(finalToolMsg).toBeDefined();
       expect(finalToolMsg?.content).toEqual([
-        { type: 'tool-result', toolCallId: 'valid-1', toolName: 'toolA', output: 'Result for valid-1' },
+        { type: 'tool-result', toolCallId: 'valid-1', toolName: 'toolA', output: { type: 'text', value: 'Result for valid-1' } },
       ]);
     });
   });
@@ -2923,22 +2981,23 @@ describe('MessageList', () => {
       // First add a tool call
       const toolCall = {
         role: 'assistant',
-        content: [
-          { type: 'tool-call', toolName: 'testTool', toolCallId: 'call-1', input: { param: 'value' } },
-        ],
+        content: [{ type: 'tool-call', toolName: 'testTool', toolCallId: 'call-1', input: { param: 'value' } }],
       } satisfies AIV5.ModelMessage;
 
       // Then add a tool result
       const toolResult = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'testTool', toolCallId: 'call-1', output: 'Tool output' },
+          {
+            type: 'tool-result',
+            toolName: 'testTool',
+            toolCallId: 'call-1',
+            output: { type: 'text', value: 'Tool output' },
+          },
         ],
       } satisfies AIV5.ModelMessage;
 
-      const list = new MessageList({ threadId, resourceId })
-        .add(toolCall, 'response')
-        .add(toolResult, 'response');
+      const list = new MessageList({ threadId, resourceId }).add(toolCall, 'response').add(toolResult, 'response');
       const v4Messages = list.get.all.aiV4.ui();
 
       expect(v4Messages).toHaveLength(1); // Should be merged into one assistant message
@@ -2976,7 +3035,11 @@ describe('MessageList', () => {
         role: 'user',
         content: [
           { type: 'text', text: 'Here is a file:' },
-          { type: 'file', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', mediaType: 'image/png' },
+          {
+            type: 'file',
+            data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+            mediaType: 'image/png',
+          },
         ],
       } satisfies AIV5.ModelMessage;
 
@@ -3065,11 +3128,11 @@ describe('MessageList', () => {
 
       // First convert to V3, then V2, then back to V4 to test the full conversion pipeline
       const list = new MessageList({ threadId, resourceId }).add(input, 'user');
-      
+
       // Check that we preserve the string content when available
       const v2Messages = list.get.all.v2();
       expect(v2Messages[0].content.content).toBe('Hello!');
-      
+
       const v4Messages = list.get.all.aiV4.ui();
       expect(v4Messages[0].content).toBe('Hello!');
       expect(v4Messages[0].id).toBe('msg-with-content');

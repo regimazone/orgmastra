@@ -237,7 +237,19 @@ export class MessageList {
 
         const sanitized = {
           ...m,
-          parts: safeParts,
+          // Convert AI SDK v5 formatted outputs back to strings for ModelMessage conversion
+          parts: safeParts.map(part => {
+            if (AIV5.isToolUIPart(part) && part.state === 'output-available') {
+              return {
+                ...part,
+                // Unwrap AI SDK v5 format before passing to AIV5.convertToModelMessages()
+                output: typeof part.output === 'object' && part.output && 'value' in part.output 
+                  ? part.output.value 
+                  : part.output,
+              };
+            }
+            return part;
+          }),
         };
 
         return sanitized;
@@ -556,7 +568,10 @@ ${JSON.stringify(message, null, 2)}`,
               toolCallId: part.toolInvocation.toolCallId,
               state: 'output-available',
               input: part.toolInvocation.args,
-              output: part.toolInvocation.result,
+              // V3 format (AI SDK v5) should store AI SDK v5 format
+              output: typeof part.toolInvocation.result === 'string' 
+                ? { type: 'text', value: part.toolInvocation.result }
+                : part.toolInvocation.result,
             });
           } else {
             parts.push({
@@ -652,7 +667,10 @@ ${JSON.stringify(message, null, 2)}`,
           if (p.state === `output-available`) {
             return {
               args: p.input,
-              result: p.output,
+              // V2 format (AI SDK v4) should convert from AI SDK v5 format to plain string
+              result: typeof p.output === 'object' && p.output && 'value' in p.output 
+                ? p.output.value 
+                : p.output,
               toolCallId: p.toolCallId,
               toolName: getToolName(p),
               state: 'result',
@@ -686,7 +704,10 @@ ${JSON.stringify(message, null, 2)}`,
                   toolInvocation: {
                     ...shared,
                     state: 'result',
-                    result: p.output,
+                    // V2 format (AI SDK v4) should convert from AI SDK v5 format to plain string
+                    result: typeof p.output === 'object' && p.output && 'value' in p.output 
+                      ? p.output.value 
+                      : p.output,
                   },
                 };
               }
@@ -903,7 +924,10 @@ ${JSON.stringify(message, null, 2)}`,
               type: `tool-${part.toolName}`,
               state: 'output-available',
               toolCallId: part.toolCallId,
-              output: part.output ?? '', // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
+              // V3 format (AI SDK v5) should store AI SDK v5 format
+              output: typeof part.output === 'string' 
+                ? { type: 'text', value: part.output }
+                : part.output ?? { type: 'text', value: '' }, // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
               input: {}, // when we combine this invocation onto the existing tool-call part it will have args already
             });
             break;
