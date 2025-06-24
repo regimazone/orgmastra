@@ -172,6 +172,7 @@ async function runSingleInputTest(
     const toolCall = response.toolCalls.find(tc => tc.toolName === toolName);
     const toolResult = response.toolResults.find(tr => tr.toolCallId === toolCall?.toolCallId);
 
+    // @ts-ignore TODO: tool types are broken
     if (toolResult?.output?.success) {
       return {
         modelName: model.modelId,
@@ -179,10 +180,12 @@ async function runSingleInputTest(
         testName: toolName,
         status: 'success',
         error: null,
+        // @ts-ignore TODO: tool types are broken
         receivedContext: toolResult.output.receivedContext,
         testId,
       };
     } else {
+      // @ts-ignore TODO: tool types are broken
       const error = toolResult?.output?.error || response.text || 'Tool call failed or result missing';
       return {
         modelName: model.modelId,
@@ -190,6 +193,7 @@ async function runSingleInputTest(
         modelProvider: model.provider,
         status: 'failure',
         error: error,
+        // @ts-ignore TODO: tool types are broken
         receivedContext: toolResult?.output?.receivedContext || null,
         testId,
       };
