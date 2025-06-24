@@ -756,16 +756,14 @@ ${JSON.stringify(message, null, 2)}`,
     }
 
     // Extract text content from parts and set as content.content string
-    // Only set content.content if there are no individual text parts to avoid duplication
     const textParts = v2Msg.content.parts.filter(p => p.type === 'text');
-    if (textParts.length === 1 && textParts[0]?.type === `text`) {
-      // Only set content.content for single text parts to avoid concatenation issues
-      v2Msg.content.content = textParts[0].text;
+    if (textParts.length >= 1) {
+      // Concatenate all text parts into the content.content field
+      v2Msg.content.content = textParts.map(p => (p as any).text).join('');
     } else if (textParts.length === 0 && v3Msg.content.parts.length === 0) {
       // Only set empty content if there are no parts at all
       v2Msg.content.content = '';
     }
-    // For multiple text parts, leave content.content undefined to preserve individual parts
 
     if (toolInvocations?.length) {
       v2Msg.content.toolInvocations = toolInvocations;
