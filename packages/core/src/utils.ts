@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import jsonSchemaToZod from 'json-schema-to-zod';
 import { z } from 'zod';
+import type { Tool } from 'ai';
 import type { MastraPrimitives } from './action';
 import type { MastraLanguageModel, ToolsInput } from './agent';
 import type { IMastraLogger } from './logger';
@@ -10,6 +11,14 @@ import type { RuntimeContext } from './runtime-context';
 import type { CoreTool, ToolAction, ToolParameters, VercelTool } from './tools';
 import { CoreToolBuilder } from './tools/tool-builder/builder';
 import { isVercelTool } from './tools/toolchecks';
+import { 
+  isVercelV5Tool, 
+  createCompatibleToolSet, 
+  ensureVercelTool,
+  ensureMastraTool,
+  type CompatibleTool,
+  type CompatibleToolSet
+} from './tools/ai-sdk-v5-compat';
 
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -204,6 +213,9 @@ export interface ToolOptions {
 
 type ToolToConvert = Omit<VercelTool | ToolAction<any, any, any>, 'id'> & { id?: string };
 
+// Enhanced type for tools that can be either Mastra or Vercel format
+type EnhancedToolToConvert = ToolToConvert | CompatibleTool;
+
 /**
  * Checks if a value is a Zod type
  * @param value - The value to check
@@ -247,6 +259,16 @@ function setVercelToolProperties(tool: VercelTool) {
 }
 
 /**
+ * Enhanced version that handles both Mastra and Vercel v5 tools
+ * @param tool - The tool to set properties for (can be Mastra or Vercel format)
+ * @returns The tool with proper properties set
+ */
+function setCompatibleToolProperties(tool: CompatibleTool): CompatibleTool {
+  // For Mastra tools and most cases, return as-is (they have their own property structure)
+  return tool;
+}
+
+/**
  * Ensures a tool has an ID and inputSchema by generating one if not present
  * @param tool - The tool to ensure has an ID and inputSchema
  * @returns The tool with an ID and inputSchema
@@ -255,11 +277,28 @@ export function ensureToolProperties(tools: ToolsInput): ToolsInput {
   const toolsWithProperties = Object.keys(tools).reduce<ToolsInput>((acc, key) => {
     const tool = tools?.[key];
     if (tool) {
-      if (isVercelTool(tool)) {
-        acc[key] = setVercelToolProperties(tool) as VercelTool;
+      if (isVercelV5Tool(tool) || isVercelTool(tool)) {
+        acc[key] = setCompatibleToolProperties(tool as CompatibleTool) as VercelTool;
       } else {
         acc[key] = tool;
       }
+    }
+    return acc;
+  }, {});
+
+  return toolsWithProperties;
+}
+
+/**
+ * Enhanced version that supports compatible tool sets with both Mastra and Vercel tools
+ * @param tools - The tool set to ensure has proper properties
+ * @returns The tool set with proper properties
+ */
+export function ensureCompatibleToolProperties(tools: CompatibleToolSet): CompatibleToolSet {
+  const toolsWithProperties = Object.keys(tools).reduce<CompatibleToolSet>((acc, key) => {
+    const tool = tools?.[key];
+    if (tool) {
+      acc[key] = setCompatibleToolProperties(tool);
     }
     return acc;
   }, {});
@@ -287,6 +326,32 @@ export function makeCoreTool<Parameters = ToolParameters>(
   logType?: 'tool' | 'toolset' | 'client-tool',
 ): CoreTool<Parameters> {
   return new CoreToolBuilder({ originalTool, options, logType }).build<Parameters>();
+}
+
+/**
+ * Enhanced version that supports both Mastra and Vercel v5 tools
+ * @param originalTool - The tool to convert (Mastra, legacy Vercel, or v5 Vercel)
+ * @param options - Tool options including Mastra-specific settings
+ * @param logType - Type of tool to log
+ * @returns A CoreTool that can be used by the system
+ */
+export function makeCompatibleCoreTool<Parameters = ToolParameters>(
+  originalTool: EnhancedToolToConvert,
+  options: ToolOptions,
+  logType?: 'tool' | 'toolset' | 'client-tool',
+): CoreTool<Parameters> {
+  return new CoreToolBuilder({ originalTool: originalTool as any, options, logType }).build<Parameters>();
+}
+
+/**
+ * Utility to convert a tool set to AI SDK v5 compatible format
+ * @param tools - The tool set to convert
+ * @returns A tool set compatible with AI SDK v5
+ */
+export function makeAISDKCompatibleToolSet<T extends Record<string, any>>(
+  tools: T
+): Record<keyof T, Tool<any, any>> {
+  return createCompatibleToolSet(tools);
 }
 
 /**

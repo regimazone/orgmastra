@@ -31,6 +31,7 @@ import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
 import type { MastraMemory } from '../../memory/memory';
 import type { ConvertedToolSet } from '../../tools';
+import { createCompatibleToolSet } from '../../tools/ai-sdk-v5-compat';
 import { delay } from '../../utils';
 
 type MessageInput = string | string[] | ModelMessage | ModelMessage[];
@@ -158,13 +159,13 @@ export class MastraLLM extends MastraBase {
     }
 
     try {
-      return await generateText<ConvertedToolSet, any, any>({
+      return await generateText({
         ...rest,
         messages: this.inputMessagesToModelMessages(messages),
         stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
         model,
         temperature,
-        tools,
+        tools: createCompatibleToolSet(tools),
         toolChoice,
         onStepFinish: async (props: any) => {
           try {
@@ -356,7 +357,7 @@ export class MastraLLM extends MastraBase {
     }
 
     try {
-      return streamText<ConvertedToolSet, any, any>({
+      return streamText({
         ...rest,
         model,
         messages: this.inputMessagesToModelMessages(messages),
@@ -366,7 +367,7 @@ export class MastraLLM extends MastraBase {
         activeTools: undefined,
 
         temperature,
-        tools,
+        tools: createCompatibleToolSet(tools),
         stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
         toolChoice,
         onStepFinish: async (props: any) => {

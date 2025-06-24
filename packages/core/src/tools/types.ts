@@ -1,5 +1,6 @@
 import type { JSONObject } from '@ai-sdk/provider';
 import type { ToolCallOptions, Tool, Schema } from 'ai';
+import type { FlexibleSchema } from '@ai-sdk/provider-utils';
 import type { JSONSchema7Type } from 'json-schema';
 import type { z } from 'zod';
 import type * as z3 from 'zod/v3';
@@ -13,43 +14,51 @@ export type VercelTool = Tool;
 
 export type ToolParameters<T = JSONObject> = z4.$ZodType<T> | z3.Schema<T> | Schema<T> | JSONSchema7Type;
 
-// Define CoreTool as a discriminated union to match the AI SDK's Tool type
-export type CoreTool<Parameters = ToolParameters> =
-  | ({
-      id?: string;
-      description?: string;
-      inputSchema: Parameters;
-      execute?: (params: any, options: ToolCallOptions) => Promise<any>;
-      // TODO: do we need this?
-      // experimental_toToolResultContent?: (result: any) => any;
-    } & (
-      | {
-          type?: 'function' | undefined;
-          id?: string;
-        }
-      | {
-          type: 'provider-defined-server';
-          id: `${string}.${string}`;
-          args: Record<string, unknown>;
-        }
-      | {
-          type: 'provider-defined-client';
-          id: `${string}.${string}`;
-          args: Record<string, unknown>;
-        }
-    ))
-  | Tool<any, any>;
+// Base properties that all CoreTool variants must have
+type CoreToolBase<Parameters = ToolParameters> = {
+  description?: string;
+  inputSchema: Parameters;
+  execute?: (params: any, options: ToolCallOptions) => Promise<any>;
+};
 
-// TODO: Seems AI SDK v5 tools type doesn't allow JSON schema?
+// Enhanced CoreTool as a proper discriminated union with common base properties
+export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> & (
+  // Regular function tool (Mastra format)
+  | {
+      type?: 'function' | undefined;
+      id?: string;
+    }
+  // Vercel AI SDK v5 Tool (pass-through with extracted properties)
+  | {
+      type: 'vercel-v5-tool';
+      tool: Tool<any, any>;
+    }
+);
+
+// Legacy type aliases for backward compatibility
+export type MastraCoreTool<Parameters = ToolParameters> = Extract<CoreTool<Parameters>, { type?: 'function' }>;
+export type VercelV5Tool<Parameters = ToolParameters> = Extract<CoreTool<Parameters>, { type: 'vercel-v5-tool' }>;
+
+// AI SDK v5 compatible tool types
 export type ConvertedCoreTool = CoreTool<Exclude<ToolParameters, JSONSchema7Type>>;
 
 export type ToolSet<Parameters = ToolParameters> = Record<
   string,
   CoreTool<Parameters> & Pick<CoreTool<Parameters>, 'execute'>
 >;
+
+// Enhanced ConvertedToolSet that supports both Mastra and Vercel v5 tools
 export type ConvertedToolSet = Record<
   string,
-  CoreTool<Exclude<ToolParameters, JSONSchema7Type>> & Pick<Tool<any, any>, 'execute' | 'onInputAvailable' | 'onInputStart' | 'onInputDelta'>
+  // Support both original Mastra tools and new Vercel v5 tools
+  | (MastraCoreTool<Exclude<ToolParameters, JSONSchema7Type>> & Pick<MastraCoreTool, 'execute'>)
+  | (Tool<any, any> & {
+      // Ensure v5 streaming callbacks are supported
+      execute?: (input: any, options?: ToolCallOptions) => Promise<any>;
+      onInputStart?: (options: { toolCallId: string }) => void;
+      onInputDelta?: (options: { inputTextDelta: string; toolCallId: string }) => void;
+      onInputAvailable?: (options: { input: any; toolCallId: string }) => void;
+    })
 >;
 
 // Duplicate of CoreTool but with parameters as Schema to make it easier to work with internally
@@ -62,16 +71,6 @@ export type InternalCoreTool = {
   | {
       type?: 'function' | undefined;
       id?: string;
-    }
-  | {
-      type: 'provider-defined-server';
-      id: `${string}.${string}`;
-      args: Record<string, unknown>;
-    }
-  | {
-      type: 'provider-defined-client';
-      id: `${string}.${string}`;
-      args: Record<string, unknown>;
     }
 );
 
