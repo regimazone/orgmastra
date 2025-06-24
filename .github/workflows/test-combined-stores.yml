@@ -1,6 +1,7 @@
 name: Combined store Tests (vector+storage)
 
 on:
+  push:
   pull_request:
     branches: [main]
     paths:
