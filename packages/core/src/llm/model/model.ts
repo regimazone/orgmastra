@@ -30,7 +30,6 @@ import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
 import type { MastraMemory } from '../../memory/memory';
-import type { ConvertedToolSet } from '../../tools';
 import { createCompatibleToolSet } from '../../tools/ai-sdk-v5-compat';
 import { delay } from '../../utils';
 

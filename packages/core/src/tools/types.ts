@@ -1,6 +1,5 @@
 import type { JSONObject } from '@ai-sdk/provider';
 import type { ToolCallOptions, Tool, Schema } from 'ai';
-import type { FlexibleSchema } from '@ai-sdk/provider-utils';
 import type { JSONSchema7Type } from 'json-schema';
 import type { z } from 'zod';
 import type * as z3 from 'zod/v3';
@@ -22,19 +21,19 @@ type CoreToolBase<Parameters = ToolParameters> = {
 };
 
 // Enhanced CoreTool as a proper discriminated union with common base properties
-export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> & (
+export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> &
   // Regular function tool (Mastra format)
-  | {
-      type?: 'function' | undefined;
-      id?: string;
-      __isMastraTool: true;
-    }
-  // Vercel AI SDK v5 Tool (pass-through with extracted properties)
-  | {
-      type: 'vercel-v5-tool';
-      tool: Tool<any, any>;
-    }
-);
+  (| {
+        type?: 'function' | undefined;
+        id?: string;
+        __isMastraTool: true;
+      }
+    // Vercel AI SDK v5 Tool (pass-through with extracted properties)
+    | {
+        type: 'vercel-v5-tool';
+        tool: Tool<any, any>;
+      }
+  );
 
 // Legacy type aliases for backward compatibility
 export type MastraCoreTool<Parameters = ToolParameters> = Extract<CoreTool<Parameters>, { type?: 'function' }>;
@@ -68,13 +67,11 @@ export type InternalCoreTool = {
   description?: string;
   inputSchema: Schema;
   execute?: (params: any, options: ToolCallOptions) => Promise<any>;
-} & (
-  | {
-      type?: 'function' | undefined;
-      id?: string;
-      __isMastraTool: true;
-    }
-);
+} & {
+  type?: 'function' | undefined;
+  id?: string;
+  __isMastraTool: true;
+};
 
 export interface ToolExecutionContext<TSchemaIn extends z.ZodSchema | undefined = undefined>
   extends IExecutionContext<TSchemaIn> {

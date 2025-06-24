@@ -1,7 +1,5 @@
-import { createHash } from 'crypto';
-import jsonSchemaToZod from 'json-schema-to-zod';
-import { z } from 'zod';
 import type { Tool } from 'ai';
+import { z } from 'zod';
 import type { MastraPrimitives } from './action';
 import type { MastraLanguageModel, ToolsInput } from './agent';
 import type { IMastraLogger } from './logger';
@@ -9,16 +7,10 @@ import type { Mastra } from './mastra';
 import type { MastraMemory } from './memory';
 import type { RuntimeContext } from './runtime-context';
 import type { CoreTool, ToolAction, ToolParameters, VercelTool } from './tools';
+import { isVercelV5Tool, createCompatibleToolSet } from './tools/ai-sdk-v5-compat';
+import type { CompatibleTool, CompatibleToolSet } from './tools/ai-sdk-v5-compat';
 import { CoreToolBuilder } from './tools/tool-builder/builder';
 import { isVercelTool } from './tools/toolchecks';
-import { 
-  isVercelV5Tool, 
-  createCompatibleToolSet, 
-  ensureVercelTool,
-  ensureMastraTool,
-  type CompatibleTool,
-  type CompatibleToolSet
-} from './tools/ai-sdk-v5-compat';
 
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -234,30 +226,6 @@ export function isZodType(value: unknown): value is z.ZodType {
   );
 }
 
-// Helper function to create a deterministic hash
-function createDeterministicId(input: string): string {
-  return createHash('sha256').update(input).digest('hex').slice(0, 8); // Take first 8 characters for a shorter but still unique ID
-}
-
-/**
- * Sets the properties for a Vercel Tool, including an ID and inputSchema
- * @param tool - The tool to set the properties for
- * @returns The tool with the properties set
- */
-function setVercelToolProperties(tool: VercelTool) {
-  const inputSchema = convertVercelToolParameters(tool);
-  const toolId = !('id' in tool)
-    ? tool.description
-      ? `tool-${createDeterministicId(tool.description)}`
-      : `tool-${Math.random().toString(36).substring(2, 9)}`
-    : tool.id;
-  return {
-    ...tool,
-    id: toolId,
-    inputSchema,
-  };
-}
-
 /**
  * Enhanced version that handles both Mastra and Vercel v5 tools
  * @param tool - The tool to set properties for (can be Mastra or Vercel format)
@@ -306,13 +274,6 @@ export function ensureCompatibleToolProperties(tools: CompatibleToolSet): Compat
   return toolsWithProperties;
 }
 
-function convertVercelToolParameters(tool: VercelTool): z.ZodType {
-  // If the tool is a Vercel Tool, check if the parameters are already a zod object
-  // If not, convert the parameters to a zod object using jsonSchemaToZod
-  const schema = `parameters` in tool && tool.parameters ? tool.parameters : z.object({});
-  return isZodType(schema) ? schema : resolveSerializedZodOutput(jsonSchemaToZod(schema));
-}
-
 /**
  * Converts a Vercel Tool or Mastra Tool into a CoreTool format
  * @param originalTool - The tool to convert (either VercelTool or ToolAction)
@@ -348,9 +309,7 @@ export function makeCompatibleCoreTool<Parameters = ToolParameters>(
  * @param tools - The tool set to convert
  * @returns A tool set compatible with AI SDK v5
  */
-export function makeAISDKCompatibleToolSet<T extends Record<string, any>>(
-  tools: T
-): Record<keyof T, Tool<any, any>> {
+export function makeAISDKCompatibleToolSet<T extends Record<string, any>>(tools: T): Record<keyof T, Tool<any, any>> {
   return createCompatibleToolSet(tools);
 }
 

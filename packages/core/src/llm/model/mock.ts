@@ -1,4 +1,4 @@
-import type { LanguageModelV2CallOptions, LanguageModelV2StreamPart, LanguageModelV2Text } from '@ai-sdk/provider';
+import type { LanguageModelV2CallOptions, LanguageModelV2StreamPart } from '@ai-sdk/provider';
 import type { FinishReason, LanguageModelUsage, CallWarning } from 'ai';
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
@@ -62,7 +62,7 @@ export function createMockModel({
 
       const text = typeof mockText === 'string' ? mockText : JSON.stringify(mockText);
       const textId = 'text-1';
-      
+
       // Create proper streaming events for AI SDK v5
       const streamParts: LanguageModelV2StreamPart[] = [
         // Start the text block
@@ -163,7 +163,7 @@ export class MockProvider extends MastraLLM {
 
         const text = typeof mockText === 'string' ? mockText : JSON.stringify(mockText);
         const textId = 'text-1';
-        
+
         // Create proper streaming events for AI SDK v5
         const streamParts: LanguageModelV2StreamPart[] = [
           // Start the text block

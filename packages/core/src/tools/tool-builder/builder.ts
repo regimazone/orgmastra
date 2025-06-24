@@ -6,7 +6,6 @@ import {
   DeepSeekSchemaCompatLayer,
   MetaSchemaCompatLayer,
   applyCompatLayer,
-  convertZodSchemaToAISDKSchema,
 } from '@mastra/schema-compat';
 import type { ToolCallOptions, Tool } from 'ai';
 import { z } from 'zod';
@@ -15,20 +14,13 @@ import { ErrorCategory, MastraError, ErrorDomain } from '../../error';
 import { RuntimeContext } from '../../runtime-context';
 import { isVercelTool } from '../../tools/toolchecks';
 import type { ToolOptions } from '../../utils';
-import type { CoreTool, ToolAction, VercelTool, MastraCoreTool, VercelV5Tool } from '../types';
-import { 
-  isVercelV5Tool, 
-  isCoreToolWithVercelV5,
-  hasStreamingCallbacks,
-  convertMastraToolToVercelTool,
-  convertVercelToolToMastraTool,
-  convertToolParametersToFlexibleSchema
-} from '../ai-sdk-v5-compat';
+import { isVercelV5Tool, isCoreToolWithVercelV5 } from '../ai-sdk-v5-compat';
+import type { CoreTool, ToolAction } from '../types';
 
-export type ToolToConvert = 
-  | ToolAction<any, any, any>  // Mastra ToolAction
-  | Tool<any, any>             // Vercel AI SDK v5 Tool
-  | CoreTool<any>;             // Our unified CoreTool
+export type ToolToConvert =
+  | ToolAction<any, any, any> // Mastra ToolAction
+  | Tool<any, any> // Vercel AI SDK v5 Tool
+  | CoreTool<any>; // Our unified CoreTool
 export type LogType = 'tool' | 'toolset' | 'client-tool';
 
 interface LogOptions {
@@ -57,21 +49,20 @@ export class CoreToolBuilder extends MastraBase {
   // Helper to get parameters based on tool type
   private getParameters = () => {
     const tool = this.originalTool as any;
-    
+
     // Check if this is a CoreTool with Vercel v5 wrapper
     if (isCoreToolWithVercelV5(this.originalTool)) {
       return tool.tool.inputSchema || z.object({});
     }
-    
+
     // Check if this is a direct Vercel v5 tool
     if (isVercelV5Tool(this.originalTool)) {
       return tool.inputSchema || z.object({});
     }
-    
+
     // Default to inputSchema or empty object (Mastra tools)
     return tool.inputSchema ?? z.object({});
   };
-
 
   private createLogMessageOptions({ agentName, toolName, type }: LogOptions): LogMessageOptions {
     // If no agent name, use default format
@@ -103,17 +94,17 @@ export class CoreToolBuilder extends MastraBase {
 
     const execFunction = async (args: any, execOptions: ToolCallOptions) => {
       const toolAny = tool as any;
-      
+
       // Check if it's a CoreTool with Vercel v5 wrapper
       if (isCoreToolWithVercelV5(tool)) {
         return toolAny.tool?.execute?.(args, execOptions) ?? undefined;
       }
-      
+
       // Check if it's a direct Vercel v5 tool
       if (isVercelV5Tool(tool)) {
         return toolAny?.execute?.(args, execOptions) ?? undefined;
       }
-      
+
       // Check legacy Vercel tool
       if (isVercelTool(tool)) {
         return toolAny?.execute?.(args, execOptions) ?? undefined;
@@ -174,11 +165,7 @@ export class CoreToolBuilder extends MastraBase {
         description: wrappedTool.description,
         inputSchema: this.getParameters() as T,
         execute: wrappedTool.execute
-          ? this.createExecute(
-              wrappedTool,
-              { ...this.options, description: wrappedTool.description },
-              this.logType,
-            )
+          ? this.createExecute(wrappedTool, { ...this.options, description: wrappedTool.description }, this.logType)
           : undefined,
       } as CoreTool<T>;
     }
@@ -208,11 +195,7 @@ export class CoreToolBuilder extends MastraBase {
       inputSchema: this.getParameters(),
       __isMastraTool: true as const,
       execute: toolAny.execute
-        ? this.createExecute(
-            this.originalTool,
-            { ...this.options, description: toolAny.description },
-            this.logType,
-          )
+        ? this.createExecute(this.originalTool, { ...this.options, description: toolAny.description }, this.logType)
         : undefined,
     };
 

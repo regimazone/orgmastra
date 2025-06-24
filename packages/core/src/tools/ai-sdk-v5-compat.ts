@@ -1,11 +1,10 @@
-import type { Tool, Schema, ToolCallOptions } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
+import { convertSchemaToZod, convertZodSchemaToAISDKSchema } from '@mastra/schema-compat';
+import type { Tool, Schema } from 'ai';
 import type { JSONSchema7Type } from 'json-schema';
-import type { z } from 'zod';
 import type * as z3 from 'zod/v3';
 import type * as z4 from 'zod/v4/core';
 
-import { applyCompatLayer, convertSchemaToZod, convertZodSchemaToAISDKSchema } from '@mastra/schema-compat';
 import type { CoreTool, ToolParameters, VercelTool, ToolAction } from './types';
 
 /**
@@ -38,8 +37,6 @@ export function isCoreToolWithVercelV5(tool: unknown): tool is CoreTool & { type
   );
 }
 
-
-
 /**
  * Type guard to check if a tool has streaming callbacks (v5 feature)
  */
@@ -48,8 +45,8 @@ export function hasStreamingCallbacks(tool: unknown): boolean {
     typeof tool === 'object' &&
     tool !== null &&
     (('onInputStart' in tool && typeof (tool as any).onInputStart === 'function') ||
-     ('onInputDelta' in tool && typeof (tool as any).onInputDelta === 'function') ||
-     ('onInputAvailable' in tool && typeof (tool as any).onInputAvailable === 'function'))
+      ('onInputDelta' in tool && typeof (tool as any).onInputDelta === 'function') ||
+      ('onInputAvailable' in tool && typeof (tool as any).onInputAvailable === 'function'))
   );
 }
 
@@ -59,22 +56,22 @@ export function hasStreamingCallbacks(tool: unknown): boolean {
 export function convertFlexibleSchemaToToolParameters(schema: FlexibleSchema<any>): ToolParameters {
   // FlexibleSchema can be Zod v3, Zod v4, or AI SDK Schema
   // We need to determine which type and convert appropriately
-  
+
   if (typeof schema === 'object' && schema !== null) {
     // Check if it's a Zod schema (v3 or v4)
     if ('_def' in schema && 'parse' in schema && 'safeParse' in schema) {
       return schema as z4.$ZodType<any> | z3.Schema<any>;
     }
-    
+
     // Check if it's an AI SDK Schema
     if ('jsonSchema' in schema && 'validate' in schema) {
       return schema as Schema<any>;
     }
-    
+
     // Fallback to treating as JSONSchema7Type with proper casting
     return schema as unknown as JSONSchema7Type;
   }
-  
+
   // Default fallback
   return schema as ToolParameters;
 }
@@ -85,27 +82,27 @@ export function convertFlexibleSchemaToToolParameters(schema: FlexibleSchema<any
 export function convertToolParametersToFlexibleSchema(parameters: ToolParameters): FlexibleSchema<any> {
   // ToolParameters can be Zod v3, Zod v4, AI SDK Schema, or JSONSchema7Type
   // FlexibleSchema accepts Zod v3, Zod v4, or AI SDK Schema
-  
+
   if (typeof parameters === 'object' && parameters !== null) {
     // Check if it's already a Zod schema (v3 or v4)
     if ('_def' in parameters && 'parse' in parameters && 'safeParse' in parameters) {
       return parameters as z4.$ZodType<any> | z3.Schema<any>;
     }
-    
+
     // Check if it's an AI SDK Schema
     if ('jsonSchema' in parameters && 'validate' in parameters) {
       return parameters as Schema<any>;
     }
-    
+
     // If it's JSONSchema7Type, convert to AI SDK Schema
     try {
       return convertZodSchemaToAISDKSchema(convertSchemaToZod(parameters as any));
-    } catch (error) {
+    } catch {
       // Fallback - create a simple object schema
       return convertZodSchemaToAISDKSchema(convertSchemaToZod({} as any));
     }
   }
-  
+
   // Fallback - create a simple object schema
   return convertZodSchemaToAISDKSchema(convertSchemaToZod({} as any));
 }
@@ -119,17 +116,16 @@ export function convertMastraToolToVercelTool<TInput = any, TOutput = any>(
     onInputStart?: (options: { toolCallId: string }) => void;
     onInputDelta?: (options: { inputTextDelta: string; toolCallId: string }) => void;
     onInputAvailable?: (options: { input: TInput; toolCallId: string }) => void;
-  }
+  },
 ): Tool<TInput, TOutput> {
   // First check if it's already a Tool (from the CoreTool union)
   if (isVercelV5Tool(mastraTool)) {
     return mastraTool as Tool<TInput, TOutput>;
   }
-  
+
   // Cast to Mastra tool type to access properties safely
   const tool = mastraTool as any;
-  
-  
+
   // Handle regular function tools
   const vercelTool = {
     description: tool.description,
@@ -137,7 +133,7 @@ export function convertMastraToolToVercelTool<TInput = any, TOutput = any>(
     execute: tool.execute,
     ...options,
   } as unknown as Tool<TInput, TOutput>;
-  
+
   return vercelTool;
 }
 
@@ -145,11 +141,10 @@ export function convertMastraToolToVercelTool<TInput = any, TOutput = any>(
  * Converts a Vercel AI SDK v5 Tool to a Mastra CoreTool
  */
 export function convertVercelToolToMastraTool<TParameters = ToolParameters>(
-  vercelTool: Tool<any, any>
+  vercelTool: Tool<any, any>,
 ): CoreTool<TParameters> {
   const tool = vercelTool as any;
-  
-  
+
   // Handle regular function tools
   const mastraTool = {
     type: 'function' as const,
@@ -157,18 +152,16 @@ export function convertVercelToolToMastraTool<TParameters = ToolParameters>(
     inputSchema: convertFlexibleSchemaToToolParameters(tool.inputSchema || {}) as TParameters,
     execute: tool.execute,
   } as CoreTool<TParameters>;
-  
+
   return mastraTool;
 }
 
 /**
  * Creates a compatible tool set that can contain both Mastra and Vercel tools
  */
-export function createCompatibleToolSet<T extends Record<string, any>>(
-  tools: T
-): Record<keyof T, Tool<any, any>> {
+export function createCompatibleToolSet<T extends Record<string, any>>(tools: T): Record<keyof T, Tool<any, any>> {
   const compatibleTools: Record<string, Tool<any, any>> = {};
-  
+
   for (const [key, tool] of Object.entries(tools)) {
     if (isVercelV5Tool(tool)) {
       // Already a Vercel tool, use as-is
@@ -181,14 +174,14 @@ export function createCompatibleToolSet<T extends Record<string, any>>(
       compatibleTools[key] = convertMastraToolToVercelTool(tool as CoreTool<ToolParameters>);
     }
   }
-  
+
   return compatibleTools as Record<keyof T, Tool<any, any>>;
 }
 
 /**
  * Enhanced tool type that supports both Mastra and Vercel formats
  */
-export type CompatibleTool<TParameters = ToolParameters> = 
+export type CompatibleTool<TParameters = ToolParameters> =
   | CoreTool<TParameters>
   | Tool<any, any>
   | VercelTool
@@ -206,7 +199,7 @@ export function ensureVercelTool(tool: CompatibleTool): Tool<any, any> {
   if (isVercelV5Tool(tool)) {
     return tool;
   }
-  
+
   return convertMastraToolToVercelTool(tool as CoreTool<ToolParameters>);
 }
 
@@ -217,6 +210,7 @@ export function ensureMastraTool(tool: CompatibleTool): CoreTool<ToolParameters>
   if (isVercelV5Tool(tool)) {
     return convertVercelToolToMastraTool(tool);
   }
-  
+
   return tool as CoreTool<ToolParameters>;
 }
+
