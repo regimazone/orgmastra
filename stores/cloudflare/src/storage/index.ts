@@ -10,6 +10,7 @@ import {
   TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
   TABLE_TRACES,
+  TABLE_EVALS_V2,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -44,7 +45,14 @@ export class CloudflareStore extends MastraStorage {
     }
 
     // Validate all required table bindings exist
-    const requiredTables = [TABLE_THREADS, TABLE_MESSAGES, TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_TRACES] as const;
+    const requiredTables = [
+      TABLE_THREADS,
+      TABLE_MESSAGES,
+      TABLE_WORKFLOW_SNAPSHOT,
+      TABLE_EVALS,
+      TABLE_EVALS_V2,
+      TABLE_TRACES,
+    ] as const;
 
     for (const table of requiredTables) {
       if (!(table in config.bindings)) {

@@ -14,7 +14,7 @@ import type { z, ZodSchema } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import type { Metric } from '../eval';
+import type { Metric, Scorer } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import type { GenerateReturn, StreamReturn } from '../llm';
 import type { MastraLLMBase } from '../llm/model';
@@ -96,6 +96,7 @@ export class Agent<
   TAgentId extends string = string,
   TTools extends ToolsInput = ToolsInput,
   TMetrics extends Record<string, Metric> = Record<string, Metric>,
+  TScorer extends Record<string, Scorer> = Record<string, Scorer>,
 > extends MastraBase {
   public id: TAgentId;
   public name: TAgentId;
@@ -111,9 +112,10 @@ export class Agent<
   /** @deprecated This property is deprecated. Use evals instead. */
   metrics: TMetrics;
   evals: TMetrics;
+  evals_vNext: TScorer;
   #voice: CompositeVoice;
 
-  constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
+  constructor(config: AgentConfig<TAgentId, TTools, TMetrics, TScorer>) {
     super({ component: RegisteredLogger.AGENT });
 
     this.name = config.name;
@@ -150,6 +152,7 @@ export class Agent<
 
     this.metrics = {} as TMetrics;
     this.evals = {} as TMetrics;
+    this.evals_vNext = {} as TScorer;
 
     if (config.mastra) {
       this.__registerMastra(config.mastra);
@@ -167,6 +170,10 @@ export class Agent<
 
     if (config.evals) {
       this.evals = config.evals;
+    }
+
+    if (config.evals_vNext) {
+      this.evals_vNext = config.evals_vNext;
     }
 
     if (config.memory) {
@@ -1444,6 +1451,29 @@ export class Agent<
               metric,
               agentName: this.name,
               instructions: instructions || this.instructions,
+            });
+          }
+        }
+
+        if (Object.keys(this.evals_vNext || {}).length > 0) {
+          for (const scorer of Object.values(this.evals_vNext || {})) {
+            const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
+            const input = userInputMessages
+              .map(message => (typeof message.content === 'string' ? message.content : ''))
+              .join('\n');
+
+            executeHook(AvailableHooks.ON_GENERATION_VNEXT, {
+              input,
+              output: outputText,
+              scorer,
+              entityId: this.name,
+              runtimeContext,
+              entity: {
+                name: this.name,
+                description: this.#description,
+                instructions: await this.getInstructions({ runtimeContext }),
+              },
+              entityType: 'AGENT',
             });
           }
         }

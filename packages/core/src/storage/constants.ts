@@ -10,12 +10,17 @@ export const TABLE_TRACES = 'mastra_traces';
 export type TABLE_NAMES =
   | typeof TABLE_WORKFLOW_SNAPSHOT
   | typeof TABLE_EVALS
+  | typeof TABLE_EVALS_V2
   | typeof TABLE_MESSAGES
   | typeof TABLE_THREADS
   | typeof TABLE_TRACES;
 
-export const EVALS_V2_SCHEMA = {
-  id: { type: 'text', nullable: false, primaryKey: true },
+export const EVALS_V2_SCHEMA: Record<string, StorageColumn> = {
+  id: {
+    type: 'text',
+    nullable: false,
+    primaryKey: true,
+  },
   name: {
     type: 'text',
   },
@@ -97,6 +102,7 @@ export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> =
       type: 'timestamp',
     },
   },
+  [TABLE_EVALS_V2]: EVALS_V2_SCHEMA,
   [TABLE_EVALS]: {
     input: {
       type: 'text',

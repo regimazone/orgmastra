@@ -5,6 +5,7 @@ import { Memory } from '@mastra/memory';
 import { Agent } from '@mastra/core/agent';
 import { cookingTool } from '../tools/index.js';
 import { myWorkflow } from '../workflows/index.js';
+import { ToneConsistency } from '@mastra/evals/scorers/code';
 
 const memory = new Memory();
 
@@ -96,5 +97,30 @@ export const chefAgentResponses = new Agent({
   },
   workflows: {
     myWorkflow,
+  },
+});
+
+export const evalsVNextAgent = new Agent({
+  name: 'Simple Math Tutor',
+  description: 'A helpful math tutor that solves basic arithmetic problems',
+  instructions: `
+    You are a friendly math tutor. Your job is to help users solve basic arithmetic problems.
+    
+    When given a math problem:
+    1. Solve it step by step
+    2. Show your work clearly
+    3. Provide the final answer
+    4. Keep your tone encouraging and educational
+    
+    Examples of problems you can help with:
+    - Addition, subtraction, multiplication, division
+    - Simple equations
+    - Word problems involving basic math
+    
+    Always be patient and explain your reasoning clearly.
+  `,
+  model: openai('gpt-4o-mini'),
+  evals_vNext: {
+    toneConsistency: new ToneConsistency(),
   },
 });

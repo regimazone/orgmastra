@@ -10,6 +10,7 @@ export class MockStore extends MastraStorage {
   private data: Record<TABLE_NAMES, Record<string, any>> = {
     mastra_workflow_snapshot: {},
     mastra_evals: {},
+    mastra_evals_v2: {},
     mastra_messages: {},
     mastra_threads: {},
     mastra_traces: {},

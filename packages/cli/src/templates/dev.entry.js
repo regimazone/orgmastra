@@ -1,5 +1,3 @@
-// @ts-ignore
-// @ts-ignore
 import { evaluate } from '@mastra/core/eval';
 import { AvailableHooks, registerHook } from '@mastra/core/hooks';
 import { TABLE_EVALS } from '@mastra/core/storage';
@@ -19,6 +17,10 @@ registerHook(AvailableHooks.ON_GENERATION, ({ input, output, metric, runId, agen
     globalRunId: runId,
     instructions,
   });
+});
+
+registerHook(AvailableHooks.ON_GENERATION_VNEXT, props => {
+  console.log('props', props);
 });
 
 registerHook(AvailableHooks.ON_EVALUATION, async traceObject => {
@@ -45,4 +47,8 @@ registerHook(AvailableHooks.ON_EVALUATION, async traceObject => {
       },
     });
   }
+});
+
+registerHook(AvailableHooks.ON_EVALUATION_VNEXT, props => {
+  console.log('props', props);
 });

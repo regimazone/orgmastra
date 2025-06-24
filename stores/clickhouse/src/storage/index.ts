@@ -8,6 +8,7 @@ import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastr
 import {
   MastraStorage,
   TABLE_EVALS,
+  TABLE_EVALS_V2,
   TABLE_MESSAGES,
   TABLE_SCHEMAS,
   TABLE_THREADS,
@@ -72,6 +73,7 @@ export const TABLE_ENGINES: Record<TABLE_NAMES, string> = {
   [TABLE_TRACES]: `MergeTree()`,
   [TABLE_THREADS]: `ReplacingMergeTree()`,
   [TABLE_EVALS]: `MergeTree()`,
+  [TABLE_EVALS_V2]: `MergeTree()`,
 };
 
 export const COLUMN_TYPES: Record<StorageColumn['type'], string> = {

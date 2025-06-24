@@ -2,7 +2,7 @@ import { Mastra } from '@mastra/core';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 
-import { chefAgent, chefAgentResponses, dynamicAgent } from './agents/index';
+import { evalsVNextAgent } from './agents/index';
 import { myMcpServer, myMcpServerTwo } from './mcp/server';
 import { myWorkflow } from './workflows';
 
@@ -11,7 +11,7 @@ const storage = new LibSQLStore({
 });
 
 export const mastra = new Mastra({
-  agents: { chefAgent, chefAgentResponses, dynamicAgent },
+  agents: { evalsVNextAgent },
   logger: new PinoLogger({ name: 'Chef', level: 'debug' }),
   storage,
   mcpServers: {

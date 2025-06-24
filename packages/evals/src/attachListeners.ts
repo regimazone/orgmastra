@@ -31,6 +31,13 @@ export async function attachListeners(mastra?: Mastra) {
       });
     }
   });
+
+  registerHook(AvailableHooks.ON_EVALUATION_VNEXT, async traceObject => {
+    const storage = mastra?.getStorage();
+    if (storage) {
+      console.log('traceObject', traceObject);
+    }
+  });
 }
 
 export async function globalSetup() {
