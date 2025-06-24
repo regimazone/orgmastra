@@ -314,6 +314,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: 'Okay, checking the weather.',
             parts: [
               { type: 'text', text: 'Okay, checking the weather.' },
               {
@@ -400,6 +401,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: inputV1Message.content,
             parts: [{ type: 'text', text: inputV1Message.content }],
           },
           threadId,
@@ -431,6 +433,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Okay, I can do that.",
             parts: [
               { type: 'text', text: 'Okay, I can do that.' },
               {
@@ -531,6 +534,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Initial user query",
             parts: msg1.parts,
           },
           threadId,
@@ -542,6 +546,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Thinking...",
             parts: [
               { type: 'text', text: msg2.content[0].text },
               {
@@ -574,6 +579,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here are the results.",
             parts: msg4.parts,
           },
           threadId,
@@ -641,6 +647,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Result of step 1.",
             parts: [
               {
                 type: 'reasoning',
@@ -706,6 +713,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is an image:",
             parts: [
               { type: 'text', text: 'Here is an image:' },
               { type: 'file', mimeType: 'image/png', data: 'AQIDBA==' }, // Base64 of [1, 2, 3, 4]
@@ -770,6 +778,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Analysis complete.",
             parts: [
               {
                 type: 'reasoning',
@@ -846,6 +855,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is a document:",
             parts: [
               { type: 'text', text: 'Here is a document:' },
               { type: 'file', mimeType: 'application/pdf', data: 'JVBERi0xLjQKJ...' },
@@ -930,6 +940,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Step 1: Call tool A",
             parts: [
               { type: 'text', text: 'Step 1: Call tool A' },
               {
@@ -962,6 +973,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Step 2: Call tool B",
             parts: [
               { type: 'text', text: 'Step 2: Call tool B' },
               {
@@ -994,6 +1006,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Final response.",
             parts: [{ type: 'text', text: 'Final response.' }],
           },
           threadId,
@@ -1130,6 +1143,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: userMsg.content,
             parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
@@ -1141,6 +1155,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "Calling data tool...",
             parts: [
               {
                 type: 'reasoning',
@@ -1178,6 +1193,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "Task completed successfully with gathered data.",
             parts: [
               {
                 type: 'reasoning',
@@ -1311,6 +1327,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is an image URL:",
             parts: [
               { type: 'text', text: 'Here is an image URL:' },
               {
@@ -1349,6 +1366,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is another image URL:",
             parts: [
               { type: 'text', text: 'Here is another image URL:' },
               {
@@ -1391,6 +1409,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
+          content: "Message with attachment",
           parts: [
             { type: 'text', text: 'Message with attachment' },
             {
@@ -1473,6 +1492,7 @@ describe('MessageList', () => {
         createdAt: expect.any(Date),
         content: {
           format: 2,
+          content: "Check out this image:",
           parts: [
             { type: 'text', text: 'Check out this image:' },
             {
@@ -1543,6 +1563,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: userMsgV1.content,
             parts: [{ type: 'text', text: userMsgV1.content }],
           },
           threadId,
@@ -1554,6 +1575,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Searching...",
             parts: [
               { type: 'text', text: 'Searching...' },
               {
@@ -1586,6 +1608,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is the information I found.",
             metadata: {
               createdAt: expect.any(Date),
             },
@@ -1741,6 +1764,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: userMsg.content,
             parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
@@ -1752,6 +1776,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "Okay, I will perform the task.",
             parts: [
               { type: 'text', text: 'Okay, I will perform the task.' },
               {
@@ -1784,6 +1809,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "The task is now complete.",
             parts: [{ type: 'text', text: 'The task is now complete.' }],
           },
           threadId,
@@ -1895,6 +1921,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Here is an embedded image:",
             parts: [
               { type: 'text', text: 'Here is an embedded image:' },
               {
@@ -2004,6 +2031,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: "Gathering data...",
             parts: [
               {
                 type: 'reasoning',
@@ -2133,6 +2161,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date),
           content: {
             format: 2,
+            content: userMsg.content,
             parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
@@ -2144,6 +2173,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "Okay, I will check the weather for both cities.And now for Paris.",
             parts: [
               { type: 'text', text: 'Okay, I will check the weather for both cities.' },
               {
@@ -2194,6 +2224,7 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
+            content: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy.",
             parts: [
               { type: 'text', text: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy." },
             ],
@@ -2833,7 +2864,7 @@ describe('MessageList', () => {
       expect(v4Messages[0]).toEqual({
         id: 'text-msg-1',
         role: 'user',
-        content: '',
+        content: 'Hello from user!',
         createdAt: expect.any(Date),
         parts: [
           {
@@ -2860,7 +2891,7 @@ describe('MessageList', () => {
       expect(v4Messages[0]).toEqual({
         id: expect.any(String),
         role: 'assistant',
-        content: '',
+        content: 'Let me use a tool',
         createdAt: expect.any(Date),
         parts: [
           {
@@ -2956,7 +2987,7 @@ describe('MessageList', () => {
       expect(v4Messages[0]).toEqual({
         id: expect.any(String),
         role: 'user',
-        content: '',
+        content: 'Here is a file:',
         createdAt: expect.any(Date),
         parts: [
           {
@@ -2988,7 +3019,7 @@ describe('MessageList', () => {
       expect(v4Messages[0]).toEqual({
         id: expect.any(String),
         role: 'assistant',
-        content: '',
+        content: 'Based on my reasoning, the answer is 42.',
         createdAt: expect.any(Date),
         parts: [
           {
@@ -3037,10 +3068,10 @@ describe('MessageList', () => {
       
       // Check that we preserve the string content when available
       const v2Messages = list.get.all.v2();
-      expect(v2Messages[0].content.content).toBeUndefined();
+      expect(v2Messages[0].content.content).toBe('Hello!');
       
       const v4Messages = list.get.all.aiV4.ui();
-      expect(v4Messages[0].content).toBe('');
+      expect(v4Messages[0].content).toBe('Hello!');
       expect(v4Messages[0].id).toBe('msg-with-content');
     });
   });
