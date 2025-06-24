@@ -243,9 +243,10 @@ export class MessageList {
               return {
                 ...part,
                 // Unwrap AI SDK v5 format before passing to AIV5.convertToModelMessages()
-                output: typeof part.output === 'object' && part.output && 'value' in part.output 
-                  ? part.output.value 
-                  : part.output,
+                output:
+                  typeof part.output === 'object' && part.output && 'value' in part.output
+                    ? part.output.value
+                    : part.output,
               };
             }
             return part;
@@ -569,9 +570,10 @@ ${JSON.stringify(message, null, 2)}`,
               state: 'output-available',
               input: part.toolInvocation.args,
               // V3 format (AI SDK v5) should store AI SDK v5 format
-              output: typeof part.toolInvocation.result === 'string' 
-                ? { type: 'text', value: part.toolInvocation.result }
-                : part.toolInvocation.result,
+              output:
+                typeof part.toolInvocation.result === 'string'
+                  ? { type: 'text', value: part.toolInvocation.result }
+                  : part.toolInvocation.result,
             });
           } else {
             parts.push({
@@ -620,10 +622,10 @@ ${JSON.stringify(message, null, 2)}`,
       }
     }
 
-    if (
-      v2Msg.content.content &&
-      !v3Msg.content.parts?.some(p => p.type === `text` && p.text === v2Msg.content.content)
-    ) {
+    // Check if we have content.content but no text parts at all
+    // Only add content.content as a text part if there are NO existing text parts
+    // This prevents duplication when content.content is just a concatenation of existing text parts
+    if (v2Msg.content.content && !v3Msg.content.parts?.some(p => p.type === `text`)) {
       // If the content string has no text part, make one for it
       v3Msg.content.parts.push({ type: 'text', text: v2Msg.content.content });
     }
@@ -668,9 +670,7 @@ ${JSON.stringify(message, null, 2)}`,
             return {
               args: p.input,
               // V2 format (AI SDK v4) should convert from AI SDK v5 format to plain string
-              result: typeof p.output === 'object' && p.output && 'value' in p.output 
-                ? p.output.value 
-                : p.output,
+              result: typeof p.output === 'object' && p.output && 'value' in p.output ? p.output.value : p.output,
               toolCallId: p.toolCallId,
               toolName: getToolName(p),
               state: 'result',
@@ -705,9 +705,7 @@ ${JSON.stringify(message, null, 2)}`,
                     ...shared,
                     state: 'result',
                     // V2 format (AI SDK v4) should convert from AI SDK v5 format to plain string
-                    result: typeof p.output === 'object' && p.output && 'value' in p.output 
-                      ? p.output.value 
-                      : p.output,
+                    result: typeof p.output === 'object' && p.output && 'value' in p.output ? p.output.value : p.output,
                   },
                 };
               }
@@ -758,10 +756,16 @@ ${JSON.stringify(message, null, 2)}`,
     }
 
     // Extract text content from parts and set as content.content string
+    // Only set content.content if there are no individual text parts to avoid duplication
     const textParts = v2Msg.content.parts.filter(p => p.type === 'text');
-    if (textParts.length > 0) {
-      v2Msg.content.content = textParts.map(p => p.text).join('');
+    if (textParts.length === 1 && textParts[0]?.type === `text`) {
+      // Only set content.content for single text parts to avoid concatenation issues
+      v2Msg.content.content = textParts[0].text;
+    } else if (textParts.length === 0 && v3Msg.content.parts.length === 0) {
+      // Only set empty content if there are no parts at all
+      v2Msg.content.content = '';
     }
+    // For multiple text parts, leave content.content undefined to preserve individual parts
 
     if (toolInvocations?.length) {
       v2Msg.content.toolInvocations = toolInvocations;
@@ -773,7 +777,7 @@ ${JSON.stringify(message, null, 2)}`,
 
   private static mastraMessageV2ToAIV4UIMessage(v2Msg: MastraMessageV2): AIV4.UIMessage {
     const parts: AIV4.UIMessage['parts'] = [];
-    
+
     // Convert v2 parts to v4 format
     for (const part of v2Msg.content.parts) {
       switch (part.type) {
@@ -925,9 +929,10 @@ ${JSON.stringify(message, null, 2)}`,
               state: 'output-available',
               toolCallId: part.toolCallId,
               // V3 format (AI SDK v5) should store AI SDK v5 format
-              output: typeof part.output === 'string' 
-                ? { type: 'text', value: part.output }
-                : part.output ?? { type: 'text', value: '' }, // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
+              output:
+                typeof part.output === 'string'
+                  ? { type: 'text', value: part.output }
+                  : (part.output ?? { type: 'text', value: '' }), // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
               input: {}, // when we combine this invocation onto the existing tool-call part it will have args already
             });
             break;
