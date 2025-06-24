@@ -631,8 +631,8 @@ export function createStep<
 
             case 'tool-call':
             case 'tool-result':
-            case 'tool-call-streaming-start':
-            case 'tool-call-delta':
+            case 'tool-input-start':
+            case 'tool-input-delta':
             case 'source':
             case 'file':
             default:
