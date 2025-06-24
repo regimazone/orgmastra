@@ -305,16 +305,18 @@ describe('agent', () => {
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: [
-              { type: 'text', text: 'Donald' },
-              { type: 'text', text: ' Trump' },
-              { type: 'text', text: ' won' },
-              { type: 'text', text: ' the' },
-              { type: 'text', text: ' ' },
-              { type: 'text', text: '201' },
-              { type: 'text', text: '6' },
-              { type: 'text', text: ' US' },
-              { type: 'text', text: ' presidential' },
-              { type: 'text', text: ' election' },
+              { type: 'text-start', id: 'text-1' },
+              { type: 'text-delta', id: 'text-1', delta: 'Donald' },
+              { type: 'text-delta', id: 'text-1', delta: ' Trump' },
+              { type: 'text-delta', id: 'text-1', delta: ' won' },
+              { type: 'text-delta', id: 'text-1', delta: ' the' },
+              { type: 'text-delta', id: 'text-1', delta: ' ' },
+              { type: 'text-delta', id: 'text-1', delta: '201' },
+              { type: 'text-delta', id: 'text-1', delta: '6' },
+              { type: 'text-delta', id: 'text-1', delta: ' US' },
+              { type: 'text-delta', id: 'text-1', delta: ' presidential' },
+              { type: 'text-delta', id: 'text-1', delta: ' election' },
+              { type: 'text-end', id: 'text-1' },
               {
                 type: 'finish',
                 finishReason: 'stop',
@@ -448,10 +450,12 @@ describe('agent', () => {
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: [
-              { type: 'text', text: '{' },
-              { type: 'text', text: '"winner":' },
-              { type: 'text', text: `"Barack Obama"` },
-              { type: 'text', text: `}` },
+              { type: 'text-start', id: 'text-1' },
+              { type: 'text-delta', id: 'text-1', delta: '{' },
+              { type: 'text-delta', id: 'text-1', delta: '"winner":' },
+              { type: 'text-delta', id: 'text-1', delta: `"Barack Obama"` },
+              { type: 'text-delta', id: 'text-1', delta: `}` },
+              { type: 'text-end', id: 'text-1' },
               {
                 type: 'finish',
                 finishReason: 'stop',
@@ -738,7 +742,7 @@ describe('agent', () => {
     expect(toolResultForTool2).toBeDefined();
     expect(toolResultForTool2?.content).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: 'tool-result', toolCallId: 'tool-2', toolName: 'testTool2', output: 'res2' }),
+        expect.objectContaining({ type: 'tool-result', toolCallId: 'tool-2', toolName: 'testTool2', output: { type: 'text', value: 'res2' } }),
       ]),
     );
 
@@ -1222,7 +1226,17 @@ describe('agent memory with metadata', () => {
       }),
       doStream: async () => ({
         stream: simulateReadableStream({
-          chunks: [{ type: 'text', text: 'dummy' }],
+          chunks: [
+            { type: 'text-start', id: 'text-1' },
+            { type: 'text-delta', id: 'text-1', delta: 'dummy' },
+            { type: 'text-end', id: 'text-1' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+              providerMetadata: undefined,
+            },
+          ],
         }),
         rawCall: { rawPrompt: null, rawSettings: {} },
       }),

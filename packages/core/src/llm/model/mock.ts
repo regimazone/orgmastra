@@ -162,14 +162,27 @@ export class MockProvider extends MastraLLM {
         }
 
         const text = typeof mockText === 'string' ? mockText : JSON.stringify(mockText);
-        const wordChunks = text.split(' ').map(
-          word =>
-            ({
-              type: 'text' as const, // Changed type to 'text'
-
-              text: word + ' ', // Changed property name to 'text'
-            }) as unknown as LanguageModelV2StreamPart,
-        );
+        const textId = 'text-1';
+        
+        // Create proper streaming events for AI SDK v5
+        const streamParts: LanguageModelV2StreamPart[] = [
+          // Start the text block
+          {
+            type: 'text-start',
+            id: textId,
+          },
+          // Split text into words and create delta events
+          ...text.split(' ').map(word => ({
+            type: 'text-delta' as const,
+            id: textId,
+            delta: word + ' ',
+          })),
+          // End the text block
+          {
+            type: 'text-end',
+            id: textId,
+          },
+        ];
 
         const finishChunk: LanguageModelV2StreamPart = {
           type: 'finish',
@@ -185,7 +198,7 @@ export class MockProvider extends MastraLLM {
 
         return {
           stream: simulateReadableStream<LanguageModelV2StreamPart>({
-            chunks: [...wordChunks, finishChunk] as LanguageModelV2StreamPart[],
+            chunks: [...streamParts, finishChunk] as LanguageModelV2StreamPart[],
           }),
           request: {}, // Added empty request object
           response: {}, // Added empty response object
