@@ -267,6 +267,7 @@ export class NewAgentNetwork extends MastraBase {
           If you have multiple entries that need to be called with a workflow or agent, call them separately with each input.
           When calling a workflow, the prompt should be a JSON value that corresponds to the input schema of the workflow. The JSON value is stringified.
           When calling a tool, the prompt should be a JSON value that corresponds to the input schema of the tool. The JSON value is stringified.
+          When calling an agent, the prompt should be a text value, like you would call an LLM in a chat interface.
 
           Keep in mind that the user only sees the final result of the task. When reviewing completion, you should know that the user will not see the intermediate results.
         `;
