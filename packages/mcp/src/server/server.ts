@@ -355,6 +355,12 @@ export class MCPServer extends MCPServerBase {
         continue;
       }
 
+      // Ensure MCP tools are properly marked as Mastra tools
+      const toolWithMastraFlag = {
+        ...toolInstance,
+        __isMastraTool: true as const,
+      };
+
       const options = {
         name: toolName,
         runtimeContext: new RuntimeContext(),
@@ -363,7 +369,7 @@ export class MCPServer extends MCPServerBase {
         description: toolInstance?.description,
       };
 
-      const coreTool = makeCoreTool(toolInstance, options) as InternalCoreTool;
+      const coreTool = makeCoreTool(toolWithMastraFlag, options) as InternalCoreTool;
 
       definedConvertedTools[toolName] = {
         name: toolName,
