@@ -241,8 +241,11 @@ describe('Tool Schema Compatibility', () => {
     // openrouter('openai/gpt-4o-mini'),
     // openrouter('openai/gpt-4.1-mini'),
     // openrouter disables structured outputs by default for o3-mini, so added in a reasoning model not through openrouter to test
-    openai('o3-mini'),
-    openai('o4-mini'),
+    // TODO: I'm randomly seeing errors like Error for o3-mini - unionPrimitives: Invalid URL (POST /v1/engines/o3-mini/completions)
+    // seems to be an AI SDK bug with the new default responses API in v5?
+    // using .chat() for now
+    openai.chat('o3-mini'),
+    openai.chat('o4-mini'),
 
     // Meta Models
     // Meta often calls the tool with the wrong name, ie 'tesTool_number'/'TestTool_number' instead of 'testTool_number'
