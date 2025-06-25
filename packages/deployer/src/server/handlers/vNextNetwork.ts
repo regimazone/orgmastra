@@ -91,12 +91,20 @@ export async function streamGenerateVNextNetworkHandler(c: Context) {
           const reader = result.stream.getReader();
 
           stream.onAbort(() => {
+            console.log('request aborted');
             void reader.cancel('request aborted');
           });
 
           let chunkResult;
           while ((chunkResult = await reader.read()) && !chunkResult.done) {
+            console.log('chunkResult in deployer==', chunkResult);
+
             await stream.write(JSON.stringify(chunkResult.value) + '\x1E');
+            console.log('after writing chunkResult');
+          }
+
+          if (chunkResult.done) {
+            console.log('done===', chunkResult);
           }
         } catch (err) {
           mastra.getLogger().error('Error in watch stream: ' + ((err as Error)?.message ?? 'Unknown error'));

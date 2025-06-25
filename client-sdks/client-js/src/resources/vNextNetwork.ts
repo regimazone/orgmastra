@@ -60,46 +60,63 @@ export class VNextNetwork extends BaseResource {
     let doneReading = false;
     // Buffer to accumulate partial chunks
     let buffer = '';
+    let v = null;
 
     try {
       while (!doneReading) {
-        // Read the next chunk from the stream
-        const { done, value } = await reader.read();
-        doneReading = done;
-
-        // Skip processing if we're done and there's no value
-        if (done && !value) continue;
-
         try {
-          // Decode binary data to text
-          const decoded = value ? new TextDecoder().decode(value) : '';
+          // Read the next chunk from the stream
+          const { done, value } = await reader.read();
+          doneReading = done;
+          v = value;
+          console.log('doneReading==', doneReading);
+          console.log('value==', value);
+          console.log('done===', done);
 
-          // Split the combined buffer and new data by record separator
-          const chunks = (buffer + decoded).split(RECORD_SEPARATOR);
+          // Skip processing if we're done and there's no value
+          if (done && !value) continue;
 
-          // The last chunk might be incomplete, so save it for the next iteration
-          buffer = chunks.pop() || '';
+          try {
+            // Decode binary data to text
+            const decoded = value ? new TextDecoder().decode(value) : '';
+            console.log('decoded==', decoded);
 
-          // Process complete chunks
-          for (const chunk of chunks) {
-            if (chunk) {
-              // Only process non-empty chunks
-              if (typeof chunk === 'string') {
-                try {
-                  const parsedChunk = JSON.parse(chunk);
-                  yield parsedChunk;
-                } catch {
-                  // Silently ignore parsing errors to maintain stream processing
-                  // This allows the stream to continue even if one record is malformed
+            // Split the combined buffer and new data by record separator
+            const chunks = (buffer + decoded).split(RECORD_SEPARATOR);
+
+            // The last chunk might be incomplete, so save it for the next iteration
+            buffer = chunks.pop() || '';
+
+            console.log('chunks==', chunks);
+
+            // Process complete chunks
+            for (const chunk of chunks) {
+              if (chunk) {
+                // Only process non-empty chunks
+                if (typeof chunk === 'string') {
+                  try {
+                    const parsedChunk = JSON.parse(chunk);
+                    console.log('parsedChunk==', parsedChunk);
+                    yield parsedChunk;
+                  } catch (err) {
+                    console.log('error parsing chunk==', err);
+                    // Silently ignore parsing errors to maintain stream processing
+                    // This allows the stream to continue even if one record is malformed
+                  }
                 }
               }
             }
+          } catch (err) {
+            console.log('error in streamProcessor==', err);
+            // Silently ignore parsing errors to maintain stream processing
+            // This allows the stream to continue even if one record is malformed
           }
-        } catch {
-          // Silently ignore parsing errors to maintain stream processing
-          // This allows the stream to continue even if one record is malformed
+        } catch (err) {
+          console.log('error in await reader.read()==', err);
         }
       }
+
+      console.log('after while loop');
 
       // Process any remaining data in the buffer after stream is done
       if (buffer) {
@@ -109,11 +126,19 @@ export class VNextNetwork extends BaseResource {
           // Ignore parsing error for final chunk
         }
       }
-    } finally {
-      // Always ensure we clean up the reader
-      reader.cancel().catch(() => {
-        // Ignore cancel errors
-      });
+
+      console.log('reader about to cancel', { doneReading, v });
+
+      reader
+        .cancel()
+        .then(() => {
+          console.log('reader cancelled');
+        })
+        .catch(() => {
+          // Ignore cancel errors
+        });
+    } catch (err) {
+      console.log('erroorrrr==', err);
     }
   }
 
