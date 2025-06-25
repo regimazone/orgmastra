@@ -274,7 +274,8 @@ describe('Memory with Processors', () => {
     const agent = new Agent({
       name: 'processor-test-agent',
       instructions,
-      model: openai('gpt-4o'),
+      // TODO: there's a weird bug where the new responses API randomly throws an error like this: Invalid URL (POST /v1/engines/gpt-4o/completions)
+      model: openai.chat('gpt-4o'),
       memory,
     });
 
@@ -300,10 +301,11 @@ describe('Memory with Processors', () => {
     }
 
     // In AI SDK v5, user message content is an array with input_text objects
-    const userMessagesByContent = responseMessages.filter(m => 
-      m.role === 'user' && 
-      Array.isArray(m.content) && 
-      m.content.some(part => part.type === 'input_text' && part.text === userMessage)
+    const userMessagesByContent = responseMessages.filter(
+      m =>
+        m.role === 'user' &&
+        Array.isArray(m.content) &&
+        m.content.some(part => part.type === 'input_text' && part.text === userMessage),
     );
     expect(userMessagesByContent.length).toBe(1); // if there's more than one we have duplicate messages
 
@@ -329,10 +331,11 @@ describe('Memory with Processors', () => {
     }
 
     // In AI SDK v5, user message content is an array with input_text objects
-    const userMessagesByContent2 = responseMessages2.filter((m: any) => 
-      m.role === 'user' && 
-      Array.isArray(m.content) && 
-      m.content.some((part: any) => part.type === 'input_text' && part.text === userMessage2)
+    const userMessagesByContent2 = responseMessages2.filter(
+      (m: any) =>
+        m.role === 'user' &&
+        Array.isArray(m.content) &&
+        m.content.some((part: any) => part.type === 'input_text' && part.text === userMessage2),
     );
     expect(userMessagesByContent2.length).toBe(1); // if there's more than one we have duplicate messages
 
