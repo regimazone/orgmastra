@@ -63,45 +63,41 @@ export class VNextNetwork extends BaseResource {
 
     try {
       while (!doneReading) {
+        // Read the next chunk from the stream
+        const { done, value } = await reader.read();
+        doneReading = done;
+
+        // Skip processing if we're done and there's no value
+        if (done && !value) continue;
+
         try {
-          // Read the next chunk from the stream
-          const { done, value } = await reader.read();
-          doneReading = done;
+          // Decode binary data to text
+          const decoded = value ? new TextDecoder().decode(value) : '';
 
-          // Skip processing if we're done and there's no value
-          if (done && !value) continue;
+          // Split the combined buffer and new data by record separator
+          const chunks = (buffer + decoded).split(RECORD_SEPARATOR);
 
-          try {
-            // Decode binary data to text
-            const decoded = value ? new TextDecoder().decode(value) : '';
+          // The last chunk might be incomplete, so save it for the next iteration
+          buffer = chunks.pop() || '';
 
-            // Split the combined buffer and new data by record separator
-            const chunks = (buffer + decoded).split(RECORD_SEPARATOR);
-
-            // The last chunk might be incomplete, so save it for the next iteration
-            buffer = chunks.pop() || '';
-
-            // Process complete chunks
-            for (const chunk of chunks) {
-              if (chunk) {
-                // Only process non-empty chunks
-                if (typeof chunk === 'string') {
-                  try {
-                    const parsedChunk = JSON.parse(chunk);
-                    yield parsedChunk;
-                  } catch (err) {
-                    // Silently ignore parsing errors to maintain stream processing
-                    // This allows the stream to continue even if one record is malformed
-                  }
+          // Process complete chunks
+          for (const chunk of chunks) {
+            if (chunk) {
+              // Only process non-empty chunks
+              if (typeof chunk === 'string') {
+                try {
+                  const parsedChunk = JSON.parse(chunk);
+                  yield parsedChunk;
+                } catch {
+                  // Silently ignore parsing errors to maintain stream processing
+                  // This allows the stream to continue even if one record is malformed
                 }
               }
             }
-          } catch (err) {
-            // Silently ignore parsing errors to maintain stream processing
-            // This allows the stream to continue even if one record is malformed
           }
-        } catch (err) {
-          //fail silently
+        } catch {
+          // Silently ignore parsing errors to maintain stream processing
+          // This allows the stream to continue even if one record is malformed
         }
       }
 
@@ -113,17 +109,11 @@ export class VNextNetwork extends BaseResource {
           // Ignore parsing error for final chunk
         }
       }
-
-      reader
-        .cancel()
-        .then(() => {
-          console.log('reader cancelled');
-        })
-        .catch(() => {
-          // Ignore cancel errors
-        });
-    } catch (err) {
-      //fail silently
+    } finally {
+      // Always ensure we clean up the reader
+      reader.cancel().catch(() => {
+        // Ignore cancel errors
+      });
     }
   }
 
