@@ -402,10 +402,7 @@ export class NewAgentNetwork extends MastraBase {
         iteration: z.number(),
       }),
     })
-      .dountil(networkWorkflow, async ({ inputData, getInitData }) => {
-        const initData = await getInitData();
-        console.log('main workflow init data in dountil stream', initData);
-        console.log('main workflow input data in dountil stream', inputData);
+      .dountil(networkWorkflow, async ({ inputData }) => {
         return inputData.isComplete || (maxIterations && inputData.iteration >= maxIterations);
       })
       .then(finalStep)
@@ -472,9 +469,6 @@ export class NewAgentNetwork extends MastraBase {
       execute: async ({ inputData, getInitData }) => {
         const initData = await getInitData();
 
-        console.log('routing step init data', initData);
-        console.log('routing step input data', inputData);
-
         const routingAgent = await this.getRoutingAgent({ runtimeContext: runtimeContextToUse });
 
         let completionResult;
@@ -517,8 +511,6 @@ export class NewAgentNetwork extends MastraBase {
             };
           }
         }
-
-        console.log('routing step init data just before generate', initData);
 
         const result = await routingAgent.generate(
           [
@@ -654,7 +646,6 @@ export class NewAgentNetwork extends MastraBase {
 
         const memory = await this.getMemory({ runtimeContext: runtimeContext || new RuntimeContext() });
         const initData = await getInitData();
-        console.log('saving messages for agent-step===', initData?.threadId);
         await memory?.saveMessages({
           messages: [
             {
@@ -669,8 +660,6 @@ export class NewAgentNetwork extends MastraBase {
           ] as MastraMessageV2[],
           format: 'v2',
         });
-
-        console.log('agent step init data', initData);
 
         return {
           task: inputData.task,
@@ -792,7 +781,6 @@ export class NewAgentNetwork extends MastraBase {
 
         const memory = await this.getMemory({ runtimeContext: runtimeContext || new RuntimeContext() });
         const initData = await getInitData();
-        console.log('saving messages for workflow step ===', initData?.threadId);
         await memory?.saveMessages({
           messages: [
             {
@@ -870,7 +858,6 @@ export class NewAgentNetwork extends MastraBase {
 
         const memory = await this.getMemory({ runtimeContext: runtimeContext || new RuntimeContext() });
         const initData = await getInitData();
-        console.log('saving messages for tool step ===', initData?.threadId);
         await memory?.saveMessages({
           messages: [
             {

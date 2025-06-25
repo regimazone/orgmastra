@@ -1265,17 +1265,12 @@ export class Run<
     const writer = writable.getWriter();
     const unwatch = this.watch(async event => {
       try {
-        console.log('event in stream==', event);
         // watch-v2 events are data stream events, so we need to cast them to the correct type
         await writer.write(event as any);
-      } catch (err) {
-        console.log('error in stream==', err);
-        console.log('event that caused the error in stream==', event);
-      }
+      } catch {}
     }, 'watch-v2');
 
     this.closeStreamAction = async () => {
-      console.log('closing stream');
       this.emitter.emit('watch-v2', {
         type: 'finish',
         payload: { runId: this.runId },
@@ -1296,7 +1291,6 @@ export class Run<
       payload: { runId: this.runId },
     });
     this.executionResults = this.start({ inputData, runtimeContext }).then(result => {
-      console.log('executionResults in start promise==', result);
       if (result.status !== 'suspended') {
         this.closeStreamAction?.().catch(() => {});
       }

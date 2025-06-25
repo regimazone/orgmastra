@@ -334,7 +334,6 @@ export function VNextMastraNetworkRuntimeProvider({
             resourceId: networkId,
           },
           (record: any) => {
-            console.log('record==', record);
             if (runIdRef.current) {
               if ((record as any).type === 'tool-call-delta') {
                 appendToLastMessage((record as any).argsTextDelta);
