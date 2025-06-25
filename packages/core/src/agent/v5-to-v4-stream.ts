@@ -11,7 +11,6 @@ import type { UIMessageStreamPart as BaseUIMessageStreamPart } from 'ai';
 // Extended type that includes common events we might encounter
 export type UIMessageStreamPart =
   | BaseUIMessageStreamPart
-  // Legacy/custom events that might appear in streams  
   | { type: 'response-metadata'; id: string; modelId: string; timestamp: Date }
   | { type: 'source'; id: string; title?: string; url?: string; content?: unknown } // Legacy source format
   | { type: 'file'; id: string; name: string; mimeType: string; content: unknown } // Legacy file format for tests
@@ -131,10 +130,8 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
     case 'text-start':
       // Start of text block - no output needed for v4
       return null;
-      
     case 'text-delta':
       return `${DataStreamStringPrefixes.text}:${JSON.stringify(part.delta)}\n`;
-      
     case 'text-end':
       // End of text block - no output needed for v4
       return null;
@@ -185,10 +182,8 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
     case 'reasoning-start':
       // Start of reasoning block - no output needed for v4
       return null;
-      
     case 'reasoning-delta':
       return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify(part.delta)}\n`;
-      
     case 'reasoning-end':
       // End of reasoning block - no output needed for v4
       return null;
@@ -303,7 +298,6 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
     // Handle legacy reasoning format that still exists in v5
     case 'reasoning':
       return `${DataStreamStringPrefixes.reasoning}:${JSON.stringify((part as any).text)}\n`;
-      
     case 'reasoning-part-finish':
       return null; // Skip this event type
 
@@ -355,6 +349,7 @@ export function createV4CompatibleResponse(v5Stream: ReadableStream<Uint8Array>)
     status: 200,
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
       'X-Vercel-AI-Data-Stream': 'v1',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
