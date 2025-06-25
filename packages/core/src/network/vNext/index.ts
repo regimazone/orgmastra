@@ -637,13 +637,11 @@ export class NewAgentNetwork extends MastraBase {
             case 'step-start':
             case 'step-finish':
             case 'finish':
-              break;
-
             case 'tool-call':
-              break;
             case 'tool-result':
             case 'tool-call-streaming-start':
             case 'tool-call-delta':
+              break;
             case 'source':
             case 'file':
             default:
