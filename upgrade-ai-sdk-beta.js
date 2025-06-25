@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // AI SDK package version mappings from alpha to beta
 const VERSION_MAPPINGS = {
-  'ai': {
+  ai: {
     '5.0.0-alpha.15': '5.0.0-beta.1',
     '4.3.16': '5.0.0-beta.1', // Major upgrade from v4 to v5
   },
@@ -41,7 +41,7 @@ const VERSION_MAPPINGS = {
 const AI_SDK_PACKAGES = [
   'ai',
   '@ai-sdk/provider',
-  '@ai-sdk/openai', 
+  '@ai-sdk/openai',
   '@ai-sdk/react',
   '@ai-sdk/anthropic',
   '@ai-sdk/google',
@@ -53,15 +53,15 @@ const AI_SDK_PACKAGES = [
 
 async function findPackageJsonFiles(dir = '.') {
   const files = [];
-  
+
   async function walk(currentDir) {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.name === 'node_modules') continue;
-      
+
       const fullPath = path.join(currentDir, entry.name);
-      
+
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else if (entry.name === 'package.json') {
@@ -69,7 +69,7 @@ async function findPackageJsonFiles(dir = '.') {
       }
     }
   }
-  
+
   await walk(dir);
   return files;
 }
@@ -79,10 +79,10 @@ async function analyzePackageJson(filePath) {
     const content = await fs.readFile(filePath, 'utf8');
     const pkg = JSON.parse(content);
     const found = {};
-    
+
     // Check all dependency sections
     const sections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
-    
+
     for (const section of sections) {
       if (pkg[section]) {
         for (const pkgName of AI_SDK_PACKAGES) {
@@ -93,7 +93,7 @@ async function analyzePackageJson(filePath) {
         }
       }
     }
-    
+
     return Object.keys(found).length > 0 ? { path: filePath, packages: found } : null;
   } catch (error) {
     console.warn(`Warning: Could not parse ${filePath}:`, error.message);
@@ -106,7 +106,7 @@ async function updatePackageJson(filePath, updates) {
     const content = await fs.readFile(filePath, 'utf8');
     const pkg = JSON.parse(content);
     let modified = false;
-    
+
     for (const [section, packages] of Object.entries(updates)) {
       if (pkg[section]) {
         for (const [pkgName, newVersion] of Object.entries(packages)) {
@@ -118,12 +118,12 @@ async function updatePackageJson(filePath, updates) {
         }
       }
     }
-    
+
     if (modified) {
       await fs.writeFile(filePath, JSON.stringify(pkg, null, 2) + '\n');
       return true;
     }
-    
+
     return false;
   } catch (error) {
     console.error(`Error updating ${filePath}:`, error.message);
@@ -141,12 +141,12 @@ function getNewVersion(packageName, currentVersion) {
     }
     return currentVersion; // Keep unchanged if no mapping
   }
-  
+
   // Exact match first
   if (mappings[currentVersion]) {
     return mappings[currentVersion];
   }
-  
+
   // Handle caret/tilde prefixes
   const cleanVersion = currentVersion.replace(/^[\^~]/, '');
   if (mappings[cleanVersion]) {
@@ -155,10 +155,13 @@ function getNewVersion(packageName, currentVersion) {
     if (newVersion.includes('-beta.')) {
       return newVersion;
     }
-    return currentVersion.startsWith('^') ? newVersion.replace(/^[\^~]/, '^') : 
-           currentVersion.startsWith('~') ? newVersion.replace(/^[\^~]/, '~') : newVersion;
+    return currentVersion.startsWith('^')
+      ? newVersion.replace(/^[\^~]/, '^')
+      : currentVersion.startsWith('~')
+        ? newVersion.replace(/^[\^~]/, '~')
+        : newVersion;
   }
-  
+
   // Default fallback
   console.warn(`  Warning: No mapping found for ${packageName}@${currentVersion}, skipping`);
   return currentVersion;
@@ -170,7 +173,7 @@ async function removeOverrides() {
     const content = await fs.readFile(rootPackageJsonPath, 'utf8');
     const pkg = JSON.parse(content);
     let modified = false;
-    
+
     // Remove pnpm overrides for AI SDK packages
     if (pkg.pnpm && pkg.pnpm.overrides) {
       for (const pkgName of AI_SDK_PACKAGES) {
@@ -180,7 +183,7 @@ async function removeOverrides() {
           modified = true;
         }
       }
-      
+
       // Clean up empty overrides
       if (Object.keys(pkg.pnpm.overrides).length === 0) {
         delete pkg.pnpm.overrides;
@@ -189,7 +192,7 @@ async function removeOverrides() {
         delete pkg.pnpm;
       }
     }
-    
+
     // Remove resolutions for AI SDK packages
     if (pkg.resolutions) {
       for (const pkgName of AI_SDK_PACKAGES) {
@@ -199,17 +202,16 @@ async function removeOverrides() {
           modified = true;
         }
       }
-      
+
       if (Object.keys(pkg.resolutions).length === 0) {
         delete pkg.resolutions;
       }
     }
-    
+
     if (modified) {
       await fs.writeFile(rootPackageJsonPath, JSON.stringify(pkg, null, 2) + '\n');
       console.log('✅ Updated root package.json to remove AI SDK overrides');
     }
-    
   } catch (error) {
     console.warn('Warning: Could not update root package.json:', error.message);
   }
@@ -218,35 +220,35 @@ async function removeOverrides() {
 async function main() {
   console.log('🔍 AI SDK Alpha → Beta Upgrade Script');
   console.log('=====================================\n');
-  
+
   // Step 1: Find all package.json files
   console.log('📂 Finding package.json files...');
   const packageFiles = await findPackageJsonFiles();
   console.log(`Found ${packageFiles.length} package.json files\n`);
-  
+
   // Step 2: Analyze packages with AI SDK dependencies
   console.log('🔎 Analyzing AI SDK dependencies...');
   const packagesWithAiSdk = [];
-  
+
   for (const filePath of packageFiles) {
     const analysis = await analyzePackageJson(filePath);
     if (analysis) {
       packagesWithAiSdk.push(analysis);
     }
   }
-  
+
   if (packagesWithAiSdk.length === 0) {
     console.log('❌ No AI SDK packages found!');
     return;
   }
-  
+
   console.log(`Found AI SDK packages in ${packagesWithAiSdk.length} files:\n`);
-  
+
   // Step 3: Show what will be updated
   let totalUpdates = 0;
   for (const { path: filePath, packages } of packagesWithAiSdk) {
     console.log(`📦 ${path.relative('.', filePath)}:`);
-    
+
     for (const [section, deps] of Object.entries(packages)) {
       for (const [pkgName, currentVersion] of Object.entries(deps)) {
         const newVersion = getNewVersion(pkgName, currentVersion);
@@ -260,22 +262,22 @@ async function main() {
     }
     console.log();
   }
-  
+
   if (totalUpdates === 0) {
     console.log('ℹ️  No updates needed - all packages are already up to date!');
     return;
   }
-  
+
   console.log(`🚀 Ready to update ${totalUpdates} package references\n`);
-  
+
   // Step 4: Perform updates
   console.log('📝 Updating package.json files...');
   let updatedFiles = 0;
-  
+
   for (const { path: filePath, packages } of packagesWithAiSdk) {
     const updates = {};
     let hasUpdates = false;
-    
+
     for (const [section, deps] of Object.entries(packages)) {
       for (const [pkgName, currentVersion] of Object.entries(deps)) {
         const newVersion = getNewVersion(pkgName, currentVersion);
@@ -286,7 +288,7 @@ async function main() {
         }
       }
     }
-    
+
     if (hasUpdates) {
       console.log(`\n📝 Updating ${path.relative('.', filePath)}:`);
       const success = await updatePackageJson(filePath, updates);
@@ -296,11 +298,11 @@ async function main() {
       }
     }
   }
-  
+
   // Step 5: Remove overrides
   console.log('\n🧹 Removing AI SDK overrides from root package.json...');
   await removeOverrides();
-  
+
   // Step 6: Summary
   console.log('\n🎉 Upgrade Summary:');
   console.log('==================');

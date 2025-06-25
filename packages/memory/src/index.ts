@@ -90,7 +90,12 @@ export class Memory extends MastraMemory {
     threadConfig,
   }: StorageGetMessagesArg & {
     threadConfig?: MemoryConfig;
-  }): Promise<{ messages: CoreMessage[]; uiMessages: UIMessage[]; uiMessagesV4: AIV4UIMessage[]; messagesV2: MastraMessageV2[] }> {
+  }): Promise<{
+    messages: CoreMessage[];
+    uiMessages: UIMessage[];
+    uiMessagesV4: AIV4UIMessage[];
+    messagesV2: MastraMessageV2[];
+  }> {
     if (resourceId) await this.validateThreadIsOwnedByResource(threadId, resourceId);
 
     const vectorResults: {

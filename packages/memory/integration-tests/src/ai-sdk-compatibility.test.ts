@@ -136,8 +136,8 @@ export const mastra = new Mastra({
       }
 
       const data = await response.json();
-      
-      // Memory might be empty initially, so either expect uiMessages to be defined 
+
+      // Memory might be empty initially, so either expect uiMessages to be defined
       // or expect an empty array (both are valid v4 responses)
       if (data.uiMessages !== undefined) {
         // Should return v4 format by default when aiSdkCompat is 'v4'
@@ -170,8 +170,8 @@ export const mastra = new Mastra({
         console.log('Error Body:', errorText);
       }
       expect(response.ok).toBe(true);
-      
-      // Check that the stream contains data  
+
+      // Check that the stream contains data
       const reader = response.body?.getReader();
       if (reader) {
         const { value } = await reader.read();
@@ -298,7 +298,7 @@ export const mastra = new Mastra({
           headers: {
             'x-ai-sdk-compat': 'v4',
           },
-        }
+        },
       );
 
       // Memory is not configured in this test setup, but that's OK
@@ -330,7 +330,7 @@ export const mastra = new Mastra({
         const chunk = new TextDecoder().decode(value);
         expect(chunk).toBeTruthy();
         // V4 streams should start with specific prefixes
-        expect(chunk).toMatch(/^[0-9a-f]/); 
+        expect(chunk).toMatch(/^[0-9a-f]/);
         reader.releaseLock();
       }
     });

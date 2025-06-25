@@ -526,7 +526,12 @@ describe('MessageList', () => {
       const msg3 = {
         role: 'tool',
         content: [
-          { type: 'tool-result', toolName: 'searchTool', toolCallId: 'call-seq-1', output: { type: 'text', value: 'Search results data' } },
+          {
+            type: 'tool-result',
+            toolName: 'searchTool',
+            toolCallId: 'call-seq-1',
+            output: { type: 'text', value: 'Search results data' },
+          },
         ],
       } satisfies AIV5.ModelMessage;
       const msg4 = {
@@ -921,7 +926,14 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg2 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: { type: 'text', value: 'Result A' } }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'toolA',
+            toolCallId: 'call-a-1',
+            output: { type: 'text', value: 'Result A' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
       const msg3 = {
         role: 'assistant',
@@ -932,7 +944,14 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg4 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: { type: 'text', value: 'Result B' } }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'toolB',
+            toolCallId: 'call-b-1',
+            output: { type: 'text', value: 'Result B' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
       const msg5 = {
         role: 'assistant',
@@ -1035,7 +1054,14 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg2 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolA', toolCallId: 'call-a-1', output: { type: 'text', value: 'Result A' } }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'toolA',
+            toolCallId: 'call-a-1',
+            output: { type: 'text', value: 'Result A' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
       const msg3 = {
         role: 'assistant',
@@ -1046,7 +1072,14 @@ describe('MessageList', () => {
       } satisfies AIV5.ModelMessage;
       const msg4 = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolName: 'toolB', toolCallId: 'call-b-1', output: { type: 'text', value: 'Result B' } }],
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'toolB',
+            toolCallId: 'call-b-1',
+            output: { type: 'text', value: 'Result B' },
+          },
+        ],
       } satisfies AIV5.ModelMessage;
       const msg5 = {
         role: 'assistant',
@@ -2902,7 +2935,12 @@ describe('MessageList', () => {
       const finalToolMsg = coreMessages.find(m => m.role === 'tool');
       expect(finalToolMsg).toBeDefined();
       expect(finalToolMsg?.content).toEqual([
-        { type: 'tool-result', toolCallId: 'valid-1', toolName: 'toolA', output: { type: 'text', value: 'Result for valid-1' } },
+        {
+          type: 'tool-result',
+          toolCallId: 'valid-1',
+          toolName: 'toolA',
+          output: { type: 'text', value: 'Result for valid-1' },
+        },
       ]);
     });
   });

@@ -1,4 +1,3 @@
-
 import { Agent } from '@mastra/core/agent';
 import { Mastra } from '@mastra/core';
 import { LibsqlMemory } from '@mastra/memory/libsql';
@@ -7,21 +6,21 @@ import { LibsqlMemory } from '@mastra/memory/libsql';
 const mockModel = {
   modelId: 'mock-model',
   provider: 'mock',
-  
+
   doStream: async function* (options) {
     // Simple mock stream implementation
     yield { type: 'text-delta', textDelta: 'Hello' };
     yield { type: 'text-delta', textDelta: ' world' };
     yield { type: 'finish', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 2 } };
   },
-  
+
   doGenerate: async function (options) {
     return {
       text: 'Hello world',
       finishReason: 'stop',
-      usage: { promptTokens: 10, completionTokens: 2 }
+      usage: { promptTokens: 10, completionTokens: 2 },
     };
-  }
+  },
 };
 
 const mockTool = {

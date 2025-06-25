@@ -127,7 +127,7 @@ export function getResuableTests(memory: Memory, workerTestConfig?: WorkerTestCo
         ];
 
         await memory.saveMessages({ messages: testMessages });
-        
+
         const queryResult = await memory.query({
           threadId: thread.id,
           resourceId,
@@ -142,7 +142,7 @@ export function getResuableTests(memory: Memory, workerTestConfig?: WorkerTestCo
 
         // Verify uiMessagesV4 has the correct structure for AI SDK v4
         expect(queryResult.uiMessagesV4).toHaveLength(2);
-        
+
         const userMessage = queryResult.uiMessagesV4.find(m => m.role === 'user');
         const assistantMessage = queryResult.uiMessagesV4.find(m => m.role === 'assistant');
 

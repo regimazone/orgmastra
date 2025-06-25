@@ -15,10 +15,10 @@ import { Mastra } from '@mastra/core';
 
 export const mastra = new Mastra({
   agents: { myAgent },
-  
+
   // Enable v4 compatibility mode - your frontend keeps working!
   aiSdkCompat: 'v4',
-  
+
   // ... other config
 });
 ```
@@ -28,7 +28,7 @@ export const mastra = new Mastra({
 ```typescript
 export const mastra = new Mastra({
   agents: { myAgent },
-  
+
   // Auto-detect mode: use headers/query params to control per request
   aiSdkCompat: 'auto',
 });
@@ -39,7 +39,7 @@ export const mastra = new Mastra({
 ```typescript
 export const mastra = new Mastra({
   agents: { myAgent },
-  
+
   // Pure v5 mode (default) - best performance
   aiSdkCompat: 'v5', // or omit entirely
 });
@@ -50,7 +50,7 @@ export const mastra = new Mastra({
 ### `aiSdkCompat` Values
 
 - **`'v4'`** - Always return v4-compatible streams and responses
-- **`'v5'`** - Use native v5 format (default, recommended for new projects)  
+- **`'v5'`** - Use native v5 format (default, recommended for new projects)
 - **`'auto'`** - Auto-detect based on client headers or query parameters
 
 ### Auto-Detection Headers
@@ -61,7 +61,7 @@ When using `aiSdkCompat: 'auto'`, clients can specify format via:
 # Header approach
 X-AI-SDK-Version: v4
 
-# Query parameter approach  
+# Query parameter approach
 GET /api/agents/myAgent/stream?aisdk=v4
 ```
 
@@ -73,8 +73,8 @@ Both stream endpoints automatically respect the compatibility mode:
 
 ```typescript
 // These endpoints now support compatibility detection:
-POST /api/agents/{id}/stream     // Agent streaming
-GET  /api/memory/threads/{id}/messages  // Memory messages
+POST / api / agents / { id } / stream; // Agent streaming
+GET / api / memory / threads / { id } / messages; // Memory messages
 ```
 
 ### Memory API
@@ -97,16 +97,14 @@ GET /api/memory/threads/123/messages
 import { MastraClient } from '@mastra/client-js';
 
 const client = new MastraClient({
-  baseUrl: 'https://api.example.com'
+  baseUrl: 'https://api.example.com',
 });
 
 // Get v4 format explicitly
-const messages = await client.getMemoryThread('threadId', 'agentId')
-  .getMessages({ format: 'aiv4' });
+const messages = await client.getMemoryThread('threadId', 'agentId').getMessages({ format: 'aiv4' });
 
 // Or rely on server auto-detection
-const messages = await client.getMemoryThread('threadId', 'agentId')
-  .getMessages();
+const messages = await client.getMemoryThread('threadId', 'agentId').getMessages();
 ```
 
 ### Custom Headers
@@ -118,7 +116,7 @@ fetch('/api/agents/myAgent/stream', {
     'Content-Type': 'application/json',
     'X-AI-SDK-Version': 'v4', // Request v4 compatibility
   },
-  body: JSON.stringify({ messages })
+  body: JSON.stringify({ messages }),
 });
 ```
 
@@ -159,21 +157,23 @@ For new projects or major refactors:
 // mastra.config.ts
 export const mastra = new Mastra({
   agents: { customerServiceAgent, analyticsAgent },
-  
+
   // Start with v4 compatibility for safety
   aiSdkCompat: process.env.ENABLE_AI_SDK_V5 === 'true' ? 'v5' : 'v4',
-  
-  storage: new PostgresStore({ /* ... */ }),
+
+  storage: new PostgresStore({
+    /* ... */
+  }),
 });
 ```
 
 ### Development Environment
 
 ```typescript
-// mastra.config.ts  
+// mastra.config.ts
 export const mastra = new Mastra({
   agents: { myAgent },
-  
+
   // Use auto-detection for flexible testing
   aiSdkCompat: 'auto',
 });
@@ -181,14 +181,14 @@ export const mastra = new Mastra({
 // Test v4 compatibility:
 // curl -H "X-AI-SDK-Version: v4" http://localhost:3000/api/agents/myAgent/stream
 
-// Test v5 native:  
+// Test v5 native:
 // curl -H "X-AI-SDK-Version: v5" http://localhost:3000/api/agents/myAgent/stream
 ```
 
 ## Performance Considerations
 
 - **v5 mode**: Best performance, no transformation overhead
-- **v4 mode**: Slight overhead for stream transformation  
+- **v4 mode**: Slight overhead for stream transformation
 - **auto mode**: Minimal detection overhead per request
 
 ## Troubleshooting
@@ -196,6 +196,7 @@ export const mastra = new Mastra({
 ### Empty Message Bubbles
 
 If you see empty message bubbles, ensure:
+
 1. Memory API is using correct format (`?format=aiv4`)
 2. `aiSdkCompat` is set correctly
 3. Client headers are being sent properly
@@ -203,6 +204,7 @@ If you see empty message bubbles, ensure:
 ### Stream Format Issues
 
 If streams aren't working:
+
 1. Check `aiSdkCompat` configuration
 2. Verify client sends appropriate headers
 3. Test with explicit `?aisdk=v4` query parameter
@@ -210,7 +212,7 @@ If streams aren't working:
 ## Next Steps
 
 1. **Phase 1**: Implement `aiSdkCompat: 'v4'` for immediate compatibility
-2. **Phase 2**: Test with `aiSdkCompat: 'auto'` and client headers  
+2. **Phase 2**: Test with `aiSdkCompat: 'auto'` and client headers
 3. **Phase 3**: Migrate frontend to v5 and use `aiSdkCompat: 'v5'`
 
 For more details, see the [full documentation](../../../docs) or check the examples in `/examples/agent/`.

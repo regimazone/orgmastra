@@ -9,21 +9,21 @@ import { getMessagesHandler } from './memory';
 const mockModel = {
   modelId: 'mock-model',
   provider: 'mock',
-  
+
   doStream: async function* (options: any) {
     // Simple mock stream implementation
     yield { type: 'text-delta', textDelta: 'Hello' };
     yield { type: 'text-delta', textDelta: ' world' };
     yield { type: 'finish', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 2 } };
   },
-  
+
   doGenerate: async function (options: any) {
     return {
       text: 'Hello world',
       finishReason: 'stop',
-      usage: { promptTokens: 10, completionTokens: 2 }
+      usage: { promptTokens: 10, completionTokens: 2 },
     };
-  }
+  },
 };
 
 let testAgent: Agent;
@@ -35,7 +35,7 @@ describe('Header-based SDK compatibility', () => {
 
   beforeEach(() => {
     runtimeContext = new RuntimeContext();
-    
+
     // Create a real agent with our mock model
     testAgent = new Agent({
       name: 'test-agent',
@@ -113,10 +113,10 @@ describe('Header-based SDK compatibility', () => {
       // Test the core logic without needing full memory setup
       const clientCompatHeader = 'v4';
       const mastraConfigV5 = mastraV5.getAiSdkCompatMode(); // 'v5'
-      
+
       // This is the logic from our implementation
       const useV4Compat = clientCompatHeader === 'v4' || mastraConfigV5 === 'v4';
-      
+
       expect(useV4Compat).toBe(true); // Header should override config
     });
 
@@ -124,9 +124,9 @@ describe('Header-based SDK compatibility', () => {
       // Test without header
       const clientCompatHeader = undefined;
       const mastraConfigV4 = mastraV4.getAiSdkCompatMode(); // 'v4'
-      
+
       const useV4Compat = clientCompatHeader === 'v4' || mastraConfigV4 === 'v4';
-      
+
       expect(useV4Compat).toBe(true); // Should use config
     });
   });

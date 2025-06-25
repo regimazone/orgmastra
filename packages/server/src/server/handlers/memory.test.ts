@@ -420,21 +420,21 @@ describe('Memory Handlers', () => {
           'test-agent': mockAgent,
         },
       });
-      const queryResult = { 
-        messages: mockMessages, 
-        uiMessages: [], 
-        uiMessagesV4: mockUIMessagesV4 
+      const queryResult = {
+        messages: mockMessages,
+        uiMessages: [],
+        uiMessagesV4: mockUIMessagesV4,
       };
       mockMemory.getThreadById.mockResolvedValue(createThread({}));
       mockMemory.query.mockResolvedValue(queryResult);
 
-      const result = await getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
+      const result = await getMessagesHandler({
+        mastra,
+        threadId: 'test-thread',
         agentId: 'test-agent',
-        format: 'aiv4'
+        format: 'aiv4',
       });
-      
+
       expect(result).toEqual({ messages: mockMessages, uiMessages: mockUIMessagesV4 });
       expect(result.uiMessages).toBe(mockUIMessagesV4);
     });
@@ -448,21 +448,21 @@ describe('Memory Handlers', () => {
           'test-agent': mockAgent,
         },
       });
-      const queryResult = { 
-        messages: mockMessages, 
-        uiMessages: mockUIMessagesV5, 
-        uiMessagesV4: [] 
+      const queryResult = {
+        messages: mockMessages,
+        uiMessages: mockUIMessagesV5,
+        uiMessagesV4: [],
       };
       mockMemory.getThreadById.mockResolvedValue(createThread({}));
       mockMemory.query.mockResolvedValue(queryResult);
 
-      const result = await getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
+      const result = await getMessagesHandler({
+        mastra,
+        threadId: 'test-thread',
         agentId: 'test-agent',
-        format: 'aiv5'
+        format: 'aiv5',
       });
-      
+
       expect(result).toEqual({ messages: mockMessages, uiMessages: mockUIMessagesV5 });
       expect(result.uiMessages).toBe(mockUIMessagesV5);
     });
@@ -476,20 +476,20 @@ describe('Memory Handlers', () => {
           'test-agent': mockAgent,
         },
       });
-      const queryResult = { 
-        messages: mockMessages, 
-        uiMessages: mockUIMessagesV5, 
-        uiMessagesV4: [] 
+      const queryResult = {
+        messages: mockMessages,
+        uiMessages: mockUIMessagesV5,
+        uiMessagesV4: [],
       };
       mockMemory.getThreadById.mockResolvedValue(createThread({}));
       mockMemory.query.mockResolvedValue(queryResult);
 
-      const result = await getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
-        agentId: 'test-agent'
+      const result = await getMessagesHandler({
+        mastra,
+        threadId: 'test-thread',
+        agentId: 'test-agent',
       });
-      
+
       expect(result).toEqual({ messages: mockMessages, uiMessages: mockUIMessagesV5 });
       expect(result.uiMessages).toBe(mockUIMessagesV5);
     });
@@ -502,32 +502,32 @@ describe('Memory Handlers', () => {
         },
       });
 
-      await expect(getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
-        agentId: 'test-agent',
-        limit: 0
-      })).rejects.toThrow(
-        new HTTPException(400, { message: 'Invalid limit: must be a positive integer' })
-      );
+      await expect(
+        getMessagesHandler({
+          mastra,
+          threadId: 'test-thread',
+          agentId: 'test-agent',
+          limit: 0,
+        }),
+      ).rejects.toThrow(new HTTPException(400, { message: 'Invalid limit: must be a positive integer' }));
 
-      await expect(getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
-        agentId: 'test-agent',
-        limit: -1
-      })).rejects.toThrow(
-        new HTTPException(400, { message: 'Invalid limit: must be a positive integer' })
-      );
+      await expect(
+        getMessagesHandler({
+          mastra,
+          threadId: 'test-thread',
+          agentId: 'test-agent',
+          limit: -1,
+        }),
+      ).rejects.toThrow(new HTTPException(400, { message: 'Invalid limit: must be a positive integer' }));
 
-      await expect(getMessagesHandler({ 
-        mastra, 
-        threadId: 'test-thread', 
-        agentId: 'test-agent',
-        limit: 1.5
-      })).rejects.toThrow(
-        new HTTPException(400, { message: 'Invalid limit: must be a positive integer' })
-      );
+      await expect(
+        getMessagesHandler({
+          mastra,
+          threadId: 'test-thread',
+          agentId: 'test-agent',
+          limit: 1.5,
+        }),
+      ).rejects.toThrow(new HTTPException(400, { message: 'Invalid limit: must be a positive integer' }));
     });
   });
 });

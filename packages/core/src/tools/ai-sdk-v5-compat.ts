@@ -213,4 +213,3 @@ export function ensureMastraTool(tool: CompatibleTool): CoreTool<ToolParameters>
 
   return tool as CoreTool<ToolParameters>;
 }
-
