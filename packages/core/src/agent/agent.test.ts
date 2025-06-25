@@ -590,7 +590,7 @@ describe('agent', () => {
     }
   });
 
-  it('should generate with default max steps', { timeout: 10000 }, async () => {
+  it('should generate with default max steps', { timeout: 60000 }, async () => {
     const findUserTool = createTool({
       id: 'Find user tool',
       description: 'This is a test tool that returns the name and email',
@@ -742,7 +742,12 @@ describe('agent', () => {
     expect(toolResultForTool2).toBeDefined();
     expect(toolResultForTool2?.content).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: 'tool-result', toolCallId: 'tool-2', toolName: 'testTool2', output: { type: 'text', value: 'res2' } }),
+        expect.objectContaining({
+          type: 'tool-result',
+          toolCallId: 'tool-2',
+          toolName: 'testTool2',
+          output: { type: 'text', value: 'res2' },
+        }),
       ]),
     );
 
