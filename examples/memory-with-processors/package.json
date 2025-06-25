@@ -9,7 +9,7 @@
     "tokens": "tsx src/processor-example.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "latest",
+    "@ai-sdk/openai": "2.0.0-beta.1",
     "@mastra/core": "latest",
     "@mastra/memory": "latest",
     "ai": "5.0.0-beta.1",

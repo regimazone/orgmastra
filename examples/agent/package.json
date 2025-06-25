@@ -6,7 +6,7 @@
   "main": "index.js",
   "version": "0.0.1",
   "dependencies": {
-    "@ai-sdk/openai": "latest",
+    "@ai-sdk/openai": "2.0.0-beta.1",
     "@mastra/client-js": "latest",
     "@mastra/core": "latest",
     "@mastra/loggers": "latest",
