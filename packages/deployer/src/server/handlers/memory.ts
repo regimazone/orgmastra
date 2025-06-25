@@ -156,12 +156,15 @@ export async function getMessagesHandler(c: Context) {
       }
     }
 
+    const clientSdkCompat = c.req.header('x-ai-sdk-compat');
+
     const result = await getOriginalGetMessagesHandler({
       mastra,
       agentId,
       threadId,
       limit,
       format,
+      clientSdkCompat,
     });
 
     return c.json(result);

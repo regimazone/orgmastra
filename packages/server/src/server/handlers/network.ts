@@ -130,9 +130,11 @@ export async function streamGenerateHandler({
   networkId,
   body,
   runtimeContext,
+  clientSdkCompat,
 }: NetworkContext & {
   runtimeContext: RuntimeContext;
   body: { messages?: Parameters<AgentNetwork['stream']>[0] } & Parameters<AgentNetwork['stream']>[1];
+  clientSdkCompat?: string;
 }) {
   try {
     const network = mastra.getNetwork(networkId!);
@@ -151,7 +153,8 @@ export async function streamGenerateHandler({
     });
 
     // Determine compatibility mode
-    const useV4Compat = mastra.getAiSdkCompatMode() === 'v4';
+    // Check for client header override first, then fall back to Mastra config
+    const useV4Compat = clientSdkCompat === 'v4' || mastra.getAiSdkCompatMode() === 'v4';
 
     const streamResponse = output
       ? streamResult.toTextStreamResponse()

@@ -5,6 +5,7 @@
   "scripts": {
     "test": "pnpm compile:worker && pnpm test:pg && pnpm test:upstash && pnpm test:libsql && pnpm test:streaming && pnpm test:working-memory && pnpm test:agent-memory && pnpm test:processors",
     "pretest:pg": "docker compose up -d postgres && (for i in $(seq 1 30); do docker compose exec -T postgres pg_isready -U postgres && break || (sleep 1; [ $i -eq 30 ] && exit 1); done)",
+    "test:ai-sdk-compat": "vitest run ./src/ai-sdk-compatibility.test.ts",
     "test:pg": "vitest run ./src/with-pg-storage.test.ts",
     "posttest:pg": "docker compose down --volumes",
     "pretest:upstash": "docker compose up -d redis serverless-redis-http",

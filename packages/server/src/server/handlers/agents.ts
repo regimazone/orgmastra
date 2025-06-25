@@ -262,12 +262,14 @@ export async function streamGenerateHandler({
   runtimeContext,
   agentId,
   body,
+  clientSdkCompat,
 }: Context & {
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'stream'> & {
     runtimeContext?: string;
   };
+  clientSdkCompat?: string;
 }): Promise<Response | undefined> {
   try {
     const agent = mastra.getAgent(agentId);
@@ -302,7 +304,8 @@ export async function streamGenerateHandler({
     }
 
     // For UI message streams, determine compatibility mode
-    const useV4Compat = mastra.getAiSdkCompatMode() === 'v4';
+    // Check for client header override first, then fall back to Mastra config
+    const useV4Compat = clientSdkCompat === 'v4' || mastra.getAiSdkCompatMode() === 'v4';
 
     const uiMessageStream = streamResult.toUIMessageStreamResponse({
       headers,

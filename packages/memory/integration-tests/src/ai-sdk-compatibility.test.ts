@@ -264,5 +264,49 @@ export const mastra = new Mastra({
         reader.releaseLock();
       }
     });
+
+    it('should use v4 format when x-ai-sdk-compat header is v4 (overrides server config)', async () => {
+      // Test memory API with header override
+      const memoryResponse = await fetch(
+        `http://localhost:${port}/api/memory/threads/${threadId}/messages?agentId=test-agent`,
+        {
+          headers: {
+            'x-ai-sdk-compat': 'v4',
+          },
+        }
+      );
+      const memoryData = await memoryResponse.json();
+      
+      expect(memoryResponse.ok).toBe(true);
+      expect(memoryData.uiMessages).toBeDefined();
+      expect(Array.isArray(memoryData.uiMessages)).toBe(true);
+
+      // Test streaming API with header override
+      const streamResponse = await fetch(`http://localhost:${port}/api/agents/test-agent/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-sdk-compat': 'v4',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hello with header override' }],
+          threadId,
+        }),
+      });
+
+      expect(streamResponse.ok).toBe(true);
+      expect(streamResponse.headers.get('x-vercel-ai-data-stream')).toBe('v1');
+
+      // Check that the stream contains v4 format data
+      const reader = streamResponse.body?.getReader();
+      if (reader) {
+        const { value } = await reader.read();
+        const chunk = new TextDecoder().decode(value);
+        expect(chunk).toBeTruthy();
+        // V4 streams should start with specific prefixes
+        expect(chunk).toMatch(/^[0-9a-f]/); 
+        reader.releaseLock();
+      }
+    });
   });
 });
