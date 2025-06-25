@@ -420,6 +420,7 @@ describe('D1Store', () => {
         messages.map(m =>
           expect.objectContaining({
             content: {
+              content: m.content.content,
               format: 2,
               parts: [{ type: 'text', text: m.content.content }],
             },

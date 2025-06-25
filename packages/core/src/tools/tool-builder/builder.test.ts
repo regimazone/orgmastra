@@ -1,11 +1,11 @@
+import 'dotenv/config';
+
 import { openai } from '@ai-sdk/openai';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { MastraLanguageModel } from '@mastra/core/agent';
 import { Agent } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
-
-import 'dotenv/config';
 
 type Result = {
   modelName: string;
