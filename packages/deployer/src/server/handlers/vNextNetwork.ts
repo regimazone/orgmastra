@@ -99,11 +99,11 @@ export async function streamGenerateVNextNetworkHandler(c: Context) {
             await stream.write(JSON.stringify(chunkResult.value) + '\x1E');
           }
         } catch (err) {
-          mastra.getLogger().error('Error in watch stream: ' + ((err as Error)?.message ?? 'Unknown error'));
+          mastra.getLogger().error('Error in network stream: ' + ((err as Error)?.message ?? 'Unknown error'));
         }
       },
       async err => {
-        logger.error('Error in watch stream: ' + err?.message);
+        logger.error('Error in network stream: ' + err?.message);
       },
     );
   } catch (error) {
@@ -163,11 +163,11 @@ export async function loopStreamVNextNetworkHandler(c: Context) {
             await stream.write(JSON.stringify(chunkResult.value) + '\x1E');
           }
         } catch (err) {
-          mastra.getLogger().error('Error in watch stream: ' + ((err as Error)?.message ?? 'Unknown error'));
+          mastra.getLogger().error('Error in network loop stream: ' + ((err as Error)?.message ?? 'Unknown error'));
         }
       },
       async err => {
-        logger.error('Error in watch stream: ' + err?.message);
+        logger.error('Error in network loop stream: ' + err?.message);
       },
     );
   } catch (error) {

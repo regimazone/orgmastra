@@ -68,6 +68,7 @@ export function NetworkDetails({ network, isVNext }: NetworkDetailsProps) {
           </div>
         </div>
 
+        {/* TODO: add routing model settings back for vNext */}
         {!isVNext && (
           <div>
             <h3 className="text-sm font-medium text-mastra-el-5 mb-1">Routing Model Settings</h3>
