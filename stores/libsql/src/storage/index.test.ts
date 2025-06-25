@@ -454,7 +454,7 @@ describe('LibSQLStore updateMessages', () => {
     await store.updateMessages({
       messages: [
         { id: msg1.id, role: 'assistant' },
-        { id: msg2.id, content: { content: 'updated' } as any },
+        { id: msg2.id, content: { content: 'updated', format: 2, parts: [{ type: 'text', text: 'updated' }] } },
       ],
     });
 
