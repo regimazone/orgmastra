@@ -838,12 +838,15 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         return result;
       }
 
+      // Get the current run count after step execution (it was incremented during execution)
+      const currentRunCount = this.runCounts.get(step.id) ?? 0;
+
       isTrue = await condition({
         runId,
         mastra: this.mastra!,
         runtimeContext,
         inputData: result.output,
-        runCount: -1,
+        runCount: currentRunCount,
         getInitData: () => stepResults?.input as any,
         getStepResult: (step: any) => {
           if (!step?.id) {
