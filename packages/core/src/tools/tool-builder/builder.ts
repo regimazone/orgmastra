@@ -71,7 +71,7 @@ export class CoreToolBuilder extends MastraBase {
   };
 
   // For provider-defined tools, we need to include all required properties
-  private buildProviderTool(tool: ToolToConvert): (CoreTool & { id: `${string}.${string}` }) | undefined {
+  private buildProviderTool<T>(tool: ToolToConvert): (CoreTool<T> & { id: `${string}.${string}` }) | undefined {
     if (
       'type' in tool &&
       tool.type === 'provider-defined' &&
@@ -86,7 +86,7 @@ export class CoreToolBuilder extends MastraBase {
         id: tool.id,
         args: ('args' in this.originalTool ? this.originalTool.args : {}) as Record<string, unknown>,
         description: tool.description,
-        parameters: convertZodSchemaToAISDKSchema(parameters),
+        inputSchema: convertZodSchemaToAISDKSchema(parameters) as T,
         ...(outputSchema ? { outputSchema: convertZodSchemaToAISDKSchema(outputSchema) } : {}),
         execute: this.originalTool.execute
           ? this.createExecute(
@@ -191,7 +191,7 @@ export class CoreToolBuilder extends MastraBase {
   }
 
   build<T>(): CoreTool<T> {
-    const providerTool = this.buildProviderTool(this.originalTool);
+    const providerTool = this.buildProviderTool<T>(this.originalTool);
     if (providerTool) {
       return providerTool;
     }

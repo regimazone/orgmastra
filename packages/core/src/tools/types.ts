@@ -19,17 +19,7 @@ type CoreToolBase<Parameters = ToolParameters> = {
   inputSchema: Parameters;
   outputSchema?: JSONSchema7Type | Schema;
   execute?: (params: any, options: ToolCallOptions) => Promise<any>;
-} & (
-  | {
-      type?: 'function' | undefined;
-      id?: string;
-    }
-  | {
-      type: 'provider-defined';
-      id: `${string}.${string}`;
-      args: Record<string, unknown>;
-    }
-);
+};
 
 // Enhanced CoreTool as a proper discriminated union with common base properties
 export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> &
@@ -43,6 +33,12 @@ export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> &
     | {
         type: 'vercel-v5-tool';
         tool: Tool<any, any>;
+      }
+    // Provider-defined tool (for integrations)
+    | {
+        type: 'provider-defined';
+        id: `${string}.${string}`;
+        args: Record<string, unknown>;
       }
   );
 

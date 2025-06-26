@@ -399,7 +399,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       eventTimestamp: Date.now(),
     });
     await emitter.emit('watch-v2', {
-      type: 'step-start',
+      type: 'start-step',
       payload: {
         id: step.id,
         ...stepInfo,
@@ -550,7 +550,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       });
 
       await emitter.emit('watch-v2', {
-        type: 'step-finish',
+        type: 'finish-step',
         payload: {
           id: step.id,
           metadata: {},

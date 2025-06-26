@@ -1359,10 +1359,11 @@ export class Agent<
         const memory = this.getMemory();
         const messageListResponses = new MessageList({ threadId, resourceId })
           .add(result.response.messages, 'response')
-          .get.all.core();
+          .get.all.aiV5.model();
 
         const usedWorkingMemory = messageListResponses?.some(
-          m => m.role === 'tool' && m?.content?.some(c => c?.toolName === 'updateWorkingMemory'),
+          m =>
+            m.role === 'tool' && Array.isArray(m.content) && m.content.some(c => c.toolName === 'updateWorkingMemory'),
         );
         // working memory updates the thread, so we need to get the latest thread if we used it
         const thread = usedWorkingMemory
