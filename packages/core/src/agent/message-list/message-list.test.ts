@@ -2916,7 +2916,17 @@ describe('MessageList', () => {
       };
       const toolMessageResult: AIV5.CoreMessage = {
         role: 'tool',
-        content: [{ type: 'tool-result', toolCallId: 'valid-1', toolName: 'toolA', output: 'Result for valid-1' }],
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: 'valid-1',
+            toolName: 'toolA',
+            output: {
+              type: 'text',
+              value: 'Result for valid-1',
+            },
+          },
+        ],
       };
 
       list.add(assistantMessage, 'response');

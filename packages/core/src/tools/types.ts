@@ -17,8 +17,19 @@ export type ToolParameters<T = JSONObject> = z4.$ZodType<T> | z3.Schema<T> | Sch
 type CoreToolBase<Parameters = ToolParameters> = {
   description?: string;
   inputSchema: Parameters;
+  outputSchema?: JSONSchema7Type | Schema;
   execute?: (params: any, options: ToolCallOptions) => Promise<any>;
-};
+} & (
+  | {
+      type?: 'function' | undefined;
+      id?: string;
+    }
+  | {
+      type: 'provider-defined';
+      id: `${string}.${string}`;
+      args: Record<string, unknown>;
+    }
+);
 
 // Enhanced CoreTool as a proper discriminated union with common base properties
 export type CoreTool<Parameters = ToolParameters> = CoreToolBase<Parameters> &
@@ -66,12 +77,23 @@ export type InternalCoreTool = {
   id?: string;
   description?: string;
   inputSchema: Schema;
+  outputSchema?: Schema;
   execute?: (params: any, options: ToolCallOptions) => Promise<any>;
 } & {
   type?: 'function' | undefined;
   id?: string;
   __isMastraTool: true;
-};
+} & // TODO: probably this is wrong for v5
+  (| {
+        type?: 'function' | undefined;
+        id?: string;
+      }
+    | {
+        type: 'provider-defined';
+        id: `${string}.${string}`;
+        args: Record<string, unknown>;
+      }
+  );
 
 export interface ToolExecutionContext<TSchemaIn extends z.ZodSchema | undefined = undefined>
   extends IExecutionContext<TSchemaIn> {

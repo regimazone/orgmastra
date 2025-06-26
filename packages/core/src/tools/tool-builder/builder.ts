@@ -5,6 +5,7 @@ import {
   AnthropicSchemaCompatLayer,
   DeepSeekSchemaCompatLayer,
   MetaSchemaCompatLayer,
+  convertZodSchemaToAISDKSchema,
   applyCompatLayer,
 } from '@mastra/schema-compat';
 import type { ToolCallOptions, Tool } from 'ai';
@@ -63,6 +64,42 @@ export class CoreToolBuilder extends MastraBase {
     // Default to inputSchema or empty object (Mastra tools)
     return tool.inputSchema ?? z.object({});
   };
+
+  private getOutputSchema = () => {
+    if ('outputSchema' in this.originalTool) return this.originalTool.outputSchema;
+    return null;
+  };
+
+  // For provider-defined tools, we need to include all required properties
+  private buildProviderTool(tool: ToolToConvert): (CoreTool & { id: `${string}.${string}` }) | undefined {
+    if (
+      'type' in tool &&
+      tool.type === 'provider-defined' &&
+      'id' in tool &&
+      typeof tool.id === 'string' &&
+      tool.id.includes('.')
+    ) {
+      const parameters = this.getParameters();
+      const outputSchema = this.getOutputSchema();
+      return {
+        type: 'provider-defined' as const,
+        id: tool.id,
+        args: ('args' in this.originalTool ? this.originalTool.args : {}) as Record<string, unknown>,
+        description: tool.description,
+        parameters: convertZodSchemaToAISDKSchema(parameters),
+        ...(outputSchema ? { outputSchema: convertZodSchemaToAISDKSchema(outputSchema) } : {}),
+        execute: this.originalTool.execute
+          ? this.createExecute(
+              this.originalTool,
+              { ...this.options, description: this.originalTool.description },
+              this.logType,
+            )
+          : undefined,
+      };
+    }
+
+    return undefined;
+  }
 
   private createLogMessageOptions({ agentName, toolName, type }: LogOptions): LogMessageOptions {
     // If no agent name, use default format
@@ -154,6 +191,11 @@ export class CoreToolBuilder extends MastraBase {
   }
 
   build<T>(): CoreTool<T> {
+    const providerTool = this.buildProviderTool(this.originalTool);
+    if (providerTool) {
+      return providerTool;
+    }
+
     const toolAny = this.originalTool as any;
 
     // If it's a CoreTool with Vercel v5 wrapper, wrap it properly
@@ -191,11 +233,16 @@ export class CoreToolBuilder extends MastraBase {
     // Build traditional Mastra tool
     const definition = {
       type: 'function' as const,
-      description: toolAny.description,
       inputSchema: this.getParameters(),
       __isMastraTool: true as const,
-      execute: toolAny.execute
-        ? this.createExecute(this.originalTool, { ...this.options, description: toolAny.description }, this.logType)
+      description: this.originalTool.description,
+      outputSchema: this.getOutputSchema(),
+      execute: this.originalTool.execute
+        ? this.createExecute(
+            this.originalTool,
+            { ...this.options, description: this.originalTool.description },
+            this.logType,
+          )
         : undefined,
     };
 
@@ -220,9 +267,20 @@ export class CoreToolBuilder extends MastraBase {
       mode: 'aiSdkSchema',
     });
 
+    let processedOutputSchema;
+
+    if (this.getOutputSchema()) {
+      processedOutputSchema = applyCompatLayer({
+        schema: this.getOutputSchema(),
+        compatLayers: schemaCompatLayers,
+        mode: 'aiSdkSchema',
+      });
+    }
+
     return {
       ...definition,
       inputSchema: processedSchema,
+      outputSchema: processedOutputSchema,
     } as CoreTool<T>;
   }
 }

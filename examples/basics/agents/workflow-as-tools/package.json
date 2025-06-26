@@ -10,7 +10,7 @@
     "@ai-sdk/openai": "2.0.0-beta.1",
     "@mastra/core": "latest",
     "ai": "latest",
-    "zod": "^3.25.56"
+    "zod": "^3.25.67"
   },
   "pnpm": {
     "overrides": {

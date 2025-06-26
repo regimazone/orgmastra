@@ -25,6 +25,37 @@ export type ExecutionContext = {
  * Default implementation of the ExecutionEngine using XState
  */
 export class DefaultExecutionEngine extends ExecutionEngine {
+  /**
+   * The runCounts map is used to keep track of the run count for each step.
+   * The step id is used as the key and the run count is the value.
+   */
+  protected runCounts = new Map<string, number>();
+
+  /**
+   * Get or generate the run count for a step.
+   * If the step id is not in the map, it will be added and the run count will be 0.
+   * If the step id is in the map, it will return the run count.
+   *
+   * @param stepId - The id of the step.
+   * @returns The run count for the step.
+   */
+  protected getOrGenerateRunCount(stepId: Step['id']) {
+    if (this.runCounts.has(stepId)) {
+      const currentRunCount = this.runCounts.get(stepId) as number;
+      const nextRunCount = currentRunCount + 1;
+
+      this.runCounts.set(stepId, nextRunCount);
+
+      return nextRunCount;
+    }
+
+    const runCount = 0;
+
+    this.runCounts.set(stepId, runCount);
+
+    return runCount;
+  }
+
   protected async fmtReturnValue<TOutput>(
     executionSpan: Span | undefined,
     emitter: Emitter,
@@ -153,6 +184,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     let lastOutput: any;
     for (let i = startIdx; i < steps.length; i++) {
       const entry = steps[i]!;
+
       try {
         lastOutput = await this.executeEntry({
           workflowId,
@@ -173,7 +205,12 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           emitter: params.emitter,
           runtimeContext: params.runtimeContext,
         });
+
         if (lastOutput.result.status !== 'success') {
+          if (lastOutput.result.status === 'bailed') {
+            lastOutput.result.status = 'success';
+          }
+
           const result = (await this.fmtReturnValue(
             executionSpan,
             params.emitter,
@@ -333,8 +370,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
     const stepInfo = {
       ...stepResults[step.id],
-      payload: prevOutput,
-      ...(resume?.steps[0] === step.id ? { resumePayload: resume?.resumePayload } : {}),
+      ...(resume?.steps[0] === step.id ? { resumePayload: resume?.resumePayload } : { payload: prevOutput }),
       ...(startTime ? { startedAt: startTime } : {}),
       ...(resumeTime ? { resumedAt: resumeTime } : {}),
     };
@@ -366,6 +402,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       type: 'step-start',
       payload: {
         id: step.id,
+        ...stepInfo,
+        status: 'running',
       },
     });
 
@@ -399,11 +437,13 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     for (let i = 0; i < retries + 1; i++) {
       try {
         let suspended: { payload: any } | undefined;
+        let bailed: { payload: any } | undefined;
         const result = await runStep({
           runId,
           mastra: this.mastra!,
           runtimeContext,
           inputData: prevOutput,
+          runCount: this.getOrGenerateRunCount(step.id),
           resumeData: resume?.steps[0] === step.id ? resume?.resumePayload : undefined,
           getInitData: () => stepResults?.input as any,
           getStepResult: (step: any) => {
@@ -418,9 +458,12 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
             return null;
           },
-          suspend: async (suspendPayload: any) => {
+          suspend: async (suspendPayload: any): Promise<any> => {
             executionContext.suspendedPaths[step.id] = executionContext.executionPath;
             suspended = { payload: suspendPayload };
+          },
+          bail: (result: any) => {
+            bailed = { payload: result };
           },
           resume: {
             steps: resume?.steps?.slice(1) || [],
@@ -434,6 +477,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
         if (suspended) {
           execResults = { status: 'suspended', suspendPayload: suspended.payload, suspendedAt: Date.now() };
+        } else if (bailed) {
+          execResults = { status: 'bailed', output: bailed.payload, endedAt: Date.now() };
         } else {
           execResults = { status: 'success', output: result, endedAt: Date.now() };
         }
@@ -492,7 +537,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-suspended',
         payload: {
           id: step.id,
-          output: execResults.output,
+          ...execResults,
         },
       });
     } else {
@@ -500,8 +545,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-result',
         payload: {
           id: step.id,
-          status: execResults.status,
-          output: execResults.output,
+          ...execResults,
         },
       });
 
@@ -638,6 +682,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
               mastra: this.mastra!,
               runtimeContext,
               inputData: prevOutput,
+              runCount: -1,
               getInitData: () => stepResults?.input as any,
               getStepResult: (step: any) => {
                 if (!step?.id) {
@@ -653,7 +698,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
               },
 
               // TODO: this function shouldn't have suspend probably?
-              suspend: async (_suspendPayload: any) => {},
+              suspend: async (_suspendPayload: any): Promise<any> => {},
+              bail: () => {},
               [EMITTER_SYMBOL]: emitter,
               engine: {},
             });
@@ -786,6 +832,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         mastra: this.mastra!,
         runtimeContext,
         inputData: result.output,
+        runCount: -1,
         getInitData: () => stepResults?.input as any,
         getStepResult: (step: any) => {
           if (!step?.id) {
@@ -795,7 +842,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           const result = stepResults[step.id];
           return result?.status === 'success' ? result.output : null;
         },
-        suspend: async (_suspendPayload: any) => {},
+        suspend: async (_suspendPayload: any): Promise<any> => {},
+        bail: () => {},
         [EMITTER_SYMBOL]: emitter,
         engine: {},
       });
@@ -1074,6 +1122,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-waiting',
         payload: {
           id: entry.id,
+          payload: prevOutput,
+          startedAt,
+          status: 'waiting',
         },
       });
       await this.persistStepUpdate({
@@ -1136,6 +1187,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-waiting',
         payload: {
           id: entry.id,
+          payload: prevOutput,
+          startedAt,
+          status: 'waiting',
         },
       });
 
@@ -1200,6 +1254,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-waiting',
         payload: {
           id: entry.step.id,
+          payload: prevOutput,
+          startedAt,
+          status: 'waiting',
         },
       });
 

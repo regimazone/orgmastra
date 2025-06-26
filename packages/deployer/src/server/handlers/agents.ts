@@ -78,6 +78,7 @@ export async function generateHandler(c: Context) {
       agentId,
       runtimeContext,
       body,
+      abortSignal: c.req.raw.signal,
     });
 
     return c.json(result);
@@ -101,6 +102,7 @@ export async function streamGenerateHandler(c: Context): Promise<Response | unde
       runtimeContext,
       body,
       clientSdkCompat,
+      abortSignal: c.req.raw.signal,
     });
 
     return streamResponse;
