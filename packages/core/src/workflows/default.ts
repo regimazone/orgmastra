@@ -249,7 +249,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           executionSpan,
           params.emitter,
           stepResults,
-          lastOutput.result,
+          lastOutput,
           e as Error,
         )) as any;
         await this.persistStepUpdate({
@@ -266,7 +266,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       }
     }
 
-    const result = (await this.fmtReturnValue(executionSpan, params.emitter, stepResults, lastOutput.result)) as any;
+    const result = (await this.fmtReturnValue(executionSpan, params.emitter, stepResults, lastOutput)) as any;
     await this.persistStepUpdate({
       workflowId,
       runId,
@@ -399,7 +399,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       eventTimestamp: Date.now(),
     });
     await emitter.emit('watch-v2', {
-      type: 'start-step',
+      type: 'step-start',
       payload: {
         id: step.id,
         ...stepInfo,
@@ -550,7 +550,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       });
 
       await emitter.emit('watch-v2', {
-        type: 'finish-step',
+        type: 'step-finish',
         payload: {
           id: step.id,
           metadata: {},

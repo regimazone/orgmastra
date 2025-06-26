@@ -249,7 +249,7 @@ export function createStep<
           args: inputData,
         };
         await emitter.emit('watch-v2', {
-          type: 'tool-input-start',
+          type: 'tool-call-streaming-start',
           ...toolData,
         });
         const { fullStream } = await params.stream(inputData.prompt, {
@@ -265,7 +265,7 @@ export function createStep<
           switch (chunk.type) {
             case 'text':
               await emitter.emit('watch-v2', {
-                type: 'tool-input-delta',
+                type: 'tool-call-delta',
                 ...toolData,
                 argsTextDelta: chunk.text,
               });
