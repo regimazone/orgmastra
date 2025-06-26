@@ -2079,7 +2079,7 @@ describe('Workflow', () => {
           ])
           .map({
             result: {
-              step: step3,
+              step: step2,
               path: 'result',
             },
           })
@@ -7174,13 +7174,13 @@ describe('Workflow', () => {
         inputSchema: z.object({}),
         outputSchema: repeatingStep.outputSchema,
       })
-        .dountil(repeatingStep, async ({ inputData }) => inputData.count === 3)
+        .dountil(repeatingStep, async ({ inputData }) => inputData?.count === 3)
         .commit();
 
       const result = await workflow.createRun().start({ inputData: {} });
 
       expect(result.status).toBe('success');
-      expect(result.steps.repeatingStep).toHaveProperty('output', { count: 3 });
+      expect(result.steps?.repeatingStep).toHaveProperty('output', { count: 3 });
       expect(repeatingStep.execute).toHaveBeenCalledTimes(4);
     });
 

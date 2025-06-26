@@ -220,7 +220,7 @@ export class MCPServer extends MCPServerBase {
           const toolSpec: any = {
             name: tool.name,
             description: tool.description,
-            inputSchema: tool.parameters.jsonSchema,
+            inputSchema: tool.inputSchema.jsonSchema,
           };
           if (tool.outputSchema) {
             toolSpec.outputSchema = tool.outputSchema.jsonSchema;
@@ -234,7 +234,7 @@ export class MCPServer extends MCPServerBase {
     serverInstance.setRequestHandler(CallToolRequestSchema, async request => {
       const startTime = Date.now();
       try {
-        const tool = this.convertedTools[request.params.name] as MCPTool;
+        const tool = this.convertedTools[request.params.name];
         if (!tool) {
           this.logger.warn(`CallTool: Unknown tool '${request.params.name}' requested.`);
           return {
@@ -243,7 +243,7 @@ export class MCPServer extends MCPServerBase {
           };
         }
 
-        const validation = tool.parameters.validate?.(request.params.arguments ?? {});
+        const validation = await tool.inputSchema.validate?.(request.params.arguments ?? {});
         if (validation && !validation.success) {
           this.logger.warn(`CallTool: Invalid tool arguments for '${request.params.name}'`, {
             errors: validation.error,
@@ -268,11 +268,11 @@ export class MCPServer extends MCPServerBase {
           },
         };
 
-        const result = await tool.execute(validation?.value, {
+        const args = validation?.success ? validation.value : request.params.arguments ?? {};
+        const result = await tool.execute?.(args, {
           messages: [],
           toolCallId: '',
-          elicitation: sessionElicitation,
-        });
+        } as any);
 
         this.logger.debug(`CallTool: Tool '${request.params.name}' executed successfully with result:`, result);
         const duration = Date.now() - startTime;
@@ -284,7 +284,7 @@ export class MCPServer extends MCPServerBase {
           if (!result.structuredContent) {
             throw new Error(`Tool ${request.params.name} has an output schema but no structured content was provided.`);
           }
-          const outputValidation = tool.outputSchema.validate?.(result.structuredContent ?? {});
+          const outputValidation = await tool.outputSchema.validate?.(result.structuredContent ?? {});
           if (outputValidation && !outputValidation.success) {
             this.logger.warn(`CallTool: Invalid structured content for '${request.params.name}'`, {
               errors: outputValidation.error,

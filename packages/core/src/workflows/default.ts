@@ -60,9 +60,20 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     executionSpan: Span | undefined,
     emitter: Emitter,
     stepResults: Record<string, StepResult<any, any, any, any>>,
-    lastOutput: StepResult<any, any, any, any>,
+    lastOutput: StepResult<any, any, any, any> | undefined,
     error?: Error | string,
   ): Promise<TOutput> {
+    // Handle case when no steps were executed (empty workflow or early exit)
+    if (!lastOutput) {
+      const base: any = {
+        status: 'success',
+        steps: stepResults,
+        result: undefined,
+      };
+      executionSpan?.end();
+      return base as TOutput;
+    }
+    
     const base: any = {
       status: lastOutput.status,
       steps: stepResults,
@@ -220,7 +231,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           await this.persistStepUpdate({
             workflowId,
             runId,
-            stepResults: lastOutput.stepResults as any,
+            stepResults: lastOutput.stepResults as any || stepResults,
             serializedStepGraph: params.serializedStepGraph,
             executionContext: lastOutput.executionContext as ExecutionContext,
             workflowStatus: result.status,
@@ -249,15 +260,15 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           executionSpan,
           params.emitter,
           stepResults,
-          lastOutput,
+          lastOutput?.result,
           e as Error,
         )) as any;
         await this.persistStepUpdate({
           workflowId,
           runId,
-          stepResults: lastOutput.stepResults as any,
+          stepResults: lastOutput?.stepResults as any || stepResults,
           serializedStepGraph: params.serializedStepGraph,
-          executionContext: lastOutput.executionContext as ExecutionContext,
+          executionContext: lastOutput?.executionContext as ExecutionContext,
           workflowStatus: result.status,
           result: result.result,
           error: result.error,
@@ -266,13 +277,13 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       }
     }
 
-    const result = (await this.fmtReturnValue(executionSpan, params.emitter, stepResults, lastOutput)) as any;
+    const result = (await this.fmtReturnValue(executionSpan, params.emitter, stepResults, lastOutput?.result)) as any;
     await this.persistStepUpdate({
       workflowId,
       runId,
-      stepResults: lastOutput.stepResults as any,
+      stepResults: lastOutput?.stepResults as any || stepResults,
       serializedStepGraph: params.serializedStepGraph,
-      executionContext: lastOutput.executionContext as ExecutionContext,
+      executionContext: lastOutput?.executionContext as ExecutionContext,
       workflowStatus: result.status,
       result: result.result,
       error: result.error,
