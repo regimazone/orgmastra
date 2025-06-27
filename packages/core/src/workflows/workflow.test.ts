@@ -7182,11 +7182,38 @@ describe('Workflow', () => {
     });
   });
 
-  // TODO: These tests are failing after merging main - step execution is failing before the mock is called
-  // The tests were passing before the merge, suggesting a regression in workflow execution
-  describe.skip('Run count', () => {
+  describe('Run count', () => {
     // maps the runCount to the output, used in the following tests to mock the execution of the step
-    const mockExecution = vi.fn().mockImplementation(async ({ runCount }) => ({ count: runCount }));
+    let mockExecution: any;
+    
+    beforeEach(() => {
+      mockExecution = vi.fn().mockImplementation(async ({ runCount }) => {
+        console.log('mockExecution called with runCount:', runCount);
+        return { count: runCount };
+      });
+    });
+
+    it('simple test - single step execution', async () => {
+      const simpleStep = createStep({
+        id: 'simpleStep',
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.string() }),
+        execute: vi.fn().mockResolvedValue({ value: 'test' }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: simpleStep.outputSchema,
+      })
+        .then(simpleStep)
+        .commit();
+
+      const result = await workflow.createRun().start({ inputData: {} });
+      
+      expect(result.status).toBe('success');
+      expect(result.result).toEqual({ value: 'test' });
+    });
 
     it('runCount property should increment the run count when a step is executed multiple times', async () => {
       const repeatingStep = createStep({
@@ -7203,24 +7230,42 @@ describe('Workflow', () => {
         inputSchema: z.object({}),
         outputSchema: repeatingStep.outputSchema,
       })
-        .dountil(repeatingStep, async ({ inputData }) => (inputData?.count ?? 0) >= 3)
+        .dountil(repeatingStep, async ({ inputData }) => {
+          const count = inputData?.count ?? 0;
+          console.log('Condition: count =', count, ', result =', count >= 3);
+          return count >= 3;
+        })
         .commit();
 
-      const result = await workflow.createRun().start({ inputData: {} });
-
-      expect(result.status).toBe('success');
-      expect(result.steps?.repeatingStep).toHaveProperty('output', { count: 3 });
-      expect(repeatingStep.execute).toHaveBeenCalledTimes(4);
+      try {
+        const result = await workflow.createRun().start({ inputData: {} });
+        console.log('Final result:', result);
+        
+        expect(result.status).toBe('success');
+        expect(result.steps?.repeatingStep).toHaveProperty('output', { count: 3 });
+        expect(repeatingStep.execute).toHaveBeenCalledTimes(4);
+      } catch (error) {
+        console.error('Test error:', error);
+        throw error;
+      }
     });
 
     it('multiple steps should have different run counts', async () => {
+      const mockExecution1 = vi.fn().mockImplementation(async ({ runCount }) => {
+        return { count: runCount };
+      });
+      
+      const mockExecution2 = vi.fn().mockImplementation(async ({ runCount }) => {
+        return { count: runCount };
+      });
+      
       const step1 = createStep({
         id: 'step1',
         inputSchema: z.object({}),
         outputSchema: z.object({
           count: z.number(),
         }),
-        execute: mockExecution,
+        execute: mockExecution1,
       });
 
       const step2 = createStep({
@@ -7229,7 +7274,7 @@ describe('Workflow', () => {
         outputSchema: z.object({
           count: z.number(),
         }),
-        execute: mockExecution,
+        execute: mockExecution2,
       });
 
       const workflow = createWorkflow({
@@ -7246,8 +7291,8 @@ describe('Workflow', () => {
       expect(result.status).toBe('success');
       expect(result.steps.step1).toHaveProperty('output', { count: 3 });
       expect(result.steps.step2).toHaveProperty('output', { count: 10 });
-      expect(step1.execute).toHaveBeenCalledTimes(4);
-      expect(step2.execute).toHaveBeenCalledTimes(11);
+      expect(mockExecution1).toHaveBeenCalledTimes(4);
+      expect(mockExecution2).toHaveBeenCalledTimes(11);
     });
 
     it('runCount should exist and equal zero for the first run', async () => {
