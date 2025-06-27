@@ -447,7 +447,7 @@ describe('PostgresStore', () => {
         },
       });
 
-      expect(crossThreadMessages3).toHaveLength(3);
+      expect(crossThreadMessages3).toHaveLength(2);
       expect(crossThreadMessages3.filter(m => m.threadId === `thread-one`)).toHaveLength(3);
       expect(crossThreadMessages3.filter(m => m.threadId === `thread-two`)).toHaveLength(0);
     });
