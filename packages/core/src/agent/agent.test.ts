@@ -887,27 +887,33 @@ describe('agent', () => {
     let agentModelUsed = false;
 
     // Create a mock model for the agent's main model
-    const agentModel = new MockLanguageModelV1({
+    const agentModel = new MockLanguageModelV2({
       doGenerate: async () => {
         agentModelUsed = true;
         return {
-          rawCall: { rawPrompt: null, rawSettings: {} },
+          content: [{ type: 'text', text: 'Agent model response' }],
           finishReason: 'stop',
-          usage: { promptTokens: 10, completionTokens: 20 },
-          text: `Agent model response`,
+          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          providerMetadata: undefined,
+          request: undefined,
+          response: { id: 'mock-agent-response-id', timestamp: new Date(), modelId: 'mock-agent-model' },
+          warnings: [],
         };
       },
     });
 
     // Create a different mock model for title generation
-    const titleModel = new MockLanguageModelV1({
+    const titleModel = new MockLanguageModelV2({
       doGenerate: async () => {
         titleModelUsed = true;
         return {
-          rawCall: { rawPrompt: null, rawSettings: {} },
+          content: [{ type: 'text', text: 'Custom Title Model Response' }],
           finishReason: 'stop',
-          usage: { promptTokens: 5, completionTokens: 10 },
-          text: `Custom Title Model Response`,
+          usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+          providerMetadata: undefined,
+          request: undefined,
+          response: { id: 'mock-title-response-id', timestamp: new Date(), modelId: 'mock-title-model' },
+          warnings: [],
         };
       },
     });
@@ -964,26 +970,32 @@ describe('agent', () => {
     let usedModelName = '';
 
     // Create two different models
-    const premiumModel = new MockLanguageModelV1({
+    const premiumModel = new MockLanguageModelV2({
       doGenerate: async () => {
         usedModelName = 'premium';
         return {
-          rawCall: { rawPrompt: null, rawSettings: {} },
+          content: [{ type: 'text', text: 'Premium Title' }],
           finishReason: 'stop',
-          usage: { promptTokens: 5, completionTokens: 10 },
-          text: `Premium Title`,
+          usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+          providerMetadata: undefined,
+          request: undefined,
+          response: { id: 'mock-premium-response-id', timestamp: new Date(), modelId: 'mock-premium-model' },
+          warnings: [],
         };
       },
     });
 
-    const standardModel = new MockLanguageModelV1({
+    const standardModel = new MockLanguageModelV2({
       doGenerate: async () => {
         usedModelName = 'standard';
         return {
-          rawCall: { rawPrompt: null, rawSettings: {} },
+          content: [{ type: 'text', text: 'Standard Title' }],
           finishReason: 'stop',
-          usage: { promptTokens: 5, completionTokens: 10 },
-          text: `Standard Title`,
+          usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+          providerMetadata: undefined,
+          request: undefined,
+          response: { id: 'mock-standard-response-id', timestamp: new Date(), modelId: 'mock-standard-model' },
+          warnings: [],
         };
       },
     });
@@ -1067,7 +1079,7 @@ describe('agent', () => {
     const agent = new Agent({
       name: 'boolean-title-agent',
       instructions: 'test agent',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         doGenerate: async options => {
           // Check if this is for title generation based on the prompt
           const messages = options.prompt;
@@ -1076,18 +1088,24 @@ describe('agent', () => {
           if (isForTitle) {
             titleGenerationCallCount++;
             return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
+              content: [{ type: 'text', text: 'Generated Title' }],
               finishReason: 'stop',
-              usage: { promptTokens: 5, completionTokens: 10 },
-              text: `Generated Title`,
+              usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+              providerMetadata: undefined,
+              request: undefined,
+              response: { id: 'mock-title-gen-response-id', timestamp: new Date(), modelId: 'mock-title-gen-model' },
+              warnings: [],
             };
           } else {
             agentCallCount++;
             return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
+              content: [{ type: 'text', text: 'Agent Response' }],
               finishReason: 'stop',
-              usage: { promptTokens: 10, completionTokens: 20 },
-              text: `Agent Response`,
+              usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+              providerMetadata: undefined,
+              request: undefined,
+              response: { id: 'mock-agent-gen-response-id', timestamp: new Date(), modelId: 'mock-agent-gen-model' },
+              warnings: [],
             };
           }
         },
@@ -1153,7 +1171,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async () => {
                 throw new Error('Title generation failed');
               },
@@ -1203,7 +1221,7 @@ describe('agent', () => {
     const agent = new Agent({
       name: 'undefined-config-agent',
       instructions: 'test agent',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         doGenerate: async options => {
           // Check if this is for title generation based on the prompt
           const messages = options.prompt;
@@ -1212,18 +1230,24 @@ describe('agent', () => {
           if (isForTitle) {
             titleGenerationCallCount++;
             return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
+              content: [{ type: 'text', text: 'Should not be called' }],
               finishReason: 'stop',
-              usage: { promptTokens: 5, completionTokens: 10 },
-              text: `Should not be called`,
+              usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+              providerMetadata: undefined,
+              request: undefined,
+              response: { id: 'mock-title-notcalled-response-id', timestamp: new Date(), modelId: 'mock-title-notcalled-model' },
+              warnings: [],
             };
           } else {
             agentCallCount++;
             return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
+              content: [{ type: 'text', text: 'Agent Response' }],
               finishReason: 'stop',
-              usage: { promptTokens: 10, completionTokens: 20 },
-              text: `Agent Response`,
+              usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+              providerMetadata: undefined,
+              request: undefined,
+              response: { id: 'mock-agent-undefined-response-id', timestamp: new Date(), modelId: 'mock-agent-undefined-model' },
+              warnings: [],
             };
           }
         },
@@ -1639,7 +1663,6 @@ describe('agent memory with metadata', () => {
   beforeEach(() => {
     dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
-        rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
         warnings: [],
         usage: {
@@ -1652,6 +1675,9 @@ describe('agent memory with metadata', () => {
           totalTokens: 110,
         },
         content: [{ type: 'text', text: `Dummy response` }],
+        providerMetadata: undefined,
+        request: undefined,
+        response: { id: 'mock-dummy-response-id', timestamp: new Date(), modelId: 'mock-dummy-model' },
       }),
       doStream: async () => ({
         stream: simulateReadableStream({
@@ -1667,7 +1693,8 @@ describe('agent memory with metadata', () => {
             },
           ],
         }),
-        rawCall: { rawPrompt: null, rawSettings: {} },
+        request: undefined,
+        response: { headers: undefined },
       }),
     });
   });
