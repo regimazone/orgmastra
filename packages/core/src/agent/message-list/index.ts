@@ -500,7 +500,7 @@ ${JSON.stringify(message, null, 2)}`,
       return start;
     }
 
-    if (start && messageSource === `memory`) {
+    if (start && (messageSource === `memory` || messageSource === `response`)) {
       // we don't want to modify start time if the message came from memory or we may accidentally re-order old messages
       return start;
     }
