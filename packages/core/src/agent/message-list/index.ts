@@ -368,7 +368,7 @@ ${JSON.stringify(message, null, 2)}`,
       newMessageFirstPartType &&
       ((AIV5.isToolUIPart(newMessageFirstPart) && latestMessagePartType !== `text`) ||
         (newMessageFirstPartType === latestMessagePartType &&
-          (!this.memoryMessages.has(latestMessage) || messageSource === 'memory')));
+          (!this.memoryMessages.has(latestMessage) || messageSource !== 'memory')));
 
     if (
       // backwards compat check!
