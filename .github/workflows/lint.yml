@@ -1,7 +1,6 @@
 name: Quality assurance
 
 on:
-  push:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
