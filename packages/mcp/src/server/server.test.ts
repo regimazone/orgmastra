@@ -1361,15 +1361,17 @@ describe('MCPServer - Elicitation', () => {
       tools: {
         testElicitationTool: {
           description: 'A tool that uses elicitation to collect user input',
-          parameters: z.object({
+          inputSchema: z.object({
             message: z.string().describe('Message to show to user'),
           }),
-          execute: async (context, options) => {
+          execute: async (args, options) => {
             // Use the session-aware elicitation functionality
             try {
               const elicitation = options.elicitation;
+              // Handle both wrapped and unwrapped cases
+              const message = args.context?.message || args.message;
               const result = await elicitation.sendRequest({
-                message: context.message,
+                message: message,
                 requestedSchema: {
                   type: 'object',
                   properties: {
@@ -1474,7 +1476,7 @@ describe('MCPServer - Elicitation', () => {
       },
     });
 
-    expect(mockElicitationHandler).toHaveBeenCalledTimes(1);
+    console.log('Tool execution result:', result);    expect(mockElicitationHandler).toHaveBeenCalledTimes(1);
     expect(JSON.parse(result.content[0].text)).toEqual({
       action: 'accept',
       content: {
@@ -1706,7 +1708,7 @@ describe('MCPServer with Tool Output Schema', () => {
   const structuredTool: ToolsInput = {
     structuredTool: {
       description: 'A test tool with structured output',
-      parameters: z.object({ input: z.string() }),
+      inputSchema: z.object({ input: z.string() }),
       outputSchema: z.object({
         processedInput: z.string(),
         timestamp: z.string(),
