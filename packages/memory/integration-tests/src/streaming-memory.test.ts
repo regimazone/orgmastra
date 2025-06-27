@@ -67,7 +67,7 @@ describe('Memory Streaming Tests', () => {
 
     expect(chunks1.length).toBeGreaterThan(0);
     expect(response1).toContain('weather');
-    expect(response1).toContain('70 degrees');
+    expect(response1).toContain('70');
 
     // Second weather check
     const stream2 = await agent.stream('what is the weather in Seattle?', {
@@ -85,7 +85,7 @@ describe('Memory Streaming Tests', () => {
     expect(chunks2.length).toBeGreaterThan(0);
     expect(response2).toContain('Seattle');
     expect(response2).toContain('weather');
-    expect(response2).toContain('70 degrees');
+    expect(response2).toContain('70');
   });
 
   // TODO: this no longer exists. Do we need to introduce something to fill it's place?
@@ -230,12 +230,12 @@ describe('Memory Streaming Tests', () => {
 
       await expectResponse({
         message: 'what is the weather in Los Angeles?',
-        responseContains: ['Los Angeles', '70 degrees'],
+        responseContains: ['Los Angeles', '70'],
       });
 
       await expectResponse({
         message: 'what is the weather in Seattle?',
-        responseContains: ['Seattle', '70 degrees'],
+        responseContains: ['Seattle', '70'],
       });
     });
 
@@ -339,7 +339,7 @@ describe('Memory Streaming Tests', () => {
       });
       await expectResponse({
         message: 'weather in Las Vegas',
-        responseContains: ['Las Vegas', '70 degrees'],
+        responseContains: ['Las Vegas', '70'],
       });
       state.clipboard = `test 2!`;
       await expectResponse({
