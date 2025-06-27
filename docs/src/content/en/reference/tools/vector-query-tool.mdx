@@ -578,16 +578,6 @@ const response = await agent.generate(
 );
 ```
 
-## Example with Filters
-
-```typescript
-const queryTool = createVectorQueryTool({
-  vectorStoreName: "pinecone",
-  indexName: "docs",
-  model: openai.embedding("text-embedding-3-small"),
-  enableFilter: true,
-});
-```
 
 For more information on runtime context, please see:
 
