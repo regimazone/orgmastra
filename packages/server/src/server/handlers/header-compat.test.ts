@@ -1,23 +1,22 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { Agent } from '@mastra/core/agent';
 import { Mastra } from '@mastra/core';
+import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { streamGenerateHandler } from './agents';
-import { getMessagesHandler } from './memory';
 
 // Mock LLM that implements the AI SDK v5 interface
 const mockModel = {
   modelId: 'mock-model',
   provider: 'mock',
 
-  doStream: async function* (options: any) {
+  doStream: async function* (_options: any) {
     // Simple mock stream implementation
     yield { type: 'text-delta', textDelta: 'Hello' };
     yield { type: 'text-delta', textDelta: ' world' };
     yield { type: 'finish', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 2 } };
   },
 
-  doGenerate: async function (options: any) {
+  doGenerate: async function (_options: any) {
     return {
       text: 'Hello world',
       finishReason: 'stop',
