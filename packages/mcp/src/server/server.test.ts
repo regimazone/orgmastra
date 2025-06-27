@@ -1476,7 +1476,8 @@ describe('MCPServer - Elicitation', () => {
       },
     });
 
-    console.log('Tool execution result:', result);    expect(mockElicitationHandler).toHaveBeenCalledTimes(1);
+    console.log('Tool execution result:', result);
+    expect(mockElicitationHandler).toHaveBeenCalledTimes(1);
     expect(JSON.parse(result.content[0].text)).toEqual({
       action: 'accept',
       content: {
