@@ -49,7 +49,7 @@ import { SSETransport } from 'hono-mcp-server-sse-transport';
 import { z } from 'zod';
 import { ServerPromptActions } from './promptActions';
 import { ServerResourceActions } from './resourceActions';
-import type { MCPServerPrompts, MCPServerResources, ElicitationActions, MCPTool } from './types';
+import type { MCPServerPrompts, MCPServerResources, ElicitationActions } from './types';
 export class MCPServer extends MCPServerBase {
   private server: Server;
   private stdioTransport?: StdioServerTransport;
@@ -272,6 +272,7 @@ export class MCPServer extends MCPServerBase {
         const result = await tool.execute?.(args, {
           messages: [],
           toolCallId: '',
+          elicitation: sessionElicitation,
         } as any);
 
         this.logger.debug(`CallTool: Tool '${request.params.name}' executed successfully with result:`, result);
