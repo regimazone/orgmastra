@@ -274,8 +274,7 @@ describe('Memory with Processors', () => {
     const agent = new Agent({
       name: 'processor-test-agent',
       instructions,
-      // TODO: there's a weird bug where the new responses API randomly throws an error like this: Invalid URL (POST /v1/engines/gpt-4o/completions)
-      model: openai.chat('gpt-4o'),
+      model: openai('gpt-4o'),
       memory,
     });
 
