@@ -429,10 +429,11 @@ describe('CloudflareStore Workers Binding', () => {
       const thread = createSampleThread();
       await store.saveThread({ thread });
 
+      const now = new Date();
       const messages = [
-        createSampleMessageV2({ threadId: thread.id, content: { content: 'First' }, resourceId: thread.resourceId }),
-        createSampleMessageV2({ threadId: thread.id, content: { content: 'Second' }, resourceId: thread.resourceId }),
-        createSampleMessageV2({ threadId: thread.id, content: { content: 'Third' }, resourceId: thread.resourceId }),
+        createSampleMessageV2({ threadId: thread.id, content: { content: 'First' }, resourceId: thread.resourceId, createdAt: new Date(now.getTime()) }),
+        createSampleMessageV2({ threadId: thread.id, content: { content: 'Second' }, resourceId: thread.resourceId, createdAt: new Date(now.getTime() + 1000) }),
+        createSampleMessageV2({ threadId: thread.id, content: { content: 'Third' }, resourceId: thread.resourceId, createdAt: new Date(now.getTime() + 2000) }),
       ];
 
       await store.saveMessages({ messages, format: 'v2' });
