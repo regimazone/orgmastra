@@ -8,7 +8,6 @@ import type { MastraStorage } from '../storage';
 import type { MastraVector } from '../vector';
 import type { MemoryProcessor } from '.';
 
-export type { Message as AiMessageType } from 'ai';
 export type { MastraLanguageModel, DynamicArgument };
 
 // Types for the memory system
