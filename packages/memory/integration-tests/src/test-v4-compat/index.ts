@@ -1,5 +1,5 @@
-import { Agent } from '@mastra/core/agent';
 import { Mastra, createMockModel } from '@mastra/core';
+import { Agent } from '@mastra/core/agent';
 
 const mockModel = createMockModel({ mockText: 'Hello world from v4 test agent' });
 
@@ -12,7 +12,7 @@ const mockTool = {
     },
     required: ['message'],
   },
-  execute: async ({ message }) => {
+  execute: async ({ message }: any) => {
     return { result: `Tool executed with: ${message}` };
   },
 };

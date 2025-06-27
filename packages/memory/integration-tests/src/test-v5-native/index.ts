@@ -1,5 +1,5 @@
-import { Agent } from '@mastra/core/agent';
 import { Mastra, createMockModel } from '@mastra/core';
+import { Agent } from '@mastra/core/agent';
 
 const mockModel = createMockModel({ mockText: 'Hello world from v5 test agent' });
 
