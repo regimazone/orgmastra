@@ -1235,7 +1235,11 @@ describe('agent', () => {
               usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
               providerMetadata: undefined,
               request: undefined,
-              response: { id: 'mock-title-notcalled-response-id', timestamp: new Date(), modelId: 'mock-title-notcalled-model' },
+              response: {
+                id: 'mock-title-notcalled-response-id',
+                timestamp: new Date(),
+                modelId: 'mock-title-notcalled-model',
+              },
               warnings: [],
             };
           } else {
@@ -1246,7 +1250,11 @@ describe('agent', () => {
               usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
               providerMetadata: undefined,
               request: undefined,
-              response: { id: 'mock-agent-undefined-response-id', timestamp: new Date(), modelId: 'mock-agent-undefined-model' },
+              response: {
+                id: 'mock-agent-undefined-response-id',
+                timestamp: new Date(),
+                modelId: 'mock-agent-undefined-model',
+              },
               warnings: [],
             };
           }

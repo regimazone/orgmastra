@@ -268,7 +268,7 @@ export class MCPServer extends MCPServerBase {
           },
         };
 
-        const args = validation?.success ? validation.value : request.params.arguments ?? {};
+        const args = validation?.success ? validation.value : (request.params.arguments ?? {});
         const result = await tool.execute?.(args, {
           messages: [],
           toolCallId: '',

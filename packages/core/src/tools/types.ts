@@ -79,8 +79,8 @@ export type InternalCoreTool = {
   type?: 'function' | undefined;
   id?: string;
   __isMastraTool: true;
-} & // TODO: probably this is wrong for v5
-  (| {
+} & ( // TODO: probably this is wrong for v5
+    | {
         type?: 'function' | undefined;
         id?: string;
       }
