@@ -367,7 +367,8 @@ ${JSON.stringify(message, null, 2)}`,
       shouldAppendToLastAssistantMessage &&
       newMessageFirstPartType &&
       ((AIV5.isToolUIPart(newMessageFirstPart) && latestMessagePartType !== `text`) ||
-        newMessageFirstPartType === latestMessagePartType);
+        (newMessageFirstPartType === latestMessagePartType &&
+          (!this.memoryMessages.has(latestMessage) || messageSource === 'memory')));
 
     if (
       // backwards compat check!
