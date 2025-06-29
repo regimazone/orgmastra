@@ -144,7 +144,7 @@ export function WorkflowTrigger({
   }, [streamResultToUse, result]);
 
   useEffect(() => {
-    if (streamResult && setResult) {
+    if (streamResult) {
       setResult(streamResult);
     }
   }, [streamResult]);
