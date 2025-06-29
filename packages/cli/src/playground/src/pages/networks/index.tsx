@@ -15,7 +15,8 @@ import {
   MainList,
 } from '@mastra/playground-ui';
 import { UsersIcon, BrainIcon } from 'lucide-react';
-import { useNetworks } from '@/hooks/use-networks';
+import { useNetworks, useVNextNetworks } from '@/hooks/use-networks';
+
 import { networksTableColumns } from '@/domains/networks/table.columns';
 import { NetworkIcon } from 'lucide-react';
 import { useNewUI } from '@/hooks/use-new-ui';
@@ -29,6 +30,27 @@ function Networks() {
   const networkListColumns = [
     { key: 'agents', label: 'Agents', minWidth: '6rem' },
     { key: 'routingModel', label: 'Routing Model' },
+  ];
+
+  const { vNextNetworks, isLoading: isVNextLoading } = useVNextNetworks();
+
+  if (isLoading || isVNextLoading) return null;
+
+  const allNetworks = [
+    ...(networks?.map(network => ({
+      ...network,
+      routingModel: network.routingModel.modelId,
+      agentsSize: network.agents.length,
+      isVNext: false,
+    })) ?? []),
+    ...(vNextNetworks?.map(network => ({
+      ...network,
+      routingModel: network.routingModel.modelId,
+      agentsSize: network.agents.length,
+      workflowsSize: network.workflows.length,
+      toolsSize: network.tools.length,
+      isVNext: true,
+    })) ?? []),
   ];
 
   type Network = GetNetworkResponse & { id: string };
@@ -69,7 +91,7 @@ function Networks() {
         <HeaderTitle>Networks</HeaderTitle>
       </Header>
 
-      {networks.length === 0 ? (
+      {allNetworks.length === 0 ? (
         <MainContentContent isCentered={true}>
           <EmptyState
             iconSlot={<AgentNetworkCoinIcon />}
@@ -94,7 +116,7 @@ function Networks() {
         </MainContentContent>
       ) : (
         <MainContentContent>
-          <DataTable isLoading={isLoading} data={networks} columns={networksTableColumns} />
+          <DataTable isLoading={isLoading || isVNextLoading} data={allNetworks} columns={networksTableColumns} />
         </MainContentContent>
       )}
     </MainContentLayout>

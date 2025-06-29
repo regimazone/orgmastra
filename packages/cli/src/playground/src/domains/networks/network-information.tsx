@@ -1,17 +1,23 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNetwork } from '@/hooks/use-networks';
+import { useNetwork, useVNextNetwork } from '@/hooks/use-networks';
 import { NetworkDetails } from './network-details';
 import { NetworkAgents } from './network-agents';
 import { NetworkEndpoints } from './network-endpoints';
 import { useNewUI } from '@/hooks/use-new-ui';
 import { NetworkPanel } from '@mastra/playground-ui';
+import { NetworkWorkflows } from './network-workflows';
+import { GetVNextNetworkResponse } from '@mastra/client-js';
+import { NetworkTools } from './network-tools';
 
-export function NetworkInformation({ networkId }: { networkId: string }) {
-  const { network, isLoading } = useNetwork(networkId);
-
+export function NetworkInformation({ networkId, isVNext }: { networkId: string; isVNext?: boolean }) {
+  const { network, isLoading } = useNetwork(networkId, !isVNext);
+  const { vNextNetwork, isLoading: isVNextNetworkLoading } = useVNextNetwork(networkId, isVNext);
   const newUIEnabled = useNewUI();
 
-  if (!network || isLoading) {
+  const networkToUse = isVNext ? vNextNetwork : network;
+  const isLoadingToUse = isVNext ? isVNextNetworkLoading : isLoading;
+
+  if (!networkToUse || isLoadingToUse) {
     return null;
   }
 
@@ -30,6 +36,20 @@ export function NetworkInformation({ networkId }: { networkId: string }) {
             Agents
           </p>
         </TabsTrigger>
+        {isVNext ? (
+          <>
+            <TabsTrigger value="workflows" className="group">
+              <p className="text-xs p-3 text-mastra-el-3 group-data-[state=active]:text-mastra-el-5 group-data-[state=active]:border-b-2 group-data-[state=active]:pb-2.5 border-white">
+                Workflows
+              </p>
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="group">
+              <p className="text-xs p-3 text-mastra-el-3 group-data-[state=active]:text-mastra-el-5 group-data-[state=active]:border-b-2 group-data-[state=active]:pb-2.5 border-white">
+                Tools
+              </p>
+            </TabsTrigger>
+          </>
+        ) : null}
         <TabsTrigger value="endpoints" className="group">
           <p className="text-xs p-3 text-mastra-el-3 group-data-[state=active]:text-mastra-el-5 group-data-[state=active]:border-b-2 group-data-[state=active]:pb-2.5 border-white">
             Endpoints
@@ -38,13 +58,23 @@ export function NetworkInformation({ networkId }: { networkId: string }) {
       </TabsList>
       <div className="overflow-y-auto">
         <TabsContent value="details">
-          <NetworkDetails network={network} />
+          <NetworkDetails network={networkToUse} isVNext={isVNext} />
         </TabsContent>
         <TabsContent value="agents">
-          <NetworkAgents network={network} />
+          <NetworkAgents network={networkToUse} />
         </TabsContent>
+        {isVNext ? (
+          <>
+            <TabsContent value="workflows">
+              <NetworkWorkflows network={networkToUse as GetVNextNetworkResponse} />
+            </TabsContent>
+            <TabsContent value="tools">
+              <NetworkTools network={networkToUse as GetVNextNetworkResponse} />
+            </TabsContent>
+          </>
+        ) : null}
         <TabsContent value="endpoints">
-          <NetworkEndpoints networkId={networkId} />
+          <NetworkEndpoints networkId={networkId} isVNext={isVNext} />
         </TabsContent>
       </div>
     </Tabs>
