@@ -92,6 +92,7 @@ export class BenchmarkRunner {
     const results: EvaluationResult[] = [];
     const hypotheses = new Map<string, string>();
     const concurrency = this.config.concurrency || 5; // Default to 5 parallel requests
+    let completedCount = 0;
     
     console.log(chalk.blue('\n📝 Processing questions...'));
     console.log(chalk.gray(`Running with ${concurrency} parallel workers`));
@@ -162,14 +163,19 @@ export class BenchmarkRunner {
     const questionQueue = questions.map((q, idx) => ({ question: q, index: idx }));
     let processedCount = 0;
     const totalQuestions = questions.length;
+    const startTime = Date.now();
     
     // Process questions in batches
     while (questionQueue.length > 0 && !this.isShuttingDown) {
       const batch = questionQueue.splice(0, concurrency);
       
+      // Show initial progress for batch
+      const batchStartIdx = processedCount + 1;
+      const batchEndIdx = Math.min(processedCount + batch.length, totalQuestions);
+      const elapsedMin = Math.floor((Date.now() - startTime) / 60000);
+      console.log(chalk.gray(`\n⏳ Starting batch [${batchStartIdx}-${batchEndIdx}/${totalQuestions}]${elapsedMin > 0 ? ` (${elapsedMin}min elapsed)` : ''}...`));
+      
       const batchPromises = batch.map(async ({ question, index }) => {
-        const progress = `[${processedCount + 1}-${Math.min(processedCount + batch.length, totalQuestions)}/${totalQuestions}]`;
-        
         try {
           // Load chat history
           const resourceId = `longmemeval_${benchmarkConfig.dataset}`;
@@ -190,9 +196,19 @@ export class BenchmarkRunner {
           // Clear thread to save memory
           await adapter.clearThread(threadId);
           
+          // Show progress immediately when this question completes
+          completedCount++;
+          const statusIcon = result.is_correct ? chalk.green('✓') : chalk.red('✗');
+          const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
+          console.log(`[${completedCount}/${totalQuestions}] ${statusIcon} ${question.question_id} - ${question.question_type} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          
           return { result, question, index, error: null };
           
         } catch (error) {
+          completedCount++;
+          const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
+          console.log(`[${completedCount}/${totalQuestions}] ${chalk.red('✗')} ${question.question_id} - ${question.question_type} ${chalk.red('(error)')} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          
           return {
             result: {
               question_id: question.question_id,
@@ -215,25 +231,17 @@ export class BenchmarkRunner {
       const batchResults = await batchPromise;
       this.activeProcessing.delete(batchPromise);
       
-      // Process batch results
-      for (const { result, question, index, error } of batchResults) {
+      // Store results in correct order
+      for (const { result, index } of batchResults) {
         results[index] = result;
-        processedCount++;
-        
-        const statusIcon = result.is_correct ? chalk.green('✓') : chalk.red('✗');
-        const progress = `[${processedCount}/${totalQuestions}]`;
-        
-        if (error) {
-          console.log(`${progress} ${statusIcon} ${question.question_id} - ${question.question_type} ${chalk.red('(error)')}`);
-        } else {
-          console.log(`${progress} ${statusIcon} ${question.question_id} - ${question.question_type}`);
-        }
       }
+      processedCount += batch.length;
       
       // Save intermediate results every 50 questions
       if (processedCount % 50 === 0 || processedCount === totalQuestions) {
         await this.saveResults(runDir, results.filter(r => r), hypotheses, questions.slice(0, processedCount));
-        console.log(chalk.gray(`\n💾 Saved intermediate results (${processedCount}/${totalQuestions})\n`));
+        const accuracy = this.evaluator.calculateMetrics(results.filter(r => r)).overall_accuracy;
+        console.log(chalk.gray(`\n💾 Saved intermediate results (${processedCount}/${totalQuestions}) - Accuracy: ${(accuracy * 100).toFixed(2)}%\n`));
       }
     }
 
