@@ -36,3 +36,5 @@ serviceAccount.json
 tsup.config.bundled_*
 CLAUDE.local.md
 .claude/settings.local.json
+packages/longmemeval/.temp-longmemeval
+packages/longmemeval/data
