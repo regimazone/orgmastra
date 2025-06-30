@@ -27,6 +27,7 @@ export interface RunnerConfig {
   embedder?: EmbeddingModel<string>;
   evaluatorApiKey?: string;
   outputDir?: string;
+  concurrency?: number;
 }
 
 export class BenchmarkRunner {
@@ -59,8 +60,15 @@ export class BenchmarkRunner {
 
     // Load dataset
     const spinner = ora('Loading dataset...').start();
-    const questions = await this.loader.loadDataset(benchmarkConfig.dataset);
-    spinner.succeed(`Loaded ${questions.length} questions`);
+    let questions = await this.loader.loadDataset(benchmarkConfig.dataset);
+    
+    // Apply subset if specified
+    if (benchmarkConfig.subset && benchmarkConfig.subset < questions.length) {
+      questions = questions.slice(0, benchmarkConfig.subset);
+      spinner.succeed(`Loaded ${benchmarkConfig.subset} questions (subset of ${await this.loader.loadDataset(benchmarkConfig.dataset).then(q => q.length)})`);
+    } else {
+      spinner.succeed(`Loaded ${questions.length} questions`);
+    }
 
     // Get memory configuration
     const memoryConfig = this.getMemoryConfig(benchmarkConfig.memoryConfig);
@@ -77,59 +85,85 @@ export class BenchmarkRunner {
 
     await adapter.initialize();
 
-    // Process questions
+    // Process questions with parallelization
     const results: EvaluationResult[] = [];
     const hypotheses = new Map<string, string>();
+    const concurrency = this.config.concurrency || 5; // Default to 5 parallel requests
+    
+    console.log(chalk.blue('\n📝 Processing questions...'));
+    console.log(chalk.gray(`Running with ${concurrency} parallel workers\n`));
 
-    console.log(chalk.blue('\n📝 Processing questions...\n'));
-
-    for (let i = 0; i < questions.length; i++) {
-      const question = questions[i];
-      const progress = `[${i + 1}/${questions.length}]`;
+    // Create a queue of questions with indices
+    const questionQueue = questions.map((q, idx) => ({ question: q, index: idx }));
+    let processedCount = 0;
+    const totalQuestions = questions.length;
+    
+    // Process questions in batches
+    while (questionQueue.length > 0) {
+      const batch = questionQueue.splice(0, concurrency);
       
-      spinner.start(`${progress} Loading history for ${question.question_id}...`);
+      const batchPromises = batch.map(async ({ question, index }) => {
+        const progress = `[${processedCount + 1}-${Math.min(processedCount + batch.length, totalQuestions)}/${totalQuestions}]`;
+        
+        try {
+          // Load chat history
+          const resourceId = `longmemeval_${benchmarkConfig.dataset}`;
+          const threadId = await adapter.loadChatHistory(question, resourceId);
+          
+          // Query memory with the question
+          const hypothesis = await adapter.queryMemory(
+            question.question,
+            threadId,
+            resourceId
+          );
+          
+          hypotheses.set(question.question_id, hypothesis);
+          
+          // Evaluate the answer
+          const result = await this.evaluator.evaluateAnswer(question, hypothesis);
+          
+          // Clear thread to save memory
+          await adapter.clearThread(threadId);
+          
+          return { result, question, index, error: null };
+          
+        } catch (error) {
+          return {
+            result: {
+              question_id: question.question_id,
+              hypothesis: '',
+              is_correct: false,
+              question_type: question.question_type,
+            },
+            question,
+            index,
+            error
+          };
+        }
+      });
       
-      try {
-        // Load chat history
-        const resourceId = `longmemeval_${benchmarkConfig.dataset}`;
-        const threadId = await adapter.loadChatHistory(question, resourceId);
-        
-        spinner.text = `${progress} Querying memory for ${question.question_id}...`;
-        
-        // Query memory with the question
-        const hypothesis = await adapter.queryMemory(
-          question.question,
-          threadId,
-          resourceId
-        );
-        
-        hypotheses.set(question.question_id, hypothesis);
-        
-        spinner.text = `${progress} Evaluating answer for ${question.question_id}...`;
-        
-        // Evaluate the answer
-        const result = await this.evaluator.evaluateAnswer(question, hypothesis);
-        results.push(result);
+      // Wait for batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Process batch results
+      for (const { result, question, index, error } of batchResults) {
+        results[index] = result;
+        processedCount++;
         
         const statusIcon = result.is_correct ? chalk.green('✓') : chalk.red('✗');
-        spinner.succeed(`${progress} ${statusIcon} ${question.question_id} - ${question.question_type}`);
+        const progress = `[${processedCount}/${totalQuestions}]`;
         
-        // Clear thread to save memory
-        await adapter.clearThread(threadId);
-        
-      } catch (error) {
-        spinner.fail(`${progress} Error processing ${question.question_id}: ${error}`);
-        results.push({
-          question_id: question.question_id,
-          hypothesis: '',
-          is_correct: false,
-          question_type: question.question_type,
-        });
+        if (error) {
+          console.log(`${progress} ${statusIcon} ${question.question_id} - ${question.question_type} ${chalk.red('(error)')}`);
+        } else {
+          console.log(`${progress} ${statusIcon} ${question.question_id} - ${question.question_type}`);
+        }
       }
-
-      // Save intermediate results every 10 questions
-      if ((i + 1) % 10 === 0) {
-        await this.saveResults(runDir, results, hypotheses, questions.slice(0, i + 1));
+      
+      // Save intermediate results every 50 questions
+      if (processedCount % 50 === 0 || processedCount === totalQuestions) {
+        await this.saveResults(runDir, results.filter(r => r), hypotheses, questions.slice(0, processedCount));
+        console.log(chalk.gray(`\n💾 Saved intermediate results (${processedCount}/${totalQuestions})\n`));
       }
     }
 

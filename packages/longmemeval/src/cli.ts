@@ -34,6 +34,7 @@ program
   .option('-c, --memory-config <config>', 'Memory configuration (full-history, last-k, semantic-recall, working-memory, combined)', 'full-history')
   .option('-o, --output <dir>', 'Output directory for results')
   .option('--subset <n>', 'Run on subset of n questions', parseInt)
+  .option('--concurrency <n>', 'Number of parallel requests (default: 5)', parseInt)
   .action(async (options) => {
     try {
       console.log(chalk.blue('\n🚀 LongMemEval Benchmark Runner\n'));
@@ -106,12 +107,13 @@ program
         mastra,
         agent,
         outputDir: options.output,
+        concurrency: options.concurrency || 5,
       });
 
       // Run benchmark
       if (options.subset) {
         console.log(chalk.yellow(`Running on subset of ${options.subset} questions\n`));
-        // TODO: Implement subset functionality
+        benchmarkConfig.subset = options.subset;
       }
 
       const metrics = await runner.run(benchmarkConfig);

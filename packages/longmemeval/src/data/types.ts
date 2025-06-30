@@ -42,6 +42,7 @@ export interface BenchmarkConfig {
   model: string;
   memoryConfig: MemoryConfigType;
   outputDir?: string;
+  subset?: number;
 }
 
 export type MemoryConfigType = 

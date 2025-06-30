@@ -34,9 +34,9 @@ export OPENAI_API_KEY=your_openai_key_here
 export HF_TOKEN=your_huggingface_token_here  # For automatic dataset download
 
 # 2. Run a benchmark (downloads datasets automatically if needed)
-pnpm bench:s          # Run small dataset (~3,000 messages, ~30 min)
-pnpm bench:m          # Run medium dataset (~31,000 messages, ~5 hours)  
-pnpm bench:oracle     # Run oracle dataset (~500 questions, ~1 hour)
+pnpm bench:s          # Run small dataset (10 parallel requests)
+pnpm bench:m          # Run medium dataset (10 parallel requests)  
+pnpm bench:oracle     # Run oracle dataset (10 parallel requests)
 
 # Or run quick 10-question tests
 pnpm bench:s:quick    # Test with 10 questions from small dataset
@@ -75,18 +75,21 @@ If automatic download fails, see [DOWNLOAD_GUIDE.md](./DOWNLOAD_GUIDE.md) for ma
 ```bash
 # From packages/longmemeval directory
 
-# Quick commands for each dataset
+# Quick commands for each dataset (10 parallel requests)
 pnpm bench:s          # Small dataset (full run)
 pnpm bench:m          # Medium dataset (full run)
 pnpm bench:oracle     # Oracle dataset (full run)
 
-# Quick test runs (10 questions only)
+# Quick test runs (10 questions only, 5 parallel)
 pnpm bench:s:quick    # Small dataset (quick test)
 pnpm bench:m:quick    # Medium dataset (quick test)  
 pnpm bench:oracle:quick # Oracle dataset (quick test)
 
 # Advanced: Use full CLI with custom options
 pnpm cli run --dataset longmemeval_s --model gpt-4o
+
+# Adjust parallelization (default: 5)
+pnpm cli run --dataset longmemeval_s --model gpt-4o --concurrency 20
 
 # Run with specific memory configuration
 pnpm cli run --dataset longmemeval_s --memory-config last-k --model gpt-4o

@@ -8,12 +8,12 @@
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts",
     "download": "tsx scripts/download.ts",
-    "bench:s": "tsx src/cli.ts run --dataset longmemeval_s --model gpt-4o",
-    "bench:m": "tsx src/cli.ts run --dataset longmemeval_m --model gpt-4o",
-    "bench:oracle": "tsx src/cli.ts run --dataset longmemeval_oracle --model gpt-4o",
-    "bench:s:quick": "tsx src/cli.ts run --dataset longmemeval_s --model gpt-4o --subset 10",
-    "bench:m:quick": "tsx src/cli.ts run --dataset longmemeval_m --model gpt-4o --subset 10",
-    "bench:oracle:quick": "tsx src/cli.ts run --dataset longmemeval_oracle --model gpt-4o --subset 10"
+    "bench:s": "tsx src/cli.ts run --dataset longmemeval_s --model gpt-4o --concurrency 10",
+    "bench:m": "tsx src/cli.ts run --dataset longmemeval_m --model gpt-4o --concurrency 10",
+    "bench:oracle": "tsx src/cli.ts run --dataset longmemeval_oracle --model gpt-4o --concurrency 10",
+    "bench:s:quick": "tsx src/cli.ts run --dataset longmemeval_s --model gpt-4o --subset 10 --concurrency 5",
+    "bench:m:quick": "tsx src/cli.ts run --dataset longmemeval_m --model gpt-4o --subset 10 --concurrency 5",
+    "bench:oracle:quick": "tsx src/cli.ts run --dataset longmemeval_oracle --model gpt-4o --subset 10 --concurrency 5"
   },
   "dependencies": {
     "@mastra/core": "workspace:*",
