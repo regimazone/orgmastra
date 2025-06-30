@@ -23,7 +23,9 @@ import {
   MainHeader,
   MainHeaderTitle,
   MainList,
+  SearchBar,
   StackOfElements,
+  EntryList,
 } from '@mastra/playground-ui';
 import { Link } from 'react-router';
 import { startTransition, useMemo, useRef, useState } from 'react';
@@ -144,14 +146,16 @@ const ToolsInner = ({ toolsWithAgents }: { toolsWithAgents: ToolWithAgents[] }) 
       <MainHeader>
         <MainHeaderTitle>Tools</MainHeaderTitle>
       </MainHeader>
-      <MainContent>
-        <MainList
+      <MainContent variant="forNarrowList">
+        <SearchBar value={value} onSearch={handleSearch} />
+        <EntryList items={toolListItems} linkComponent={Link} />
+        {/* <MainList
           items={toolListItems}
           linkComponent={Link}
           columns={agentListColumns}
           emptyStateFor="tools"
           withCollapsible={true}
-        />
+        /> */}
       </MainContent>
     </MainLayout>
   ) : (

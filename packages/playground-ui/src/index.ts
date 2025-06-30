@@ -10,6 +10,7 @@ export * from './components/ui/data-table';
 export * from './components/ui/containers';
 export * from './components/ui/fragments';
 export * from './components/ui/elements';
+export * from './components/ui/types';
 export * from './components/threads';
 export * from './components/ui/tooltip';
 export * from './types';

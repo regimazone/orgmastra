@@ -3,6 +3,7 @@ import { MainListEmpty } from '../fragments/main-list-empty';
 import { predefinedEmptyListContent } from '../fragments/main-list-empty';
 import { useState } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
+import { type MainListItemType } from '../types';
 
 type Column = {
   key: string;
@@ -11,19 +12,9 @@ type Column = {
   maxWidth?: string;
 };
 
-type Item = {
-  id: string;
-  name: string;
-  icon?: React.ReactNode;
-  to: string;
-  description?: string;
-  columns?: React.ReactNode[];
-  collapsible?: React.ReactNode;
-};
-
 type MainListProps = {
   columns?: Column[];
-  items?: Item[];
+  items?: MainListItemType[];
   className?: string;
   style?: React.CSSProperties;
   linkComponent?: any;
@@ -80,7 +71,7 @@ export function MainList({
 
 type MainListLoadingProps = {
   columns?: Column[];
-  items?: Item[];
+  items?: MainListItemType[];
   className?: string;
   style?: React.CSSProperties;
   withCollapsible?: boolean;
@@ -141,7 +132,7 @@ function MainListLoading({ columns, items, className, style, withCollapsible }: 
 
 type MainListHeaderProps = {
   columns?: Column[];
-  items?: Item[];
+  items?: MainListItemType[];
   className?: string;
   style?: React.CSSProperties;
   withCollapsible?: boolean;
@@ -177,7 +168,7 @@ export function MainListHeader({ columns, items, className, style, withCollapsib
 }
 
 type MainListItemProps = {
-  item: Item;
+  item: MainListItemType;
   linkComponent?: any;
   listColumns?: Column[];
 };

@@ -1,16 +1,15 @@
-import { PanelLayout, PanelHeader, EntryList, type EntryListItem, PanelContent } from '@/components/ui/elements';
+import { PanelLayout, PanelHeader, EntryList, PanelContent } from '@/components/ui/elements';
+import { type EntryListItemType } from '@/components/ui/types';
 import { McpServerIcon, ToolsIcon } from '@/ds/icons';
 
 export type McpsSidebarProps = {
   className?: string;
   style?: React.CSSProperties;
   linkComponent?: React.ComponentType<any>;
-  tools?: EntryListItem[];
+  tools?: EntryListItemType[];
 };
 
 export function McpsSidebar({ tools, linkComponent, className, style }: McpsSidebarProps) {
-  console.log({ tools });
-
   return (
     <PanelLayout>
       <PanelHeader title="Available tools" icon={<McpServerIcon />} />

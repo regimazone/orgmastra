@@ -1,14 +1,8 @@
 import { cn } from '@/lib/utils';
-
-export type EntryListItem = {
-  name: string;
-  description?: string;
-  icon?: any;
-  to: string;
-};
+import { type EntryListItemType } from '../types/list';
 
 export type EntryListProps = {
-  items?: EntryListItem[];
+  items?: EntryListItemType[];
   className?: string;
   style?: React.CSSProperties;
   linkComponent?: any;
@@ -29,8 +23,6 @@ export function EntryList({ className, style, items, linkComponent, isLoading }:
   return (
     <ul className={cn(`grid`, className)} style={style}>
       {items?.map(item => {
-        const Icon = item.icon;
-
         return (
           <li
             key={item.name}
@@ -40,7 +32,7 @@ export function EntryList({ className, style, items, linkComponent, isLoading }:
               to={item.to && linkComponent ? item.to : undefined}
               className="flex [&>svg]:w-[1rem] [&>svg]:h-[1rem] gap-3 items-center [&>svg]:text-icon3"
             >
-              {item.icon && <Icon />}
+              {item.icon}
               <div className="text-[0,8125rem] grid gap-[0.25rem]">
                 {item.name}
                 {item.description && <p className="text-icon3 text-[0.6875rem]">{item.description}</p>}
