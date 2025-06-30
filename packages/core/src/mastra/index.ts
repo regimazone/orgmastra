@@ -895,7 +895,7 @@ do:
         const logger = this.getLogger();
         const areFieldsValid = checkEvalStorageFields(traceObject, logger);
         if (!areFieldsValid) return;
-        console.log(`hello there`);
+
         await this.#storage.insert({
           tableName: TABLE_EVALS,
           record: {
