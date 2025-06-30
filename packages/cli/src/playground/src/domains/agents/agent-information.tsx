@@ -23,7 +23,7 @@ export function AgentInformation({ agentId }: { agentId: string }) {
   const providerIcon = providerMapToIcon[(agent?.provider || 'openai.chat') as keyof typeof providerMapToIcon];
 
   return newUIEnabled ? (
-    <AgentPanel agent={agent} memory={memory} />
+    <AgentPanel agentId={agentId} agent={agent} memory={memory} />
   ) : (
     <div className="grid grid-rows-[auto_1fr] h-full items-start overflow-y-auto border-l-sm border-border1">
       <div className="p-5 border-b-sm border-border1">

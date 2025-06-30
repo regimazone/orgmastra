@@ -13,3 +13,4 @@ export * from './alert-dialog';
 export * from './code-mirror-block';
 export * from './entry-list';
 export * from './search-bar';
+export * from './radio-group';

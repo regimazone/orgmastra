@@ -21,6 +21,7 @@ export function NetworkPanel({ network, className, style, Link }: AgentPanelProp
   const { modelSettings, setModelSettings } = useContext(NetworkContext);
   const [contentVariant, setContentVariant] = useState<'default' | 'editor'>('default');
 
+  // @ts-expect-error
   const agentBadges = (network.agents || []).map(agent => ({
     name: agent.name,
     icon: <AgentIcon />,
@@ -28,6 +29,7 @@ export function NetworkPanel({ network, className, style, Link }: AgentPanelProp
 
   const formattedInstructions = network?.instructions
     .split('\n')
+    // @ts-expect-error
     .map(line => line.trim())
     .join('\n');
 

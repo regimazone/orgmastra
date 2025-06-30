@@ -10,14 +10,23 @@ import {
   WorkflowIcon,
   MainContentLayout,
   MainContentContent,
+  MainLayout,
+  MainContent,
+  MainHeader,
+  MainHeaderTitle,
+  MainList,
 } from '@mastra/playground-ui';
 import { workflowsTableColumns } from '@/domains/workflows/table.columns';
 import { useNavigate } from 'react-router';
+import { useNewUI } from '@/hooks/use-new-ui';
+import { Link } from 'react-router';
+import { Footprints } from 'lucide-react';
 
 function Workflows() {
   const navigate = useNavigate();
   const { data, isLoading } = useWorkflows();
   const [legacyWorkflows, workflows] = data ?? [];
+  const newUIEnabled = useNewUI();
 
   const legacyWorkflowList = Object.entries(legacyWorkflows ?? {}).map(([key, workflow]) => ({
     id: key,
@@ -33,9 +42,41 @@ function Workflows() {
     isLegacy: false,
   }));
 
+  const allWorkflowList = [...workflowList, ...legacyWorkflowList];
+
+  const workflowListItems = allWorkflowList.map(workflow => ({
+    id: workflow.id,
+    name: workflow.name,
+    icon: <WorkflowIcon />,
+    to: `/workflows${workflow.isLegacy ? '/legacy' : ''}/${workflow.id}/graph`,
+    columns: [
+      <>
+        <Footprints />
+        {workflow.stepsCount} steps
+      </>,
+    ],
+  }));
+
+  const workflowListColumns = [{ key: 'actions', label: 'Actions', minWidth: '10rem', maxWidth: '15rem' }];
+
   if (isLoading) return null;
 
-  return (
+  return newUIEnabled ? (
+    <MainLayout>
+      <MainHeader>
+        <MainHeaderTitle>Agents</MainHeaderTitle>
+      </MainHeader>
+      <MainContent>
+        <MainList
+          items={workflowListItems}
+          linkComponent={Link}
+          columns={workflowListColumns}
+          emptyStateFor="agents"
+          isLoading={isLoading}
+        />
+      </MainContent>
+    </MainLayout>
+  ) : (
     <MainContentLayout>
       <Header>
         <HeaderTitle>Workflows</HeaderTitle>
@@ -69,7 +110,7 @@ function Workflows() {
           <DataTable
             emptyText="Workflows"
             columns={workflowsTableColumns}
-            data={[...workflowList, ...legacyWorkflowList]}
+            data={allWorkflowList}
             onClick={row => navigate(`/workflows${row.isLegacy ? '/legacy' : ''}/${row.id}/graph`)}
           />
         </MainContentContent>

@@ -10,3 +10,5 @@ export * from './agent-history';
 export * from './mcps-panel';
 export * from './mcps-sidebar';
 export * from './workflow-panel';
+export * from './agent-panel-default';
+export * from './agent-panel-editor';
