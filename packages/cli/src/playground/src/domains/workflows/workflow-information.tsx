@@ -1,6 +1,15 @@
 import { useState } from 'react';
 
-import { Badge, Icon, Txt, LegacyWorkflowTrigger, WorkflowIcon, WorkflowTrigger } from '@mastra/playground-ui';
+import {
+  Badge,
+  Icon,
+  Txt,
+  LegacyWorkflowTrigger,
+  WorkflowIcon,
+  WorkflowTrigger,
+  WorkflowPanel,
+  WorkflowRuns,
+} from '@mastra/playground-ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { WorkflowLogs } from './workflow-logs';
@@ -15,9 +24,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Skeleton } from '@/components/ui/skeleton';
 import { CopyIcon } from 'lucide-react';
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
-import { WorkflowRuns } from '@mastra/playground-ui';
 import { useNavigate, useParams } from 'react-router';
 import { useWorkflowRuns } from '@/pages/workflows/workflow/hooks/use-workflow-runs';
+import { useNewUI } from '@/hooks/use-new-ui';
 
 export function WorkflowInformation({ workflowId, isLegacy }: { workflowId: string; isLegacy?: boolean }) {
   const params = useParams();
@@ -28,6 +37,7 @@ export function WorkflowInformation({ workflowId, isLegacy }: { workflowId: stri
   const { createWorkflowRun } = useExecuteWorkflow();
   const { resumeWorkflow } = useResumeWorkflow();
   const { streamWorkflow, streamResult, isStreaming } = useStreamWorkflow();
+  const newUIEnabled = useNewUI();
 
   const [runId, setRunId] = useState<string>('');
   const { handleCopy } = useCopyToClipboard({ text: workflowId });
@@ -37,7 +47,9 @@ export function WorkflowInformation({ workflowId, isLegacy }: { workflowId: stri
   const isLoading = isLegacy ? isLegacyWorkflowLoading : isWorkflowLoading;
   const workflowToUse = isLegacy ? legacyWorkflow : workflow;
 
-  return (
+  return newUIEnabled ? (
+    <WorkflowPanel workflow={workflowToUse} />
+  ) : (
     <div className="grid grid-rows-[auto_1fr] h-full overflow-y-auto">
       <div className="p-5 border-b-sm border-border1">
         <div className="text-icon6 flex items-center gap-2">

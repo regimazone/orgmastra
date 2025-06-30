@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router';
+import { useParams, Link } from 'react-router';
 
 import {
   WorkflowRunProvider,
@@ -6,7 +6,6 @@ import {
   HeaderTitle,
   MainContentLayout,
   MainLayout,
-  MainContent,
   MainHeader,
   MainNavbar,
 } from '@mastra/playground-ui';
@@ -39,29 +38,31 @@ export const WorkflowLayout = ({ children }: { children: React.ReactNode }) => {
 
   const run = runs?.runs.find(run => run.runId === runId);
 
-  return newUIEnabled ? (
-    <MainLayout>
-      <MainHeader>
-        <MainNavbar
-          linkComponent={Link}
-          breadcrumbItems={[
-            { label: 'Workflows', to: '/workflows' },
-            { label: workflow?.name || '', to: `/workflows/${workflowId}/graph`, isCurrent: true },
-          ]}
-          navItems={[
-            [{ label: 'Graph', to: `/workflows/${workflowId}/graph` }],
-            [{ label: 'Traces', to: `/workflows/${workflowId}/traces` }],
-          ]}
-        />
-      </MainHeader>
-      <MainContent>{children}</MainContent>
-    </MainLayout>
-  ) : (
+  return (
     <WorkflowRunProvider snapshot={typeof run?.snapshot === 'object' ? run.snapshot : undefined}>
-      <MainContentLayout>
-        <WorkflowHeader workflowName={workflow?.name || ''} workflowId={workflowId!} runId={runId} />
-        {children}
-      </MainContentLayout>
+      {newUIEnabled ? (
+        <MainLayout>
+          <MainHeader>
+            <MainNavbar
+              linkComponent={Link}
+              breadcrumbItems={[
+                { label: 'Workflows', to: '/workflows' },
+                { label: workflow?.name || '', to: `/workflows/${workflowId}/graph`, isCurrent: true },
+              ]}
+              navItems={[
+                [{ label: 'Graph', to: `/workflows/${workflowId}/graph` }],
+                [{ label: 'Traces', to: `/workflows/${workflowId}/traces` }],
+              ]}
+            />
+          </MainHeader>
+          {children}
+        </MainLayout>
+      ) : (
+        <MainContentLayout>
+          <WorkflowHeader workflowName={workflow?.name || ''} workflowId={workflowId!} runId={runId} />
+          {children}
+        </MainContentLayout>
+      )}
     </WorkflowRunProvider>
   );
 };
