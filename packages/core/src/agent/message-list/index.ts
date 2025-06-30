@@ -2,10 +2,9 @@ import { randomUUID } from 'crypto';
 import { convertToCoreMessages } from 'ai';
 import type { CoreMessage, CoreSystemMessage, IDGenerator, Message, ToolCallPart, ToolInvocation, UIMessage } from 'ai';
 import type { MastraMessageV1 } from '../../memory';
-import { isCoreMessage, isUiMessage } from '../../utils';
+import { Message as MastraMessage } from './message';
 import { convertToV1Messages } from './prompt/convert-to-mastra-v1';
 import { convertDataContentToBase64String } from './prompt/data-content';
-import { Message as MastraMessage } from '../message';
 
 export type MastraMessageContentV2 = {
   format: 2; // format 2 === UIMessage in AI SDK v4
@@ -330,7 +329,8 @@ ${JSON.stringify(message, null, 2)}`,
           // if there's no part at this index yet in the existing message we're merging into
           !latestMessage.content.parts[index] ||
           // or there is and the parts are not identical
-          MastraMessage.cacheKeyFromParts([latestMessage.content.parts[index]]) !== MastraMessage.cacheKeyFromParts([part])
+          MastraMessage.cacheKeyFromParts([latestMessage.content.parts[index]]) !==
+            MastraMessage.cacheKeyFromParts([part])
         ) {
           // For all other part types that aren't already present, simply push them to the latest message's parts
           latestMessage.content.parts.push(part);

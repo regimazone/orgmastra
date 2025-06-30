@@ -46,7 +46,7 @@ import type {
 } from './types';
 
 export { MessageList };
-export { Message } from './message';
+export { Message } from './message-list/message';
 export * from './types';
 type IDGenerator = () => string;
 

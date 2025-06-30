@@ -1,6 +1,6 @@
 import type { CoreMessage, UIMessage } from 'ai';
-import { isCoreMessage, isUiMessage } from '../../utils';
 import type { MastraMessageV1 } from '../../memory';
+import { isCoreMessage, isUiMessage } from '../../utils';
 import type { MessageInput, MastraMessageV2 } from '../message-list';
 
 export class Message {
@@ -223,3 +223,4 @@ export class Message {
     };
   }
 }
+
