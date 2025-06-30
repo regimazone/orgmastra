@@ -1,3 +1,4 @@
+import type { RuntimeContext } from '@mastra/core/runtime-context';
 import { createTool } from '@mastra/core/tools';
 import type { EmbeddingModel } from 'ai';
 import { z } from 'zod';
@@ -8,6 +9,37 @@ import { vectorQuerySearch, defaultVectorQueryDescription, filterSchema, outputS
 import type { RagTool } from '../utils';
 import { convertToSources } from '../utils/convert-sources';
 import type { VectorQueryToolOptions } from './types';
+
+/**
+ * Resolves option values with priority: runtime context > function option > static option > default
+ * Handles both synchronous and asynchronous option resolvers
+ */
+async function resolveOption<T>(
+  runtimeContext: RuntimeContext,
+  key: string,
+  option: T | ((params: { runtimeContext: RuntimeContext }) => Promise<T> | T) | undefined,
+  defaultValue?: T,
+): Promise<T | undefined> {
+  // Check runtime context first
+  const runtimeValue = runtimeContext.get(key);
+  if (runtimeValue !== undefined && runtimeValue !== null) {
+    return runtimeValue as T;
+  }
+
+  // If no runtime value, check if option is provided
+  if (option === undefined) {
+    return defaultValue;
+  }
+
+  // Handle function options
+  if (typeof option === 'function') {
+    const fn = option as (params: { runtimeContext: RuntimeContext }) => Promise<T> | T;
+    return await fn({ runtimeContext });
+  }
+
+  // Return static option value
+  return option;
+}
 
 export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
   const { id, description } = options;
@@ -21,40 +53,23 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
     inputSchema,
     outputSchema,
     execute: async ({ context, mastra, runtimeContext }) => {
-      const indexName: string =
-        runtimeContext.get('indexName') ??
-        (typeof options.indexName === 'function' ? await options.indexName({ runtimeContext }) : options.indexName);
-      const vectorStoreName: string =
-        runtimeContext.get('vectorStoreName') ??
-        (typeof options.vectorStoreName === 'function'
-          ? await options.vectorStoreName({ runtimeContext })
-          : options.vectorStoreName);
+      const indexName: string = (await resolveOption(runtimeContext, 'indexName', options.indexName))!;
+      const vectorStoreName: string = (await resolveOption(
+        runtimeContext,
+        'vectorStoreName',
+        options.vectorStoreName,
+      ))!;
       const includeVectors: boolean =
-        runtimeContext.get('includeVectors') ??
-        (typeof options.includeVectors === 'function'
-          ? await options.includeVectors({ runtimeContext })
-          : options.includeVectors) ??
-        false;
+        (await resolveOption(runtimeContext, 'includeVectors', options.includeVectors, false)) ?? false;
       const includeSources: boolean =
-        runtimeContext.get('includeSources') ??
-        (typeof options.includeSources === 'function'
-          ? await options.includeSources({ runtimeContext })
-          : options.includeSources) ??
-        true;
-      const reranker: RerankConfig =
-        runtimeContext.get('reranker') ??
-        (typeof options.reranker === 'function' ? await options.reranker({ runtimeContext }) : options.reranker);
-      const databaseConfig =
-        runtimeContext.get('databaseConfig') ??
-        (typeof options.databaseConfig === 'function'
-          ? await options.databaseConfig({ runtimeContext })
-          : options.databaseConfig);
-      const model: EmbeddingModel<string> =
-        runtimeContext.get('model') ??
-        (typeof options.model === 'function' ? await options.model({ runtimeContext }) : options.model);
+        (await resolveOption(runtimeContext, 'includeSources', options.includeSources, true)) ?? true;
+      const reranker: RerankConfig | undefined = await resolveOption(runtimeContext, 'reranker', options.reranker);
+      const databaseConfig = await resolveOption(runtimeContext, 'databaseConfig', options.databaseConfig);
+      const model: EmbeddingModel<string> | undefined = await resolveOption(runtimeContext, 'model', options.model);
 
       if (!indexName) throw new Error(`indexName is required, got: ${indexName}`);
       if (!vectorStoreName) throw new Error(`vectorStoreName is required, got: ${vectorStoreName}`);
+      if (!model) throw new Error(`model is required, got: ${model}`);
 
       const topK: number = runtimeContext.get('topK') ?? context.topK ?? 10;
       const filter: Record<string, any> = runtimeContext.get('filter') ?? context.filter;
