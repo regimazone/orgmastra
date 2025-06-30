@@ -96,65 +96,51 @@ export class BenchmarkRunner {
     
     console.log(chalk.blue('\n📝 Processing questions...'));
     console.log(chalk.gray(`Running with ${concurrency} parallel workers`));
-    console.log(chalk.gray('Press Ctrl+C to gracefully stop\n'));
+    console.log(chalk.gray('Press Ctrl+C to stop and save results\n'));
 
     // Set up graceful shutdown
-    let ctrlCCount = 0;
-    const cleanup = async (signal: string) => {
+    const handleInterrupt = async () => {
       if (this.isShuttingDown) {
-        ctrlCCount++;
-        if (ctrlCCount >= 2) {
-          console.log(chalk.red('\n\n⚠️  Force quit requested. Exiting immediately...'));
-          process.exit(1);
-        }
-        return;
+        console.log(chalk.red('\n\n⚠️  Force quit requested. Exiting immediately...'));
+        process.exit(1);
       }
       
-      // First Ctrl+C - ask for confirmation
-      console.log(chalk.yellow(`\n\n⏸️  Interrupt received. Press Ctrl+C again to stop, or wait to continue...`));
+      this.isShuttingDown = true;
+      console.log(chalk.yellow('\n\n🛑 Stopping benchmark and saving results...'));
       
-      // Set a timeout to reset the interrupt state
-      const resetTimeout = setTimeout(() => {
-        console.log(chalk.green('\n▶️  Continuing benchmark...\n'));
-        ctrlCCount = 0;
-      }, 3000);
-      
-      // Wait for second Ctrl+C
-      process.once('SIGINT', async () => {
-        clearTimeout(resetTimeout);
-        this.isShuttingDown = true;
-        
-        console.log(chalk.yellow('\n🛑 Stopping benchmark and saving results...'));
-        
-        // Wait for active processing to complete
-        if (this.activeProcessing.size > 0) {
-          console.log(chalk.gray(`Waiting for ${this.activeProcessing.size} active requests to complete...`));
-          await Promise.all(this.activeProcessing);
-        }
-        
-        // Save final results
-        const processedResults = results.filter(r => r);
-        if (processedResults.length > 0) {
+      // Save final results without waiting
+      const processedResults = results.filter(r => r);
+      if (processedResults.length > 0) {
+        try {
           await this.saveResults(runDir, processedResults, hypotheses, questions.slice(0, processedResults.length));
           const metrics = this.evaluator.calculateMetrics(processedResults);
           await this.saveMetrics(runDir, metrics, benchmarkConfig);
           
-          console.log(chalk.yellow(`\n✅ Saved results for ${processedResults.length} questions to: ${runDir}`));
+          console.log(chalk.green(`\n✅ Saved results for ${processedResults.length} questions to: ${runDir}`));
           console.log(chalk.yellow(`Accuracy so far: ${(metrics.overall_accuracy * 100).toFixed(2)}%\n`));
+        } catch (error) {
+          console.log(chalk.red('Failed to save results:'), error);
         }
-        
-        process.exit(0);
-      });
+      }
+      
+      // Force exit immediately
+      process.exit(0);
     };
     
-    process.on('SIGINT', () => cleanup('SIGINT'));
+    // Set up signal handlers
+    process.on('SIGINT', handleInterrupt);
+    
     process.on('SIGTERM', async () => {
       // For SIGTERM, exit immediately without confirmation
       this.isShuttingDown = true;
       console.log(chalk.yellow('\n\n🛑 Termination signal received, saving results...'));
       const processedResults = results.filter(r => r);
       if (processedResults.length > 0) {
-        await this.saveResults(runDir, processedResults, hypotheses, questions.slice(0, processedResults.length));
+        try {
+          await this.saveResults(runDir, processedResults, hypotheses, questions.slice(0, processedResults.length));
+        } catch (error) {
+          console.log(chalk.red('Failed to save results:'), error);
+        }
       }
       process.exit(0);
     });
@@ -176,6 +162,21 @@ export class BenchmarkRunner {
       console.log(chalk.gray(`\n⏳ Starting batch [${batchStartIdx}-${batchEndIdx}/${totalQuestions}]${elapsedMin > 0 ? ` (${elapsedMin}min elapsed)` : ''}...`));
       
       const batchPromises = batch.map(async ({ question, index }) => {
+        // Check if shutting down
+        if (this.isShuttingDown) {
+          return {
+            result: {
+              question_id: question.question_id,
+              hypothesis: '',
+              is_correct: false,
+              question_type: question.question_type,
+            },
+            question,
+            index,
+            error: new Error('Shutdown')
+          };
+        }
+        
         try {
           // Load chat history
           const resourceId = `longmemeval_${benchmarkConfig.dataset}`;
@@ -197,17 +198,21 @@ export class BenchmarkRunner {
           await adapter.clearThread(threadId);
           
           // Show progress immediately when this question completes
-          completedCount++;
-          const statusIcon = result.is_correct ? chalk.green('✓') : chalk.red('✗');
-          const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
-          console.log(`[${completedCount}/${totalQuestions}] ${statusIcon} ${question.question_id} - ${question.question_type} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          if (!this.isShuttingDown) {
+            completedCount++;
+            const statusIcon = result.is_correct ? chalk.green('✓') : chalk.red('✗');
+            const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
+            console.log(`[${completedCount}/${totalQuestions}] ${statusIcon} ${question.question_id} - ${question.question_type} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          }
           
           return { result, question, index, error: null };
           
         } catch (error) {
-          completedCount++;
-          const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
-          console.log(`[${completedCount}/${totalQuestions}] ${chalk.red('✗')} ${question.question_id} - ${question.question_type} ${chalk.red('(error)')} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          if (!this.isShuttingDown) {
+            completedCount++;
+            const timePerQ = Math.round((Date.now() - startTime) / completedCount / 1000);
+            console.log(`[${completedCount}/${totalQuestions}] ${chalk.red('✗')} ${question.question_id} - ${question.question_type} ${chalk.red('(error)')} ${chalk.gray(`(~${timePerQ}s/q)`)}`);
+          }
           
           return {
             result: {
@@ -257,6 +262,10 @@ export class BenchmarkRunner {
       this.printMetrics(metrics);
       
       console.log(chalk.green(`\n✅ Benchmark complete! Results saved to: ${runDir}\n`));
+      
+      // Clean up signal handlers
+      process.removeAllListeners('SIGINT');
+      process.removeAllListeners('SIGTERM');
       
       return metrics;
     } else {
