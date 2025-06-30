@@ -12,7 +12,8 @@ import type { MastraMemory } from '../memory/memory';
 import type { AgentNetwork } from '../network';
 import type { NewAgentNetwork } from '../network/vNext';
 import type { Middleware, ServerConfig } from '../server/types';
-import { TABLE_EVALS, type MastraStorage } from '../storage';
+import { TABLE_EVALS } from '../storage';
+import type { MastraStorage } from '../storage';
 import { augmentWithInit } from '../storage/storageWithInit';
 import { InstrumentClass, Telemetry } from '../telemetry';
 import type { OtelConfig } from '../telemetry';
@@ -886,6 +887,17 @@ do:
         runId,
         globalRunId: runId,
         instructions,
+      }).catch(e => {
+        const mastraError = new MastraError(
+          {
+            id: 'MASTRA_EVAL_HOOK_EVALUATE_EXECUTION_FAILED',
+            domain: ErrorDomain.EVAL,
+            category: ErrorCategory.USER,
+          },
+          e,
+        );
+        this.#logger?.trackException(mastraError);
+        this.#logger?.error(mastraError.toString());
       });
     });
 
