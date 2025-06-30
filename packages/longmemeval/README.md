@@ -91,6 +91,9 @@ pnpm cli run --dataset longmemeval_s --model gpt-4o
 # Adjust parallelization (default: 5)
 pnpm cli run --dataset longmemeval_s --model gpt-4o --concurrency 20
 
+# Graceful shutdown: Press Ctrl+C once to confirm, twice to force quit
+# The benchmark will save progress before exiting
+
 # Run with specific memory configuration
 pnpm cli run --dataset longmemeval_s --memory-config last-k --model gpt-4o
 pnpm cli run --dataset longmemeval_s --memory-config semantic-recall --model gpt-4o

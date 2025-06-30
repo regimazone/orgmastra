@@ -2,6 +2,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import ora from 'ora';
 import chalk from 'chalk';
+import * as readline from 'readline';
 import { Mastra } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import type { MastraStorage } from '@mastra/core';
@@ -35,6 +36,8 @@ export class BenchmarkRunner {
   private loader: DatasetLoader;
   private evaluator: QAEvaluator;
   private outputDir: string;
+  private isShuttingDown: boolean = false;
+  private activeProcessing: Set<Promise<any>> = new Set();
 
   constructor(config: RunnerConfig) {
     this.config = config;
@@ -91,7 +94,69 @@ export class BenchmarkRunner {
     const concurrency = this.config.concurrency || 5; // Default to 5 parallel requests
     
     console.log(chalk.blue('\n📝 Processing questions...'));
-    console.log(chalk.gray(`Running with ${concurrency} parallel workers\n`));
+    console.log(chalk.gray(`Running with ${concurrency} parallel workers`));
+    console.log(chalk.gray('Press Ctrl+C to gracefully stop\n'));
+
+    // Set up graceful shutdown
+    let ctrlCCount = 0;
+    const cleanup = async (signal: string) => {
+      if (this.isShuttingDown) {
+        ctrlCCount++;
+        if (ctrlCCount >= 2) {
+          console.log(chalk.red('\n\n⚠️  Force quit requested. Exiting immediately...'));
+          process.exit(1);
+        }
+        return;
+      }
+      
+      // First Ctrl+C - ask for confirmation
+      console.log(chalk.yellow(`\n\n⏸️  Interrupt received. Press Ctrl+C again to stop, or wait to continue...`));
+      
+      // Set a timeout to reset the interrupt state
+      const resetTimeout = setTimeout(() => {
+        console.log(chalk.green('\n▶️  Continuing benchmark...\n'));
+        ctrlCCount = 0;
+      }, 3000);
+      
+      // Wait for second Ctrl+C
+      process.once('SIGINT', async () => {
+        clearTimeout(resetTimeout);
+        this.isShuttingDown = true;
+        
+        console.log(chalk.yellow('\n🛑 Stopping benchmark and saving results...'));
+        
+        // Wait for active processing to complete
+        if (this.activeProcessing.size > 0) {
+          console.log(chalk.gray(`Waiting for ${this.activeProcessing.size} active requests to complete...`));
+          await Promise.all(this.activeProcessing);
+        }
+        
+        // Save final results
+        const processedResults = results.filter(r => r);
+        if (processedResults.length > 0) {
+          await this.saveResults(runDir, processedResults, hypotheses, questions.slice(0, processedResults.length));
+          const metrics = this.evaluator.calculateMetrics(processedResults);
+          await this.saveMetrics(runDir, metrics, benchmarkConfig);
+          
+          console.log(chalk.yellow(`\n✅ Saved results for ${processedResults.length} questions to: ${runDir}`));
+          console.log(chalk.yellow(`Accuracy so far: ${(metrics.overall_accuracy * 100).toFixed(2)}%\n`));
+        }
+        
+        process.exit(0);
+      });
+    };
+    
+    process.on('SIGINT', () => cleanup('SIGINT'));
+    process.on('SIGTERM', async () => {
+      // For SIGTERM, exit immediately without confirmation
+      this.isShuttingDown = true;
+      console.log(chalk.yellow('\n\n🛑 Termination signal received, saving results...'));
+      const processedResults = results.filter(r => r);
+      if (processedResults.length > 0) {
+        await this.saveResults(runDir, processedResults, hypotheses, questions.slice(0, processedResults.length));
+      }
+      process.exit(0);
+    });
 
     // Create a queue of questions with indices
     const questionQueue = questions.map((q, idx) => ({ question: q, index: idx }));
@@ -99,7 +164,7 @@ export class BenchmarkRunner {
     const totalQuestions = questions.length;
     
     // Process questions in batches
-    while (questionQueue.length > 0) {
+    while (questionQueue.length > 0 && !this.isShuttingDown) {
       const batch = questionQueue.splice(0, concurrency);
       
       const batchPromises = batch.map(async ({ question, index }) => {
@@ -142,8 +207,13 @@ export class BenchmarkRunner {
         }
       });
       
+      // Track active processing
+      const batchPromise = Promise.all(batchPromises);
+      this.activeProcessing.add(batchPromise);
+      
       // Wait for batch to complete
-      const batchResults = await Promise.all(batchPromises);
+      const batchResults = await batchPromise;
+      this.activeProcessing.delete(batchPromise);
       
       // Process batch results
       for (const { result, question, index, error } of batchResults) {
@@ -167,18 +237,25 @@ export class BenchmarkRunner {
       }
     }
 
-    // Calculate and save final metrics
-    console.log(chalk.blue('\n📊 Calculating metrics...\n'));
-    const metrics = this.evaluator.calculateMetrics(results);
-    
-    await this.saveResults(runDir, results, hypotheses, questions);
-    await this.saveMetrics(runDir, metrics, benchmarkConfig);
-    
-    this.printMetrics(metrics);
-    
-    console.log(chalk.green(`\n✅ Benchmark complete! Results saved to: ${runDir}\n`));
-    
-    return metrics;
+    // Check if we completed all questions or were interrupted
+    if (!this.isShuttingDown) {
+      // Calculate and save final metrics
+      console.log(chalk.blue('\n📊 Calculating metrics...\n'));
+      const metrics = this.evaluator.calculateMetrics(results);
+      
+      await this.saveResults(runDir, results, hypotheses, questions);
+      await this.saveMetrics(runDir, metrics, benchmarkConfig);
+      
+      this.printMetrics(metrics);
+      
+      console.log(chalk.green(`\n✅ Benchmark complete! Results saved to: ${runDir}\n`));
+      
+      return metrics;
+    } else {
+      // We were interrupted, metrics were already saved in cleanup
+      const processedResults = results.filter(r => r);
+      return this.evaluator.calculateMetrics(processedResults);
+    }
   }
 
   /**
