@@ -76,25 +76,25 @@ export function AppSidebar({
                     },
                   )}
                 >
-                  {item.to && LinkComponent && !item.href && (
-                    <LinkComponent to={item.to}>
+                  {LinkComponent && (item.to || !item.href?.startsWith('http')) && (
+                    <LinkComponent to={item.to || undefined} href={item.href || undefined}>
                       {item.icon}
                       {!isCollapsed && (
-                        <div className="min-w-[8rem]">
+                        <div className="min-w-[8rem] flex justify-between items-center">
                           {item.label}
                           {item.badge}
                         </div>
                       )}
                     </LinkComponent>
                   )}
-                  {item.href && !item.to && (
+                  {item.href && item.href?.startsWith('http') && (
                     <a href={item.href} target="_blank" rel="noopener noreferrer">
                       {item.icon}
                       {!isCollapsed && (
-                        <>
+                        <div className="min-w-[8rem] flex justify-between items-center">
                           {item.label}
                           {item.badge}
-                        </>
+                        </div>
                       )}
                     </a>
                   )}

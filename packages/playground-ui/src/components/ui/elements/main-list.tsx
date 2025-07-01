@@ -183,7 +183,7 @@ export function MainListItem({ item, linkComponent, listColumns = [] }: MainList
         <div className="flex gap-2 items-center group [&>svg]:w-[1.25rem] [&>svg]:h-[1.25rem]">
           {item.icon}
           <div className="py-1">
-            <span className="text-icon6 font-medium text-[0.75rem]">{item.name}</span>
+            <span className="text-icon6 font-medium text-[0.8125rem]">{item.name}</span>
             {item.description && (
               <p className="truncate max-w-[80ch] text-icon3 text-[0.625rem] pb-1 ">{item.description}</p>
             )}
