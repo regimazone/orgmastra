@@ -58,10 +58,10 @@ export type DatabaseConfig = {
 export type VectorQueryToolOptions = {
   id?: string;
   description?: string;
-  indexName: DynamicArgument<string>;
-  vectorStoreName: DynamicArgument<string>;
-  model: DynamicArgument<EmbeddingModel<string>>;
+  indexName: string;
+  vectorStoreName: string;
   enableFilter?: boolean;
+  model: DynamicArgument<EmbeddingModel<string>>;
   includeVectors?: DynamicArgument<boolean>;
   includeSources?: DynamicArgument<boolean>;
   reranker?: DynamicArgument<RerankConfig>;

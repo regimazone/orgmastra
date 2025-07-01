@@ -43,6 +43,7 @@ async function resolveOption<T>(
 
 export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
   const { id, description } = options;
+
   const toolId = id || `VectorQuery ${options.vectorStoreName} ${options.indexName} Tool`;
   const toolDescription = description || defaultVectorQueryDescription();
   const inputSchema = options.enableFilter ? filterSchema : z.object(baseSchema).passthrough();
@@ -53,12 +54,8 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
     inputSchema,
     outputSchema,
     execute: async ({ context, mastra, runtimeContext }) => {
-      const indexName: string = (await resolveOption(runtimeContext, 'indexName', options.indexName))!;
-      const vectorStoreName: string = (await resolveOption(
-        runtimeContext,
-        'vectorStoreName',
-        options.vectorStoreName,
-      ))!;
+      const indexName = await resolveOption(runtimeContext, 'indexName', options.indexName);
+      const vectorStoreName = await resolveOption(runtimeContext, 'vectorStoreName', options.vectorStoreName);
       const includeVectors: boolean =
         (await resolveOption(runtimeContext, 'includeVectors', options.includeVectors, false)) ?? false;
       const includeSources: boolean =
