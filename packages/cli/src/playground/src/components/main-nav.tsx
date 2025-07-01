@@ -19,7 +19,6 @@ export function MainNav() {
         label: 'Agents',
         to: '/agents',
         icon: <AgentIcon />,
-        badge: <div>1</div>,
       },
       {
         label: 'Networks',

@@ -1,7 +1,8 @@
 export type ListItemType = {
   id: string;
   name: string;
-  to: string;
+  to?: string;
+  href?: string;
   description?: string;
   icon?: any;
 };

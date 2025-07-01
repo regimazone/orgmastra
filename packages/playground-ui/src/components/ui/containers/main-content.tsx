@@ -23,7 +23,7 @@ export function MainContent({
       className={cn(
         {
           // default
-          'main-content_default grid overflow-y-auto h-full overflow-x-auto min-w-[min-content]': variant !== 'default',
+          'main-content_default grid overflow-y-auto h-full overflow-x-auto min-w-[min-content]': variant === 'default',
           // agent-chat screen without history
           'main-content_for-agent grid grid-cols-[1fr_1fr]': variant === 'forAgent',
           '[&>:nth-child(1)]:bg-black [&>:nth-child(1)]:py-6': variant === 'forAgent', // for clarity styles applied to the container child defined in a separate row

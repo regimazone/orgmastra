@@ -56,10 +56,25 @@ export function MainList({
       <MainListHeader columns={columns} items={items} withCollapsible={withCollapsible} />
 
       {items?.map(item => {
-        const { id, name, to } = item;
+        const { id, name, to, href } = item;
 
-        if (!id || !name || !to) {
-          console.warn('Item is missing required properties:', item);
+        if (!to && !href) {
+          console.warn("One of two, 'to' or 'href' property is required:", item);
+          return null;
+        }
+
+        if (to && href) {
+          console.warn("Only one, 'to' or 'href' property could be provided", item);
+          return null;
+        }
+
+        if (!id) {
+          console.warn('Item is missing required property (id):', item);
+          return null;
+        }
+
+        if (!name) {
+          console.warn('Item is missing required property (name):', item);
           return null;
         }
 
@@ -179,7 +194,11 @@ export function MainListItem({ item, linkComponent, listColumns = [] }: MainList
 
   return (
     <li key={item.id} className="grid px-5 min-h-[2.75rem] items-center border-b-sm border-border1 hover:bg-surface3">
-      <LinkComponent to={item.to} className="flex gap-2 items-center w-full ">
+      <LinkComponent
+        to={item?.to || undefined}
+        href={item?.href || undefined}
+        className="flex gap-2 items-center w-full "
+      >
         <div className="flex gap-2 items-center group [&>svg]:w-[1.25rem] [&>svg]:h-[1.25rem]">
           {item.icon}
           <div className="py-1">

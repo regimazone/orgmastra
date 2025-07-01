@@ -57,7 +57,7 @@ function Agents() {
     };
   });
 
-  const agentListColumns = [{ key: 'model', label: 'Model', minWidth: '10rem', maxWidth: '15rem' }];
+  const agentListColumns = [{ key: 'model', label: 'Model' }];
 
   return newUIEnabled ? (
     <MainLayout>
