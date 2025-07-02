@@ -6,10 +6,9 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "eval:agent-pattern": "tsx src/agent-pattern-evaluation.ts",
     "eval:basic": "tsx src/basic-evaluation.ts",
-    "eval:batch": "tsx src/batch-evaluation.ts",
-    "eval:custom": "tsx src/custom-metrics.ts",
-    "eval:benchmark": "tsx src/benchmark.ts"
+    "eval:batch": "tsx src/batch-evaluation.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.66",

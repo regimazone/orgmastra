@@ -3,173 +3,106 @@ import type { z } from 'zod';
 import type { Mastra } from '../mastra';
 import type { Metric } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
-import { MastraError, ErrorCategory, ErrorDomain } from '../error';
-import type { 
-  ToolAction, 
-  ToolExecutionContext, 
-  ToolEvaluationInput, 
-  ToolEvaluationResult, 
-  ToolEvaluationOptions 
-} from './types';
+import type { ToolAction, ToolExecutionContext } from './types';
 
 export class Tool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
   TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
-> implements ToolAction<TSchemaIn, TSchemaOut, TContext>
+  TMetrics extends Record<string, Metric> = Record<string, Metric>,
+> implements ToolAction<TSchemaIn, TSchemaOut, TContext, TMetrics>
 {
   id: string;
   description: string;
   inputSchema?: TSchemaIn;
   outputSchema?: TSchemaOut;
-  execute?: ToolAction<TSchemaIn, TSchemaOut, TContext>['execute'];
+  execute?: ToolAction<TSchemaIn, TSchemaOut, TContext, TMetrics>['execute'];
   mastra?: Mastra;
+  evals: TMetrics;
 
-  constructor(opts: ToolAction<TSchemaIn, TSchemaOut, TContext>) {
+  constructor(opts: ToolAction<TSchemaIn, TSchemaOut, TContext, TMetrics>) {
     this.id = opts.id;
     this.description = opts.description;
     this.inputSchema = opts.inputSchema;
     this.outputSchema = opts.outputSchema;
     this.execute = opts.execute;
     this.mastra = opts.mastra;
+    this.evals = opts.evals || ({} as TMetrics);
   }
 
   /**
-   * Evaluate the tool's performance using a given metric
+   * Execute the tool with automatic evaluation (following Agent pattern)
    */
-  async evaluate(
-    evaluationInput: ToolEvaluationInput,
-    metric: Metric,
-    options: ToolEvaluationOptions = {}
-  ): Promise<ToolEvaluationResult> {
-    const runId = options.runId || crypto.randomUUID();
-    const globalRunId = options.globalRunId || crypto.randomUUID();
-    
+  async run(
+    context: TContext,
+    options?: { runId?: string }
+  ): Promise<TSchemaOut extends z.ZodSchema ? z.infer<TSchemaOut> : unknown> {
     if (!this.execute) {
-      throw new MastraError({
-        id: 'TOOL_EVALUATION_NO_EXECUTE',
-        domain: ErrorDomain.EVAL,
-        category: ErrorCategory.USER,
-        details: {
-          toolId: this.id,
-          runId,
-        },
-      });
+      throw new Error(`Tool ${this.id} has no execute function`);
     }
 
-    let toolOutput: any;
-    let executionTime: number;
-    let success = false;
-    let error: string | undefined;
+    const runId = options?.runId || crypto.randomUUID();
     const startTime = Date.now();
-
+    
     try {
-      // Create a context for tool execution
-      const context = {
-        context: evaluationInput.input,
-        runtimeContext: {
-          runId,
-          globalRunId,
-        },
-        mastra: this.mastra,
-      } as unknown as TContext;
+      // Execute the tool
+      const result = await this.execute(context, { runId });
+      const executionTime = Date.now() - startTime;
 
-      toolOutput = await this.execute(context, options.toolOptions);
-      executionTime = Date.now() - startTime;
-      success = true;
-    } catch (e: unknown) {
-      executionTime = Date.now() - startTime;
-      success = false;
-      error = e instanceof Error ? e.message : String(e);
+      // Trigger evaluations if any are configured (following Agent pattern)
+      if (Object.keys(this.evals || {}).length > 0) {
+        const inputStr = typeof context === 'string' 
+          ? context 
+          : JSON.stringify(context);
+        const outputStr = typeof result === 'string' 
+          ? result 
+          : JSON.stringify(result);
+
+                 for (const metric of Object.values(this.evals || {})) {
+           executeHook(AvailableHooks.ON_TOOL_EVALUATION, {
+             toolId: this.id,
+             toolDescription: this.description,
+             input: context,
+             output: result,
+             result: { score: 1, info: {} }, // Placeholder - actual evaluation happens in hook handlers
+             metricName: metric.constructor.name,
+             executionTime,
+             success: true,
+             runId,
+             globalRunId: runId,
+           });
+         }
+      }
+
+      return result;
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
       
-      throw new MastraError(
-        {
-          id: 'TOOL_EVALUATION_EXECUTION_FAILED',
-          domain: ErrorDomain.EVAL,
-          category: ErrorCategory.USER,
-          details: {
-            toolId: this.id,
-            runId,
-            globalRunId,
-          },
-        },
-        e,
-      );
+      // Trigger evaluation hooks even on failure
+      if (Object.keys(this.evals || {}).length > 0) {
+        const inputStr = typeof context === 'string' 
+          ? context 
+          : JSON.stringify(context);
+
+                 for (const metric of Object.values(this.evals || {})) {
+           executeHook(AvailableHooks.ON_TOOL_EVALUATION, {
+             toolId: this.id,
+             toolDescription: this.description,
+             input: context,
+             output: '',
+             result: { score: 0, info: {} }, // Placeholder for failed execution
+             metricName: metric.constructor.name,
+             executionTime,
+             success: false,
+             error: error instanceof Error ? error.message : String(error),
+             runId,
+             globalRunId: runId,
+           });
+         }
+      }
+
+      throw error;
     }
-
-    let metricResult;
-    try {
-      // For tool evaluation, we pass the input and output to the metric
-      const inputStr = typeof evaluationInput.input === 'string' 
-        ? evaluationInput.input 
-        : JSON.stringify(evaluationInput.input);
-      const outputStr = typeof toolOutput === 'string' 
-        ? toolOutput 
-        : JSON.stringify(toolOutput);
-      
-      metricResult = await metric.measure(inputStr, outputStr);
-    } catch (e: unknown) {
-      throw new MastraError(
-        {
-          id: 'TOOL_EVALUATION_METRIC_FAILED',
-          domain: ErrorDomain.EVAL,
-          category: ErrorCategory.USER,
-          details: {
-            toolId: this.id,
-            metricName: metric.constructor.name,
-            runId,
-            globalRunId,
-          },
-        },
-        e,
-      );
-    }
-
-    const evaluationResult: ToolEvaluationResult = {
-      ...metricResult,
-      output: toolOutput,
-      input: evaluationInput.input,
-      executionTime,
-      success,
-      error,
-    };
-
-    // Execute evaluation hooks
-    const traceObject = {
-      toolId: this.id,
-      toolDescription: this.description,
-      input: evaluationInput.input,
-      output: toolOutput,
-      result: metricResult,
-      metricName: metric.constructor.name,
-      executionTime,
-      success,
-      error,
-      runId,
-      globalRunId,
-      testInfo: options.testInfo,
-    };
-
-    try {
-      executeHook(AvailableHooks.ON_TOOL_EVALUATION, traceObject);
-    } catch (e: unknown) {
-      throw new MastraError(
-        {
-          id: 'TOOL_EVALUATION_HOOK_FAILED',
-          domain: ErrorDomain.EVAL,
-          category: ErrorCategory.USER,
-          details: {
-            toolId: this.id,
-            metricName: metric.constructor.name,
-            runId,
-            globalRunId,
-          },
-        },
-        e,
-      );
-    }
-
-    return evaluationResult;
   }
 }
 
@@ -177,21 +110,23 @@ export function createTool<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
   TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
-  TExecute extends ToolAction<TSchemaIn, TSchemaOut, TContext>['execute'] = ToolAction<
+  TMetrics extends Record<string, Metric> = Record<string, Metric>,
+  TExecute extends ToolAction<TSchemaIn, TSchemaOut, TContext, TMetrics>['execute'] = ToolAction<
     TSchemaIn,
     TSchemaOut,
-    TContext
+    TContext,
+    TMetrics
   >['execute'],
 >(
-  opts: ToolAction<TSchemaIn, TSchemaOut, TContext> & {
+  opts: ToolAction<TSchemaIn, TSchemaOut, TContext, TMetrics> & {
     execute?: TExecute;
   },
 ): [TSchemaIn, TSchemaOut, TExecute] extends [z.ZodSchema, z.ZodSchema, Function]
-  ? Tool<TSchemaIn, TSchemaOut, TContext> & {
+  ? Tool<TSchemaIn, TSchemaOut, TContext, TMetrics> & {
       inputSchema: TSchemaIn;
       outputSchema: TSchemaOut;
       execute: (context: TContext) => Promise<any>;
     }
-  : Tool<TSchemaIn, TSchemaOut, TContext> {
+  : Tool<TSchemaIn, TSchemaOut, TContext, TMetrics> {
   return new Tool(opts) as any;
 }

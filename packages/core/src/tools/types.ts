@@ -57,6 +57,7 @@ export interface ToolAction<
   TSchemaIn extends z.ZodSchema | undefined = undefined,
   TSchemaOut extends z.ZodSchema | undefined = undefined,
   TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
+  TMetrics extends Record<string, Metric> = Record<string, Metric>,
 > extends IAction<string, TSchemaIn, TSchemaOut, TContext, ToolExecutionOptions> {
   description: string;
   execute?: (
@@ -64,52 +65,7 @@ export interface ToolAction<
     options?: ToolExecutionOptions,
   ) => Promise<TSchemaOut extends z.ZodSchema ? z.infer<TSchemaOut> : unknown>;
   mastra?: Mastra;
+  evals?: TMetrics;
 }
 
-// Tool evaluation types
-export interface ToolEvaluationInput {
-  /** The input parameters passed to the tool */
-  input: any;
-  /** The expected output (for comparison metrics) */
-  expectedOutput?: any;
-  /** Additional context for evaluation */
-  context?: Record<string, any>;
-}
 
-export interface ToolEvaluationResult extends MetricResult {
-  /** The actual tool output */
-  output: any;
-  /** The input that was used */
-  input: any;
-  /** Tool execution time in milliseconds */
-  executionTime?: number;
-  /** Whether the tool execution succeeded */
-  success: boolean;
-  /** Error information if execution failed */
-  error?: string;
-}
-
-export interface ToolEvaluationOptions {
-  /** Run ID for tracking evaluations */
-  runId?: string;
-  /** Global run ID for grouping evaluations */
-  globalRunId?: string;
-  /** Test information */
-  testInfo?: {
-    testName?: string;
-    testPath?: string;
-  };
-  /** Additional options passed to tool execution */
-  toolOptions?: ToolExecutionOptions;
-}
-
-/** Function type for evaluating tool performance */
-export type ToolEvaluationFunction<
-  TSchemaIn extends z.ZodSchema | undefined = undefined,
-  TSchemaOut extends z.ZodSchema | undefined = undefined,
-  TContext extends ToolExecutionContext<TSchemaIn> = ToolExecutionContext<TSchemaIn>,
-> = (
-  input: ToolEvaluationInput,
-  metric: Metric,
-  options?: ToolEvaluationOptions,
-) => Promise<ToolEvaluationResult>;
