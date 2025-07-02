@@ -72,17 +72,19 @@ export type VectorQueryToolOptions = {
 export type GraphRagToolOptions = {
   id?: string;
   description?: string;
-  indexName: string;
-  vectorStoreName: string;
-  model: EmbeddingModel<string>;
-  enableFilter?: boolean;
-  includeSources?: boolean;
-  graphOptions?: {
+  indexName: DynamicArgument<string>;
+  vectorStoreName: DynamicArgument<string>;
+  model: DynamicArgument<EmbeddingModel<string>>;
+  enableFilter?: DynamicArgument<boolean>;
+  includeSources?: DynamicArgument<boolean>;
+  graphOptions?: DynamicArgument<{
     dimension?: number;
     randomWalkSteps?: number;
     restartProb?: number;
     threshold?: number;
-  };
+  }>;
+  /** Database-specific configuration options */
+  databaseConfig?: DynamicArgument<DatabaseConfig>;
 };
 
 /**
