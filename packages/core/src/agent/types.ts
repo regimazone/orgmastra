@@ -25,6 +25,7 @@ import type { RuntimeContext } from '../runtime-context';
 import type { ToolAction, VercelTool } from '../tools';
 import type { CompositeVoice } from '../voice';
 import type { Workflow } from '../workflows';
+import type { SamplingConfig } from '../eval/sampling';
 
 export type { MastraMessageV2, MastraMessageContentV2, MessageList } from './message-list/index.ts';
 export type { Message as AiMessageType } from 'ai';
@@ -51,11 +52,9 @@ export interface AgentConfig<
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
   defaultStreamOptions?: DynamicArgument<AgentStreamOptions>;
   mastra?: Mastra;
-  evals?: TMetrics;
+  evals?: DynamicArgument<TMetrics | { sampling: SamplingConfig; evals: TMetrics }>;
   memory?: MastraMemory;
   voice?: CompositeVoice;
-  /** @deprecated This property is deprecated. Use evals instead to add evaluation metrics. */
-  metrics?: TMetrics;
 }
 
 export type AgentMemoryOption = {

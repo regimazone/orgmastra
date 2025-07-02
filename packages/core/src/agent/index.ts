@@ -44,6 +44,7 @@ import type {
   DynamicArgument,
   AgentMemoryOption,
 } from './types';
+import type { SamplingConfig } from '../eval/sampling';
 
 export { MessageList };
 export * from './types';
@@ -108,9 +109,7 @@ export class Agent<
   #defaultGenerateOptions: DynamicArgument<AgentGenerateOptions>;
   #defaultStreamOptions: DynamicArgument<AgentStreamOptions>;
   #tools: DynamicArgument<TTools>;
-  /** @deprecated This property is deprecated. Use evals instead. */
-  metrics: TMetrics;
-  evals: TMetrics;
+  #evals: DynamicArgument<TMetrics | { sampling: SamplingConfig; evals: TMetrics }>;
   #voice: CompositeVoice;
 
   constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
@@ -148,8 +147,7 @@ export class Agent<
 
     this.#tools = config.tools || ({} as TTools);
 
-    this.metrics = {} as TMetrics;
-    this.evals = {} as TMetrics;
+    this.#evals = config.evals || ({} as TMetrics | { sampling: SamplingConfig; evals: TMetrics });
 
     if (config.mastra) {
       this.__registerMastra(config.mastra);
@@ -157,16 +155,6 @@ export class Agent<
         telemetry: config.mastra.getTelemetry(),
         logger: config.mastra.getLogger(),
       });
-    }
-
-    if (config.metrics) {
-      this.logger.warn('The metrics property is deprecated. Please use evals instead to add evaluation metrics.');
-      this.metrics = config.metrics;
-      this.evals = config.metrics;
-    }
-
-    if (config.evals) {
-      this.evals = config.evals;
     }
 
     if (config.memory) {
@@ -352,6 +340,57 @@ export class Agent<
             agentName: this.name,
           },
           text: `[Agent:${this.name}] - Function-based default stream options returned empty value`,
+        });
+        this.logger.trackException(mastraError);
+        this.logger.error(mastraError.toString());
+        throw mastraError;
+      }
+
+      return options;
+    });
+  }
+
+  get evals() {
+    this.logger.warn('The evals property is deprecated. Please use getEvals() instead.');
+
+    if (typeof this.#evals === 'function') {
+      const mastraError = new MastraError({
+        id: 'AGENT_GET_EVALS_FUNCTION_INCOMPATIBLE_WITH_EVALS_FUNCTION_TYPE',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        details: {
+          agentName: this.name,
+        },
+        text: 'Evals are not compatible when used as a function. Please use getEvals() instead.',
+      });
+      this.logger.trackException(mastraError);
+      this.logger.error(mastraError.toString());
+      throw mastraError;
+    }
+
+    return this.#evals;
+  }
+
+  public getEvals({ runtimeContext = new RuntimeContext() }: { runtimeContext?: RuntimeContext } = {}):
+    | TMetrics
+    | { sampling: SamplingConfig; evals: TMetrics }
+    | Promise<TMetrics | { sampling: SamplingConfig; evals: TMetrics }> {
+    if (typeof this.#evals !== 'function') {
+      return this.#evals;
+    }
+
+    const result = this.#evals({ runtimeContext });
+
+    return resolveMaybePromise(result, options => {
+      if (!options) {
+        const mastraError = new MastraError({
+          id: 'AGENT_GET_EVALS_FUNCTION_EMPTY_RETURN',
+          domain: ErrorDomain.AGENT,
+          category: ErrorCategory.USER,
+          details: {
+            agentName: this.name,
+          },
+          text: `[Agent:${this.name}] - Function-based evals returned empty value`,
         });
         this.logger.trackException(mastraError);
         this.logger.error(mastraError.toString());
