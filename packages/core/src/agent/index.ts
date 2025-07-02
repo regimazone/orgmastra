@@ -1498,13 +1498,13 @@ export class Agent<
           }
         }
 
-        if (Object.keys(this.evals || {}).length > 0) {
+        if (Object.keys(this.getEvals() || {}).length > 0) {
           const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
           const input = userInputMessages
             .map(message => (typeof message.content === 'string' ? message.content : ''))
             .join('\n');
           const runIdToUse = runId || crypto.randomUUID();
-          for (const metric of Object.values(this.evals || {})) {
+          for (const metric of Object.values(this.getEvals() || {})) {
             executeHook(AvailableHooks.ON_GENERATION, {
               input,
               output: outputText,
