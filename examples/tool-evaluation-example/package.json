@@ -1,0 +1,25 @@
+{
+  "name": "tool-evaluation-example",
+  "version": "1.0.0",
+  "description": "Example demonstrating tool evaluation in @mastra/core",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "eval:basic": "tsx src/basic-evaluation.ts",
+    "eval:batch": "tsx src/batch-evaluation.ts",
+    "eval:custom": "tsx src/custom-metrics.ts",
+    "eval:benchmark": "tsx src/benchmark.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^0.0.66",
+    "@mastra/core": "workspace:*",
+    "@mastra/evals": "workspace:*",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.8.3"
+  }
+}
