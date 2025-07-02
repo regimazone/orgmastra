@@ -182,7 +182,6 @@ export class BenchmarkVectorStore extends MastraVector {
 
     const content = await readFile(filePath, 'utf-8');
     const data = JSON.parse(content);
-    console.log(`Loading vector data ${filePath}`);
 
     // Clear existing data
     for (const db of this.indexes.values()) {
@@ -195,7 +194,6 @@ export class BenchmarkVectorStore extends MastraVector {
     // Restore data
     for (const [indexName, indexData] of Object.entries(data)) {
       const { config, documents } = indexData as any;
-      console.log(`loading index ${indexName}, documents ${documents.length}`);
 
       // Create new index
       const db = new VectorDB();

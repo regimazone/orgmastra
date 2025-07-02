@@ -100,20 +100,20 @@ export class RunCommand {
     for (let i = 0; i < questionsToProcess.length; i += concurrency) {
       const batch = questionsToProcess.slice(i, i + concurrency);
       
-      // Show batch info
+      // Update spinner with batch info
       questionSpinner.text = `Processing batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(questionsToProcess.length / concurrency)} (${batch.length} questions)`;
 
       const batchResults = await Promise.all(
         batch.map(async (meta) => {
-          const result = await this.evaluateQuestion(meta, preparedDir, modelProvider, options);
+          const result = await this.evaluateQuestion(meta, preparedDir, modelProvider, options, questionSpinner);
           completedCount++;
           
-          // Show progress after each question completes
+          // Update spinner with progress
           const elapsed = Math.round((Date.now() - startTime) / 1000);
-          const rate = completedCount / elapsed;
-          const remaining = Math.round((questionsToProcess.length - completedCount) / rate);
+          const rate = elapsed > 0 ? completedCount / elapsed : 0;
+          const remaining = rate > 0 ? Math.round((questionsToProcess.length - completedCount) / rate) : 0;
           
-          questionSpinner.text = `Evaluating questions... ${completedCount}/${questionsToProcess.length} (${Math.round(rate * 60)} q/min, ~${remaining}s remaining)`;
+          questionSpinner.text = `Evaluated ${completedCount}/${questionsToProcess.length} questions (${Math.round(rate * 60)} q/min, ~${remaining}s remaining)`;
           
           return result;
         }),
@@ -141,12 +141,14 @@ export class RunCommand {
     preparedDir: string,
     modelProvider: any,
     options: RunOptions,
+    spinner?: ora.Ora,
   ): Promise<EvaluationResult> {
     const questionStart = Date.now();
     
-    // Log question details
-    console.log(chalk.blue(`\n▶ Question ${meta.questionId} (${meta.questionType})`));
-    console.log(chalk.gray(`  "${meta.question}"`));
+    // Update spinner with current question
+    if (spinner) {
+      spinner.text = `Evaluating question ${meta.questionId} (${meta.questionType}): "${meta.question.substring(0, 50)}${meta.question.length > 50 ? '...' : ''}"`;
+    }
     
     // Load the prepared storage and vector store
     const questionDir = join(preparedDir, meta.questionId);
@@ -160,7 +162,9 @@ export class RunCommand {
     const vectorPath = join(questionDir, 'vector.json');
     if (existsSync(vectorPath)) {
       await benchmarkVectorStore.hydrate(vectorPath);
-      console.log(chalk.gray(`  Loaded vector embeddings`));
+      if (spinner) {
+        spinner.text = `Loading vector embeddings for ${meta.questionId}...`;
+      }
     }
 
     // Get memory configuration
@@ -188,16 +192,15 @@ Be specific rather than generic when the user has expressed clear preferences in
     // Create a fresh thread for the evaluation question
     const evalThreadId = `eval_${meta.questionId}_${Date.now()}`;
     
-    console.log(chalk.gray(`  Sessions: ${meta.threadIds.length}, Evidence in: ${meta.evidenceSessionIds?.join(', ') || 'unknown'}`));
-    console.log(chalk.gray(`  Querying agent with memory (${options.memoryConfig})...`));
+    if (spinner) {
+      spinner.text = `Querying agent for ${meta.questionId} (${meta.threadIds.length} sessions, ${options.memoryConfig})...`;
+    }
 
     // Ask the question and get response
     const response = await agent.generate(meta.question, {
       threadId: evalThreadId,
       resourceId: meta.resourceId,
     });
-    
-    console.log(chalk.gray(`  Agent response: "${response.text.substring(0, 100)}${response.text.length > 100 ? '...' : ''}"`));
 
     // Evaluate the response using Mastra metric
     const metric = new LongMemEvalMetric({
@@ -214,10 +217,22 @@ Be specific rather than generic when the user has expressed clear preferences in
     const isCorrect = result.score === 1;
     
     const elapsed = ((Date.now() - questionStart) / 1000).toFixed(1);
-    console.log(chalk[isCorrect ? 'green' : 'red'](`  ${isCorrect ? '✓' : '✗'} ${isCorrect ? 'Correct' : 'Incorrect'} (${elapsed}s)`));
     
-    if (!isCorrect) {
-      console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
+    // Log the result above the spinner
+    if (spinner) {
+      spinner.clear();
+      console.log(
+        chalk.blue(`▶ ${meta.questionId}`),
+        chalk.gray(`(${meta.questionType})`),
+        chalk[isCorrect ? 'green' : 'red'](`${isCorrect ? '✓' : '✗'}`),
+        chalk.gray(`${elapsed}s`)
+      );
+      if (!isCorrect) {
+        console.log(chalk.gray(`  Q: "${meta.question}"`));
+        console.log(chalk.gray(`  A: "${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}"`));
+        console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
+      }
+      spinner.render();
     }
 
     return {

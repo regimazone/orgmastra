@@ -493,7 +493,6 @@ export class BenchmarkStore extends MastraStorage {
 
     // Convert arrays back to Maps
     for (const [tableName, tableData] of Object.entries(data)) {
-      console.log(`loading ${tableName} -> ${(tableData as []).length} records`);
       this.data[tableName as TABLE_NAMES] = new Map(tableData as any);
     }
   }
