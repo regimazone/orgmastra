@@ -1,6 +1,6 @@
 'use client';
 
-import { Network, Globe, ArrowLeftFromLine, Book } from 'lucide-react';
+import { Network, Globe, ArrowLeftFromLine, Book, TestTube } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 import {
@@ -119,6 +119,11 @@ const links = [
     name: 'Agents',
     url: '/agents',
     icon: AgentIcon,
+  },
+  {
+    name: 'Evals',
+    url: '/evals',
+    icon: TestTube,
   },
   {
     name: 'Networks',

@@ -10,6 +10,7 @@ import Agents from './pages/agents';
 import Agent from './pages/agents/agent';
 import AgentEvalsPage from './pages/agents/agent/evals';
 import AgentTracesPage from './pages/agents/agent/traces';
+import Evals from './pages/evals';
 import AgentTool from './pages/tools/agent-tool';
 import Tool from './pages/tools/tool';
 import Workflows from './pages/workflows';
@@ -86,6 +87,7 @@ function App() {
                 }
               >
                 <Route path="/agents" element={<Agents />} />
+                <Route path="/evals" element={<Evals />} />
                 <Route path="/agents/:agentId" element={<Navigate to="/agents/:agentId/chat" />} />
                 <Route
                   path="/agents/:agentId"
