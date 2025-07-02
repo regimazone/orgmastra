@@ -37,6 +37,14 @@ export type MastraLanguageModel = LanguageModelV1;
 
 export type DynamicArgument<T> = T | (({ runtimeContext }: { runtimeContext: RuntimeContext }) => Promise<T> | T);
 
+export type SamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
+
+export type ScorerMetric = {
+  scorer: Metric;
+  sampling?: SamplingConfig;
+};
+
+export type Scorers = Record<string, ScorerMetric>;
 export interface AgentConfig<
   TAgentId extends string = string,
   TTools extends ToolsInput = ToolsInput,
@@ -52,6 +60,7 @@ export interface AgentConfig<
   defaultStreamOptions?: DynamicArgument<AgentStreamOptions>;
   mastra?: Mastra;
   evals?: TMetrics;
+  scorers?: DynamicArgument<Scorers>;
   memory?: MastraMemory;
   voice?: CompositeVoice;
   /** @deprecated This property is deprecated. Use evals instead to add evaluation metrics. */

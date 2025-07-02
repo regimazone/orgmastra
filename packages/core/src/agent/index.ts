@@ -43,6 +43,7 @@ import type {
   ToolsInput,
   DynamicArgument,
   AgentMemoryOption,
+  Scorers,
 } from './types';
 
 export { MessageList };
@@ -108,9 +109,8 @@ export class Agent<
   #defaultGenerateOptions: DynamicArgument<AgentGenerateOptions>;
   #defaultStreamOptions: DynamicArgument<AgentStreamOptions>;
   #tools: DynamicArgument<TTools>;
-  /** @deprecated This property is deprecated. Use evals instead. */
-  metrics: TMetrics;
   evals: TMetrics;
+  #scorers: DynamicArgument<Scorers>;
   #voice: CompositeVoice;
 
   constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
@@ -148,7 +148,6 @@ export class Agent<
 
     this.#tools = config.tools || ({} as TTools);
 
-    this.metrics = {} as TMetrics;
     this.evals = {} as TMetrics;
 
     if (config.mastra) {
@@ -159,15 +158,11 @@ export class Agent<
       });
     }
 
-    if (config.metrics) {
-      this.logger.warn('The metrics property is deprecated. Please use evals instead to add evaluation metrics.');
-      this.metrics = config.metrics;
-      this.evals = config.metrics;
-    }
-
     if (config.evals) {
       this.evals = config.evals;
     }
+
+    this.#scorers = config.scorers || ({} as Scorers);
 
     if (config.memory) {
       this.#memory = config.memory;
@@ -359,6 +354,34 @@ export class Agent<
       }
 
       return options;
+    });
+  }
+
+  async getScorers({
+    runtimeContext = new RuntimeContext(),
+  }: { runtimeContext?: RuntimeContext } = {}): Promise<Scorers> {
+    if (typeof this.#scorers !== 'function') {
+      return this.#scorers;
+    }
+
+    const result = this.#scorers({ runtimeContext });
+    return resolveMaybePromise(result, scorers => {
+      if (!scorers) {
+        const mastraError = new MastraError({
+          id: 'AGENT_GET_SCORERS_FUNCTION_EMPTY_RETURN',
+          domain: ErrorDomain.AGENT,
+          category: ErrorCategory.USER,
+          details: {
+            agentName: this.name,
+          },
+          text: `[Agent:${this.name}] - Function-based scorers returned empty value`,
+        });
+        this.logger.trackException(mastraError);
+        this.logger.error(mastraError.toString());
+        throw mastraError;
+      }
+
+      return scorers;
     });
   }
 
@@ -1130,7 +1153,7 @@ export class Agent<
     runtimeContext,
     generateMessageId,
   }: {
-    instructions?: string;
+    instructions: string;
     toolsets?: ToolsetsInput;
     clientTools?: ToolsInput;
     resourceId?: string;
@@ -1459,25 +1482,94 @@ export class Agent<
           }
         }
 
-        if (Object.keys(this.evals || {}).length > 0) {
-          const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
-          const input = userInputMessages
-            .map(message => (typeof message.content === 'string' ? message.content : ''))
-            .join('\n');
-          const runIdToUse = runId || crypto.randomUUID();
-          for (const metric of Object.values(this.evals || {})) {
-            executeHook(AvailableHooks.ON_GENERATION, {
-              input,
-              output: outputText,
-              runId: runIdToUse,
-              metric,
-              agentName: this.name,
-              instructions: instructions || this.instructions,
-            });
-          }
-        }
+        await this.#runScorers({
+          messageList,
+          runId,
+          outputText,
+          instructions,
+          runtimeContext,
+        });
       },
     };
+  }
+
+  async #runScorers({
+    messageList,
+    runId,
+    outputText,
+    instructions,
+    runtimeContext,
+  }: {
+    messageList: MessageList;
+    runId: string;
+    outputText: string;
+    instructions: string;
+    runtimeContext: RuntimeContext;
+  }) {
+    const agentName = this.name;
+    const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
+    const input = userInputMessages
+      .map(message => (typeof message.content === 'string' ? message.content : ''))
+      .join('\n');
+    const runIdToUse = runId || crypto.randomUUID();
+
+    if (Object.keys(this.evals || {}).length > 0) {
+      for (const metric of Object.values(this.evals || {})) {
+        executeHook(AvailableHooks.ON_GENERATION, {
+          input,
+          output: outputText,
+          runId: runIdToUse,
+          metric,
+          agentName,
+          instructions: instructions,
+        });
+      }
+    }
+
+    const scorers = await this.getScorers({ runtimeContext });
+
+    if (Object.keys(scorers || {}).length > 0) {
+      for (const [id, scorerObject] of Object.entries(scorers)) {
+        let shouldExecute = false;
+
+        if (!scorerObject?.sampling || scorerObject?.sampling?.type === 'none') {
+          shouldExecute = true;
+        }
+
+        if (scorerObject?.sampling?.type) {
+          switch (scorerObject?.sampling?.type) {
+            case 'ratio':
+              shouldExecute = Math.random() < scorerObject?.sampling?.rate;
+              break;
+            default:
+              shouldExecute = true;
+          }
+        }
+
+        if (!shouldExecute) {
+          return;
+        }
+
+        this.logger.debug(`[Agent:${this.name}] - Running scorer ${id}`, {
+          runId: runIdToUse,
+          scorerId: id,
+          input,
+          output: outputText,
+          instructions,
+          runtimeContext,
+          agentName,
+        });
+
+        executeHook(AvailableHooks.ON_GENERATION, {
+          input,
+          output: outputText,
+          runId: runIdToUse,
+          metric: scorerObject.scorer,
+          agentName,
+          instructions: instructions,
+        });
+      }
+    }
   }
 
   async generate<
