@@ -26,11 +26,6 @@ async function resolveOption<T>(
     return runtimeValue as T;
   }
 
-  // If no runtime value, check if option is provided
-  if (option === undefined) {
-    return defaultValue;
-  }
-
   // Handle function options
   if (typeof option === 'function') {
     const fn = option as (params: { runtimeContext: RuntimeContext }) => Promise<T> | T;
@@ -38,7 +33,7 @@ async function resolveOption<T>(
   }
 
   // Return static option value
-  return option;
+  return option ?? defaultValue;
 }
 
 export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
