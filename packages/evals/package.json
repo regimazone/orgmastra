@@ -81,6 +81,7 @@
     "@microsoft/api-extractor": "^7.52.8",
     "@types/difflib": "^0.2.7",
     "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.0.0",
     "@types/sentiment": "^5.0.4",
     "@types/string-similarity": "^4.0.2",
     "ai": "^4.3.16",

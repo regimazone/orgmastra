@@ -3,11 +3,33 @@ import type { Metric } from '@mastra/core';
 import type { Agent } from '@mastra/core/agent';
 
 import { GLOBAL_RUN_ID_ENV_KEY } from './constants';
+import { getSampler } from './sampling';
 
 export async function evaluate<T extends Agent>(agent: T, input: Parameters<T['generate']>[0], metric: Metric) {
   const testInfo = await getCurrentTestInfo();
   let globalRunId = process.env[GLOBAL_RUN_ID_ENV_KEY];
   const runId = crypto.randomUUID();
+  
+  // Check if we should sample this evaluation
+  const sampler = getSampler();
+  if (sampler) {
+    const shouldSample = sampler.shouldSample({
+      agentName: agent.name,
+      runId,
+      input: String(input),
+    });
+    
+    if (!shouldSample) {
+      // Return a mock result indicating the evaluation was skipped
+      return {
+        score: null,
+        reason: 'Evaluation skipped due to sampling configuration',
+        output: '',
+        skipped: true,
+      };
+    }
+  }
+  
   const agentOutput = await agent.generate(input, {
     runId,
   });

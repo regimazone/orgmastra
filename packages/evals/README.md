@@ -1,6 +1,6 @@
 # @mastra/evals
 
-A comprehensive evaluation framework for assessing AI model outputs across multiple dimensions.
+A comprehensive evaluation framework for AI agents and language models.
 
 ## Installation
 
@@ -10,149 +10,241 @@ npm install @mastra/evals
 
 ## Overview
 
-`@mastra/evals` provides a suite of evaluation metrics for assessing AI model outputs. The package includes both LLM-based and NLP-based metrics, enabling both automated and model-assisted evaluation of AI responses.
+`@mastra/evals` provides a suite of evaluation metrics for assessing AI model outputs. The package includes both LLM-based and NLP-based metrics, enabling both automated and model-assisted evaluation of your AI systems.
 
 ## Features
 
-### LLM-Based Metrics
+- **LLM-based metrics**: Use language models to evaluate outputs (hallucination, bias, faithfulness, etc.)
+- **NLP-based metrics**: Traditional text analysis metrics (similarity, completeness, etc.)
+- **Automatic evaluation**: Integrate with agents for automatic evaluation on generation
+- **Sampling support**: Control evaluation frequency to manage costs and performance
+- **Storage integration**: Store evaluation results for analysis and monitoring
 
-1. **Answer Relevancy**
-   - Evaluates how well an answer addresses the input question
-   - Considers uncertainty weighting for more nuanced scoring
-   - Returns detailed reasoning for scores
+## Sampling
 
-2. **Bias Detection**
-   - Identifies potential biases in model outputs
-   - Analyzes opinions and statements for bias indicators
-   - Provides explanations for detected biases
-   - Configurable scoring scale
+The evals package now supports sampling to control when evaluations are executed. This is particularly useful in production environments where you want to evaluate only a subset of requests to manage costs and performance.
 
-3. **Context Precision & Relevancy**
-   - Assesses how well responses use provided context
-   - Evaluates accuracy of context usage
-   - Measures relevance of context to the response
-   - Analyzes context positioning in responses
+### Sampling Strategies
 
-4. **Faithfulness**
-   - Verifies that responses are faithful to provided context
-   - Detects hallucinations or fabricated information
-   - Evaluates claims against provided context
-   - Provides detailed analysis of faithfulness breaches
-
-5. **Prompt Alignment**
-   - Measures how well responses follow given instructions
-   - Evaluates adherence to multiple instruction criteria
-   - Provides per-instruction scoring
-   - Supports custom instruction sets
-
-6. **Toxicity**
-   - Detects toxic or harmful content in responses
-   - Provides detailed reasoning for toxicity verdicts
-   - Configurable scoring thresholds
-   - Considers both input and output context
-
-### NLP-Based Metrics
-
-1. **Completeness**
-   - Analyzes structural completeness of responses
-   - Identifies missing elements from input requirements
-   - Provides detailed element coverage analysis
-   - Tracks input-output element ratios
-
-2. **Content Similarity**
-   - Measures text similarity between inputs and outputs
-   - Configurable for case and whitespace sensitivity
-   - Returns normalized similarity scores
-   - Uses string comparison algorithms for accuracy
-
-3. **Keyword Coverage**
-   - Tracks presence of key terms from input in output
-   - Provides detailed keyword matching statistics
-   - Calculates coverage ratios
-   - Useful for ensuring comprehensive responses
-
-## Usage
-
-### Basic Example
+#### 1. Ratio-based Sampling
+Randomly sample a percentage of requests:
 
 ```typescript
+import { configureSampling } from '@mastra/evals';
+
+configureSampling({
+  strategy: { type: 'ratio', probability: 0.1 } // 10% of requests
+});
+```
+
+#### 2. Count-based Sampling
+Sample every Nth request:
+
+```typescript
+configureSampling({
+  strategy: { type: 'count', every: 10 } // Every 10th request
+});
+```
+
+#### 3. Time-based Sampling
+Sample based on time intervals:
+
+```typescript
+configureSampling({
+  strategy: { type: 'time', intervalMs: 60000 } // Once per minute
+});
+```
+
+#### 4. Custom Sampling
+Use a custom function to determine sampling:
+
+```typescript
+configureSampling({
+  strategy: { type: 'ratio', probability: 0.5 },
+  shouldSample: ({ agentName, input }) => {
+    // Only sample requests for specific agents or inputs
+    return agentName === 'critical-agent' || input.includes('important');
+  }
+});
+```
+
+#### 5. No Sampling
+Evaluate every request (default behavior):
+
+```typescript
+configureSampling({
+  strategy: { type: 'none' }
+});
+```
+
+### Usage with Agents
+
+Once sampling is configured, it automatically applies to agent evaluations:
+
+```typescript
+import { configureSampling, attachListeners } from '@mastra/evals';
 import { ContentSimilarityMetric, ToxicityMetric } from '@mastra/evals';
 
-// Initialize metrics
-const similarityMetric = new ContentSimilarityMetric({
-  ignoreCase: true,
-  ignoreWhitespace: true,
+// Configure sampling
+configureSampling({
+  strategy: { type: 'ratio', probability: 0.1 } // 10% sampling
 });
 
-const toxicityMetric = new ToxicityMetric({
+// Set up evaluation listeners
+await attachListeners();
+
+// Create agent with evaluations
+const agent = new Agent({
+  name: 'my-agent',
+  instructions: 'You are a helpful assistant',
   model: openai('gpt-4'),
-  scale: 1, // Optional: adjust scoring scale
+  evals: {
+    similarity: new ContentSimilarityMetric(),
+    toxicity: new ToxicityMetric(),
+  }
 });
 
-// Evaluate outputs
-const input = 'What is the capital of France?';
-const output = 'Paris is the capital of France.';
-
-const similarityResult = await similarityMetric.measure(input, output);
-const toxicityResult = await toxicityMetric.measure(input, output);
-
-console.log('Similarity Score:', similarityResult.score);
-console.log('Toxicity Score:', toxicityResult.score);
+// Evaluations will now be sampled according to the configuration
+const response = await agent.generate('Hello, how are you?');
 ```
 
-### Context-Aware Evaluation
+### Manual Evaluation with Sampling
+
+The `evaluate` function also respects sampling configuration:
 
 ```typescript
-import { FaithfulnessMetric } from '@mastra/evals';
+import { evaluate, configureSampling } from '@mastra/evals';
+import { FaithfulnessMetric } from '@mastra/evals/llm';
 
-// Initialize with context
-const faithfulnessMetric = new FaithfulnessMetric({
-  model: openai('gpt-4'),
-  context: ['Paris is the capital of France', 'Paris has a population of 2.2 million'],
-  scale: 1,
+configureSampling({
+  strategy: { type: 'count', every: 5 }
 });
 
-// Evaluate response against context
-const result = await faithfulnessMetric.measure(
-  'Tell me about Paris',
-  'Paris is the capital of France with 2.2 million residents',
-);
+const metric = new FaithfulnessMetric();
 
-console.log('Faithfulness Score:', result.score);
-console.log('Reasoning:', result.reason);
+// This will be sampled according to the configuration
+const result = await evaluate(agent, "What is the capital of France?", metric);
+
+if (result.skipped) {
+  console.log('Evaluation was skipped due to sampling');
+} else {
+  console.log('Evaluation result:', result);
+}
 ```
 
-## Metric Results
+### Sampling Statistics
 
-Each metric returns a standardized result object containing:
+You can get statistics about sampling behavior:
 
-- `score`: Normalized score (typically 0-1)
-- `info`: Detailed information about the evaluation
-- Additional metric-specific data (e.g., matched keywords, missing elements)
+```typescript
+import { getSampler } from '@mastra/evals';
 
-Some metrics also provide:
+const sampler = getSampler();
+if (sampler) {
+  const stats = sampler.getStats('my-agent');
+  console.log(`Total requests: ${stats.totalRequests}`);
+  console.log(`Last sample time: ${stats.lastSampleTime}`);
+}
+```
 
-- `reason`: Detailed explanation of the score
-- `verdicts`: Individual judgments that contributed to the final score
+### Resetting Sampling State
 
-## Telemetry and Logging
+You can reset sampling counters and state:
 
-The package includes built-in telemetry and logging capabilities:
+```typescript
+import { getSampler } from '@mastra/evals';
 
-- Automatic evaluation tracking through Mastra Storage
-- Integration with OpenTelemetry for performance monitoring
-- Detailed evaluation traces for debugging
+const sampler = getSampler();
+if (sampler) {
+  // Reset for specific agent
+  sampler.reset('my-agent');
+  
+  // Reset for all agents
+  sampler.reset();
+}
+```
+
+## Basic Usage
+
+### Setting up evaluations
 
 ```typescript
 import { attachListeners } from '@mastra/evals';
 
-// Enable basic evaluation tracking
 await attachListeners();
+```
 
-// Store evals in Mastra Storage (if storage is enabled)
+### Using with Mastra
+
+```typescript
+import { attachListeners } from '@mastra/evals';
+
 await attachListeners(mastra);
-// Note: When using in-memory storage, evaluations are isolated to the test process.
-// When using file storage, evaluations are persisted and can be queried later.
+```
+
+## Metrics
+
+### LLM-based Metrics
+
+```typescript
+import { SummarizationMetric } from '@mastra/evals/llm';
+
+const metric = new SummarizationMetric();
+const result = await metric.measure(input, output);
+```
+
+### NLP-based Metrics
+
+```typescript
+import { ContentSimilarityMetric, ToneConsistencyMetric } from '@mastra/evals/nlp';
+
+const similarityMetric = new ContentSimilarityMetric();
+const toneMetric = new ToneConsistencyMetric();
+```
+
+## Running Evaluations
+
+### Manual Evaluation
+
+```typescript
+import { evaluate } from '@mastra/evals';
+import { ContentSimilarityMetric } from '@mastra/evals/nlp';
+
+const metric = new ContentSimilarityMetric();
+const result = await evaluate(myAgent, "Hello, world!", metric);
+```
+
+### Global Setup for Testing
+
+```typescript
+import { globalSetup } from '@mastra/evals';
+
+await globalSetup();
+```
+
+### Attaching Listeners
+
+```typescript
+import { attachListeners } from '@mastra/evals';
+
+await attachListeners();
+// or with mastra instance
+await attachListeners(mastra);
+```
+
+## Advanced Usage
+
+### Custom Evaluation Metrics
+
+```typescript
+import { MastraAgentJudge } from "@mastra/evals/judge";
+
+const judge = new MastraAgentJudge({
+  model: openai('gpt-4'),
+  instructions: "Evaluate the response quality on a scale of 1-10"
+});
+
+const result = await judge.measure(input, output);
 ```
 
 ## Environment Variables
