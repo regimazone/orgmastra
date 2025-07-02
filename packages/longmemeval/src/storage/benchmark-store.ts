@@ -186,11 +186,10 @@ export class BenchmarkStore extends MastraStorage {
   ): Promise<MastraMessageV1[] | MastraMessageV2[]> {
     const { threadId, resourceId, selectBy, format = 'v1' } = args;
     let messages: any[] = [];
+    const includedMessageIds = new Set<string>();
 
-    // Handle selectBy.include for cross-thread queries (resource scope support)
+    // First, handle selectBy.include for cross-thread queries (resource scope support)
     if (selectBy?.include?.length) {
-      const includedMessages = new Set<string>();
-
       for (const inc of selectBy.include) {
         // Use the included threadId if provided (resource scope), otherwise use main threadId
         const queryThreadId = inc.threadId || threadId;
@@ -207,33 +206,43 @@ export class BenchmarkStore extends MastraStorage {
           const endIdx = Math.min(threadMessages.length, targetIndex + (inc.withNextMessages || 0) + 1);
 
           for (let i = startIdx; i < endIdx; i++) {
-            includedMessages.add(threadMessages[i].id);
+            includedMessageIds.add(threadMessages[i].id);
           }
         }
       }
+    }
 
-      // Get all included messages
-      messages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => includedMessages.has(msg.id));
-    } else {
-      // Standard query by threadId/resourceId
-      messages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => {
+    // Get base messages for the thread
+    let baseMessages: any[] = [];
+    if (threadId || resourceId) {
+      baseMessages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => {
         if (threadId && msg.threadId !== threadId) return false;
         if (resourceId && msg.resourceId !== resourceId) return false;
         return true;
       });
+
+      // Apply selectBy.last to base messages only
+      if (selectBy?.last) {
+        // Sort first to ensure we get the actual last messages
+        baseMessages.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        baseMessages = baseMessages.slice(-selectBy.last);
+      }
     }
 
-    // Apply selectBy.last limit
-    if (selectBy?.last) {
-      messages = messages.slice(-selectBy.last);
-    }
+    // Combine base messages with included messages
+    const baseMessageIds = new Set(baseMessages.map((m: any) => m.id));
+    const allMessageIds = new Set([...baseMessageIds, ...includedMessageIds]);
+
+    // Get all unique messages
+    messages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => allMessageIds.has(msg.id));
 
     // Sort by createdAt
     messages.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     // Convert to requested format
     const list = new MessageList().add(messages, 'memory');
-    return format === 'v2' ? list.get.all.v2() : list.get.all.v1();
+    const data = format === 'v2' ? list.get.all.v2() : list.get.all.v1();
+    return data;
   }
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
@@ -506,4 +515,3 @@ export class BenchmarkStore extends MastraStorage {
     }
   }
 }
-

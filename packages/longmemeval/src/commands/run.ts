@@ -10,12 +10,7 @@ import { existsSync } from 'fs';
 import { DatasetLoader } from '../data/loader';
 import { BenchmarkStore, BenchmarkVectorStore } from '../storage';
 import { LongMemEvalMetric } from '../evaluation/longmemeval-metric';
-import type {
-  MemoryConfigOptions,
-  EvaluationResult,
-  BenchmarkMetrics,
-  QuestionType,
-} from '../data/types';
+import type { MemoryConfigOptions, EvaluationResult, BenchmarkMetrics, QuestionType } from '../data/types';
 
 export interface RunOptions {
   dataset: 'longmemeval_s' | 'longmemeval_m' | 'longmemeval_oracle';
@@ -25,6 +20,7 @@ export interface RunOptions {
   outputDir?: string;
   subset?: number;
   concurrency?: number;
+  questionId?: string;
 }
 
 interface PreparedQuestionMeta {
@@ -71,20 +67,51 @@ export class RunCommand {
     const questionDirs = await readdir(preparedDir);
     const preparedQuestions: PreparedQuestionMeta[] = [];
 
+    let skippedCount = 0;
     for (const questionDir of questionDirs) {
-      const metaPath = join(preparedDir, questionDir, 'meta.json');
+      const questionPath = join(preparedDir, questionDir);
+      const metaPath = join(questionPath, 'meta.json');
+      const progressPath = join(questionPath, 'progress.json');
+      
+      // Check if question has been prepared
       if (existsSync(metaPath)) {
+        // Check if there's an incomplete preparation in progress
+        if (existsSync(progressPath)) {
+          const progress = JSON.parse(await readFile(progressPath, 'utf-8'));
+          if (!progress.completed) {
+            skippedCount++;
+            continue; // Skip this question as it's still being prepared
+          }
+        }
+        
         const meta = JSON.parse(await readFile(metaPath, 'utf-8'));
         preparedQuestions.push(meta);
       }
     }
 
-    spinner.succeed(`Loaded ${preparedQuestions.length} prepared questions`);
+    spinner.succeed(`Loaded ${preparedQuestions.length} prepared questions${skippedCount > 0 ? ` (skipped ${skippedCount} incomplete)` : ''}`);
+    
+    if (skippedCount > 0) {
+      console.log(chalk.yellow(`\n⚠️  ${skippedCount} question${skippedCount > 1 ? 's' : ''} skipped due to incomplete preparation.`));
+      console.log(chalk.gray(`   Run 'prepare' command to complete preparation.\n`));
+    }
 
-    // Apply subset if requested
-    const questionsToProcess = options.subset ? preparedQuestions.slice(0, options.subset) : preparedQuestions;
+    // Filter by questionId if specified
+    let questionsToProcess = preparedQuestions;
+    if (options.questionId) {
+      questionsToProcess = preparedQuestions.filter(q => q.questionId === options.questionId);
+      if (questionsToProcess.length === 0) {
+        throw new Error(`Question with ID "${options.questionId}" not found in prepared data`);
+      }
+      console.log(chalk.yellow(`\nFocusing on question: ${options.questionId}\n`));
+    } else if (options.subset) {
+      // Apply subset if requested
+      questionsToProcess = preparedQuestions.slice(0, options.subset);
+    }
 
-    console.log(chalk.yellow(`\nEvaluating ${questionsToProcess.length} questions\n`));
+    console.log(
+      chalk.yellow(`\nEvaluating ${questionsToProcess.length} question${questionsToProcess.length !== 1 ? 's' : ''}\n`),
+    );
 
     // Get model provider
     const modelProvider = this.getModelProvider(options.model);
@@ -95,29 +122,87 @@ export class RunCommand {
     const questionSpinner = ora('Evaluating questions...').start();
 
     let completedCount = 0;
+    let inProgressCount = 0;
     const startTime = Date.now();
+    
+    // Track active evaluations
+    const activeEvaluations = new Map<number, { questionId: string; status: string }>();
+    
+    // Function to update progress display
+    let lastText = '';
+    const updateProgress = () => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      const rate = elapsed > 0 ? completedCount / elapsed : 0;
+      const remaining = rate > 0 ? Math.round((questionsToProcess.length - completedCount) / rate) : 0;
+      
+      let progressText = `Overall: ${completedCount}/${questionsToProcess.length} (${inProgressCount} in progress, ${Math.round(rate * 60)} q/min, ~${remaining}s remaining)`;
+      
+      if (activeEvaluations.size > 0 && concurrency > 1) {
+        progressText += '\n\nActive evaluations:';
+        activeEvaluations.forEach((info, index) => {
+          progressText += `\n  [${index + 1}] ${info.questionId} - ${info.status}`;
+        });
+      }
+      
+      if (lastText !== progressText) {
+        lastText = progressText;
+        questionSpinner.text = progressText;
+      }
+    };
 
     for (let i = 0; i < questionsToProcess.length; i += concurrency) {
       const batch = questionsToProcess.slice(i, i + concurrency);
-      
-      // Update spinner with batch info
-      questionSpinner.text = `Processing batch ${Math.floor(i / concurrency) + 1}/${Math.ceil(questionsToProcess.length / concurrency)} (${batch.length} questions)`;
+
+      // Set up periodic progress updates while batch is processing
+      const progressInterval = setInterval(updateProgress, 500); // Update every 500ms
 
       const batchResults = await Promise.all(
-        batch.map(async (meta) => {
-          const result = await this.evaluateQuestion(meta, preparedDir, modelProvider, options, questionSpinner);
+        batch.map(async (meta, batchIndex) => {
+          const slotIndex = batchIndex;
+          inProgressCount++;
+          activeEvaluations.set(slotIndex, { questionId: meta.questionId, status: 'Starting...' });
+          updateProgress();
+          
+          const result = await this.evaluateQuestion(
+            meta, 
+            preparedDir, 
+            modelProvider, 
+            options, 
+            concurrency > 1 ? { updateStatus: (status: string) => {
+              activeEvaluations.set(slotIndex, { questionId: meta.questionId, status });
+            }} : questionSpinner
+          );
+          
           completedCount++;
+          inProgressCount--;
+          activeEvaluations.delete(slotIndex);
           
-          // Update spinner with progress
-          const elapsed = Math.round((Date.now() - startTime) / 1000);
-          const rate = elapsed > 0 ? completedCount / elapsed : 0;
-          const remaining = rate > 0 ? Math.round((questionsToProcess.length - completedCount) / rate) : 0;
+          // Log result when running concurrently
+          if (concurrency > 1) {
+            questionSpinner.clear();
+            console.log(
+              chalk.blue(`▶ ${meta.questionId}`),
+              chalk.gray(`(${meta.questionType})`),
+              chalk[result.is_correct ? 'green' : 'red'](`${result.is_correct ? '✓' : '✗'}`),
+              chalk.gray(`${((Date.now() - startTime) / 1000).toFixed(1)}s`),
+            );
+            if (!result.is_correct) {
+              console.log(chalk.gray(`  Q: "${meta.question}"`));
+              console.log(chalk.gray(`  A: "${result.hypothesis}"`));
+              console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
+            }
+            questionSpinner.render();
+          }
           
-          questionSpinner.text = `Evaluated ${completedCount}/${questionsToProcess.length} questions (${Math.round(rate * 60)} q/min, ~${remaining}s remaining)`;
-          
+          updateProgress();
+
           return result;
         }),
       );
+      
+      // Clear the interval
+      clearInterval(progressInterval);
+      
       results.push(...batchResults);
     }
 
@@ -141,15 +226,21 @@ export class RunCommand {
     preparedDir: string,
     modelProvider: any,
     options: RunOptions,
-    spinner?: ora.Ora,
+    spinner?: ora.Ora | { updateStatus: (status: string) => void },
   ): Promise<EvaluationResult> {
     const questionStart = Date.now();
-    
-    // Update spinner with current question
-    if (spinner) {
-      spinner.text = `Evaluating question ${meta.questionId} (${meta.questionType}): "${meta.question.substring(0, 50)}${meta.question.length > 50 ? '...' : ''}"`;
-    }
-    
+
+    // Update status
+    const updateStatus = (status: string) => {
+      if (spinner && 'updateStatus' in spinner) {
+        spinner.updateStatus(status);
+      } else if (spinner && 'text' in spinner) {
+        spinner.text = status;
+      }
+    };
+
+    updateStatus(`Loading data for ${meta.questionId}...`);
+
     // Load the prepared storage and vector store
     const questionDir = join(preparedDir, meta.questionId);
     const benchmarkStore = new BenchmarkStore();
@@ -162,9 +253,7 @@ export class RunCommand {
     const vectorPath = join(questionDir, 'vector.json');
     if (existsSync(vectorPath)) {
       await benchmarkVectorStore.hydrate(vectorPath);
-      if (spinner) {
-        spinner.text = `Loading vector embeddings for ${meta.questionId}...`;
-      }
+      updateStatus(`Loading vector embeddings for ${meta.questionId}...`);
     }
 
     // Get memory configuration
@@ -191,10 +280,8 @@ Be specific rather than generic when the user has expressed clear preferences in
 
     // Create a fresh thread for the evaluation question
     const evalThreadId = `eval_${meta.questionId}_${Date.now()}`;
-    
-    if (spinner) {
-      spinner.text = `Querying agent for ${meta.questionId} (${meta.threadIds.length} sessions, ${options.memoryConfig})...`;
-    }
+
+    updateStatus(`Querying agent for ${meta.questionId} (${meta.threadIds.length} sessions, ${options.memoryConfig})...`);
 
     // Ask the question and get response
     const response = await agent.generate(meta.question, {
@@ -215,21 +302,33 @@ Be specific rather than generic when the user has expressed clear preferences in
 
     const result = await metric.measure(input, response.text);
     const isCorrect = result.score === 1;
-    
+
     const elapsed = ((Date.now() - questionStart) / 1000).toFixed(1);
+
+    // Store result info for logging after batch completes
+    const resultInfo = {
+      questionId: meta.questionId,
+      questionType: meta.questionType,
+      isCorrect,
+      elapsed,
+      question: meta.question,
+      response: response.text,
+      expected: meta.answer,
+    };
     
-    // Log the result above the spinner
-    if (spinner) {
+    // If running with single spinner, log immediately
+    const isOraSpinner = spinner && 'clear' in spinner;
+    if (isOraSpinner) {
       spinner.clear();
       console.log(
         chalk.blue(`▶ ${meta.questionId}`),
         chalk.gray(`(${meta.questionType})`),
         chalk[isCorrect ? 'green' : 'red'](`${isCorrect ? '✓' : '✗'}`),
-        chalk.gray(`${elapsed}s`)
+        chalk.gray(`${elapsed}s`),
       );
       if (!isCorrect) {
         console.log(chalk.gray(`  Q: "${meta.question}"`));
-        console.log(chalk.gray(`  A: "${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}"`));
+        console.log(chalk.gray(`  A: "${response.text}"`));
         console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
       }
       spinner.render();
@@ -281,8 +380,8 @@ Be specific rather than generic when the user has expressed clear preferences in
           options: {
             lastMessages: 10,
             semanticRecall: {
-              topK: 10,
-              messageRange: 2,
+              topK: 5,
+              messageRange: 5,
               scope: 'resource',
             },
             workingMemory: { enabled: false },
@@ -297,16 +396,36 @@ Be specific rather than generic when the user has expressed clear preferences in
             semanticRecall: false,
             workingMemory: {
               enabled: true,
+              scope: 'resource',
               template: `# User Context
-- **First Name**: 
-- **Last Name**: 
-- **Location**: 
+## Personal Information
+- **Name**: 
+- **Previous Names**: 
+- **Education**: 
 - **Occupation**: 
-- **Interests**: 
-- **Goals**: 
-- **Events**: 
-- **Facts**: 
-- **Projects**: `,
+- **Location**: 
+
+## Daily Life & Activities
+- **Commute**: 
+- **Exercise/Fitness**: 
+- **Shopping Habits**: 
+- **Regular Activities**: 
+
+## Preferences & Interests
+- **Entertainment**: 
+- **Music/Playlists**: 
+- **Hobbies**: 
+- **Food/Dietary**: 
+
+## Events & Experiences
+- **Recent Events**: 
+- **Travel**: 
+- **Cultural Activities**: 
+
+## Purchases & Services
+- **Recent Purchases**: 
+- **Subscriptions**: 
+- **Frequently Used Services**: `,
             },
           },
         };
@@ -323,16 +442,36 @@ Be specific rather than generic when the user has expressed clear preferences in
             },
             workingMemory: {
               enabled: true,
+              scope: 'resource',
               template: `# User Context
-- **First Name**: 
-- **Last Name**: 
-- **Location**: 
+## Personal Information
+- **Name**: 
+- **Previous Names**: 
+- **Education**: 
 - **Occupation**: 
-- **Interests**: 
-- **Goals**: 
-- **Events**: 
-- **Facts**: 
-- **Projects**: `,
+- **Location**: 
+
+## Daily Life & Activities
+- **Commute**: 
+- **Exercise/Fitness**: 
+- **Shopping Habits**: 
+- **Regular Activities**: 
+
+## Preferences & Interests
+- **Entertainment**: 
+- **Music/Playlists**: 
+- **Hobbies**: 
+- **Food/Dietary**: 
+
+## Events & Experiences
+- **Recent Events**: 
+- **Travel**: 
+- **Cultural Activities**: 
+
+## Purchases & Services
+- **Recent Purchases**: 
+- **Subscriptions**: 
+- **Frequently Used Services**: `,
             },
           },
         };
@@ -425,25 +564,33 @@ Be specific rather than generic when the user has expressed clear preferences in
 
   private displayMetrics(metrics: BenchmarkMetrics): void {
     console.log(chalk.bold('\n📊 Benchmark Results\n'));
-    
+
     // Overall summary with visual indicator
-    const accuracyColor = metrics.overall_accuracy >= 0.8 ? 'green' : 
-                         metrics.overall_accuracy >= 0.6 ? 'yellow' : 'red';
-    console.log(chalk.bold('Overall Accuracy:'), chalk[accuracyColor](`${(metrics.overall_accuracy * 100).toFixed(2)}%`));
+    const accuracyColor =
+      metrics.overall_accuracy >= 0.8 ? 'green' : metrics.overall_accuracy >= 0.6 ? 'yellow' : 'red';
+    console.log(
+      chalk.bold('Overall Accuracy:'),
+      chalk[accuracyColor](`${(metrics.overall_accuracy * 100).toFixed(2)}%`),
+    );
     console.log(chalk.bold('Total Questions:'), metrics.total_questions);
-    console.log(chalk.bold('Correct Answers:'), chalk.green(metrics.correct_answers), '/', chalk.red(metrics.total_questions - metrics.correct_answers));
+    console.log(
+      chalk.bold('Correct Answers:'),
+      chalk.green(metrics.correct_answers),
+      '/',
+      chalk.red(metrics.total_questions - metrics.correct_answers),
+    );
 
     // Question type breakdown
     console.log(chalk.bold('\nAccuracy by Question Type:'));
     for (const [type, typeMetrics] of Object.entries(metrics.accuracy_by_type)) {
       const { correct, total, accuracy } = typeMetrics;
       const typeColor = accuracy >= 0.8 ? 'green' : accuracy >= 0.6 ? 'yellow' : 'red';
-      
+
       // Create a simple progress bar
       const barLength = 20;
       const filledLength = Math.round(accuracy * barLength);
       const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
-      
+
       console.log(
         chalk.gray(`  ${type.padEnd(25)}:`),
         chalk[typeColor](`${(accuracy * 100).toFixed(1).padStart(5)}%`),
@@ -451,12 +598,14 @@ Be specific rather than generic when the user has expressed clear preferences in
         chalk.gray(`(${correct}/${total})`),
       );
     }
-    
+
     // Abstention accuracy if present
     if (metrics.abstention_total && metrics.abstention_total > 0) {
-      console.log(chalk.bold('\nAbstention Accuracy:'), 
+      console.log(
+        chalk.bold('\nAbstention Accuracy:'),
         chalk.yellow(`${(metrics.abstention_accuracy * 100).toFixed(2)}%`),
-        chalk.gray(`(${metrics.abstention_correct || 0}/${metrics.abstention_total})`));
+        chalk.gray(`(${metrics.abstention_correct || 0}/${metrics.abstention_total})`),
+      );
     }
   }
 }

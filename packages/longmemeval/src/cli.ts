@@ -100,6 +100,7 @@ program
   )
   .option('-o, --output <dir>', 'Output directory for prepared data', './prepared-data')
   .option('--subset <n>', 'Prepare only a subset of n questions', parseInt)
+  .option('--concurrency <n>', 'Number of questions to process in parallel', parseInt)
   .action(async options => {
     try {
       console.log(chalk.blue('\n🚀 LongMemEval Data Preparation\n'));
@@ -136,6 +137,7 @@ program
         memoryConfig: options.memoryConfig,
         outputDir: options.output,
         subset: options.subset,
+        concurrency: options.concurrency,
       });
       
       // Force exit after completion
@@ -163,6 +165,7 @@ program
   .option('--prepared-data <dir>', 'Directory containing prepared data', './prepared-data')
   .option('--subset <n>', 'Run on subset of n questions', parseInt)
   .option('--concurrency <n>', 'Number of parallel requests (default: 5)', parseInt)
+  .option('--question-id <id>', 'Focus on a specific question by ID')
   .action(async options => {
     try {
       console.log(chalk.blue('\n🚀 LongMemEval Benchmark Runner\n'));
@@ -192,6 +195,7 @@ program
         outputDir: options.output,
         subset: options.subset,
         concurrency: options.concurrency,
+        questionId: options.questionId,
       });
       
       // Force exit after completion
@@ -269,6 +273,60 @@ program
       for (const [type, count] of Object.entries(stats.questionsByType)) {
         console.log(chalk.gray(`  ${type}:`), count);
       }
+    } catch (error) {
+      console.error(chalk.red('\nError:'), error);
+      process.exit(1);
+    }
+  });
+
+// List command to show available questions
+program
+  .command('list')
+  .description('List prepared questions with their IDs')
+  .requiredOption('-d, --dataset <dataset>', 'Dataset to list from')
+  .option('-c, --memory-config <config>', 'Memory configuration', 'semantic-recall')
+  .option('--prepared-data <dir>', 'Directory containing prepared data', './prepared-data')
+  .action(async options => {
+    try {
+      console.log(chalk.blue('\n📋 Listing Prepared Questions\n'));
+
+      const preparedDir = join(options.preparedData, options.dataset, options.memoryConfig);
+      
+      if (!existsSync(preparedDir)) {
+        console.error(chalk.red(`No prepared data found for ${options.dataset} with ${options.memoryConfig} config`));
+        console.error(chalk.gray(`Run 'longmemeval prepare' first`));
+        process.exit(1);
+      }
+
+      const questionDirs = await readdir(preparedDir);
+      const questions: any[] = [];
+
+      for (const questionDir of questionDirs) {
+        const metaPath = join(preparedDir, questionDir, 'meta.json');
+        if (existsSync(metaPath)) {
+          const meta = JSON.parse(await readFile(metaPath, 'utf-8'));
+          questions.push(meta);
+        }
+      }
+
+      // Sort by question ID
+      questions.sort((a, b) => a.questionId.localeCompare(b.questionId));
+
+      console.log(chalk.gray(`Found ${questions.length} prepared questions:\n`));
+
+      for (const q of questions) {
+        const typeColor = q.questionType.includes('single') ? 'blue' : 
+                         q.questionType.includes('multi') ? 'green' : 
+                         q.questionType.includes('temporal') ? 'yellow' : 'cyan';
+        
+        console.log(
+          chalk.bold(q.questionId),
+          chalk[typeColor](`[${q.questionType}]`),
+          chalk.gray(`- "${q.question.substring(0, 60)}${q.question.length > 60 ? '...' : ''}"`),
+        );
+      }
+
+      console.log(chalk.gray(`\nTo run a specific question: longmemeval run --question-id <id> ...`));
     } catch (error) {
       console.error(chalk.red('\nError:'), error);
       process.exit(1);
