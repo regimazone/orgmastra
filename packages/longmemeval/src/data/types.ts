@@ -3,7 +3,9 @@
  * Based on the official LongMemEval dataset format
  */
 
-export type QuestionType = 
+import { MemoryConfig } from '@mastra/core';
+
+export type QuestionType =
   | 'single-session-user'
   | 'single-session-assistant'
   | 'single-session-preference'
@@ -43,29 +45,25 @@ export interface BenchmarkConfig {
   memoryConfig: MemoryConfigType;
   outputDir?: string;
   subset?: number;
+  questionType?: string;
 }
 
-export type MemoryConfigType = 
-  | 'full-history'
-  | 'last-k'
-  | 'semantic-recall'
-  | 'working-memory'
-  | 'combined';
+export type MemoryConfigType = 'full-history' | 'last-k' | 'semantic-recall' | 'working-memory' | 'combined';
 
 export interface MemoryConfigOptions {
   type: MemoryConfigType;
-  lastK?: number;
-  semanticRecallTopK?: number;
-  semanticRecallMessageRange?: number | { before: number; after: number };
-  workingMemoryTemplate?: string;
+  options: MemoryConfig;
 }
 
 export interface BenchmarkMetrics {
   overall_accuracy: number;
-  accuracy_by_type: Record<QuestionType, number>;
+  accuracy_by_type: Record<QuestionType, { correct: number; total: number; accuracy: number }>;
   abstention_accuracy: number;
   session_recall_accuracy?: number;
   turn_recall_accuracy?: number;
   total_questions: number;
   correct_answers: number;
+  abstention_correct?: number;
+  abstention_total?: number;
 }
+

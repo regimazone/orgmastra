@@ -1,0 +1,510 @@
+import { MastraStorage } from '@mastra/core/storage';
+import { MessageList } from '@mastra/core/agent';
+import type { MastraMessageV2 } from '@mastra/core/agent';
+import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
+import type { Trace } from '@mastra/core/telemetry';
+import type {
+  TABLE_NAMES,
+  StorageColumn,
+  StorageGetMessagesArg,
+  StorageResourceType,
+  EvalRow,
+  WorkflowRun,
+  WorkflowRuns,
+  PaginationInfo,
+} from '@mastra/core/storage';
+import { writeFile, readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+
+/**
+ * BenchmarkStore - A high-performance in-memory storage implementation for LongMemEval
+ *
+ * Features:
+ * - Full resource scope support for cross-thread semantic recall
+ * - In-memory storage for speed
+ * - JSON persistence for reusability
+ * - Support for all Mastra storage operations
+ */
+export class BenchmarkStore extends MastraStorage {
+  private data: Record<TABLE_NAMES, Map<string, any>> = {
+    mastra_workflow_snapshot: new Map(),
+    mastra_evals: new Map(),
+    mastra_messages: new Map(),
+    mastra_threads: new Map(),
+    mastra_traces: new Map(),
+    mastra_resources: new Map(),
+  };
+
+  constructor() {
+    super({ name: 'BenchmarkStore' });
+    // BenchmarkStore doesn't need async initialization
+    this.hasInitialized = Promise.resolve(true);
+  }
+
+  /**
+   * Enable resource scope support for semantic recall across threads
+   */
+  get supports() {
+    return {
+      selectByIncludeResourceScope: true, // Enable cross-thread queries
+      resourceWorkingMemory: true, // Support resource working memory
+    };
+  }
+
+  async createTable(_: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void> {
+    // In-memory store, no actual table creation needed
+  }
+
+  async alterTable(_: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+    ifNotExists: string[];
+  }): Promise<void> {
+    // In-memory store, no actual table alteration needed
+  }
+
+  async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    this.data[tableName].clear();
+  }
+
+  async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+    const key = record.id || record.run_id || `${Date.now()}_${Math.random()}`;
+    this.data[tableName].set(key, JSON.parse(JSON.stringify(record))); // Deep clone
+  }
+
+  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+    for (const record of records) {
+      await this.insert({ tableName, record });
+    }
+  }
+
+  async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
+    const key = keys.run_id || keys.id;
+    const record = this.data[tableName].get(key!);
+    return record ? (record as R) : null;
+  }
+
+  async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
+    const thread = this.data.mastra_threads.get(threadId);
+    return thread || null;
+  }
+
+  async getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
+    const threads: StorageThreadType[] = [];
+    for (const thread of this.data.mastra_threads.values()) {
+      if (thread.resourceId === resourceId) {
+        threads.push(thread);
+      }
+    }
+    return threads;
+  }
+
+  async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
+    this.data.mastra_threads.set(thread.id, thread);
+    return thread;
+  }
+
+  async updateThread({
+    id,
+    title,
+    metadata,
+  }: {
+    id: string;
+    title: string;
+    metadata: Record<string, unknown>;
+  }): Promise<StorageThreadType> {
+    const thread = this.data.mastra_threads.get(id);
+    if (thread) {
+      thread.title = title;
+      thread.metadata = { ...thread.metadata, ...metadata };
+      thread.updatedAt = new Date();
+      this.data.mastra_threads.set(id, thread);
+    }
+    return thread;
+  }
+
+  async deleteThread({ threadId }: { threadId: string }): Promise<void> {
+    this.data.mastra_threads.delete(threadId);
+    // Also delete associated messages
+    for (const [id, msg] of this.data.mastra_messages.entries()) {
+      if (msg.threadId === threadId) {
+        this.data.mastra_messages.delete(id);
+      }
+    }
+  }
+
+  async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
+    const resource = this.data.mastra_resources.get(resourceId);
+    return resource || null;
+  }
+
+  async saveResource({ resource }: { resource: StorageResourceType }): Promise<StorageResourceType> {
+    this.data.mastra_resources.set(resource.id, JSON.parse(JSON.stringify(resource)));
+    return resource;
+  }
+
+  async updateResource({
+    resourceId,
+    workingMemory,
+    metadata,
+  }: {
+    resourceId: string;
+    workingMemory?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<StorageResourceType> {
+    let resource = this.data.mastra_resources.get(resourceId);
+
+    if (!resource) {
+      // Create new resource if it doesn't exist
+      resource = {
+        id: resourceId,
+        workingMemory,
+        metadata: metadata || {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } else {
+      resource = {
+        ...resource,
+        workingMemory: workingMemory !== undefined ? workingMemory : resource.workingMemory,
+        metadata: {
+          ...resource.metadata,
+          ...metadata,
+        },
+        updatedAt: new Date(),
+      };
+    }
+
+    this.data.mastra_resources.set(resourceId, resource);
+    return resource;
+  }
+
+  async getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
+  async getMessages(args: StorageGetMessagesArg & { format: 'v2' }): Promise<MastraMessageV2[]>;
+  async getMessages(
+    args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
+  ): Promise<MastraMessageV1[] | MastraMessageV2[]> {
+    const { threadId, resourceId, selectBy, format = 'v1' } = args;
+    let messages: any[] = [];
+
+    // Handle selectBy.include for cross-thread queries (resource scope support)
+    if (selectBy?.include?.length) {
+      const includedMessages = new Set<string>();
+
+      for (const inc of selectBy.include) {
+        // Use the included threadId if provided (resource scope), otherwise use main threadId
+        const queryThreadId = inc.threadId || threadId;
+
+        // Get the target message and surrounding context
+        const threadMessages = Array.from(this.data.mastra_messages.values())
+          .filter((msg: any) => msg.threadId === queryThreadId)
+          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+        const targetIndex = threadMessages.findIndex((msg: any) => msg.id === inc.id);
+
+        if (targetIndex >= 0) {
+          const startIdx = Math.max(0, targetIndex - (inc.withPreviousMessages || 0));
+          const endIdx = Math.min(threadMessages.length, targetIndex + (inc.withNextMessages || 0) + 1);
+
+          for (let i = startIdx; i < endIdx; i++) {
+            includedMessages.add(threadMessages[i].id);
+          }
+        }
+      }
+
+      // Get all included messages
+      messages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => includedMessages.has(msg.id));
+    } else {
+      // Standard query by threadId/resourceId
+      messages = Array.from(this.data.mastra_messages.values()).filter((msg: any) => {
+        if (threadId && msg.threadId !== threadId) return false;
+        if (resourceId && msg.resourceId !== resourceId) return false;
+        return true;
+      });
+    }
+
+    // Apply selectBy.last limit
+    if (selectBy?.last) {
+      messages = messages.slice(-selectBy.last);
+    }
+
+    // Sort by createdAt
+    messages.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    // Convert to requested format
+    const list = new MessageList().add(messages, 'memory');
+    return format === 'v2' ? list.get.all.v2() : list.get.all.v1();
+  }
+
+  async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
+  async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
+  async saveMessages(
+    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
+  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+    const { messages, format = 'v1' } = args;
+
+    for (const message of messages) {
+      this.data.mastra_messages.set(message.id, message);
+    }
+
+    const list = new MessageList().add(messages, 'memory');
+    return format === 'v2' ? list.get.all.v2() : list.get.all.v1();
+  }
+
+  async updateMessages(args: { messages: Partial<MastraMessageV2> & { id: string }[] }): Promise<MastraMessageV2[]> {
+    const updatedMessages: MastraMessageV2[] = [];
+
+    for (const update of args.messages) {
+      const existing = this.data.mastra_messages.get(update.id);
+      if (existing) {
+        const updated = { ...existing, ...update, updatedAt: new Date() };
+        this.data.mastra_messages.set(update.id, updated);
+        updatedMessages.push(updated);
+      }
+    }
+
+    return updatedMessages;
+  }
+
+  async getTraces({
+    name,
+    scope,
+    page,
+    perPage,
+    attributes,
+    filters,
+    fromDate,
+    toDate,
+  }: {
+    name?: string;
+    scope?: string;
+    page: number;
+    perPage: number;
+    attributes?: Record<string, string>;
+    filters?: Record<string, any>;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<any[]> {
+    let traces = Array.from(this.data.mastra_traces.values());
+
+    if (name) traces = traces.filter((t: any) => t.name?.startsWith(name));
+    if (scope) traces = traces.filter((t: any) => t.scope === scope);
+    if (attributes) {
+      traces = traces.filter((t: any) =>
+        Object.entries(attributes).every(([key, value]) => t.attributes?.[key] === value),
+      );
+    }
+    if (filters) {
+      traces = traces.filter((t: any) => Object.entries(filters).every(([key, value]) => t[key] === value));
+    }
+    if (fromDate) traces = traces.filter((t: any) => new Date(t.createdAt) >= fromDate);
+    if (toDate) traces = traces.filter((t: any) => new Date(t.createdAt) <= toDate);
+
+    // Apply pagination and sort
+    traces.sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+    const start = page * perPage;
+    const end = start + perPage;
+    return traces.slice(start, end);
+  }
+
+  async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
+    let evals = Array.from(this.data.mastra_evals.values()).filter((e: any) => e.agentName === agentName);
+
+    if (type === 'test') {
+      evals = evals.filter((e: any) => e.testInfo && e.testInfo.testPath);
+    } else if (type === 'live') {
+      evals = evals.filter((e: any) => !e.testInfo || !e.testInfo.testPath);
+    }
+
+    // Sort by createdAt
+    evals.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return evals as EvalRow[];
+  }
+
+  async getWorkflowRuns({
+    workflowName,
+    fromDate,
+    toDate,
+    limit,
+    offset,
+    resourceId,
+  }: {
+    workflowName?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+    resourceId?: string;
+  } = {}): Promise<WorkflowRuns> {
+    let runs = Array.from(this.data.mastra_workflow_snapshot.values());
+
+    if (workflowName) runs = runs.filter((run: any) => run.workflow_name === workflowName);
+    if (fromDate) runs = runs.filter((run: any) => new Date(run.createdAt) >= fromDate);
+    if (toDate) runs = runs.filter((run: any) => new Date(run.createdAt) <= toDate);
+    if (resourceId) runs = runs.filter((run: any) => run.resourceId === resourceId);
+
+    const total = runs.length;
+
+    // Sort by createdAt
+    runs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Apply pagination
+    if (limit !== undefined && offset !== undefined) {
+      runs = runs.slice(offset, offset + limit);
+    }
+
+    // Deserialize snapshot if it's a string
+    const parsedRuns = runs.map((run: any) => ({
+      ...run,
+      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : { ...run.snapshot },
+      createdAt: new Date(run.createdAt),
+      updatedAt: new Date(run.updatedAt),
+      runId: run.run_id,
+      workflowName: run.workflow_name,
+    }));
+
+    return { runs: parsedRuns as WorkflowRun[], total };
+  }
+
+  async getWorkflowRunById({
+    runId,
+    workflowName,
+  }: {
+    runId: string;
+    workflowName?: string;
+  }): Promise<WorkflowRun | null> {
+    const run = this.data.mastra_workflow_snapshot.get(runId);
+
+    if (!run || (workflowName && run.workflow_name !== workflowName)) {
+      return null;
+    }
+
+    // Deserialize snapshot if it's a string
+    const parsedRun = {
+      ...run,
+      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : run.snapshot,
+      createdAt: new Date(run.createdAt),
+      updatedAt: new Date(run.updatedAt),
+      runId: run.run_id,
+      workflowName: run.workflow_name,
+    };
+
+    return parsedRun as WorkflowRun;
+  }
+
+  async getTracesPaginated({
+    name,
+    scope,
+    attributes,
+    page,
+    perPage,
+    fromDate,
+    toDate,
+  }: {
+    name?: string;
+    scope?: string;
+    attributes?: Record<string, string>;
+    page: number;
+    perPage: number;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<PaginationInfo & { traces: Trace[] }> {
+    const traces = await this.getTraces({ name, scope, page, perPage, attributes, fromDate, toDate });
+    const total = Array.from(this.data.mastra_traces.values()).length;
+
+    return {
+      traces,
+      total,
+      page,
+      perPage,
+      hasMore: total > (page + 1) * perPage,
+    };
+  }
+
+  async getThreadsByResourceIdPaginated(args: {
+    resourceId: string;
+    page: number;
+    perPage: number;
+  }): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
+    const allThreads = await this.getThreadsByResourceId({ resourceId: args.resourceId });
+    const start = args.page * args.perPage;
+    const threads = allThreads.slice(start, start + args.perPage);
+
+    return {
+      threads,
+      total: allThreads.length,
+      page: args.page,
+      perPage: args.perPage,
+      hasMore: allThreads.length > (args.page + 1) * args.perPage,
+    };
+  }
+
+  async getMessagesPaginated(
+    args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
+  ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }> {
+    const { threadId, selectBy, format = 'v1' } = args;
+    const { page = 0, perPage = 40 } = selectBy?.pagination || {};
+
+    // Get all messages
+    const allMessages = await this.getMessages({
+      threadId,
+      selectBy: { ...selectBy, pagination: undefined },
+      format: format as any,
+    } as any);
+
+    // Apply pagination
+    const start = page * perPage;
+    const messages = allMessages.slice(start, start + perPage);
+
+    return {
+      messages,
+      total: allMessages.length,
+      page,
+      perPage,
+      hasMore: allMessages.length > (page + 1) * perPage,
+    };
+  }
+
+  /**
+   * Persist the current storage state to a JSON file
+   */
+  async persist(filePath: string): Promise<void> {
+    const data: Record<string, any> = {};
+
+    // Convert Maps to arrays for JSON serialization
+    for (const [tableName, tableData] of Object.entries(this.data)) {
+      data[tableName] = Array.from(tableData.entries());
+    }
+
+    await writeFile(filePath, JSON.stringify(data, null, 2));
+  }
+
+  /**
+   * Hydrate storage state from a JSON file
+   */
+  async hydrate(filePath: string): Promise<void> {
+    if (!existsSync(filePath)) {
+      throw new Error(`Storage file not found: ${filePath}`);
+    }
+
+    const content = await readFile(filePath, 'utf-8');
+    const data = JSON.parse(content);
+
+    // Convert arrays back to Maps
+    for (const [tableName, tableData] of Object.entries(data)) {
+      console.log(`loading ${tableName} -> ${(tableData as []).length} records`);
+      this.data[tableName as TABLE_NAMES] = new Map(tableData as any);
+    }
+  }
+
+  /**
+   * Clear all data and start fresh
+   */
+  async clear(): Promise<void> {
+    for (const table of Object.values(this.data)) {
+      table.clear();
+    }
+  }
+}
+

@@ -1,5 +1,5 @@
-import type { CoreMessage } from 'ai';
-import type { LongMemEvalQuestion, Turn } from '../data/types';
+import type { LongMemEvalQuestion } from '../data/types';
+import { CoreMessage } from '@mastra/core';
 
 export interface MemoryAdapter {
   /**
@@ -10,34 +10,12 @@ export interface MemoryAdapter {
   /**
    * Load a question's chat history into memory
    */
-  loadChatHistory(
-    question: LongMemEvalQuestion,
-    resourceId: string
-  ): Promise<string>; // Returns threadId
+  loadChatHistory(question: LongMemEvalQuestion, resourceId: string): Promise<string>; // Returns threadId
 
   /**
    * Query the memory to answer a question
    */
-  queryMemory(
-    question: string,
-    threadId: string,
-    resourceId: string
-  ): Promise<string>;
-
-  /**
-   * Clear memory for a specific thread
-   */
-  clearThread(threadId: string): Promise<void>;
-
-  /**
-   * Get raw messages for debugging
-   */
-  getMessages(threadId: string): Promise<CoreMessage[]>;
-
-  /**
-   * Get memory statistics
-   */
-  getStats(): Promise<MemoryStats>;
+  queryMemory(question: string, threadId: string, resourceId: string): Promise<string>;
 }
 
 export interface MemoryStats {
