@@ -1,3 +1,4 @@
+import type { ScorerHookData } from '../eval';
 import type { Metric, MetricResult } from '../eval/metric';
 import type { TestInfo } from '../eval/types';
 
@@ -31,11 +32,6 @@ type GenerationHookData = {
   runId: string;
   agentName: string;
   instructions: string;
-};
-
-type ScorerHookData = {
-  scorerId: string;
-  input: string;
 };
 
 export function registerHook(hook: AvailableHooks.ON_EVALUATION, action: Handler<EvaluationHookData>): void;

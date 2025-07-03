@@ -43,7 +43,7 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   output: {
     type: 'jsonb', // MESSAGE OUTPUT
   },
-  additionalContext: {
+  additionalLLMContext: {
     type: 'jsonb', // DATA FROM THE CONTEXT PARAM ON AN AGENT
     nullable: true,
   },
@@ -60,6 +60,10 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   },
   entity: {
     type: 'jsonb', // MINIMAL JSON DATA ABOUT WORKFLOW, AGENT, TOOL, STEP, NETWORK
+    nullable: true,
+  },
+  entityId: {
+    type: 'text',
     nullable: true,
   },
   source: {

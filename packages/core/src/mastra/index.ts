@@ -2,6 +2,7 @@ import type { Agent } from '../agent';
 import type { BundlerConfig } from '../bundler/types';
 import type { MastraDeployer } from '../deployer';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
+import type { ScorerHookData } from '../eval';
 import { AvailableHooks, registerHook } from '../hooks';
 import { LogLevel, noopLogger, ConsoleLogger } from '../logger';
 import type { IMastraLogger } from '../logger';
@@ -18,6 +19,60 @@ import type { MastraTTS } from '../tts';
 import type { MastraVector } from '../vector';
 import type { Workflow } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
+
+export function createOnScorerHook(mastra: Mastra) {
+  return async (hookData: ScorerHookData) => {
+    if (!mastra.getStorage()) {
+      return;
+    }
+
+    const userMessages = hookData.input
+      .filter(m => m.role === 'user')
+      .map(m => {
+        if (typeof m.content === 'object') {
+          return JSON.stringify(m.content);
+        }
+        return m.content;
+      })
+      .join('\n');
+
+    console.log('onScorerHook', mastra, userMessages, hookData);
+
+    const entityId = hookData.entity.id;
+    const entityType = hookData.entityType;
+
+    if (entityType === 'AGENT') {
+      const agent = mastra.getAgent(entityId);
+
+      const scorers = await agent.getScorers();
+
+      const scorer = scorers[hookData.scorer.id];
+
+      if (!scorer) {
+        throw new MastraError({
+          id: 'MASTRA_SCORER_NOT_FOUND',
+          domain: ErrorDomain.MASTRA,
+          category: ErrorCategory.USER,
+          text: `Scorer with ID ${hookData.scorer.id} not found`,
+        });
+      }
+
+      const score = await scorer.scorer.score({
+        input: userMessages,
+        output: hookData.output.text as string,
+      });
+
+      const storage = mastra.getStorage();
+
+      const { structuredOutput: _structuredOutput, ...rest } = hookData;
+
+      await storage?.saveScore({
+        ...rest,
+        result: score,
+      });
+    }
+  };
+}
 
 export interface Config<
   TAgents extends Record<string, Agent<any>> = Record<string, Agent<any>>,
@@ -368,15 +423,18 @@ do:
       this.#server = config.server;
     }
 
-    registerHook(AvailableHooks.ON_SCORER_RUN, ({ input }) => {
-      console.log('onScorerRun', input);
-    });
+    registerHook(AvailableHooks.ON_SCORER_RUN, createOnScorerHook(this));
 
     this.setLogger({ logger });
   }
 
   public getAgent<TAgentName extends keyof TAgents>(name: TAgentName): TAgents[TAgentName] {
-    const agent = this.#agents?.[name];
+    let agent = this.#agents?.[name];
+
+    if (!agent) {
+      agent = Object.values(this.#agents).find(a => a.name === name) as TAgents[TAgentName];
+    }
+
     if (!agent) {
       const error = new MastraError({
         id: 'MASTRA_GET_AGENT_BY_NAME_NOT_FOUND',
@@ -392,7 +450,7 @@ do:
       this.#logger?.trackException(error);
       throw error;
     }
-    return this.#agents[name];
+    return agent;
   }
 
   public getAgents() {
