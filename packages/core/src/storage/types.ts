@@ -75,6 +75,10 @@ export type StorageGetMessagesArg = {
   format?: 'v1' | 'v2';
 };
 
+export type ScorerRow = {
+  input: string;
+};
+
 export type EvalRow = {
   input: string;
   output: string;

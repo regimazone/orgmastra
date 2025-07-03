@@ -11,6 +11,7 @@ import {
   TABLE_MESSAGES,
   TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
+  TABLE_SCORERS,
   TABLE_TRACES,
 } from '@mastra/core/storage';
 import type {
@@ -1219,6 +1220,7 @@ export class DynamoDBStore extends MastraStorage {
       [TABLE_MESSAGES]: 'message',
       [TABLE_WORKFLOW_SNAPSHOT]: 'workflowSnapshot',
       [TABLE_EVALS]: 'eval',
+      [TABLE_SCORERS]: 'scorer',
       [TABLE_TRACES]: 'trace',
     };
     return mapping[tableName] || null;
