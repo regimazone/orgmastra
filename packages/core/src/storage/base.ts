@@ -1,6 +1,5 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '../agent';
 import { MastraBase } from '../base';
-import type { ScoreRowData } from '../eval';
 import type { MastraMessageV1, StorageThreadType } from '../memory/types';
 import type { Trace } from '../telemetry';
 import type { WorkflowRunState } from '../workflows';
@@ -12,18 +11,22 @@ import {
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_RESOURCES,
-  TABLE_SCORERS,
+  TABLE_PROMPTS,
   TABLE_SCHEMAS,
 } from './constants';
 import type { TABLE_NAMES } from './constants';
 import type {
   EvalRow,
   PaginationInfo,
+  PromptType,
+  SavePromptArgs,
+  UpdatePromptArgs,
+  GetPromptsArgs,
+  GetPromptByNameArgs,
   StorageColumn,
   StorageGetMessagesArg,
   StorageGetTracesArg,
   StorageResourceType,
-  StoragePagination,
   WorkflowRun,
   WorkflowRuns,
 } from './types';
@@ -198,7 +201,9 @@ export abstract class MastraStorage extends MastraBase {
   }
 
   abstract getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
+
   abstract getMessages(args: StorageGetMessagesArg & { format: 'v2' }): Promise<MastraMessageV2[]>;
+
   abstract getMessages({
     threadId,
     resourceId,
@@ -207,7 +212,9 @@ export abstract class MastraStorage extends MastraBase {
   }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]>;
 
   abstract saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
+
   abstract saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
+
   abstract saveMessages(
     args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
   ): Promise<MastraMessageV2[] | MastraMessageV1[]>;
@@ -255,8 +262,8 @@ export abstract class MastraStorage extends MastraBase {
       }),
 
       this.createTable({
-        tableName: TABLE_SCORERS,
-        schema: TABLE_SCHEMAS[TABLE_SCORERS],
+        tableName: TABLE_PROMPTS,
+        schema: TABLE_SCHEMAS[TABLE_PROMPTS],
       }),
     ];
 
@@ -321,35 +328,8 @@ export abstract class MastraStorage extends MastraBase {
       tableName: TABLE_WORKFLOW_SNAPSHOT,
       keys: { workflow_name: workflowName, run_id: runId },
     });
-
     return d ? d.snapshot : null;
   }
-
-  /**
-   * SCORERS
-   */
-
-  abstract getScoreById({ id }: { id: string }): Promise<ScoreRowData | null>;
-
-  abstract saveScore(score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }>;
-
-  abstract getScoresByRunId({
-    runId,
-    pagination,
-  }: {
-    runId: string;
-    pagination: StoragePagination;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }>;
-
-  abstract getScoresByEntityId({
-    entityId,
-    entityType,
-    pagination,
-  }: {
-    pagination: StoragePagination;
-    entityId: string;
-    entityType: string;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }>;
 
   abstract getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]>;
 
@@ -375,4 +355,17 @@ export abstract class MastraStorage extends MastraBase {
   abstract getMessagesPaginated(
     args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
   ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }>;
+
+  // Prompts methods
+  abstract savePrompt(args: SavePromptArgs): Promise<PromptType>;
+
+  abstract updatePrompt(args: UpdatePromptArgs): Promise<PromptType>;
+
+  abstract getPromptById(args: { id: string }): Promise<PromptType | null>;
+
+  abstract getPromptByName(args: GetPromptByNameArgs): Promise<PromptType | null>;
+
+  abstract getPrompts(args?: GetPromptsArgs): Promise<PromptType[]>;
+
+  abstract deletePrompt(args: { id: string }): Promise<void>;
 }
