@@ -7,6 +7,7 @@ export const TABLE_THREADS = 'mastra_threads';
 export const TABLE_TRACES = 'mastra_traces';
 export const TABLE_RESOURCES = 'mastra_resources';
 export const TABLE_SCORERS = 'mastra_scorers';
+export const TABLE_DATASETS = 'mastra_datasets';
 
 export type TABLE_NAMES =
   | typeof TABLE_WORKFLOW_SNAPSHOT
@@ -15,22 +16,17 @@ export type TABLE_NAMES =
   | typeof TABLE_THREADS
   | typeof TABLE_TRACES
   | typeof TABLE_RESOURCES
-  | typeof TABLE_SCORERS;
+  | typeof TABLE_SCORERS
+  | typeof TABLE_DATASETS;
 
-export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
+const SHARED_DATASET_SCORE_SCHEMA: Record<string, StorageColumn> = {
   id: { type: 'text', nullable: false, primaryKey: true },
-  traceId: {
-    type: 'text',
-    nullable: true,
-  },
   runId: {
     type: 'text',
   },
-  scorer: {
-    type: 'jsonb',
-  },
-  result: {
-    type: 'jsonb',
+  traceId: {
+    type: 'text',
+    nullable: true,
   },
   metadata: {
     type: 'jsonb',
@@ -50,9 +46,6 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
     type: 'jsonb', // THE EVALUATE RUNTIME CONTEXT FOR THE RUN
     nullable: true,
   },
-  /**
-   * Things you can evaluate
-   */
   entityType: {
     type: 'text', // WORKFLOW, AGENT, TOOL, STEP, NETWORK
     nullable: true,
@@ -84,6 +77,18 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   },
 };
 
+export const DATASETS_SCHEMA: Record<string, StorageColumn> = SHARED_DATASET_SCORE_SCHEMA;
+
+export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
+  ...DATASETS_SCHEMA,
+  scorer: {
+    type: 'jsonb',
+  },
+  result: {
+    type: 'jsonb',
+  },
+};
+
 export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> = {
   [TABLE_WORKFLOW_SNAPSHOT]: {
     workflow_name: {
@@ -104,6 +109,7 @@ export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> =
     },
   },
   [TABLE_SCORERS]: SCORERS_SCHEMA,
+  [TABLE_DATASETS]: DATASETS_SCHEMA,
   [TABLE_EVALS]: {
     input: {
       type: 'text',
