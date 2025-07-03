@@ -53,7 +53,11 @@ export class RunCommand {
     console.log(chalk.blue(`\n🚀 Starting LongMemEval benchmark run: ${runId}\n`));
     console.log(chalk.gray(`Dataset: ${options.dataset}`));
     console.log(chalk.gray(`Model: ${options.model}`));
-    console.log(chalk.gray(`Memory Config: ${options.memoryConfig}\n`));
+    console.log(chalk.gray(`Memory Config: ${options.memoryConfig}`));
+    if (options.subset) {
+      console.log(chalk.gray(`Subset: ${options.subset} questions`));
+    }
+    console.log();
 
     // Check if prepared data exists
     const preparedDir = join(options.preparedDataDir || this.preparedDataDir, options.dataset, options.memoryConfig);
@@ -72,7 +76,7 @@ export class RunCommand {
       const questionPath = join(preparedDir, questionDir);
       const metaPath = join(questionPath, 'meta.json');
       const progressPath = join(questionPath, 'progress.json');
-      
+
       // Check if question has been prepared
       if (existsSync(metaPath)) {
         // Check if there's an incomplete preparation in progress
@@ -83,16 +87,22 @@ export class RunCommand {
             continue; // Skip this question as it's still being prepared
           }
         }
-        
+
         const meta = JSON.parse(await readFile(metaPath, 'utf-8'));
         preparedQuestions.push(meta);
       }
     }
 
-    spinner.succeed(`Loaded ${preparedQuestions.length} prepared questions${skippedCount > 0 ? ` (skipped ${skippedCount} incomplete)` : ''}`);
-    
+    spinner.succeed(
+      `Loaded ${preparedQuestions.length} prepared questions${skippedCount > 0 ? ` (skipped ${skippedCount} incomplete)` : ''}`,
+    );
+
     if (skippedCount > 0) {
-      console.log(chalk.yellow(`\n⚠️  ${skippedCount} question${skippedCount > 1 ? 's' : ''} skipped due to incomplete preparation.`));
+      console.log(
+        chalk.yellow(
+          `\n⚠️  ${skippedCount} question${skippedCount > 1 ? 's' : ''} skipped due to incomplete preparation.`,
+        ),
+      );
       console.log(chalk.gray(`   Run 'prepare' command to complete preparation.\n`));
     }
 
@@ -107,6 +117,9 @@ export class RunCommand {
     } else if (options.subset) {
       // Apply subset if requested
       questionsToProcess = preparedQuestions.slice(0, options.subset);
+      console.log(
+        chalk.gray(`\nApplying subset: ${options.subset} questions from ${preparedQuestions.length} total\n`),
+      );
     }
 
     console.log(
@@ -124,87 +137,129 @@ export class RunCommand {
     let completedCount = 0;
     let inProgressCount = 0;
     const startTime = Date.now();
-    
+
     // Track active evaluations
     const activeEvaluations = new Map<number, { questionId: string; status: string }>();
-    
+
     // Function to update progress display
     let lastText = '';
     const updateProgress = () => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       const rate = elapsed > 0 ? completedCount / elapsed : 0;
       const remaining = rate > 0 ? Math.round((questionsToProcess.length - completedCount) / rate) : 0;
-      
+
       let progressText = `Overall: ${completedCount}/${questionsToProcess.length} (${inProgressCount} in progress, ${Math.round(rate * 60)} q/min, ~${remaining}s remaining)`;
-      
+
       if (activeEvaluations.size > 0 && concurrency > 1) {
         progressText += '\n\nActive evaluations:';
-        activeEvaluations.forEach((info, index) => {
-          progressText += `\n  [${index + 1}] ${info.questionId} - ${info.status}`;
+
+        // Sort active evaluations by completion status
+        const sortedEvaluations = Array.from(activeEvaluations.entries())
+          .map(([index, info]) => {
+            // Extract session progress if available (e.g., "Querying agent for xxx (47 sessions, working-memory)...")
+            const sessionMatch = info.status.match(/\((\d+)\s+sessions/);
+            const totalSessions = sessionMatch ? parseInt(sessionMatch[1]) : 100;
+
+            // Assign progress based on status
+            let progress = 0;
+            if (info.status.includes('Querying agent')) progress = 0.75;
+            else if (info.status.includes('Loading vector')) progress = 0.5;
+            else if (info.status.includes('Loading data')) progress = 0.25;
+            else if (info.status.includes('Starting')) progress = 0.0;
+
+            return { index, info, progress };
+          })
+          .sort((a, b) => b.progress - a.progress); // Sort by most complete first
+
+        sortedEvaluations.forEach(({ index, info, progress }) => {
+          const percentage = (progress * 100).toFixed(0);
+          progressText += `\n  [${index + 1}] ${info.questionId} - ${info.status} (${percentage}%)`;
         });
       }
-      
+
       if (lastText !== progressText) {
         lastText = progressText;
         questionSpinner.text = progressText;
       }
     };
 
-    for (let i = 0; i < questionsToProcess.length; i += concurrency) {
-      const batch = questionsToProcess.slice(i, i + concurrency);
+    // Create a queue of questions to evaluate
+    const questionQueue = [...questionsToProcess];
 
-      // Set up periodic progress updates while batch is processing
-      const progressInterval = setInterval(updateProgress, 500); // Update every 500ms
+    // Function to process next question from queue
+    const processNextQuestion = async (slotIndex: number): Promise<EvaluationResult[]> => {
+      const workerResults: EvaluationResult[] = [];
 
-      const batchResults = await Promise.all(
-        batch.map(async (meta, batchIndex) => {
-          const slotIndex = batchIndex;
-          inProgressCount++;
-          activeEvaluations.set(slotIndex, { questionId: meta.questionId, status: 'Starting...' });
-          updateProgress();
-          
-          const result = await this.evaluateQuestion(
-            meta, 
-            preparedDir, 
-            modelProvider, 
-            options, 
-            concurrency > 1 ? { updateStatus: (status: string) => {
-              activeEvaluations.set(slotIndex, { questionId: meta.questionId, status });
-            }} : questionSpinner
+      while (questionQueue.length > 0) {
+        const meta = questionQueue.shift();
+        if (!meta) break;
+
+        inProgressCount++;
+        activeEvaluations.set(slotIndex, { questionId: meta.questionId, status: 'Starting...' });
+        // Don't update progress here - let the periodic timer handle it
+
+        const result = await this.evaluateQuestion(
+          meta,
+          preparedDir,
+          modelProvider,
+          options,
+          concurrency > 1
+            ? {
+                updateStatus: (status: string) => {
+                  activeEvaluations.set(slotIndex, { questionId: meta.questionId, status });
+                },
+              }
+            : questionSpinner,
+        );
+
+        completedCount++;
+        inProgressCount--;
+        activeEvaluations.delete(slotIndex);
+
+        // Log result when running concurrently
+        if (concurrency > 1) {
+          // Temporarily clear the spinner to log cleanly
+          questionSpinner.clear();
+
+          console.log(
+            chalk.blue(`▶ ${meta.questionId}`),
+            chalk.gray(`(${meta.questionType})`),
+            chalk[result.is_correct ? 'green' : 'red'](`${result.is_correct ? '✓' : '✗'}`),
+            chalk.gray(`${((Date.now() - startTime) / 1000).toFixed(1)}s`),
           );
-          
-          completedCount++;
-          inProgressCount--;
-          activeEvaluations.delete(slotIndex);
-          
-          // Log result when running concurrently
-          if (concurrency > 1) {
-            questionSpinner.clear();
-            console.log(
-              chalk.blue(`▶ ${meta.questionId}`),
-              chalk.gray(`(${meta.questionType})`),
-              chalk[result.is_correct ? 'green' : 'red'](`${result.is_correct ? '✓' : '✗'}`),
-              chalk.gray(`${((Date.now() - startTime) / 1000).toFixed(1)}s`),
-            );
-            if (!result.is_correct) {
-              console.log(chalk.gray(`  Q: "${meta.question}"`));
-              console.log(chalk.gray(`  A: "${result.hypothesis}"`));
-              console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
-            }
-            questionSpinner.render();
+          if (!result.is_correct) {
+            console.log(chalk.gray(`  Q: "${meta.question}"`));
+            console.log(chalk.gray(`  A: "${result.hypothesis}"`));
+            console.log(chalk.yellow(`  Expected: "${meta.answer}"`));
           }
-          
-          updateProgress();
 
-          return result;
-        }),
-      );
-      
-      // Clear the interval
-      clearInterval(progressInterval);
-      
-      results.push(...batchResults);
+          // Re-render the spinner
+          questionSpinner.render();
+        }
+
+        // Don't update progress here - let the periodic timer handle it
+        workerResults.push(result);
+      }
+
+      return workerResults;
+    };
+
+    // Set up periodic progress updates
+    const progressInterval = setInterval(updateProgress, 500);
+
+    // Create worker slots
+    const workers = Array.from({ length: concurrency }, (_, i) => processNextQuestion(i));
+
+    // Wait for all workers to complete and collect results
+    const workerResults = await Promise.all(workers);
+
+    // Process results from all workers
+    for (const workerResultArray of workerResults) {
+      results.push(...workerResultArray);
     }
+
+    // Clear the interval
+    clearInterval(progressInterval);
 
     questionSpinner.succeed(`Evaluated ${results.length} questions`);
 
@@ -243,8 +298,8 @@ export class RunCommand {
 
     // Load the prepared storage and vector store
     const questionDir = join(preparedDir, meta.questionId);
-    const benchmarkStore = new BenchmarkStore();
-    const benchmarkVectorStore = new BenchmarkVectorStore();
+    const benchmarkStore = new BenchmarkStore('read');
+    const benchmarkVectorStore = new BenchmarkVectorStore('read');
 
     await benchmarkStore.init();
     await benchmarkStore.hydrate(join(questionDir, 'db.json'));
@@ -281,7 +336,9 @@ Be specific rather than generic when the user has expressed clear preferences in
     // Create a fresh thread for the evaluation question
     const evalThreadId = `eval_${meta.questionId}_${Date.now()}`;
 
-    updateStatus(`Querying agent for ${meta.questionId} (${meta.threadIds.length} sessions, ${options.memoryConfig})...`);
+    updateStatus(
+      `Querying agent for ${meta.questionId} (${meta.threadIds.length} sessions, ${options.memoryConfig})...`,
+    );
 
     // Ask the question and get response
     const response = await agent.generate(meta.question, {
@@ -315,7 +372,7 @@ Be specific rather than generic when the user has expressed clear preferences in
       response: response.text,
       expected: meta.answer,
     };
-    
+
     // If running with single spinner, log immediately
     const isOraSpinner = spinner && 'clear' in spinner;
     if (isOraSpinner) {
@@ -596,6 +653,22 @@ Be specific rather than generic when the user has expressed clear preferences in
         chalk[typeColor](`${(accuracy * 100).toFixed(1).padStart(5)}%`),
         chalk.gray(`[${bar}]`),
         chalk.gray(`(${correct}/${total})`),
+      );
+    }
+
+    // Calculate and display average accuracy across all question types
+    const questionTypes = Object.keys(metrics.accuracy_by_type);
+    if (questionTypes.length > 1) {
+      const avgAccuracy =
+        questionTypes.reduce((sum, type) => sum + metrics.accuracy_by_type[type as QuestionType].accuracy, 0) /
+        questionTypes.length;
+
+      const avgColor = avgAccuracy >= 0.8 ? 'green' : avgAccuracy >= 0.6 ? 'yellow' : 'red';
+      console.log(chalk.gray(`  ${'─'.repeat(60)}`));
+      console.log(
+        chalk.gray(`  ${'Average'.padEnd(25)}:`),
+        chalk.bold[avgColor](`${(avgAccuracy * 100).toFixed(1).padStart(5)}%`),
+        chalk.gray(`(across ${questionTypes.length} question types)`),
       );
     }
 

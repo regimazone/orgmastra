@@ -101,6 +101,10 @@ program
   .option('-o, --output <dir>', 'Output directory for prepared data', './prepared-data')
   .option('--subset <n>', 'Prepare only a subset of n questions', parseInt)
   .option('--concurrency <n>', 'Number of questions to process in parallel', parseInt)
+  .option('--question-id <id>', 'Prepare a specific question by ID')
+  .option('--resume-from-message-id <id>', 'Resume processing from a specific message ID')
+  .option('--session-limit <n>', 'Limit processing to n sessions after resume point', parseInt)
+  .option('--session-offset <n>', 'Start processing from the nth session (1-based)', parseInt)
   .action(async options => {
     try {
       console.log(chalk.blue('\n🚀 LongMemEval Data Preparation\n'));
@@ -108,6 +112,18 @@ program
       console.log(chalk.gray(`Memory Config: ${options.memoryConfig}`));
       if (options.subset) {
         console.log(chalk.gray(`Subset: ${options.subset} questions`));
+      }
+      if (options.questionId) {
+        console.log(chalk.gray(`Question ID: ${options.questionId}`));
+      }
+      if (options.resumeFromMessageId) {
+        console.log(chalk.gray(`Resume from message ID: ${options.resumeFromMessageId}`));
+      }
+      if (options.sessionLimit) {
+        console.log(chalk.gray(`Session limit: ${options.sessionLimit} sessions`));
+      }
+      if (options.sessionOffset) {
+        console.log(chalk.gray(`Session offset: Start from session ${options.sessionOffset}`));
       }
       console.log();
 
@@ -138,6 +154,10 @@ program
         outputDir: options.output,
         subset: options.subset,
         concurrency: options.concurrency,
+        questionId: options.questionId,
+        resumeFromMessageId: options.resumeFromMessageId,
+        sessionLimit: options.sessionLimit,
+        sessionOffset: options.sessionOffset,
       });
       
       // Force exit after completion

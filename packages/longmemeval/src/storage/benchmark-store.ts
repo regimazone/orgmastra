@@ -16,6 +16,7 @@ import type {
 import { writeFile, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 
+type DBMode = 'read' | 'read-write';
 /**
  * BenchmarkStore - A high-performance in-memory storage implementation for LongMemEval
  *
@@ -35,10 +36,13 @@ export class BenchmarkStore extends MastraStorage {
     mastra_resources: new Map(),
   };
 
-  constructor() {
+  private mode: DBMode;
+
+  constructor(mode: DBMode = 'read-write') {
     super({ name: 'BenchmarkStore' });
     // BenchmarkStore doesn't need async initialization
     this.hasInitialized = Promise.resolve(true);
+    this.mode = mode;
   }
 
   /**
@@ -64,15 +68,18 @@ export class BenchmarkStore extends MastraStorage {
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    if (this.mode === `read`) return;
     this.data[tableName].clear();
   }
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+    if (this.mode === `read`) return;
     const key = record.id || record.run_id || `${Date.now()}_${Math.random()}`;
     this.data[tableName].set(key, JSON.parse(JSON.stringify(record))); // Deep clone
   }
 
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+    if (this.mode === `read`) return;
     for (const record of records) {
       await this.insert({ tableName, record });
     }
@@ -114,6 +121,9 @@ export class BenchmarkStore extends MastraStorage {
     metadata: Record<string, unknown>;
   }): Promise<StorageThreadType> {
     const thread = this.data.mastra_threads.get(id);
+
+    if (this.mode === `read`) return thread;
+
     if (thread) {
       thread.title = title;
       thread.metadata = { ...thread.metadata, ...metadata };
@@ -124,6 +134,8 @@ export class BenchmarkStore extends MastraStorage {
   }
 
   async deleteThread({ threadId }: { threadId: string }): Promise<void> {
+    if (this.mode === `read`) return;
+
     this.data.mastra_threads.delete(threadId);
     // Also delete associated messages
     for (const [id, msg] of this.data.mastra_messages.entries()) {
@@ -139,6 +151,7 @@ export class BenchmarkStore extends MastraStorage {
   }
 
   async saveResource({ resource }: { resource: StorageResourceType }): Promise<StorageResourceType> {
+    if (this.mode === `read`) return resource;
     this.data.mastra_resources.set(resource.id, JSON.parse(JSON.stringify(resource)));
     return resource;
   }
@@ -153,6 +166,8 @@ export class BenchmarkStore extends MastraStorage {
     metadata?: Record<string, unknown>;
   }): Promise<StorageResourceType> {
     let resource = this.data.mastra_resources.get(resourceId);
+
+    if (this.mode === `read`) return resource;
 
     if (!resource) {
       // Create new resource if it doesn't exist
@@ -250,6 +265,8 @@ export class BenchmarkStore extends MastraStorage {
   async saveMessages(
     args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
   ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+    if (this.mode === `read`) return [];
+
     const { messages, format = 'v1' } = args;
 
     for (const message of messages) {
@@ -262,6 +279,8 @@ export class BenchmarkStore extends MastraStorage {
 
   async updateMessages(args: { messages: Partial<MastraMessageV2> & { id: string }[] }): Promise<MastraMessageV2[]> {
     const updatedMessages: MastraMessageV2[] = [];
+
+    if (this.mode === `read`) return [];
 
     for (const update of args.messages) {
       const existing = this.data.mastra_messages.get(update.id);
@@ -479,6 +498,8 @@ export class BenchmarkStore extends MastraStorage {
    * Persist the current storage state to a JSON file
    */
   async persist(filePath: string): Promise<void> {
+    if (this.mode === `read`) return;
+
     const data: Record<string, any> = {};
 
     // Convert Maps to arrays for JSON serialization
@@ -510,6 +531,7 @@ export class BenchmarkStore extends MastraStorage {
    * Clear all data and start fresh
    */
   async clear(): Promise<void> {
+    if (this.mode === `read`) return;
     for (const table of Object.values(this.data)) {
       table.clear();
     }

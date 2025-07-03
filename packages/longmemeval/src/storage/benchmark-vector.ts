@@ -14,17 +14,22 @@ import { VectorDB, type Document } from 'imvectordb';
 import { writeFile, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 
+type DBMode = 'read' | 'read-write';
+
 export class BenchmarkVectorStore extends MastraVector {
   private indexes: Map<string, VectorDB> = new Map();
   private indexConfigs: Map<string, { dimension: number; metric?: 'cosine' | 'euclidean' | 'dotproduct' }> = new Map();
   // Store documents separately since VectorDB doesn't have a dump method
   private documentsStore: Map<string, Map<string, Document>> = new Map();
+  private mode: DBMode;
 
-  constructor() {
+  constructor(mode: DBMode = 'read-write') {
     super();
+    this.mode = mode;
   }
 
   async createIndex({ indexName, dimension, metric = 'cosine' }: CreateIndexParams): Promise<void> {
+    if (this.mode === 'read') return;
     if (this.indexes.has(indexName)) {
       // Index already exists, validate dimension
       await this.validateExistingIndex(indexName, dimension, metric);
@@ -51,6 +56,7 @@ export class BenchmarkVectorStore extends MastraVector {
   }
 
   async upsert({ indexName, vectors, metadata, ids }: UpsertVectorParams): Promise<string[]> {
+    if (this.mode === 'read') return [];
     const db = this.indexes.get(indexName);
     const docsStore = this.documentsStore.get(indexName);
 
@@ -99,6 +105,7 @@ export class BenchmarkVectorStore extends MastraVector {
   }
 
   async deleteIndex({ indexName }: DeleteIndexParams): Promise<void> {
+    if (this.mode === 'read') return;
     const db = this.indexes.get(indexName);
     if (db) {
       await db.terminate();
@@ -109,6 +116,7 @@ export class BenchmarkVectorStore extends MastraVector {
   }
 
   async updateVector({ indexName, id, update }: UpdateVectorParams): Promise<void> {
+    if (this.mode === 'read') return;
     const db = this.indexes.get(indexName);
     const docsStore = this.documentsStore.get(indexName);
 
@@ -139,6 +147,7 @@ export class BenchmarkVectorStore extends MastraVector {
   }
 
   async deleteVector({ indexName, id }: DeleteVectorParams): Promise<void> {
+    if (this.mode === 'read') return;
     const db = this.indexes.get(indexName);
     const docsStore = this.documentsStore.get(indexName);
 
@@ -157,6 +166,7 @@ export class BenchmarkVectorStore extends MastraVector {
    * Persist the current vector store state to a JSON file
    */
   async persist(filePath: string): Promise<void> {
+    if (this.mode === 'read') return;
     const data: Record<string, any> = {};
 
     for (const [indexName, docsStore] of this.documentsStore) {
@@ -215,6 +225,7 @@ export class BenchmarkVectorStore extends MastraVector {
    * Clear all data and start fresh
    */
   async clear(): Promise<void> {
+    if (this.mode === 'read') return;
     for (const db of this.indexes.values()) {
       await db.terminate();
     }
