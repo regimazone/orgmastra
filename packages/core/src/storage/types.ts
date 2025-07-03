@@ -106,3 +106,50 @@ export type StorageResourceType = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type PromptType = {
+  id: string;
+  name: string;
+  content: string;
+  description?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  resourceId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SavePromptArgs = {
+  name: string;
+  content: string;
+  description?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  resourceId?: string;
+};
+
+export type UpdatePromptArgs = {
+  id: string;
+  name?: string;
+  content?: string;
+  description?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+};
+
+export type GetPromptsArgs = {
+  resourceId?: string;
+  tags?: string[];
+  pagination?: PaginationArgs;
+};
+
+export type GetPromptByNameArgs = {
+  name: string;
+  resourceId?: string;
+};
+
+export type RenderPromptArgs = {
+  name: string;
+  variables?: Record<string, string | number>;
+  resourceId?: string;
+};

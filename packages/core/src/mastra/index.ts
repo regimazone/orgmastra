@@ -17,6 +17,7 @@ import type { MastraTTS } from '../tts';
 import type { MastraVector } from '../vector';
 import type { Workflow } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
+import { MastraPrompts } from '../prompts';
 
 export interface Config<
   TAgents extends Record<string, Agent<any>> = Record<string, Agent<any>>,
@@ -92,6 +93,7 @@ export class Mastra<
   #server?: ServerConfig;
   #mcpServers?: TMCPServers;
   #bundler?: BundlerConfig;
+  #prompts?: MastraPrompts;
 
   /**
    * @deprecated use getTelemetry() instead
@@ -174,6 +176,16 @@ export class Mastra<
       this.#storage.__setTelemetry(this.#telemetry);
     } else {
       this.#storage = storage;
+    }
+
+    /*
+    Prompts
+    */
+    if (this.#storage) {
+      this.#prompts = new MastraPrompts({
+        storage: this.#storage,
+        logger: this.getLogger(),
+      });
     }
 
     /*
@@ -623,6 +635,10 @@ do:
 
   public getStorage() {
     return this.#storage;
+  }
+
+  public getPrompts(): MastraPrompts | undefined {
+    return this.#prompts;
   }
 
   public getServerMiddleware() {

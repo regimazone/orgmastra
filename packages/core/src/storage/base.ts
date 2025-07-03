@@ -11,12 +11,19 @@ import {
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_RESOURCES,
+  TABLE_PROMPTS,
   TABLE_SCHEMAS,
 } from './constants';
 import type { TABLE_NAMES } from './constants';
 import type {
   EvalRow,
   PaginationInfo,
+  PromptType,
+  SavePromptArgs,
+  UpdatePromptArgs,
+  GetPromptsArgs,
+  GetPromptByNameArgs,
+  RenderPromptArgs,
   StorageColumn,
   StorageGetMessagesArg,
   StorageGetTracesArg,
@@ -250,6 +257,11 @@ export abstract class MastraStorage extends MastraBase {
         tableName: TABLE_TRACES,
         schema: TABLE_SCHEMAS[TABLE_TRACES],
       }),
+
+      this.createTable({
+        tableName: TABLE_PROMPTS,
+        schema: TABLE_SCHEMAS[TABLE_PROMPTS],
+      }),
     ];
 
     // Only create resources table for storage adapters that support it
@@ -341,4 +353,17 @@ export abstract class MastraStorage extends MastraBase {
   abstract getMessagesPaginated(
     args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
   ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }>;
+
+  // Prompts methods
+  abstract savePrompt(args: SavePromptArgs): Promise<PromptType>;
+
+  abstract updatePrompt(args: UpdatePromptArgs): Promise<PromptType>;
+
+  abstract getPromptById(args: { id: string }): Promise<PromptType | null>;
+
+  abstract getPromptByName(args: GetPromptByNameArgs): Promise<PromptType | null>;
+
+  abstract getPrompts(args?: GetPromptsArgs): Promise<PromptType[]>;
+
+  abstract deletePrompt(args: { id: string }): Promise<void>;
 }

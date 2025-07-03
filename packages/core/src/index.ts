@@ -7,6 +7,7 @@ export * from './integration/index.warning';
 export * from './llm';
 export * from './mastra';
 export * from './memory/index.warning';
+export * from './prompts';
 export * from './relevance';
 export * from './telemetry';
 export * from './tools/index.warning';

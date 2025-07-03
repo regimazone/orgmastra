@@ -6,6 +6,7 @@ export const TABLE_MESSAGES = 'mastra_messages';
 export const TABLE_THREADS = 'mastra_threads';
 export const TABLE_TRACES = 'mastra_traces';
 export const TABLE_RESOURCES = 'mastra_resources';
+export const TABLE_PROMPTS = 'mastra_prompts';
 
 export type TABLE_NAMES =
   | typeof TABLE_WORKFLOW_SNAPSHOT
@@ -13,7 +14,8 @@ export type TABLE_NAMES =
   | typeof TABLE_MESSAGES
   | typeof TABLE_THREADS
   | typeof TABLE_TRACES
-  | typeof TABLE_RESOURCES;
+  | typeof TABLE_RESOURCES
+  | typeof TABLE_PROMPTS;
 
 export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> = {
   [TABLE_WORKFLOW_SNAPSHOT]: {
@@ -108,6 +110,17 @@ export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> =
     id: { type: 'text', nullable: false, primaryKey: true },
     workingMemory: { type: 'text', nullable: true },
     metadata: { type: 'jsonb', nullable: true },
+    createdAt: { type: 'timestamp', nullable: false },
+    updatedAt: { type: 'timestamp', nullable: false },
+  },
+  [TABLE_PROMPTS]: {
+    id: { type: 'text', nullable: false, primaryKey: true },
+    name: { type: 'text', nullable: false },
+    content: { type: 'text', nullable: false },
+    description: { type: 'text', nullable: true },
+    tags: { type: 'jsonb', nullable: true },
+    metadata: { type: 'jsonb', nullable: true },
+    resourceId: { type: 'text', nullable: true },
     createdAt: { type: 'timestamp', nullable: false },
     updatedAt: { type: 'timestamp', nullable: false },
   },
