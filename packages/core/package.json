@@ -50,6 +50,16 @@
         "default": "./dist/workflows/constants.cjs"
       }
     },
+    "./prompts": {
+      "import": {
+        "types": "./dist/prompts/index.d.ts",
+        "default": "./dist/prompts/index.js"
+      },
+      "require": {
+        "types": "./dist/prompts/index.d.cts",
+        "default": "./dist/prompts/index.cjs"
+      }
+    },
     "./network/vNext": {
       "import": {
         "types": "./dist/network/vNext/index.d.ts",

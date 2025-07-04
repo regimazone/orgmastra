@@ -1,23 +1,24 @@
 import { Mastra } from '@mastra/core';
 import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
+import { storage } from './storage';
 
 import { chefAgent, chefAgentResponses, dynamicAgent } from './agents/index';
 import { myMcpServer, myMcpServerTwo } from './mcp/server';
 import { myWorkflow } from './workflows';
+import { promptWorkflow } from './workflows/prompt';
 import { evalAgent } from './agents/eval-agent';
+import { promptAgent } from './agents/prompt-agent';
+import { prompt } from './prompts';
 
-const storage = new LibSQLStore({
-  url: 'file:../../mastra.db',
-});
+console.log('Mastra initialized', prompt)
 
 export const mastra = new Mastra({
-  agents: { chefAgent, chefAgentResponses, dynamicAgent, evalAgent },
+  agents: { chefAgent, chefAgentResponses, dynamicAgent, evalAgent, promptAgent },
   logger: new PinoLogger({ name: 'Chef', level: 'debug' }),
-  storage,
+  storage: storage,
   mcpServers: {
     myMcpServer,
     myMcpServerTwo,
   },
-  workflows: { myWorkflow },
+  workflows: { myWorkflow, promptWorkflow },
 });

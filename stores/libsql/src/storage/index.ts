@@ -10,6 +10,7 @@ import {
   TABLE_EVALS,
   TABLE_MESSAGES,
   TABLE_THREADS,
+  TABLE_PROMPTS,
   TABLE_TRACES,
   TABLE_RESOURCES,
   TABLE_WORKFLOW_SNAPSHOT,
@@ -983,11 +984,11 @@ export class LibSQLStore extends MastraStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
+              metadata: {
+                ...existingMessage.content.metadata,
+                ...updatableFields.content.metadata,
+              },
+            }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);
@@ -1689,6 +1690,19 @@ export class LibSQLStore extends MastraStorage {
       createdAt: new Date(row.createdAt as string),
       updatedAt: new Date(row.updatedAt as string),
     };
+  }
+
+  async getPrompt(promptIdOrName: string): Promise<{ content: string } | null> {
+    console.log('Getting prompt', promptIdOrName)
+
+    const result = await this.client.execute({
+      sql: `SELECT content FROM ${TABLE_PROMPTS} WHERE id = ? OR name = ?`,
+      args: [promptIdOrName, promptIdOrName],
+    });
+
+    console.log(result)
+
+    return result.rows?.[0]?.content ? { content: result.rows[0].content as string } : null;
   }
 }
 

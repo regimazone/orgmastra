@@ -1,6 +1,6 @@
 import { MessageList } from '../agent';
 import type { MastraMessageV2 } from '../agent';
-import type { ScoreRowData } from '../eval';
+import type { ScoreRowData } from '../eval/scorer';
 import type { MastraMessageV1, StorageThreadType } from '../memory/types';
 import type { Trace } from '../telemetry';
 import { MastraStorage } from './base';
@@ -25,6 +25,7 @@ export class MockStore extends MastraStorage {
     mastra_traces: {},
     mastra_resources: {},
     mastra_scorers: {},
+    mastra_prompts: {},
   };
 
   constructor() {
@@ -491,5 +492,12 @@ export class MockStore extends MastraStorage {
       perPage,
       hasMore: messages.length > end,
     };
+  }
+
+  async getPrompt(promptIdOrName: string): Promise<{ content: string } | null> {
+    this.logger.debug(`MockStore: getPrompt called for ${promptIdOrName}`);
+    // Mock implementation - find prompt by id or name
+    const prompt = Object.values(this.data.mastra_prompts).find((p: any) => p.id === promptIdOrName || p.name === promptIdOrName);
+    return prompt ? { content: prompt.content } : null;
   }
 }

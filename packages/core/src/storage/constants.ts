@@ -7,6 +7,7 @@ export const TABLE_THREADS = 'mastra_threads';
 export const TABLE_TRACES = 'mastra_traces';
 export const TABLE_RESOURCES = 'mastra_resources';
 export const TABLE_SCORERS = 'mastra_scorers';
+export const TABLE_PROMPTS = 'mastra_prompts';
 
 export type TABLE_NAMES =
   | typeof TABLE_WORKFLOW_SNAPSHOT
@@ -15,7 +16,19 @@ export type TABLE_NAMES =
   | typeof TABLE_THREADS
   | typeof TABLE_TRACES
   | typeof TABLE_RESOURCES
-  | typeof TABLE_SCORERS;
+  | typeof TABLE_SCORERS
+  | typeof TABLE_PROMPTS;
+
+export const PROMPTS_SCHEMA: Record<string, StorageColumn> = {
+  id: { type: 'text', nullable: false, primaryKey: true },
+  name: { type: 'text', nullable: false },
+  description: { type: 'text', nullable: true },
+  content: { type: 'text', nullable: false },
+  tags: { type: 'jsonb', nullable: true },
+  version: { type: 'text', nullable: false },
+  createdAt: { type: 'timestamp', nullable: false },
+  updatedAt: { type: 'timestamp', nullable: false },
+};
 
 export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   id: { type: 'text', nullable: false, primaryKey: true },
@@ -104,6 +117,7 @@ export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> =
     },
   },
   [TABLE_SCORERS]: SCORERS_SCHEMA,
+  [TABLE_PROMPTS]: PROMPTS_SCHEMA,
   [TABLE_EVALS]: {
     input: {
       type: 'text',
