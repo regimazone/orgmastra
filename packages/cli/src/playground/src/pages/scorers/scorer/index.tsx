@@ -245,11 +245,11 @@ export default function Scorer() {
                     <button
                       onClick={() => handlePromptChange(key)}
                       className={cn(
-                        'px-[1rem] py-[0.4rem] border capitalize font-semibold justify-center border-r border-border1 flex items-center text-[0.8125rem] gap-[0.5rem]',
-                        '[&>svg]:text-icon5 [&>svg]:w-[1.2em] [&>svg]:h-[1.2em]',
+                        'px-[1rem] py-[0.4rem] border capitalize font-semibold justify-center border-r border-border1 flex items-center text-[0.8125rem] ',
+                        '[&>svg]:text-icon5 [&>svg]:w-[1.2em] [&>svg]:h-[1.2em] [&>svg]:translate-x-[0.25rem] [&>svg]:translate-y-[-0.05rem]',
                         {
                           'bg-surface1  text-icon5': visiblePrompt === key,
-                          // 'hover:bg-surface5 ': visiblePrompt !== key,
+                          'hover:bg-surface5 ': visiblePrompt !== key,
                         },
                       )}
                     >
@@ -274,7 +274,7 @@ export default function Scorer() {
             </Tabs.Root>
           </div>
 
-          <div className="mt-[1rem] 3xl:mt-[3rem] max-w-[90rem] w-[calc(100%-4rem)] mx-auto ">
+          <div className="mt-[1rem] 3xl:mt-[3rem] max-w-[90rem] w-[calc(100%-4rem)] mx-auto  overflow-y-auto pb-[3rem]">
             <div
               className={cn(
                 'grid bg-surface3 gap-[1rem] sticky top-0 px-[1.5rem] py-[1rem] grid-cols-[8rem_7rem_1fr_1fr_3rem_5rem] text-left text-[0.75rem] text-icon3 uppercase',
