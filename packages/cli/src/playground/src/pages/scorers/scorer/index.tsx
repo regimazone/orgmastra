@@ -2,24 +2,17 @@ import { Breadcrumb, Crumb, Header, MainContentContent, MainContentLayout } from
 import { useParams, Link } from 'react-router';
 import { useScorer, useScoresByEntityId } from '@/hooks/use-scorers';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  ArrowDownIcon,
-  ArrowRightIcon,
-  ChevronDownIcon,
-  ExpandIcon,
-  EyeIcon,
-  RectangleEllipsisIcon,
-  XCircleIcon,
-  XIcon,
-} from 'lucide-react';
+import { ArrowRightIcon, ChevronDownIcon, EyeIcon, XIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { useAgents } from '@/hooks/use-agents';
 import { cn } from '@/lib/utils';
 import * as Tabs from '@radix-ui/react-tabs';
 
 import * as Dialog from '@radix-ui/react-dialog';
 
 import MarkdownRenderer from '@/components/ui/markdown-renderer';
+import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 
 function AgentScore({ score }: { score: any }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -29,10 +22,9 @@ function AgentScore({ score }: { score: any }) {
     <>
       <article
         key={score.id}
-        className={cn('scoreListItem border-b text-icon5 border-border1 last:border-b-0 text-[0.875rem]', {
-          'expanded rounded-[0.75rem] shadow-[inset_0_0_0_2px_#2e2e2ee6] bg-surface4': isExpanded,
+        className={cn('scorerListItem border-b text-[#ccc] border-border1 last:border-b-0 text-[0.875rem]', {
+          'expanded rounded-[0.75rem] shadow-[inset_0_0_0_2px_#444444] bg-surface4': isExpanded,
         })}
-        // style={{ boxShadow: `inset 5em 1em gold` }}
       >
         <div
           className={cn('grid', {
@@ -43,15 +35,15 @@ function AgentScore({ score }: { score: any }) {
           <button onClick={() => setIsExpanded(!isExpanded)} className={cn('grid w-full  px-[1.5rem] ', {})}>
             <div
               className={cn(
-                'grid gap-[1rem] text-left items-center min-h-[4rem] grid-cols-[8rem_6rem_1fr_1fr_3rem_5rem] ',
+                'grid gap-[1rem] text-left items-center min-h-[4rem] grid-cols-[8rem_6rem_1fr_9rem_3rem_5rem] ',
                 '[&>svg]:w-[1.2rem] [&>svg]:h-[1.2rem] [&>svg]:text-icon3',
-                { '[&>svg]:rotate-180 grid-cols-[8rem_6rem_1fr_1fr_3rem_1rem]': isExpanded },
+                { '[&>svg]:rotate-180 grid-cols-[8rem_6rem_1fr_9rem_3rem_1rem]': isExpanded },
               )}
             >
               <span className="text-icon4">{score.id.split('-').pop()}</span>
               <span className="text-icon4">{format(new Date(score.createdAt), 'h:mm:ss bb')}</span>
               <span className="truncate pr-[1rem]">{score.result.input}</span>
-              <span className="truncate pr-[1rem]">{score.result.output}</span>
+              <span className="truncate pr-[1rem]">{score.entityId}</span>
               <span>{score.result.score}</span>
               <ChevronDownIcon className="justify-self-end" />
             </div>
@@ -60,7 +52,10 @@ function AgentScore({ score }: { score: any }) {
           {isExpanded && (
             <button
               onClick={() => setIsDialogOpen(true)}
-              className="flex items-center justify-center bg-surface5 rounded-md"
+              className={cn(
+                'flex items-center justify-center mt-[2px] mr-[2px] relative  bg-surface5 rounded-tr-[.6rem]',
+                // 'after:absolute after:top-[0.75rem] after:left-0 after:w-[0px] after:bottom-[0.75rem] after:content-[""] after:border-l after:border-border1',
+              )}
             >
               <EyeIcon />
             </button>
@@ -69,8 +64,11 @@ function AgentScore({ score }: { score: any }) {
         {isExpanded && (
           <div className="leading-[1.5] m-[1.75rem] mt-0 border-t border-border1 pt-[1rem] text-icon4">
             <dl className="grid  grid-cols-[7rem_1fr] gap-x-[2rem] gap-y-[1rem] [&>dt]:text-icon3 [&>dd]:max-w-[80ch] ">
+              <dt>Entity: </dt>
+              <dd>
+                {score.entityType} / {score.entityId}
+              </dd>
               <dt>Input:</dt>
-
               <dd>
                 {score.result.output.length > 200 ? (
                   <>{score.result.input.substring(0, 200)} [...]</>
@@ -87,11 +85,11 @@ function AgentScore({ score }: { score: any }) {
                 )}
               </dd>
               <dt>Score:</dt>
-              <dd className="text-icon5 font-bold bg-surface5 justify-self-start p-[0.5rem] rounded-md px-[.75rem]">
+              <dd className="text-[#ddd] font-bold bg-surface5 justify-self-start p-[0.5rem] rounded-md px-[.75rem]">
                 {score.result.score}
               </dd>
               <dt>Reason:</dt>
-              <dd className="text-icon5">{score.result.reason}</dd>
+              <dd className="text-[#ccc]">{score.result.reason}</dd>
             </dl>
           </div>
         )}
@@ -164,13 +162,22 @@ function AgentScore({ score }: { score: any }) {
 
 function AgentScores({ agentId }: { agentId: string }) {
   const { scores, isLoading } = useScoresByEntityId(agentId, 'AGENT');
+  console.log({ scores, agentId });
 
   return scores?.scores.map(score => <AgentScore score={score} />);
 }
 
 export default function Scorer() {
   const { scorerId } = useParams();
-  const { scorer, isLoading } = useScorer(scorerId!);
+  const { scorer, isLoading: isLoadingScorer } = useScorer(scorerId!);
+  const { agents, isLoading: isLoadingAgents } = useAgents();
+  const scorerAgents =
+    scorer?.agentIds.map(agentId => {
+      return { id: agentId, name: agents?.[agentId]?.name };
+    }) || [];
+  const isLoading = isLoadingScorer || isLoadingAgents;
+  const [filteredByEntityId, setFilteredByEntityId] = useState<string>('all');
+
   const [visiblePrompt, setVisiblePrompt] = useState<string>('');
 
   const handlePromptChange = (prompt: string) => {
@@ -202,13 +209,13 @@ export default function Scorer() {
       {scorer?.scorer ? (
         <MainContentContent
           className={cn(
-            'justify-center justify-items-center grid px-[2rem]',
-            '3xl:grid-cols-[32rem_auto] 3xl:content-stretch',
+            'justify-center justify-items-center grid px-[2rem] overflow-y-scroll',
+            '3xl:grid-cols-[32rem_auto] 3xl:content-stretch 3xl:h-full 3xl:overflow-y-scroll',
           )}
         >
           <div
             className={cn(
-              'grid z-[1] 3xl:sticky top-0 gap-y-[0.5rem] text-icon4 max-w-[90rem] w-[calc(100%-4rem)] mx-auto bg-surface2 py-[3rem]',
+              'grid z-[1] 3xl:sticky top-0 gap-y-[0.5rem] text-icon4 max-w-[80rem] w-[calc(100%-4rem)] mx-auto bg-surface2 py-[3rem]',
               '3xl:h-full 3xl:content-start 3xl:grid-rows-[auto_1fr] h-full 3xl:overflow-y-auto',
             )}
           >
@@ -217,7 +224,21 @@ export default function Scorer() {
               <p className="m-0">{scorer.scorer.description}</p>
               <div
                 className={cn(
-                  'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center',
+                  'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center mb-[0.25rem]',
+                  '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
+                )}
+              >
+                <span>Agents</span>
+                <ArrowRightIcon />
+                <div>
+                  {scorerAgents.map(agent => {
+                    return <span>{agent.name}</span>;
+                  })}
+                </div>
+              </div>
+              <div
+                className={cn(
+                  'flex gap-[1rem] text-[0.875rem] items-center',
                   '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
                 )}
               >
@@ -246,7 +267,6 @@ export default function Scorer() {
                       onClick={() => handlePromptChange(key)}
                       className={cn(
                         'px-[1rem] py-[0.4rem] border capitalize font-semibold justify-center border-r border-border1 flex items-center text-[0.8125rem] ',
-                        '[&>svg]:text-icon5 [&>svg]:w-[1.2em] [&>svg]:h-[1.2em] [&>svg]:translate-x-[0.25rem] [&>svg]:translate-y-[-0.05rem]',
                         {
                           'bg-surface1  text-icon5': visiblePrompt === key,
                           'hover:bg-surface5 ': visiblePrompt !== key,
@@ -254,43 +274,94 @@ export default function Scorer() {
                       )}
                     >
                       {key}
-                      {visiblePrompt === key && <ArrowDownIcon />}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            <Tabs.Root value={visiblePrompt} className="mt-[.5rem] 3xl:h-full 3xl:overflow-y-auto">
-              {Object.entries(scorer?.prompts || {}).map(([key, value]) => (
-                <Tabs.Content value={key}>
-                  <div className={`rounded-md border border-border1 bg-surface1 h-[15rem] 3xl:h-auto  overflow-y-auto`}>
+            <div className="relative mt-[.5rem] 3xl:h-full 3xl:overflow-y-auto">
+              <Tabs.Root value={visiblePrompt} className="h-full">
+                {Object.entries(scorer?.prompts || {}).map(([key, value]) => (
+                  <Tabs.Content
+                    value={key}
+                    className={`CCC rounded-md border border-border1 bg-surface1 h-[15rem] 3xl:h-full  overflow-y-auto`}
+                  >
                     <pre className="text-[0.8125rem] text-[#ccc] p-[1rem] whitespace-pre-wrap font-mono ">
                       {value.prompt}
                     </pre>
-                  </div>
-                </Tabs.Content>
-              ))}
-            </Tabs.Root>
+                  </Tabs.Content>
+                ))}
+              </Tabs.Root>
+              {visiblePrompt && (
+                <button
+                  onClick={() => setVisiblePrompt('')}
+                  className="absolute top-[1rem] right-[1rem] rounded-md z-[1] p-[0.5rem] hover:bg-surface5"
+                >
+                  <XIcon />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="mt-[1rem] 3xl:mt-[3rem] max-w-[90rem] w-[calc(100%-4rem)] mx-auto  overflow-y-auto pb-[3rem]">
-            <div
-              className={cn(
-                'grid bg-surface3 gap-[1rem] sticky top-0 px-[1.5rem] py-[1rem] grid-cols-[8rem_7rem_1fr_1fr_3rem_5rem] text-left text-[0.75rem] text-icon3 uppercase',
-              )}
-            >
-              <span>id</span>
-              <span>Created At</span>
-              <span>Input</span>
-              <span>Output</span>
-              <span>Score</span>
-              <span className="w-[1.5rem]"></span>
-            </div>
-            <div className="grid  border border-border1f bg-surface3 rounded-xl ">
-              {scorer?.agentIds.map((agentId: string) => (
-                <AgentScores agentId={agentId} />
-              ))}
+          <div
+            className={cn(
+              'mt-[1rem] 3xl:mt-[3rem] max-w-[80rem] w-[calc(100%-4rem)] mx-auto overflow-y-auto pb-[3rem] relative',
+            )}
+          >
+            <div>
+              <div className="mb-[1rem] inline-flex items-baseline gap-[1rem]">
+                <label
+                  htmlFor="filter-by-agent"
+                  className="text-icon3 text-[0.875rem] font-semibold mb-[0.5rem] whitespace-nowrap
+                "
+                >
+                  Filter by agent:
+                </label>
+                <Select
+                  name="filter-by-agent"
+                  onValueChange={value => {
+                    setFilteredByEntityId(value);
+                  }}
+                  defaultValue={'all'}
+                  value={filteredByEntityId}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem key="all" value="all">
+                      All Agents
+                    </SelectItem>
+                    {(scorerAgents || []).map(agent => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div
+                className={cn(
+                  'grid sticky top-0 gap-[1rem]  px-[1.5rem] py-[1rem] grid-cols-[8rem_6rem_1fr_9rem_3rem_5rem] text-left text-[0.75rem] text-icon3 uppercase',
+                )}
+              >
+                <span>id</span>
+                <span>Created At</span>
+                <span>Input</span>
+                <span>Agent</span>
+                <span>Score</span>
+                <span className="w-[1.5rem]"></span>
+              </div>
+              <div className="grid  border border-border1f bg-surface3 rounded-xl ">
+                {scorer?.agentIds.map((agentId: string) => {
+                  if (filteredByEntityId !== 'all' && filteredByEntityId !== agentId) {
+                    return null;
+                  }
+                  return <AgentScores agentId={agentId} />;
+                })}
+              </div>
             </div>
           </div>
         </MainContentContent>

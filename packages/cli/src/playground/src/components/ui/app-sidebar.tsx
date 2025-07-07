@@ -1,6 +1,6 @@
 'use client';
 
-import { Network, Globe, ArrowLeftFromLine, Book } from 'lucide-react';
+import { Network, Globe, ArrowLeftFromLine, Book, ThumbsUpIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 import {
@@ -143,7 +143,7 @@ const links = [
   {
     name: 'Scorers',
     url: '/scorers',
-    icon: AgentIcon,
+    icon: ThumbsUpIcon,
   },
   {
     name: 'Runtime Context',
