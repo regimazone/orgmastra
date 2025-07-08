@@ -1,6 +1,7 @@
 import type { CoreMessage, UIMessage } from 'ai';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '../workflows';
+import type { MastraLanguageModel } from '../memory';
 
 export type ScoringPrompts = {
   description: string;
@@ -149,6 +150,39 @@ export function createScorer(opts: ScorerOptions) {
   });
 
   return scorer;
+}
+
+type LLMJudge = {
+  model: MastraLanguageModel;
+  instructions: string;
+};
+
+export type LLMScorerOptions = {
+  name: string;
+  description: string;
+  judge: LLMJudge;
+  prompts: {
+    extract: {
+      prompt: string;
+      description: string;
+      judge?: LLMJudge;
+    };
+    score: {
+      prompt: string;
+      description: string;
+      judge?: LLMJudge;
+    };
+    reason?: {
+      prompt: string;
+      description: string;
+      judge?: LLMJudge;
+    };
+  };
+};
+
+export function createLLMScorer(opts: LLMScorerOptions) {
+  console.log(opts);
+  return null;
 }
 
 // export abstract class Scorer {

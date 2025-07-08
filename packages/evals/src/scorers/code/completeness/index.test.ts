@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { completenessScorer } from './index';
 
-describe('CompletenessMetric', () => {
+describe('completenessScorer', () => {
   describe('basic functionality', () => {
     it('should return high score for identical text', async () => {
       const text = 'The quick brown fox jumps over the lazy dog';
@@ -12,6 +12,8 @@ describe('CompletenessMetric', () => {
         output: { text },
         structuredOutput: false,
       });
+
+      console.log(result);
 
       expect(result.score).toBe(1.0);
       expect(result.extractedElements).toBeDefined();
