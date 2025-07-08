@@ -207,114 +207,105 @@ export default function Scorer() {
       </Header>
 
       {scorer?.scorer ? (
-        <MainContentContent
-          className={cn(
-            'justify-center justify-items-center grid px-[2rem] overflow-y-scroll',
-            '3xl:grid-cols-[32rem_auto] 3xl:content-stretch 3xl:h-full 3xl:overflow-y-scroll',
-          )}
-        >
-          <div
-            className={cn(
-              'grid z-[1] 3xl:sticky top-0 gap-y-[0.5rem] text-icon4 max-w-[80rem] w-[calc(100%-4rem)] mx-auto bg-surface2 py-[3rem]',
-              '3xl:h-full 3xl:content-start 3xl:grid-rows-[auto_1fr] h-full 3xl:overflow-y-auto',
-            )}
-          >
-            <div className="grid gap-[1rem]">
-              <h1 className="text-icon6 text-[1.25rem]">{scorer.scorer.name}</h1>
-              <p className="m-0">{scorer.scorer.description}</p>
-              <div
-                className={cn(
-                  'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center mb-[0.25rem]',
-                  '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
-                )}
-              >
-                <span>Agents</span>
-                <ArrowRightIcon />
-                <div>
-                  {scorerAgents.map(agent => {
-                    return <span>{agent.name}</span>;
-                  })}
-                </div>
-              </div>
-              <div
-                className={cn(
-                  'flex gap-[1rem] text-[0.875rem] items-center',
-                  '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
-                )}
-              >
-                <span>Sampling</span>
-                <ArrowRightIcon />
-                <div>
-                  Type: <b>{scorer?.sampling?.type}</b>
-                </div>
-                <span className="text-icon2 text-[0.75rem]">|</span>
-                <div className="flex gap-[.25rem] ">
-                  Rate: <b>{scorer?.sampling?.type === 'ratio' ? scorer?.sampling?.rate : 'None'}</b>
-                </div>
-              </div>
-              <div
-                className={cn(
-                  'flex gap-[1rem] text-[0.875rem] items-center',
-                  '3xl:overflow-y-auto ',
-                  '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
-                )}
-              >
-                <span>Prompts</span>
-                <ArrowRightIcon />
-                <div className={cn(' flex items-center border border-b-0 border-border1 rounded-md', '')}>
-                  {Object.entries(scorer?.prompts || {}).map(([key]) => (
-                    <button
-                      onClick={() => handlePromptChange(key)}
-                      className={cn(
-                        'px-[1rem] py-[0.4rem] border capitalize font-semibold justify-center border-r border-border1 flex items-center text-[0.8125rem] ',
-                        {
-                          'bg-surface1  text-icon5': visiblePrompt === key,
-                          'hover:bg-surface5 ': visiblePrompt !== key,
-                        },
-                      )}
-                    >
-                      {key}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="relative mt-[.5rem] 3xl:h-full 3xl:overflow-y-auto">
-              <Tabs.Root value={visiblePrompt} className="h-full">
-                {Object.entries(scorer?.prompts || {}).map(([key, value]) => (
-                  <Tabs.Content
-                    value={key}
-                    className={`CCC rounded-md border border-border1 bg-surface1 h-[15rem] 3xl:h-full  overflow-y-auto`}
-                  >
-                    <pre className="text-[0.8125rem] text-[#ccc] p-[1rem] whitespace-pre-wrap font-mono ">
-                      {value.prompt}
-                    </pre>
-                  </Tabs.Content>
-                ))}
-              </Tabs.Root>
-              {visiblePrompt && (
-                <button
-                  onClick={() => setVisiblePrompt('')}
-                  className="absolute top-[1rem] right-[1rem] rounded-md z-[1] p-[0.5rem] hover:bg-surface5"
-                >
-                  <XIcon />
-                </button>
+        <MainContent>
+          <MainContentLeftColumn>
+            <div
+              className={cn(
+                'grid z-[1] 3xl:sticky top-0 gap-y-[0.5rem] text-icon4 bg-surface2 py-[3rem]',
+                '3xl:h-full 3xl:content-start 3xl:grid-rows-[auto_1fr] h-full 3xl:overflow-y-auto',
               )}
-            </div>
-          </div>
+            >
+              <div className="grid gap-[1rem] w">
+                <h1 className="text-icon6 text-[1.25rem]">{scorer.scorer.name}</h1>
+                <p className="m-0">{scorer.scorer.description}</p>
+                <div
+                  className={cn(
+                    'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center mb-[0.25rem]',
+                    '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
+                  )}
+                >
+                  <span>Agents</span>
+                  <ArrowRightIcon />
+                  <div>
+                    {scorerAgents.map(agent => {
+                      return <span>{agent.name}</span>;
+                    })}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    'flex gap-[1rem] text-[0.875rem] items-center',
+                    '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
+                  )}
+                >
+                  <span>Sampling</span>
+                  <ArrowRightIcon />
+                  <div>
+                    Type: <b>{scorer?.sampling?.type}</b>
+                  </div>
+                  <span className="text-icon2 text-[0.75rem]">|</span>
+                  <div className="flex gap-[.25rem] ">
+                    Rate: <b>{scorer?.sampling?.type === 'ratio' ? scorer?.sampling?.rate : 'None'}</b>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    'flex gap-[1rem] text-[0.875rem] items-center',
+                    '3xl:overflow-y-auto ',
+                    '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
+                  )}
+                >
+                  <span>Prompts</span>
+                  <ArrowRightIcon />
+                  <div className={cn(' flex items-center border border-b-0 border-border1 rounded-md', '')}>
+                    {Object.entries(scorer?.prompts || {}).map(([key]) => (
+                      <button
+                        onClick={() => handlePromptChange(key)}
+                        className={cn(
+                          'px-[1rem] py-[0.4rem] border capitalize font-semibold justify-center border-r border-border1 flex items-center text-[0.8125rem] ',
+                          {
+                            'bg-surface1  text-icon5': visiblePrompt === key,
+                            'hover:bg-surface5 ': visiblePrompt !== key,
+                          },
+                        )}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-          <div
-            className={cn(
-              'mt-[1rem] 3xl:mt-[3rem] max-w-[80rem] w-[calc(100%-4rem)] mx-auto overflow-y-auto pb-[3rem] relative',
-            )}
-          >
-            <div>
-              <div className="mb-[1rem] inline-flex items-baseline gap-[1rem]">
+              <div className="relative mt-[.5rem] 3xl:h-full 3xl:overflow-y-auto">
+                <Tabs.Root value={visiblePrompt} className="h-full">
+                  {Object.entries(scorer?.prompts || {}).map(([key, value]) => (
+                    <Tabs.Content
+                      value={key}
+                      className={`CCC rounded-md border border-border1 bg-surface1 h-[15rem] 3xl:h-full  overflow-y-auto`}
+                    >
+                      <pre className="text-[0.8125rem] text-[#ccc] p-[1rem] whitespace-pre-wrap font-mono ">
+                        {value.prompt}
+                      </pre>
+                    </Tabs.Content>
+                  ))}
+                </Tabs.Root>
+                {visiblePrompt && (
+                  <button
+                    onClick={() => setVisiblePrompt('')}
+                    className="absolute top-[1rem] right-[1rem] rounded-md z-[1] p-[0.5rem] hover:bg-surface5"
+                  >
+                    <XIcon />
+                  </button>
+                )}
+              </div>
+            </div>
+          </MainContentLeftColumn>
+          <MainContentRightColumn>
+            <div className={cn('sticky top-0 bg-surface2 z-[1] pt-[1rem] mt-[3rem]')}>
+              <div className="mb-[1rem] inline-flex items-baseline gap-[1rem] ">
                 <label
                   htmlFor="filter-by-agent"
-                  className="text-icon3 text-[0.875rem] font-semibold mb-[0.5rem] whitespace-nowrap
-                "
+                  className="text-icon3 text-[0.875rem] font-semibold mb-[0.5rem] whitespace-nowrap"
                 >
                   Filter by agent:
                 </label>
@@ -344,7 +335,7 @@ export default function Scorer() {
 
               <div
                 className={cn(
-                  'grid sticky top-0 gap-[1rem]  px-[1.5rem] py-[1rem] grid-cols-[8rem_6rem_1fr_9rem_3rem_5rem] text-left text-[0.75rem] text-icon3 uppercase',
+                  'grid gap-[1rem] bg-surface3 rounded-lg mb-[0.5rem] px-[1.5rem] py-[1rem] grid-cols-[8rem_6rem_1fr_9rem_3rem_5rem] text-left text-[0.75rem] text-icon3 uppercase',
                 )}
               >
                 <span>id</span>
@@ -354,7 +345,9 @@ export default function Scorer() {
                 <span>Score</span>
                 <span className="w-[1.5rem]"></span>
               </div>
-              <div className="grid  border border-border1f bg-surface3 rounded-xl ">
+            </div>
+            <div className={cn('mx-auto overflow-y-auto pb-[3rem] relative')}>
+              <div className="grid border border-border1f bg-surface3 rounded-xl ">
                 {scorer?.agentIds.map((agentId: string) => {
                   if (filteredByEntityId !== 'all' && filteredByEntityId !== agentId) {
                     return null;
@@ -363,9 +356,81 @@ export default function Scorer() {
                 })}
               </div>
             </div>
-          </div>
-        </MainContentContent>
+          </MainContentRightColumn>
+        </MainContent>
       ) : null}
     </MainContentLayout>
+  );
+}
+
+const MAX_CONTENT_WIDTH = '85rem';
+
+type MainContentProps = {
+  children: React.ReactNode;
+  className?: string;
+};
+
+export function MainContent({ children, className }: MainContentProps) {
+  return (
+    <div
+      className={cn(
+        'MainContent',
+        'grid px-[3rem] overflow-y-scroll h-full',
+        '3xl:px-0 3xl:grid-cols-[auto_auto] 3xl:gap-[3rem] 3xl:h-full 3xl:overflow-y-hidden',
+        //  'border-2 border-red-400',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function MainContentLeftColumn({ children, className }: MainContentProps) {
+  return (
+    <div
+      className={cn(
+        'LeftColumn',
+        'flex min-w-[full] mx-auto w-full',
+        '3xl:w-auto 3xl:mx-0 3xl:justify-end 3xl:overflow-y-auto 3xl:pl-[3rem]',
+        //   'border-2 border-blue-500',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          'Inner',
+          `w-full max-w-[${MAX_CONTENT_WIDTH}] mx-auto`,
+          '3xl:mx-0 3xl:overflow-y-auto 3xl:h-full 3xl:w-[30rem] 3xl:min-w-[20rem]',
+          //    'border-2 border-green-500',
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function MainContentRightColumn({ children, className }: MainContentProps) {
+  return (
+    <div
+      className={cn(
+        'RightColumn',
+        'flex mx-auto w-full',
+        '3xl:flex 3xl:mx-0 3xl:justify-start 3xl:overflow-y-scroll 3xl:pr-[3rem] 3xl:h-full',
+        //   'border-2 border-blue-500',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          'Inner',
+          `max-w-[${MAX_CONTENT_WIDTH}] mx-auto`,
+          '3xl:mx-0', // 'border-2 border-green-500'
+        )}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
