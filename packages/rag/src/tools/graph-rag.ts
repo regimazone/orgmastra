@@ -14,8 +14,8 @@ import { defaultGraphOptions } from './types';
  * Handles both synchronous and asynchronous option resolvers
  */
 async function resolveOption<T>(
-  runtimeContext: RuntimeContext,
   key: string,
+  runtimeContext: RuntimeContext,
   option: T | ((params: { runtimeContext: RuntimeContext }) => Promise<T> | T) | undefined,
   defaultValue?: T,
 ): Promise<T | undefined> {
@@ -50,18 +50,18 @@ export const createGraphRAGTool = (options: GraphRagToolOptions) => {
     description: toolDescription,
     execute: async ({ context, mastra, runtimeContext }) => {
       // Resolve dynamic options
-      const indexName = await resolveOption(runtimeContext, 'indexName', options.indexName);
-      const vectorStoreName = await resolveOption(runtimeContext, 'vectorStoreName', options.vectorStoreName);
-      const model = await resolveOption(runtimeContext, 'model', options.model);
-      const includeSources = await resolveOption(runtimeContext, 'includeSources', options.includeSources, true);
+      const indexName = await resolveOption('indexName', runtimeContext, options.indexName);
+      const vectorStoreName = await resolveOption('vectorStoreName', runtimeContext, options.vectorStoreName);
+      const model = await resolveOption('model', runtimeContext, options.model);
+      const includeSources = await resolveOption('includeSources', runtimeContext, options.includeSources, true);
       const graphOptions = await resolveOption(
-        runtimeContext,
         'graphOptions',
+        runtimeContext,
         options.graphOptions,
         defaultGraphOptions,
       );
-      const databaseConfig = await resolveOption(runtimeContext, 'databaseConfig', options.databaseConfig);
-      const enableFilter = await resolveOption(runtimeContext, 'enableFilter', options.enableFilter, false);
+      const databaseConfig = await resolveOption('databaseConfig', runtimeContext, options.databaseConfig);
+      const enableFilter = await resolveOption('enableFilter', runtimeContext, options.enableFilter, false);
 
       if (!indexName) throw new Error(`indexName is required, got: ${indexName}`);
       if (!vectorStoreName) throw new Error(`vectorStoreName is required, got: ${vectorStoreName}`);

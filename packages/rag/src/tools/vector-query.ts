@@ -15,8 +15,8 @@ import type { VectorQueryToolOptions } from './types';
  * Handles both synchronous and asynchronous option resolvers
  */
 async function resolveOption<T>(
-  runtimeContext: RuntimeContext,
   key: string,
+  runtimeContext: RuntimeContext,
   option: T | ((params: { runtimeContext: RuntimeContext }) => Promise<T> | T) | undefined,
   defaultValue?: T,
 ): Promise<T | undefined> {
@@ -50,15 +50,15 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
     inputSchema,
     outputSchema,
     execute: async ({ context, mastra, runtimeContext }) => {
-      const indexName = await resolveOption(runtimeContext, 'indexName', options.indexName);
-      const vectorStoreName = await resolveOption(runtimeContext, 'vectorStoreName', options.vectorStoreName);
+      const indexName = await resolveOption('indexName', runtimeContext, options.indexName);
+      const vectorStoreName = await resolveOption('vectorStoreName', runtimeContext, options.vectorStoreName);
       const includeVectors: boolean =
-        (await resolveOption(runtimeContext, 'includeVectors', options.includeVectors, false)) ?? false;
+        (await resolveOption('includeVectors', runtimeContext, options.includeVectors, false)) ?? false;
       const includeSources: boolean =
-        (await resolveOption(runtimeContext, 'includeSources', options.includeSources, true)) ?? true;
-      const reranker: RerankConfig | undefined = await resolveOption(runtimeContext, 'reranker', options.reranker);
-      const databaseConfig = await resolveOption(runtimeContext, 'databaseConfig', options.databaseConfig);
-      const model: EmbeddingModel<string> | undefined = await resolveOption(runtimeContext, 'model', options.model);
+        (await resolveOption('includeSources', runtimeContext, options.includeSources, true)) ?? true;
+      const reranker: RerankConfig | undefined = await resolveOption('reranker', runtimeContext, options.reranker);
+      const databaseConfig = await resolveOption('databaseConfig', runtimeContext, options.databaseConfig);
+      const model: EmbeddingModel<string> | undefined = await resolveOption('model', runtimeContext, options.model);
 
       if (!indexName) throw new Error(`indexName is required, got: ${indexName}`);
       if (!vectorStoreName) throw new Error(`vectorStoreName is required, got: ${vectorStoreName}`);
