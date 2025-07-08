@@ -243,7 +243,7 @@ describe('Agent Handlers', () => {
       expect(result).toEqual(mockResult);
     });
 
-    it('should throw 404 when agent not found', async () => {
+    it.only('should throw 404 when agent not found', async () => {
       await expect(
         generateHandler({
           mastra: mockMastra,

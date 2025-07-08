@@ -86,7 +86,7 @@ export function convertToolParametersToFlexibleSchema(parameters: ToolParameters
   if (typeof parameters === 'object' && parameters !== null) {
     // Check if it's already a Zod schema (v3 or v4)
     if ('_def' in parameters && 'parse' in parameters && 'safeParse' in parameters) {
-      return parameters as z4.$ZodType<any> | z3.Schema<any>;
+      return parameters as FlexibleSchema<any>;
     }
 
     // Check if it's an AI SDK Schema

@@ -233,6 +233,8 @@ export async function generateHandler({
   try {
     const agent = mastra.getAgent(agentId);
 
+    console.log('agent', agent);
+
     if (!agent) {
       throw new HTTPException(404, { message: 'Agent not found' });
     }
@@ -258,6 +260,7 @@ export async function generateHandler({
 
     return result;
   } catch (error) {
+    console.log('error', error);
     return handleError(error, 'Error generating from agent');
   }
 }
