@@ -1,3 +1,4 @@
+import type { IMastraLogger as MastraLogger } from '@mastra/core/logger';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
@@ -18,10 +19,16 @@ async function resolveOption<T>(
   runtimeContext: RuntimeContext,
   option: T | ((params: { runtimeContext: RuntimeContext }) => Promise<T> | T) | undefined,
   defaultValue?: T,
+  logger?: MastraLogger,
 ): Promise<T | undefined> {
   // Check runtime context first
   const runtimeValue = runtimeContext.get(key);
   if (runtimeValue !== undefined && runtimeValue !== null) {
+    if (logger) {
+      logger.warn(
+        `[GraphRAGTool] Using runtime context values is deprecated. Use dynamic arguments instead: https://mastra.ai/en/reference/tools/graph-rag-tool#example-with-dynamic-arguments`,
+      );
+    }
     return runtimeValue as T;
   }
 
@@ -49,19 +56,45 @@ export const createGraphRAGTool = (options: GraphRagToolOptions) => {
     outputSchema,
     description: toolDescription,
     execute: async ({ context, mastra, runtimeContext }) => {
+      const logger = mastra?.getLogger();
+      if (!logger) {
+        console.warn(
+          '[GraphRAGTool] Logger not initialized: no debug or error logs will be recorded for this tool execution.',
+        );
+      }
+
       // Resolve dynamic options
-      const indexName = await resolveOption('indexName', runtimeContext, options.indexName);
-      const vectorStoreName = await resolveOption('vectorStoreName', runtimeContext, options.vectorStoreName);
-      const model = await resolveOption('model', runtimeContext, options.model);
-      const includeSources = await resolveOption('includeSources', runtimeContext, options.includeSources, true);
+      const indexName = await resolveOption('indexName', runtimeContext, options.indexName, undefined, logger);
+      const vectorStoreName = await resolveOption(
+        'vectorStoreName',
+        runtimeContext,
+        options.vectorStoreName,
+        undefined,
+        logger,
+      );
+      const model = await resolveOption('model', runtimeContext, options.model, undefined, logger);
+      const includeSources = await resolveOption(
+        'includeSources',
+        runtimeContext,
+        options.includeSources,
+        true,
+        logger,
+      );
       const graphOptions = await resolveOption(
         'graphOptions',
         runtimeContext,
         options.graphOptions,
         defaultGraphOptions,
+        logger,
       );
-      const databaseConfig = await resolveOption('databaseConfig', runtimeContext, options.databaseConfig);
-      const enableFilter = await resolveOption('enableFilter', runtimeContext, options.enableFilter, false);
+      const databaseConfig = await resolveOption(
+        'databaseConfig',
+        runtimeContext,
+        options.databaseConfig,
+        undefined,
+        logger,
+      );
+      const enableFilter = await resolveOption('enableFilter', runtimeContext, options.enableFilter, false, logger);
 
       if (!indexName) throw new Error(`indexName is required, got: ${indexName}`);
       if (!vectorStoreName) throw new Error(`vectorStoreName is required, got: ${vectorStoreName}`);
@@ -83,13 +116,6 @@ export const createGraphRAGTool = (options: GraphRagToolOptions) => {
       const queryText = context.queryText;
 
       const enableFilterValue = !!runtimeContext.get('filter') || enableFilter;
-
-      const logger = mastra?.getLogger();
-      if (!logger) {
-        console.warn(
-          '[GraphRAGTool] Logger not initialized: no debug or error logs will be recorded for this tool execution.',
-        );
-      }
       if (logger) {
         logger.debug('[GraphRAGTool] execute called with:', { queryText, topK, filter });
       }

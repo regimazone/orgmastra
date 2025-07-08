@@ -1,3 +1,4 @@
+import type { IMastraLogger as MastraLogger } from '@mastra/core/logger';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
 import { createTool } from '@mastra/core/tools';
 import type { EmbeddingModel } from 'ai';
@@ -19,10 +20,16 @@ async function resolveOption<T>(
   runtimeContext: RuntimeContext,
   option: T | ((params: { runtimeContext: RuntimeContext }) => Promise<T> | T) | undefined,
   defaultValue?: T,
+  logger?: MastraLogger,
 ): Promise<T | undefined> {
   // Check runtime context first
   const runtimeValue = runtimeContext.get(key);
   if (runtimeValue !== undefined && runtimeValue !== null) {
+    if (logger) {
+      logger.warn(
+        `[VectorQueryTool] Using runtime context values is deprecated. Use dynamic arguments instead: https://mastra.ai/en/reference/tools/vector-query-tool#example-with-dynamic-arguments`,
+      );
+    }
     return runtimeValue as T;
   }
 
@@ -50,15 +57,40 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
     inputSchema,
     outputSchema,
     execute: async ({ context, mastra, runtimeContext }) => {
-      const indexName = await resolveOption('indexName', runtimeContext, options.indexName);
+      const logger = mastra?.getLogger();
+      if (!logger) {
+        console.warn(
+          '[VectorQueryTool] Logger not initialized: no debug or error logs will be recorded for this tool execution.',
+        );
+      }
+
+      const indexName = await resolveOption('indexName', runtimeContext, options.indexName, undefined, logger);
       const vectorStoreName = await resolveOption('vectorStoreName', runtimeContext, options.vectorStoreName);
       const includeVectors: boolean =
-        (await resolveOption('includeVectors', runtimeContext, options.includeVectors, false)) ?? false;
+        (await resolveOption('includeVectors', runtimeContext, options.includeVectors, false, logger)) ?? false;
       const includeSources: boolean =
-        (await resolveOption('includeSources', runtimeContext, options.includeSources, true)) ?? true;
-      const reranker: RerankConfig | undefined = await resolveOption('reranker', runtimeContext, options.reranker);
-      const databaseConfig = await resolveOption('databaseConfig', runtimeContext, options.databaseConfig);
-      const model: EmbeddingModel<string> | undefined = await resolveOption('model', runtimeContext, options.model);
+        (await resolveOption('includeSources', runtimeContext, options.includeSources, true, logger)) ?? true;
+      const reranker: RerankConfig | undefined = await resolveOption(
+        'reranker',
+        runtimeContext,
+        options.reranker,
+        undefined,
+        logger,
+      );
+      const databaseConfig = await resolveOption(
+        'databaseConfig',
+        runtimeContext,
+        options.databaseConfig,
+        undefined,
+        logger,
+      );
+      const model: EmbeddingModel<string> | undefined = await resolveOption(
+        'model',
+        runtimeContext,
+        options.model,
+        undefined,
+        logger,
+      );
 
       if (!indexName) throw new Error(`indexName is required, got: ${indexName}`);
       if (!vectorStoreName) throw new Error(`vectorStoreName is required, got: ${vectorStoreName}`);
@@ -69,12 +101,6 @@ export const createVectorQueryTool = (options: VectorQueryToolOptions) => {
       const queryText = context.queryText;
       const enableFilter = !!runtimeContext.get('filter') || (options.enableFilter ?? false);
 
-      const logger = mastra?.getLogger();
-      if (!logger) {
-        console.warn(
-          '[VectorQueryTool] Logger not initialized: no debug or error logs will be recorded for this tool execution.',
-        );
-      }
       if (logger) {
         logger.debug('[VectorQueryTool] execute called with:', { queryText, topK, filter, databaseConfig });
       }
