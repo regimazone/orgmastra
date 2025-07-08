@@ -56,20 +56,20 @@ export function createOnScorerHook(mastra: Mastra) {
           });
         }
 
-        const { structuredOutput, ...rest } = hookData;
+        // const { structuredOutput, ...rest } = hookData;
 
-        const score = await scorer.scorer.score({
-          input: userMessages,
-          output: structuredOutput ? JSON.stringify(hookData.output.object) : (hookData.output.text as string),
-        });
+        // const score = await scorer.scorer.score({
+        //   input: userMessages,
+        //   output: structuredOutput ? JSON.stringify(hookData.output.object) : (hookData.output.text as string),
+        // });
 
-        const storage = mastra.getStorage();
+        // const storage = mastra.getStorage();
 
-        await storage?.saveScore({
-          ...rest,
-          entityId,
-          result: score,
-        });
+        // await storage?.saveScore({
+        //   ...rest,
+        //   entityId,
+        //   result: score,
+        // });
       }
     } catch (error) {
       console.log({ error }, 'ERROR GETTING AGENT BY ID');
