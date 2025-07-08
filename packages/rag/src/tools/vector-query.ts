@@ -30,7 +30,7 @@ async function resolveOption<T>(
   if (typeof option === 'function') {
     const fn = option as (params: { runtimeContext: RuntimeContext }) => Promise<T> | T;
     const result = fn({ runtimeContext });
-    return result instanceof Promise ? await result : result;
+    return result;
   }
 
   // Return static option value
