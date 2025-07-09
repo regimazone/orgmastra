@@ -274,7 +274,7 @@ export class MCPServer extends MCPServerBase {
           toolCallId: '',
           elicitation: sessionElicitation,
           extra,
-        });
+        } as any);
 
         this.logger.debug(`CallTool: Tool '${request.params.name}' executed successfully with result:`, result);
         const duration = Date.now() - startTime;

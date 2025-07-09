@@ -212,7 +212,7 @@ export class MockProvider extends MastraLLM {
   // @ts-ignore
   stream(...args: any) {
     // @ts-ignore
-    const result = super.stream(...args);
+    const result = super.__stream(...args);
 
     return {
       ...result,
