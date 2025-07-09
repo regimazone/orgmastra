@@ -62,7 +62,7 @@ export async function getScorerHandler({
     return null;
   }
 
-  const prompts = 'prompts' in scorer.scorer ? scorer.scorer.prompts() : null;
+  const prompts = 'prompts' in (scorer.scorer.metadata ?? {}) ? scorer.scorer.metadata?.prompts : null;
 
   return {
     ...scorer,
