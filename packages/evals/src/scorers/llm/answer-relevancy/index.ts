@@ -2,7 +2,7 @@ import type { MastraLanguageModel } from '@mastra/core/agent';
 import { Agent } from '@mastra/core/agent';
 import { MastraError } from '@mastra/core/error';
 import type { ScoreResult } from '@mastra/core/eval';
-import { LLMScorer } from '@mastra/core/eval';
+import { createLLMScorer } from '@mastra/core/eval';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { roundToTwoDecimals } from '../../../metrics/llm/utils';
@@ -25,13 +25,56 @@ export const ANSWER_RELEVANCY_AGENT_INSTRUCTIONS = `
     6. Responses that discuss the type of information being asked show partial relevance
 `;
 
-export function createAnswerRelevancyJudge({ model }: { model: MastraLanguageModel }) {
-  return new Agent({
-    name: 'Answer Relevancy Judge',
-    instructions: ANSWER_RELEVANCY_AGENT_INSTRUCTIONS,
-    model,
+export function createAnswerRelevancyScorer({ model }: { model: MastraLanguageModel }) {
+  return createLLMScorer({
+    name: 'Answer Relevancy Scorer',
+    description: 'A scorer that evaluates the relevancy of an LLM output to an input',
+    judge: {
+      model,
+      instructions: ANSWER_RELEVANCY_AGENT_INSTRUCTIONS,
+    },
+    prompts: {
+      extract: {
+        prompt: EXTRACT_PROMPT,
+        description: 'Extract relevant statements from the LLM output',
+      },
+      score: {
+        prompt: SCORE_PROMPT,
+        description: 'Score the relevance of the statements to the input',
+        transform: (props) => {
+          const { results, uncertaintyWeight, scale } = props;
+
+          if (!results || results.length === 0) {
+            return props;
+          }
+
+          const numberOfResults = results.length;
+
+          let relevancyCount = 0;
+          for (const { result } of results) {
+            if (result.trim().toLowerCase() === 'yes') {
+              relevancyCount++;
+            } else if (result.trim().toLowerCase() === 'unsure') {
+              relevancyCount += uncertaintyWeight;
+            }
+          }
+
+          const score = relevancyCount / numberOfResults;
+
+          return {
+            score: roundToTwoDecimals(score * scale),
+            results,
+          }
+        },
+      },
+      reason: {
+        prompt: REASON_PROMPT,
+        description: 'Reason about the results',
+      },
+    }
   });
 }
+
 
 export interface AnswerRelevancyMetricOptions {
   uncertaintyWeight?: number;
@@ -66,23 +109,7 @@ export function calculateScore({
   uncertaintyWeight: number;
   scale: number;
 }): number {
-  const numberOfResults = results?.length || 0;
 
-  if (numberOfResults === 0) {
-    return 1;
-  }
-
-  let relevancyCount = 0;
-  for (const { result } of results) {
-    if (result.trim().toLowerCase() === 'yes') {
-      relevancyCount++;
-    } else if (result.trim().toLowerCase() === 'unsure') {
-      relevancyCount += uncertaintyWeight;
-    }
-  }
-
-  const score = relevancyCount / numberOfResults;
-  return roundToTwoDecimals(score * scale);
 }
 
 export class AnswerRelevancyScorer extends LLMScorer {
