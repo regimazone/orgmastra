@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { Mastra, WorkflowRun } from '..';
 import type { MastraPrimitives } from '../action';
 import { Agent } from '../agent';
+import type { Scorers, DynamicArgument } from '../agent/types';
 import { MastraBase } from '../base';
 import { RuntimeContext } from '../di';
 import { RegisteredLogger } from '../logger';
@@ -143,6 +144,39 @@ export function mapVariable(config: any): any {
   return config;
 }
 
+type StepParams<
+  TStepId extends string,
+  TStepInput extends z.ZodType<any>,
+  TStepOutput extends z.ZodType<any>,
+  TResumeSchema extends z.ZodType<any>,
+  TSuspendSchema extends z.ZodType<any>,
+> = {
+  id: TStepId;
+  description?: string;
+  inputSchema: TStepInput;
+  outputSchema: TStepOutput;
+  resumeSchema?: TResumeSchema;
+  suspendSchema?: TSuspendSchema;
+  execute: ExecuteFunction<
+    z.infer<TStepInput>,
+    z.infer<TStepOutput>,
+    z.infer<TResumeSchema>,
+    z.infer<TSuspendSchema>,
+    DefaultEngineType
+  >;
+  scorers?: DynamicArgument<Scorers>;
+};
+
+type ToolStep<
+  TSchemaIn extends z.ZodType<any>,
+  TSchemaOut extends z.ZodType<any>,
+  TContext extends ToolExecutionContext<TSchemaIn>,
+> = Tool<TSchemaIn, TSchemaOut, TContext> & {
+  inputSchema: TSchemaIn;
+  outputSchema: TSchemaOut;
+  execute: (context: TContext) => Promise<any>;
+};
+
 /**
  * Creates a new workflow step
  * @param params Configuration parameters for the step
@@ -159,21 +193,9 @@ export function createStep<
   TStepOutput extends z.ZodType<any>,
   TResumeSchema extends z.ZodType<any>,
   TSuspendSchema extends z.ZodType<any>,
->(params: {
-  id: TStepId;
-  description?: string;
-  inputSchema: TStepInput;
-  outputSchema: TStepOutput;
-  resumeSchema?: TResumeSchema;
-  suspendSchema?: TSuspendSchema;
-  execute: ExecuteFunction<
-    z.infer<TStepInput>,
-    z.infer<TStepOutput>,
-    z.infer<TResumeSchema>,
-    z.infer<TSuspendSchema>,
-    DefaultEngineType
-  >;
-}): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
+>(
+  params: StepParams<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema>,
+): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
 export function createStep<
   TStepId extends string,
@@ -183,6 +205,7 @@ export function createStep<
   TSuspendSchema extends z.ZodType<any>,
 >(
   agent: Agent<TStepId, any, any>,
+  { scorers }: { scorers?: DynamicArgument<Scorers> },
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
 export function createStep<
@@ -190,11 +213,8 @@ export function createStep<
   TSchemaOut extends z.ZodType<any>,
   TContext extends ToolExecutionContext<TSchemaIn>,
 >(
-  tool: Tool<TSchemaIn, TSchemaOut, TContext> & {
-    inputSchema: TSchemaIn;
-    outputSchema: TSchemaOut;
-    execute: (context: TContext) => Promise<any>;
-  },
+  tool: ToolStep<TSchemaIn, TSchemaOut, TContext>,
+  { scorers }: { scorers?: DynamicArgument<Scorers> },
 ): Step<string, TSchemaIn, TSchemaOut, z.ZodType<any>, z.ZodType<any>, DefaultEngineType>;
 
 export function createStep<
@@ -205,27 +225,9 @@ export function createStep<
   TSuspendSchema extends z.ZodType<any>,
 >(
   params:
-    | {
-        id: TStepId;
-        description?: string;
-        inputSchema: TStepInput;
-        outputSchema: TStepOutput;
-        resumeSchema?: TResumeSchema;
-        suspendSchema?: TSuspendSchema;
-        execute: ExecuteFunction<
-          z.infer<TStepInput>,
-          z.infer<TStepOutput>,
-          z.infer<TResumeSchema>,
-          z.infer<TSuspendSchema>,
-          DefaultEngineType
-        >;
-      }
+    | StepParams<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema>
     | Agent<any, any, any>
-    | (Tool<TStepInput, TStepOutput, any> & {
-        inputSchema: TStepInput;
-        outputSchema: TStepOutput;
-        execute: (context: ToolExecutionContext<TStepInput>) => Promise<any>;
-      }),
+    | ToolStep<TStepInput, TStepOutput, any>,
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType> {
   if (params instanceof Agent) {
     return {

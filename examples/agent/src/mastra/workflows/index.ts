@@ -1,4 +1,5 @@
 import { createStep, createWorkflow } from '@mastra/core/workflows';
+import { createCompletenessScorer } from '@mastra/evals/scorers/code';
 import { z } from 'zod';
 
 export const myWorkflow = createWorkflow({
@@ -21,6 +22,11 @@ const step = createStep({
   outputSchema: z.object({
     result: z.string(),
   }),
+  scorers: {
+    completeness: {
+      scorer: createCompletenessScorer(),
+    },
+  },
   execute: async ({ inputData }) => {
     return {
       result: inputData.ingredient,
