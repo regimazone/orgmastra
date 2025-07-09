@@ -1,4 +1,4 @@
-import { Breadcrumb, Crumb, Header, MainContentContent, MainContentLayout } from '@mastra/playground-ui';
+import { Breadcrumb, Crumb, Header, /*MainContentContent*/ MainContentLayout } from '@mastra/playground-ui';
 import { useParams, Link } from 'react-router';
 import { useScorer, useScoresByEntityId } from '@/hooks/use-scorers';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,9 +42,9 @@ function AgentScore({ score }: { score: any }) {
             >
               <span className="text-icon4">{score.id.split('-').pop()}</span>
               <span className="text-icon4">{format(new Date(score.createdAt), 'h:mm:ss bb')}</span>
-              <span className="truncate pr-[1rem]">{score.result.input}</span>
+              {/* <span className="truncate pr-[1rem]">{score.input}</span> */}
               <span className="truncate pr-[1rem]">{score.entityId}</span>
-              <span>{score.result.score}</span>
+              <span>{score.score}</span>
               <ChevronDownIcon className="justify-self-end" />
             </div>
           </button>
@@ -61,7 +61,7 @@ function AgentScore({ score }: { score: any }) {
             </button>
           )}
         </div>
-        {isExpanded && (
+        {/* {isExpanded && (
           <div className="leading-[1.5] m-[1.75rem] mt-0 border-t border-border1 pt-[1rem] text-icon4">
             <dl className="grid  grid-cols-[7rem_1fr] gap-x-[2rem] gap-y-[1rem] [&>dt]:text-icon3 [&>dd]:max-w-[80ch] ">
               <dt>Entity: </dt>
@@ -69,8 +69,8 @@ function AgentScore({ score }: { score: any }) {
                 {score.entityType} / {score.entityId}
               </dd>
               <dt>Input:</dt>
-              <dd>
-                {score.result.output.length > 200 ? (
+              {/* <dd>
+                {score.output.length > 200 ? (
                   <>{score.result.input.substring(0, 200)} [...]</>
                 ) : (
                   score.result.input
@@ -89,10 +89,10 @@ function AgentScore({ score }: { score: any }) {
                 {score.result.score}
               </dd>
               <dt>Reason:</dt>
-              <dd className="text-[#ccc]">{score.result.reason}</dd>
+              <dd className="text-[#ccc]">{score.reason}</dd>
             </dl>
           </div>
-        )}
+        )} */}
       </article>
 
       <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -137,20 +137,20 @@ function AgentScore({ score }: { score: any }) {
                   <em>
                     Score <ArrowRightIcon />
                   </em>
-                  <b>{score.result.score}</b>
+                  <b>{score.score}</b>
                   <em>
                     Reason <ArrowRightIcon />
                   </em>
-                  <MarkdownRenderer>{score.result.reason}</MarkdownRenderer>
+                  <MarkdownRenderer>{score.reason}</MarkdownRenderer>
                 </section>
-                <section>
+                {/* <section>
                   <h2>Input</h2>
-                  <MarkdownRenderer>{score.result.input}</MarkdownRenderer>
+                  <MarkdownRenderer>{score.input}</MarkdownRenderer>
                 </section>
                 <section>
                   <h2>Output</h2>
-                  <MarkdownRenderer>{score.result.output}</MarkdownRenderer>
-                </section>
+                  <MarkdownRenderer>{score.output}</MarkdownRenderer>
+                </section> */}
               </div>
             </div>
           </Dialog.Content>

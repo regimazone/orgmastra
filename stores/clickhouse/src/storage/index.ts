@@ -86,6 +86,7 @@ export const COLUMN_TYPES: Record<StorageColumn['type'], string> = {
   uuid: 'String',
   jsonb: 'String',
   integer: 'Int64',
+  float: 'Float64',
   bigint: 'Int64',
 };
 

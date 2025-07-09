@@ -2,7 +2,7 @@ import type { Agent } from '../agent';
 import type { BundlerConfig } from '../bundler/types';
 import type { MastraDeployer } from '../deployer';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import type { ScorerHookData } from '../eval';
+import type { ScoringRun } from '../eval';
 import { AvailableHooks, registerHook } from '../hooks';
 import { LogLevel, noopLogger, ConsoleLogger } from '../logger';
 import type { IMastraLogger } from '../logger';
@@ -21,21 +21,12 @@ import type { Workflow } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
 
 export function createOnScorerHook(mastra: Mastra) {
-  return async (hookData: ScorerHookData) => {
+  return async (hookData: ScoringRun) => {
     if (!mastra.getStorage()) {
       return;
     }
 
-    const userMessages = hookData.input
-      .filter(m => m.role === 'user')
-      .map(m => {
-        if (typeof m.content === 'object') {
-          return JSON.stringify(m.content);
-        }
-        return m.content;
-      })
-      .join('\n');
-
+    const storage = mastra.getStorage();
     const entityId = hookData.entity.id;
     const entityType = hookData.entityType;
 
@@ -56,20 +47,23 @@ export function createOnScorerHook(mastra: Mastra) {
           });
         }
 
-        // const { structuredOutput, ...rest } = hookData;
+        const userMessages = hookData.input.filter(m => m.role === 'user');
 
-        // const score = await scorer.scorer.score({
-        //   input: userMessages,
-        //   output: structuredOutput ? JSON.stringify(hookData.output.object) : (hookData.output.text as string),
-        // });
+        const score = await scorer.scorer.evaluate({
+          ...hookData,
+          input: userMessages,
+        });
 
-        // const storage = mastra.getStorage();
+        const { structuredOutput, ...rest } = score;
 
-        // await storage?.saveScore({
-        //   ...rest,
-        //   entityId,
-        //   result: score,
-        // });
+        await storage?.saveScore({
+          ...rest,
+          entityId,
+          scorerId: hookData.scorer.id,
+          metadata: {
+            structuredOutput: !!structuredOutput,
+          },
+        });
       }
     } catch (error) {
       console.log({ error }, 'ERROR GETTING AGENT BY ID');

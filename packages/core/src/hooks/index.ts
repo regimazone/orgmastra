@@ -1,4 +1,4 @@
-import type { ScorerHookData } from '../eval';
+import type { ScoringRun } from '../eval';
 import type { Metric, MetricResult } from '../eval/metric';
 import type { TestInfo } from '../eval/types';
 
@@ -36,14 +36,14 @@ type GenerationHookData = {
 
 export function registerHook(hook: AvailableHooks.ON_EVALUATION, action: Handler<EvaluationHookData>): void;
 export function registerHook(hook: AvailableHooks.ON_GENERATION, action: Handler<GenerationHookData>): void;
-export function registerHook(hook: AvailableHooks.ON_SCORER_RUN, action: Handler<ScorerHookData>): void;
+export function registerHook(hook: AvailableHooks.ON_SCORER_RUN, action: Handler<ScoringRun>): void;
 export function registerHook(hook: `${AvailableHooks}`, action: Handler<any>): void {
   hooks.on(hook, action);
 }
 
 export function executeHook(hook: AvailableHooks.ON_EVALUATION, action: EvaluationHookData): void;
 export function executeHook(hook: AvailableHooks.ON_GENERATION, action: GenerationHookData): void;
-export function executeHook(hook: AvailableHooks.ON_SCORER_RUN, action: ScorerHookData): void;
+export function executeHook(hook: AvailableHooks.ON_SCORER_RUN, action: ScoringRun): void;
 export function executeHook(hook: `${AvailableHooks}`, data: unknown): void {
   // do not block the main thread
   setImmediate(() => {

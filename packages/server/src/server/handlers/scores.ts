@@ -93,7 +93,6 @@ export async function getScoresByEntityIdHandler({
   entityType,
   pagination,
 }: Context & { entityId: string; entityType: string; pagination: StoragePagination }) {
-  const logger = mastra.getLogger();
   try {
     let entityIdToUse = entityId;
 
@@ -101,8 +100,9 @@ export async function getScoresByEntityIdHandler({
       let agent;
       try {
         agent = mastra.getAgentById(entityId);
-      } catch (error) {
-        logger.debug('Error getting agent by id', { error });
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // swallow error
       }
 
       if (!agent) {

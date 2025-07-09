@@ -19,6 +19,9 @@ export type TABLE_NAMES =
 
 export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   id: { type: 'text', nullable: false, primaryKey: true },
+  scorerId: {
+    type: 'text',
+  },
   traceId: {
     type: 'text',
     nullable: true,
@@ -29,8 +32,15 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   scorer: {
     type: 'jsonb',
   },
-  result: {
+  extractedElements: {
     type: 'jsonb',
+  },
+  score: {
+    type: 'float',
+  },
+  reason: {
+    type: 'text',
+    nullable: true,
   },
   metadata: {
     type: 'jsonb',

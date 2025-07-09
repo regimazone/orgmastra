@@ -1,4 +1,4 @@
-import type { CoreMessage, UIMessage } from 'ai';
+import type { UIMessage } from 'ai';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '../workflows';
 import type { MastraLanguageModel } from '../memory';
@@ -10,8 +10,19 @@ export type ScoringPrompts = {
 };
 
 export type ScoringRun = {
-  input: CoreMessage[];
+  runId: string;
+  traceId?: string;
+  scorer: Record<string, any>;
+  input: UIMessage[];
   output: Record<string, any>;
+  metadata?: Record<string, any>;
+  additionalContext?: Record<string, any>;
+  resourceId?: string;
+  threadId?: string;
+  source: ScoringSource;
+  entity: Record<string, any>;
+  entityType: ScoringEntityType;
+  runtimeContext: Record<string, any>;
   structuredOutput?: boolean;
 };
 
@@ -46,6 +57,14 @@ export const reasonResultSchema = z.object({
 export type ReasonResult = z.infer<typeof reasonResultSchema>;
 
 export type ScoringRunWithExtractedElementAndScoreAndReason = ScoringRunWithExtractedElementAndScore & ReasonResult;
+
+export type ScoreRowData = ScoringRunWithExtractedElementAndScoreAndReason & {
+  id: string;
+  entityId: string;
+  scorerId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export type ExtractionStepFn = (run: ScoringRun) => Promise<ExtractedElements>;
 export type ScoreStepFn = (run: ScoringRunWithExtractedElement) => Promise<ScoreResult>;
@@ -119,7 +138,7 @@ export class Scorer {
         return {
           extractedElements: getStepResult(extractStep),
           score: inputData.score,
-          reason: reasonResult,
+          ...reasonResult,
         };
       },
     });
@@ -148,7 +167,7 @@ export class Scorer {
       );
     }
 
-    return execution.result as ScoringRunWithExtractedElementAndScoreAndReason;
+    return { ...run, ...execution.result };
   }
 }
 
@@ -275,43 +294,6 @@ export function createLLMScorer(opts: LLMScorerOptions) {
 
 export type ScoringSource = 'LIVE';
 export type ScoringEntityType = 'AGENT';
-
-export type ScorerHookData = {
-  runId: string;
-  traceId?: string;
-  scorer: Record<string, any>;
-  input: UIMessage[];
-  output: Record<string, any>;
-  additionalContext?: Record<string, any>;
-  resourceId?: string;
-  threadId?: string;
-  source: ScoringSource;
-  entity: Record<string, any>;
-  entityType: ScoringEntityType;
-  runtimeContext: Record<string, any>;
-  structuredOutput?: boolean;
-};
-
-export type ScoreRowData = {
-  id: string;
-  traceId?: string;
-  runId: string;
-  scorer: Record<string, any>;
-  result: Record<string, any>;
-  metadata?: Record<string, any>;
-  input: Record<string, any>; // MESSAGE INPUT
-  output: Record<string, any>; // MESSAGE OUTPUT
-  additionalLLMContext?: Record<string, any>; // DATA FROM THE CONTEXT PARAM ON AN AGENT
-  runtimeContext?: Record<string, any>; // THE EVALUATE RUNTIME CONTEXT FOR THE RUN
-  entityType: string; // WORKFLOW, AGENT, TOOL, STEP, NETWORK
-  entity: Record<string, any>; // MINIMAL JSON DATA ABOUT WORKFLOW, AGENT, TOOL, STEP, NETWORK
-  entityId: string;
-  source: string;
-  resourceId?: string;
-  threadId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 export type ScorerPrompt = Record<string, ScoringPrompts> & {
   extract: ScoringPrompts;

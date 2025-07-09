@@ -1037,7 +1037,6 @@ export class LibSQLStore extends MastraStorage {
   }
 
   private transformScoreRow(row: Record<string, any>): ScoreRowData {
-    const resultValue = JSON.parse(row.result ?? '{}');
     const scorerValue = JSON.parse(row.scorer ?? '{}');
     const inputValue = JSON.parse(row.input ?? '{}');
     const outputValue = JSON.parse(row.output ?? '{}');
@@ -1045,21 +1044,25 @@ export class LibSQLStore extends MastraStorage {
     const runtimeContextValue = row.runtimeContext ? JSON.parse(row.runtimeContext) : null;
     const metadataValue = row.metadata ? JSON.parse(row.metadata) : null;
     const entityValue = row.entity ? JSON.parse(row.entity) : null;
+    const extractedElementsValue = row.extractedElements ? JSON.parse(row.extractedElements) : null;
 
     return {
       id: row.id,
       traceId: row.traceId,
       runId: row.runId,
       scorer: scorerValue,
-      result: resultValue,
+      score: row.score,
+      reason: row.reason,
+      extractedElements: extractedElementsValue,
       metadata: metadataValue,
       input: inputValue,
       output: outputValue,
-      additionalLLMContext: additionalLLMContextValue,
+      additionalContext: additionalLLMContextValue,
       runtimeContext: runtimeContextValue,
       entityType: row.entityType,
       entity: entityValue,
       entityId: row.entityId,
+      scorerId: row.scorerId,
       source: row.source,
       resourceId: row.resourceId,
       threadId: row.threadId,

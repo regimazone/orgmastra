@@ -6,10 +6,10 @@ import type { LegacyWorkflowRunState } from '../workflows/legacy';
 export type StoragePagination = {
   page: number;
   perPage: number;
-}
+};
 
 export interface StorageColumn {
-  type: 'text' | 'timestamp' | 'uuid' | 'jsonb' | 'integer' | 'bigint';
+  type: 'text' | 'timestamp' | 'uuid' | 'jsonb' | 'integer' | 'float' | 'bigint';
   primaryKey?: boolean;
   nullable?: boolean;
   references?: {

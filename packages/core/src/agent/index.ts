@@ -14,7 +14,7 @@ import type { z, ZodSchema } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import type { Metric, ScorerHookData } from '../eval';
+import type { Metric, ScoringRun } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import type { GenerateReturn, StreamReturn } from '../llm';
 import type { MastraLLMBase } from '../llm/model';
@@ -1572,7 +1572,7 @@ export class Agent<
           return;
         }
 
-        const payload: ScorerHookData = {
+        const payload: ScoringRun = {
           scorer: {
             id,
             name: scorerObject.scorer.name,
