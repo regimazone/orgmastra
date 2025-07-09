@@ -112,6 +112,11 @@ export type AgentGenerateOptions<
   telemetry?: TelemetrySettings;
   /** RuntimeContext for dependency injection */
   runtimeContext?: RuntimeContext;
+  /**
+   * Whether to save messages incrementally on step finish
+   * @default false
+   */
+  savePerStep?: boolean;
 } & (
   | {
       /**
@@ -186,6 +191,11 @@ export type AgentStreamOptions<
   telemetry?: TelemetrySettings;
   /** RuntimeContext for dependency injection */
   runtimeContext?: RuntimeContext;
+  /**
+   * Whether to save messages incrementally on step finish
+   * @default false
+   */
+  savePerStep?: boolean;
 } & (
   | {
       /**

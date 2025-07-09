@@ -231,7 +231,7 @@ export class MCPServer extends MCPServerBase {
     });
 
     // Call tool handler
-    serverInstance.setRequestHandler(CallToolRequestSchema, async request => {
+    serverInstance.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const startTime = Date.now();
       try {
         const tool = this.convertedTools[request.params.name];
@@ -273,7 +273,8 @@ export class MCPServer extends MCPServerBase {
           messages: [],
           toolCallId: '',
           elicitation: sessionElicitation,
-        } as any);
+          extra,
+        });
 
         this.logger.debug(`CallTool: Tool '${request.params.name}' executed successfully with result:`, result);
         const duration = Date.now() - startTime;
@@ -282,8 +283,14 @@ export class MCPServer extends MCPServerBase {
         const response: CallToolResult = { isError: false, content: [] };
 
         if (tool.outputSchema) {
-          if (!result.structuredContent) {
-            throw new Error(`Tool ${request.params.name} has an output schema but no structured content was provided.`);
+          // Handle both cases: tools that return { structuredContent: ... } and tools that return the plain object
+          let structuredContent;
+          if (result && typeof result === 'object' && 'structuredContent' in result) {
+            // Tool returned { structuredContent: ... } format (MCP-aware tool)
+            structuredContent = result.structuredContent;
+          } else {
+            // Tool returned plain object, wrap it automatically for backward compatibility
+            structuredContent = result;
           }
           const outputValidation = await tool.outputSchema.validate?.(result.structuredContent ?? {});
           if (outputValidation && !outputValidation.success) {
@@ -294,7 +301,7 @@ export class MCPServer extends MCPServerBase {
               `Invalid structured content for tool ${request.params.name}: ${JSON.stringify(outputValidation.error)}`,
             );
           }
-          response.structuredContent = result.structuredContent;
+          response.structuredContent = structuredContent;
         }
 
         if (response.structuredContent) {

@@ -579,3 +579,35 @@ export const useResumeWorkflow = () => {
     resumeWorkflow,
   };
 };
+
+export const useCancelWorkflowRun = () => {
+  const cancelWorkflowRun = useMutation({
+    mutationFn: async ({ workflowId, runId }: { workflowId: string; runId: string }) => {
+      try {
+        const response = await client.getWorkflow(workflowId).cancelRun(runId);
+        return response;
+      } catch (error) {
+        console.error('Error canceling workflow run:', error);
+        throw error;
+      }
+    },
+  });
+
+  return cancelWorkflowRun;
+};
+
+export const useSendWorkflowRunEvent = (workflowId: string) => {
+  const sendWorkflowRunEvent = useMutation({
+    mutationFn: async ({ runId, event, data }: { runId: string; event: string; data: unknown }) => {
+      try {
+        const response = await client.getWorkflow(workflowId).sendRunEvent({ runId, event, data });
+        return response;
+      } catch (error) {
+        console.error('Error sending workflow run event:', error);
+        throw error;
+      }
+    },
+  });
+
+  return sendWorkflowRunEvent;
+};
