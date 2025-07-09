@@ -208,4 +208,34 @@ export class MockProvider extends MastraLLM {
 
     super({ model: mockModel });
   }
+
+  // @ts-ignore
+  stream(...args: any) {
+    // @ts-ignore
+    const result = super.stream(...args);
+
+    return {
+      ...result,
+      // @ts-ignore on await read the stream
+      then: (onfulfilled, onrejected) => {
+        // @ts-ignore
+        return result.baseStream.pipeTo(new WritableStream()).then(onfulfilled, onrejected);
+      },
+    };
+  }
+
+  // @ts-ignore
+  __streamObject(...args) {
+    // @ts-ignore
+    const result = super.__streamObject(...args);
+
+    return {
+      ...result,
+      // @ts-ignore on await read the stream
+      then: (onfulfilled, onrejected) => {
+        // @ts-ignore
+        return result.baseStream.pipeTo(new WritableStream()).then(onfulfilled, onrejected);
+      },
+    };
+  }
 }

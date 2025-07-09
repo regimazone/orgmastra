@@ -236,7 +236,6 @@ export class MastraLLM extends MastraBase {
         },
         e,
       );
-      this.logger.trackException(mastraError);
       throw mastraError;
     }
   }
@@ -305,12 +304,11 @@ export class MastraLLM extends MastraBase {
         },
         e,
       );
-      this.logger.trackException(mastraError);
       throw mastraError;
     }
   }
 
-  async __stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
+  __stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
     messages,
     onStepFinish,
     onFinish,
@@ -477,12 +475,11 @@ export class MastraLLM extends MastraBase {
         },
         e,
       );
-      this.logger.trackException(mastraError);
       throw mastraError;
     }
   }
 
-  async __streamObject<T extends ZodSchema | JSONSchema7 | undefined>({
+  __streamObject<T extends ZodSchema | JSONSchema7 | undefined>({
     messages,
     runId,
     runtimeContext,
@@ -624,7 +621,6 @@ export class MastraLLM extends MastraBase {
         },
         e,
       );
-      this.logger.trackException(mastraError);
       throw mastraError;
     }
   }
@@ -656,11 +652,12 @@ export class MastraLLM extends MastraBase {
   }
   async stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>(
     messages: MessageInput,
-    { output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
+    { maxSteps = 5, output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
   ) {
     if (!output) {
       return (await this.__stream({
         messages: this.inputMessagesToModelMessages(messages),
+        maxSteps,
         ...rest,
       })) as unknown as StreamReturn<Z>;
     }
@@ -668,6 +665,7 @@ export class MastraLLM extends MastraBase {
     return (await this.__streamObject({
       messages: this.inputMessagesToModelMessages(messages),
       structuredOutput: output,
+      maxSteps,
       ...rest,
     })) as unknown as StreamReturn<Z>;
   }

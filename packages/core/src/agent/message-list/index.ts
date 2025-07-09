@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as AIV5 from 'ai';
 import type { CoreMessage, ToolCallPart } from 'ai';
+import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type * as AIV4 from './ai-sdk-4';
 import { getToolName } from './ai-sdk-5';
 import { convertToV1Messages } from './prompt/convert-to-mastra-v1';
@@ -201,6 +202,13 @@ export class MessageList {
     this.newResponseMessages.clear();
     return messages;
   }
+  public getEarliestUnsavedMessageTimestamp(): number | undefined {
+    const unsavedMessages = this.messages.filter(m => this.newUserMessages.has(m) || this.newResponseMessages.has(m));
+    if (unsavedMessages.length === 0) return undefined;
+    // Find the earliest createdAt among unsaved messages
+    return Math.min(...unsavedMessages.map(m => new Date(m.createdAt).getTime()));
+  }
+
   public getSystemMessages(tag?: string): AIV5.CoreMessage[] {
     if (tag) {
       return this.taggedSystemMessages[tag] || [];
@@ -313,15 +321,39 @@ export class MessageList {
     };
   }
   private addOne(message: MessageInput, messageSource: MessageSource) {
+    if (
+      (!(`content` in message) ||
+        (!message.content &&
+          // allow empty strings
+          typeof message.content !== 'string')) &&
+      (!(`parts` in message) || !message.parts)
+    ) {
+      throw new MastraError({
+        id: 'INVALID_MESSAGE_CONTENT',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: `Message with role "${message.role}" must have either a 'content' property (string or array) or a 'parts' property (array) that is not empty, null, or undefined. Received message: ${JSON.stringify(message, null, 2)}`,
+        details: {
+          role: message.role as string,
+          messageSource,
+          hasContent: 'content' in message,
+          hasParts: 'parts' in message,
+        },
+      });
+    }
+
     if (message.role === `system` && MessageList.isAIV5CoreMessage(message)) return this.addSystem([message]);
     if (message.role === `system`) {
-      throw new Error(
-        `A non-CoreMessage system message was added - this is not supported as we didn't expect this could happen. Please open a Github issue and let us know what you did to get here. This is the non-CoreMessage system message we received:
-
-messageSource: ${messageSource}
-
-${JSON.stringify(message, null, 2)}`,
-      );
+      throw new MastraError({
+        id: 'INVALID_SYSTEM_MESSAGE_FORMAT',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: `Invalid system message format. System messages must be CoreMessage format with 'role' and 'content' properties. The content should be a string or valid content array.`,
+        details: {
+          messageSource,
+          receivedMessage: JSON.stringify(message, null, 2),
+        },
+      });
     }
 
     const messageV3 = this.inputToMastraMessageV3(message, messageSource);
@@ -362,13 +394,14 @@ ${JSON.stringify(message, null, 2)}`,
       latestMessage?.role === 'assistant' &&
       messageV3.role === 'assistant' &&
       latestMessage.threadId === messageV3.threadId;
-
+    // If neither the latest message or the new message is a memory message, merge them together
+    const shouldMergeNewMessages =
+      latestMessage && !this.memoryMessages.has(latestMessage) && messageSource !== 'memory';
     const shouldAppendToLastAssistantMessageParts =
       shouldAppendToLastAssistantMessage &&
       newMessageFirstPartType &&
       ((AIV5.isToolUIPart(newMessageFirstPart) && latestMessagePartType !== `text`) ||
-        (newMessageFirstPartType === latestMessagePartType &&
-          (!this.memoryMessages.has(latestMessage) || messageSource !== 'memory')));
+        (newMessageFirstPartType === latestMessagePartType && shouldMergeNewMessages));
 
     if (
       // backwards compat check!

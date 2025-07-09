@@ -393,6 +393,7 @@ do:
         category: ErrorCategory.USER,
         text: `Agent with name ${String(name)} not found`,
         details: {
+          status: 404,
           agentName: String(name),
           agents: Object.keys(this.#agents ?? {}).join(', '),
         },
@@ -416,6 +417,7 @@ do:
         category: ErrorCategory.USER,
         text: `Vector with name ${String(name)} not found`,
         details: {
+          status: 404,
           vectorName: String(name),
           vectors: Object.keys(this.#vectors ?? {}).join(', '),
         },
@@ -446,6 +448,7 @@ do:
         category: ErrorCategory.USER,
         text: `Workflow with ID ${String(id)} not found`,
         details: {
+          status: 404,
           workflowId: String(id),
           workflows: Object.keys(this.#legacy_workflows ?? {}).join(', '),
         },
@@ -473,6 +476,7 @@ do:
         category: ErrorCategory.USER,
         text: `Workflow with ID ${String(id)} not found`,
         details: {
+          status: 404,
           workflowId: String(id),
           workflows: Object.keys(this.#workflows ?? {}).join(', '),
         },
