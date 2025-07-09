@@ -14,7 +14,8 @@ import type { z, ZodSchema } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import type { Metric, ScoringRun } from '../eval';
+import { runScorer } from '../eval';
+import type { Metric, Scorers, MastraScorer } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import type { GenerateReturn, StreamReturn } from '../llm';
 import type { MastraLLMBase } from '../llm/model';
@@ -43,7 +44,6 @@ import type {
   ToolsInput,
   DynamicArgument,
   AgentMemoryOption,
-  Scorers,
 } from './types';
 
 export { MessageList };
@@ -1552,47 +1552,21 @@ export class Agent<
 
     if (Object.keys(scorers || {}).length > 0) {
       for (const [id, scorerObject] of Object.entries(scorers)) {
-        let shouldExecute = false;
-
-        if (!scorerObject?.sampling || scorerObject?.sampling?.type === 'none') {
-          shouldExecute = true;
-        }
-
-        if (scorerObject?.sampling?.type) {
-          switch (scorerObject?.sampling?.type) {
-            case 'ratio':
-              shouldExecute = Math.random() < scorerObject?.sampling?.rate;
-              break;
-            default:
-              shouldExecute = true;
-          }
-        }
-
-        if (!shouldExecute) {
-          return;
-        }
-
-        const payload: ScoringRun = {
-          scorer: {
-            id,
-            name: scorerObject.scorer.name,
-            description: scorerObject.scorer.description,
-          },
+        runScorer({
+          scorerId: id,
+          scorerObject: scorerObject as MastraScorer,
+          runId,
           input: userInputMessages,
           output,
-          runtimeContext: Object.fromEntries(runtimeContext.entries()),
-          runId: runIdToUse,
-          source: 'LIVE',
+          runtimeContext,
           entity: {
             id: this.id,
             name: this.name,
-            instructions: instructions,
           },
-          structuredOutput,
+          source: 'LIVE',
           entityType: 'AGENT',
-        };
-
-        executeHook(AvailableHooks.ON_SCORER_RUN, payload);
+          structuredOutput: !!structuredOutput,
+        });
       }
     }
   }

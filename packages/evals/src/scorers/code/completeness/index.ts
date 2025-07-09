@@ -86,7 +86,10 @@ export function createCompletenessScorer() {
         throw new Error('Inputs cannot be null or undefined');
       }
 
-      const inputToProcess = input.map(msg => msg.content).join('\n');
+      console.log('INPUT', input);
+      console.log('OUTPUT', output);
+
+      const inputToProcess = JSON.stringify(input);
       const outputToProcess = run.structuredOutput ? JSON.stringify(output.object) : output.text;
 
       const inputDoc = nlp(inputToProcess.trim());

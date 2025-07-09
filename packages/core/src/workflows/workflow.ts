@@ -6,16 +6,18 @@ import { z } from 'zod';
 import type { Mastra, WorkflowRun } from '..';
 import type { MastraPrimitives } from '../action';
 import { Agent } from '../agent';
-import type { Scorers, DynamicArgument } from '../agent/types';
+import type { DynamicArgument } from '../agent/types';
 import { MastraBase } from '../base';
 import { RuntimeContext } from '../di';
+import { runScorer } from '../eval';
+import type { MastraScorer, Scorers } from '../eval';
 import { RegisteredLogger } from '../logger';
 import { Tool } from '../tools';
 import type { ToolExecutionContext } from '../tools/types';
 import { EMITTER_SYMBOL } from './constants';
 import { DefaultExecutionEngine } from './default';
 import type { ExecutionEngine, ExecutionGraph } from './execution-engine';
-import type { ExecuteFunction, Step } from './step';
+import type { ExecuteFunction, ExecuteFunctionParams, Step } from './step';
 import type {
   StepsRecord,
   StepResult,
@@ -205,7 +207,6 @@ export function createStep<
   TSuspendSchema extends z.ZodType<any>,
 >(
   agent: Agent<TStepId, any, any>,
-  { scorers }: { scorers?: DynamicArgument<Scorers> },
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType>;
 
 export function createStep<
@@ -214,7 +215,6 @@ export function createStep<
   TContext extends ToolExecutionContext<TSchemaIn>,
 >(
   tool: ToolStep<TSchemaIn, TSchemaOut, TContext>,
-  { scorers }: { scorers?: DynamicArgument<Scorers> },
 ): Step<string, TSchemaIn, TSchemaOut, z.ZodType<any>, z.ZodType<any>, DefaultEngineType>;
 
 export function createStep<
@@ -229,6 +229,61 @@ export function createStep<
     | Agent<any, any, any>
     | ToolStep<TStepInput, TStepOutput, any>,
 ): Step<TStepId, TStepInput, TStepOutput, TResumeSchema, TSuspendSchema, DefaultEngineType> {
+  const wrapExecute = (
+    execute: ExecuteFunction<
+      z.infer<TStepInput>,
+      z.infer<TStepOutput>,
+      z.infer<TResumeSchema>,
+      z.infer<TSuspendSchema>,
+      DefaultEngineType
+    >,
+  ) => {
+    return async (
+      executeParams: ExecuteFunctionParams<
+        z.infer<TStepInput>,
+        z.infer<TResumeSchema>,
+        z.infer<TSuspendSchema>,
+        DefaultEngineType
+      >,
+    ) => {
+      const executeResult = await execute(executeParams);
+
+      if (params instanceof Agent || params instanceof Tool) {
+        return executeResult;
+      }
+
+      let scorersToUse = params.scorers;
+
+      if (typeof scorersToUse === 'function') {
+        scorersToUse = await scorersToUse({
+          runtimeContext: executeParams.runtimeContext,
+        });
+      }
+
+      if (scorersToUse && Object.keys(scorersToUse || {}).length > 0) {
+        for (const [id, scorerObject] of Object.entries(scorersToUse || {})) {
+          runScorer({
+            scorerId: id,
+            scorerObject: scorerObject as MastraScorer,
+            runId: executeParams.runId,
+            input: [executeParams.inputData],
+            output: executeResult,
+            runtimeContext: executeParams.runtimeContext,
+            entity: {
+              id: executeParams.workflowId,
+              stepId: params.id,
+            },
+            structuredOutput: true,
+            source: 'LIVE',
+            entityType: 'WORKFLOW',
+          });
+        }
+      }
+
+      return executeResult;
+    };
+  };
+
   if (params instanceof Agent) {
     return {
       id: params.name,
@@ -242,7 +297,7 @@ export function createStep<
       outputSchema: z.object({
         text: z.string(),
       }),
-      execute: async ({ inputData, [EMITTER_SYMBOL]: emitter, runtimeContext, abortSignal, abort }) => {
+      execute: wrapExecute(async ({ inputData, [EMITTER_SYMBOL]: emitter, runtimeContext, abortSignal, abort }) => {
         let streamPromise = {} as {
           promise: Promise<string>;
           resolve: (value: string) => void;
@@ -305,7 +360,7 @@ export function createStep<
         return {
           text: await streamPromise.promise,
         };
-      },
+      }),
     };
   }
 
@@ -320,13 +375,13 @@ export function createStep<
       id: params.id,
       inputSchema: params.inputSchema,
       outputSchema: params.outputSchema,
-      execute: async ({ inputData, mastra, runtimeContext }) => {
+      execute: wrapExecute(async ({ inputData, mastra, runtimeContext }) => {
         return params.execute({
           context: inputData,
           mastra,
           runtimeContext,
         });
-      },
+      }),
     };
   }
 
@@ -337,7 +392,8 @@ export function createStep<
     outputSchema: params.outputSchema,
     resumeSchema: params.resumeSchema,
     suspendSchema: params.suspendSchema,
-    execute: params.execute,
+    scorers: params.scorers,
+    execute: wrapExecute(params.execute),
   };
 }
 
@@ -1224,6 +1280,34 @@ export class Workflow<
       payload: (snapshot as WorkflowRunState).context?.input,
       steps: (snapshot as WorkflowRunState).context as any,
     };
+  }
+
+  async getScorers({
+    runtimeContext = new RuntimeContext(),
+  }: { runtimeContext?: RuntimeContext } = {}): Promise<Scorers> {
+    const steps = this.steps;
+
+    if (!steps || Object.keys(steps).length === 0) {
+      return {};
+    }
+
+    const scorers: Scorers = {};
+
+    for (const step of Object.values(steps)) {
+      if (step.scorers) {
+        let scorersToUse = step.scorers;
+
+        if (typeof scorersToUse === 'function') {
+          scorersToUse = await scorersToUse({ runtimeContext });
+        }
+
+        for (const [id, scorer] of Object.entries(scorersToUse)) {
+          scorers[id] = scorer;
+        }
+      }
+    }
+
+    return scorers;
   }
 }
 

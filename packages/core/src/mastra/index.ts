@@ -29,45 +29,56 @@ export function createOnScorerHook(mastra: Mastra) {
     const storage = mastra.getStorage();
     const entityId = hookData.entity.id;
     const entityType = hookData.entityType;
+    const scorer = hookData.scorer;
 
-    try {
-      if (entityType === 'AGENT') {
-        const agent = mastra.getAgentById(entityId);
+    let scorerToUse;
 
-        const scorers = await agent.getScorers();
-
-        const scorer = scorers[hookData.scorer.id];
-
-        if (!scorer) {
-          throw new MastraError({
-            id: 'MASTRA_SCORER_NOT_FOUND',
-            domain: ErrorDomain.MASTRA,
-            category: ErrorCategory.USER,
-            text: `Scorer with ID ${hookData.scorer.id} not found`,
-          });
-        }
-
-        const userMessages = hookData.input.filter(m => m.role === 'user');
-
-        const score = await scorer.scorer.evaluate({
-          ...hookData,
-          input: userMessages,
-        });
-
-        const { structuredOutput, ...rest } = score;
-
-        await storage?.saveScore({
-          ...rest,
-          entityId,
-          scorerId: hookData.scorer.id,
-          metadata: {
-            structuredOutput: !!structuredOutput,
-          },
-        });
-      }
-    } catch (error) {
-      console.log({ error }, 'ERROR GETTING AGENT BY ID');
+    if (entityType === 'AGENT') {
+      const agent = mastra.getAgentById(entityId);
+      const scorers = await agent.getScorers();
+      scorerToUse = scorers[scorer.id];
+    } else if (entityType === 'WORKFLOW') {
+      const workflow = mastra.getWorkflowById(entityId);
+      const scorers = await workflow.getScorers();
+      scorerToUse = scorers[scorer.id];
+    } else {
+      return;
     }
+
+    if (!scorerToUse) {
+      throw new MastraError({
+        id: 'MASTRA_SCORER_NOT_FOUND',
+        domain: ErrorDomain.MASTRA,
+        category: ErrorCategory.USER,
+        text: `Scorer with ID ${hookData.scorer.id} not found`,
+      });
+    }
+
+    let input = hookData.input;
+    let output = hookData.output;
+
+    if (entityType === 'AGENT') {
+      input = hookData.input.filter(m => m.role === 'user');
+    } else {
+      output = { object: hookData.output };
+    }
+
+    const score = await scorerToUse.scorer.evaluate({
+      ...hookData,
+      input,
+      output,
+    });
+
+    const { structuredOutput, ...rest } = score;
+
+    await storage?.saveScore({
+      ...rest,
+      entityId,
+      scorerId: hookData.scorer.id,
+      metadata: {
+        structuredOutput: !!structuredOutput,
+      },
+    });
   };
 }
 
@@ -423,6 +434,28 @@ do:
     registerHook(AvailableHooks.ON_SCORER_RUN, createOnScorerHook(this));
 
     this.setLogger({ logger });
+  }
+
+  public getWorkflowById(id: string): Workflow {
+    const workflow = Object.values(this.#workflows).find(a => a.id === id);
+
+    if (!workflow) {
+      const error = new MastraError({
+        id: 'MASTRA_GET_AGENT_BY_AGENT_ID_NOT_FOUND',
+        domain: ErrorDomain.MASTRA,
+        category: ErrorCategory.USER,
+        text: `Agent with id ${String(id)} not found`,
+        details: {
+          status: 404,
+          agentId: String(id),
+          agents: Object.keys(this.#agents ?? {}).join(', '),
+        },
+      });
+      this.#logger?.trackException(error);
+      throw error;
+    }
+
+    return workflow;
   }
 
   public getAgentById(id: string): Agent {

@@ -1,8 +1,17 @@
-import type { UIMessage } from 'ai';
 import { z } from 'zod';
 import { Agent } from '../agent';
 import type { MastraLanguageModel } from '../memory';
 import { createStep, createWorkflow } from '../workflows';
+import { AvailableHooks, executeHook } from '../hooks';
+
+export type SamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
+
+export type MastraScorer = {
+  scorer: Scorer;
+  sampling?: SamplingConfig;
+};
+
+export type Scorers = Record<string, MastraScorer>;
 
 export type ScoringPrompts = {
   description: string;
@@ -13,7 +22,7 @@ export type ScoringRun = {
   runId: string;
   traceId?: string;
   scorer: Record<string, any>;
-  input: UIMessage[];
+  input: Record<string, any>[];
   output: Record<string, any>;
   metadata?: Record<string, any>;
   additionalContext?: Record<string, any>;
@@ -293,14 +302,68 @@ export function createLLMScorer(opts: LLMScorerOptions) {
 }
 
 export type ScoringSource = 'LIVE';
-export type ScoringEntityType = 'AGENT';
+export type ScoringEntityType = 'AGENT' | 'WORKFLOW';
 
-export type ScorerPrompt = Record<string, ScoringPrompts> & {
-  extract: ScoringPrompts;
-  score: ScoringPrompts;
-  reason: ScoringPrompts;
-};
+export function runScorer({
+  runId,
+  scorerId,
+  scorerObject,
+  input,
+  output,
+  runtimeContext,
+  entity,
+  structuredOutput,
+  source,
+  entityType,
+}: {
+  scorerId: string;
+  scorerObject: MastraScorer;
+  runId: string;
+  input: Record<string, any>[];
+  output: Record<string, any>;
+  runtimeContext: Record<string, any>;
+  entity: Record<string, any>;
+  structuredOutput: boolean;
+  source: ScoringSource;
+  entityType: ScoringEntityType;
+}) {
+  let shouldExecute = false;
 
-export abstract class LLMScorer extends Scorer {
-  abstract prompts(): ScorerPrompt;
+  if (!scorerObject?.sampling || scorerObject?.sampling?.type === 'none') {
+    shouldExecute = true;
+  }
+
+  if (scorerObject?.sampling?.type) {
+    switch (scorerObject?.sampling?.type) {
+      case 'ratio':
+        shouldExecute = Math.random() < scorerObject?.sampling?.rate;
+        break;
+      default:
+        shouldExecute = true;
+    }
+  }
+
+  if (!shouldExecute) {
+    return;
+  }
+
+  const payload: ScoringRun = {
+    scorer: {
+      id: scorerId,
+      name: scorerObject.scorer.name,
+      description: scorerObject.scorer.description,
+    },
+    input,
+    output,
+    runtimeContext: Object.fromEntries(runtimeContext.entries()),
+    runId,
+    source,
+    entity,
+    structuredOutput,
+    entityType,
+  };
+
+  console.log('payload', payload);
+
+  executeHook(AvailableHooks.ON_SCORER_RUN, payload);
 }
