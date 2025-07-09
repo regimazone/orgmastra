@@ -2,11 +2,14 @@ import { openai } from '@ai-sdk/openai';
 import { createTool } from '@mastra/core/tools';
 import { Agent } from '@mastra/core/agent';
 import { createAnswerRelevancyScorer } from '@mastra/evals/scorers/llm';
+import { createCompletenessScorer } from '@mastra/evals/scorers/code';
 import { z } from 'zod';
 
 const model = openai('gpt-4o-mini');
 
 const answerRelevancyScorer = createAnswerRelevancyScorer({ model });
+
+const completenessScorer = createCompletenessScorer();
 
 export const evalAgent = new Agent({
   name: 'Eval Agent',
@@ -26,6 +29,13 @@ export const evalAgent = new Agent({
     }),
   },
   scorers: {
+    completeness: {
+      scorer: completenessScorer,
+      sampling: {
+        type: 'ratio',
+        rate: 1,
+      },
+    },
     answerRelevancy: {
       scorer: answerRelevancyScorer,
       sampling: {

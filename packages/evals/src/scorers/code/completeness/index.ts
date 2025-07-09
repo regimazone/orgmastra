@@ -72,42 +72,45 @@ function calculateCoverage({ original, simplified }: { original: string[]; simpl
   return covered.length / original.length;
 }
 
-export const completenessScorer = createScorer({
-  name: 'completeness',
-  description: 'Completeness scorer',
-  extract: async run => {
-    const input = run.input;
-    const output = run.output;
+export function createCompletenessScorer() {
+  return createScorer({
+    name: 'Completeness',
+    description:
+      'Leverage the nlp method from "compromise" to extract elements from the input and output and calculate the coverage.',
+    extract: async run => {
+      const input = run.input;
+      const output = run.output;
 
-    // Handle null/undefined inputs
-    if (input === null || input === undefined || output === null || output === undefined) {
-      throw new Error('Inputs cannot be null or undefined');
-    }
+      // Handle null/undefined inputs
+      if (input === null || input === undefined || output === null || output === undefined) {
+        throw new Error('Inputs cannot be null or undefined');
+      }
 
-    const inputToProcess = input.map(msg => msg.content).join('\n');
-    const outputToProcess = run.structuredOutput ? JSON.stringify(output.object) : output.text;
+      const inputToProcess = input.map(msg => msg.content).join('\n');
+      const outputToProcess = run.structuredOutput ? JSON.stringify(output.object) : output.text;
 
-    const inputDoc = nlp(inputToProcess.trim());
-    const outputDoc = nlp(outputToProcess.trim());
+      const inputDoc = nlp(inputToProcess.trim());
+      const outputDoc = nlp(outputToProcess.trim());
 
-    // Extract and log elements
-    const inputElements = extractElements(inputDoc);
-    const outputElements = extractElements(outputDoc);
+      // Extract and log elements
+      const inputElements = extractElements(inputDoc);
+      const outputElements = extractElements(outputDoc);
 
-    return {
-      inputElements,
-      outputElements,
-    };
-  },
-  score: async run => {
-    const inputElements = run.extractedElements.inputElements;
-    const outputElements = run.extractedElements.outputElements;
+      return {
+        inputElements,
+        outputElements,
+      };
+    },
+    score: async run => {
+      const inputElements = run.extractedElements.inputElements;
+      const outputElements = run.extractedElements.outputElements;
 
-    return {
-      score: calculateCoverage({
-        original: inputElements,
-        simplified: outputElements,
-      }),
-    };
-  },
-});
+      return {
+        score: calculateCoverage({
+          original: inputElements,
+          simplified: outputElements,
+        }),
+      };
+    },
+  });
+}
