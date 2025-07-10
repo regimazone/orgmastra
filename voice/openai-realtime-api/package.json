@@ -1,6 +1,6 @@
 {
   "name": "@mastra/voice-openai-realtime",
-  "version": "0.10.3-alpha.0",
+  "version": "0.10.3",
   "description": "Mastra OpenAI Realtime API integration",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,7 @@
     "test": "vitest run",
     "lint": "eslint ."
   },
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "dependencies": {
     "openai-realtime-api": "^1.0.7",
     "ws": "^8.18.2",
