@@ -135,6 +135,40 @@ Consider background agent capabilities for long-running agent generation tasks.
 - **Expectation**: Understands all frameworks equally
 - **Reality**: Each platform has preferred tech stacks
 
+## Testing and Validation Strategies
+
+### How Each Platform Handles Testing
+
+#### v0 by Vercel
+- **Real-time Preview**: Instant visual validation in browser
+- **No Automated Tests**: Relies on visual inspection
+- **AutoFix Model**: Catches syntax errors during generation
+- **User Feedback**: "This doesn't look right" → regenerate
+
+#### Lovable AI
+- **Build Verification**: Ensures code compiles
+- **Basic Runtime Checks**: Verifies app starts without crashing
+- **Database Validation**: Tests Supabase connections
+- **Limited Test Generation**: Occasionally generates basic tests on request
+
+#### Cursor Background Agents
+- **Compilation Checks**: Verifies TypeScript/syntax validity
+- **Existing Test Runner**: Can run project's existing tests
+- **Test Generation**: Can write tests when explicitly asked
+- **Git Integration**: Won't merge if tests fail
+
+### Common Testing Gaps
+1. **No Automatic Test Generation**: Tests rarely generated unless requested
+2. **Limited Coverage**: Generated tests often superficial
+3. **Integration Testing**: Rarely handles complex integration scenarios
+4. **Edge Cases**: Doesn't proactively test error conditions
+
+### User-Reported Testing Issues
+- "The code looks right but doesn't work"
+- "Generated tests pass but app still breaks"
+- "Wish it would test the code before showing it to me"
+- "Hard to know if generated code will work in production"
+
 ## Common Patterns Across Platforms
 
 ### 1. Multi-Stage Processing
@@ -192,6 +226,13 @@ Rather than one-size-fits-all:
 - Capture design decisions
 - Build pattern library over time
 - Use for future improvements
+
+### 5. Testing-First Approach (Learning from Gaps)
+- **Auto-generate tests**: Create tests alongside agent code
+- **Validation Pipeline**: Run tests before showing code to user
+- **Integration Testing**: Test agent with sample inputs/outputs
+- **Edge Case Coverage**: Proactively test error conditions
+- **Live Validation**: Test agents in sandboxed environment before deployment
 
 ## Recommended Architecture Elements
 
