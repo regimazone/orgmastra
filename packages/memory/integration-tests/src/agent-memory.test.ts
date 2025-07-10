@@ -104,7 +104,7 @@ describe('Agent Memory Tests', () => {
         threadId,
         resourceId,
         output: z.object({
-          result: z.string(),
+          result: z.number(),
         }),
       });
 
