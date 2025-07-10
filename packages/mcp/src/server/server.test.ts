@@ -946,7 +946,7 @@ describe('MCPServer', () => {
           weatherTool,
           testAuthTool: {
             description: 'Test tool to validate auth information from extra params',
-            parameters: z.object({
+            inputSchema: z.object({
               message: z.string().describe('Message to show to user'),
             }),
             execute: async (context, options) => {

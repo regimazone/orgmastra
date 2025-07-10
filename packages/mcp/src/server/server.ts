@@ -292,7 +292,7 @@ export class MCPServer extends MCPServerBase {
             // Tool returned plain object, wrap it automatically for backward compatibility
             structuredContent = result;
           }
-          const outputValidation = await tool.outputSchema.validate?.(result.structuredContent ?? {});
+          const outputValidation = await tool.outputSchema.validate?.(structuredContent ?? {});
           if (outputValidation && !outputValidation.success) {
             this.logger.warn(`CallTool: Invalid structured content for '${request.params.name}'`, {
               errors: outputValidation.error,
