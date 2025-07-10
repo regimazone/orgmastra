@@ -840,7 +840,6 @@ describe('Working Memory Tests', () => {
       const retrievedAsJson = await memory.getWorkingMemory({
         threadId: thread.id,
         resourceId,
-        format: 'json',
       });
 
       expect(retrievedAsJson).toBe(`{"name":"Charlie","age":30,"city":"Seattle"}`);

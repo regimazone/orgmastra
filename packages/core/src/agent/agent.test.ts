@@ -11,13 +11,19 @@ import { z } from 'zod';
 import { TestIntegration } from '../integration/openapi-toolset.mock';
 import { Mastra } from '../mastra';
 import { MastraMemory } from '../memory';
-import type { StorageThreadType, MemoryConfig, WorkingMemoryTemplate, MastraMessageV1 } from '../memory';
+import type {
+  StorageThreadType,
+  MemoryConfig,
+  WorkingMemoryTemplate,
+  MastraMessageV1,
+  AllMastraMessageTypesList,
+} from '../memory';
 import { RuntimeContext } from '../runtime-context';
 import type { StorageGetMessagesArg } from '../storage';
 import { createTool } from '../tools';
 import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
-import type { MastraMessageV2 } from './types';
+import type { MastraMessageV2, MastraMessageV3 } from './types';
 import { Agent } from '.';
 
 // const mockClientToolModel = new MockLanguageModelV2({
@@ -92,7 +98,7 @@ config();
 
 class MockMemory extends MastraMemory {
   threads: Record<string, StorageThreadType> = {};
-  messages: Map<string, MastraMessageV1 | MastraMessageV2> = new Map();
+  messages: Map<string, MastraMessageV1 | MastraMessageV2 | MastraMessageV3> = new Map();
 
   constructor() {
     super({ name: 'mock' });
@@ -135,7 +141,7 @@ class MockMemory extends MastraMemory {
     threadId,
     resourceId,
     format = 'v1',
-  }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]> {
+  }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<AllMastraMessageTypesList> {
     let results = Array.from(this.messages.values());
     if (threadId) results = results.filter(m => m.threadId === threadId);
     if (resourceId) results = results.filter(m => m.resourceId === resourceId);
@@ -144,12 +150,28 @@ class MockMemory extends MastraMemory {
   }
 
   // saveMessages for both v1 and v2
-  async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
-  async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
-  async saveMessages(
-    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
-  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
-    const { messages } = args as any;
+  async saveMessages(args: {
+    messages: AllMastraMessageTypesList;
+    memoryConfig?: MemoryConfig | undefined;
+    format?: 'v1';
+  }): Promise<MastraMessageV1[]>;
+  async saveMessages(args: {
+    messages: AllMastraMessageTypesList;
+    memoryConfig?: MemoryConfig | undefined;
+    format: 'v2';
+  }): Promise<MastraMessageV2[]>;
+  async saveMessages(args: {
+    messages: AllMastraMessageTypesList;
+    memoryConfig?: MemoryConfig | undefined;
+    format: 'v3';
+  }): Promise<MastraMessageV3[]>;
+  async saveMessages({
+    messages,
+  }: {
+    messages: AllMastraMessageTypesList;
+    memoryConfig?: MemoryConfig | undefined;
+    format?: 'v1' | 'v2' | 'v3';
+  }): Promise<AllMastraMessageTypesList> {
     for (const msg of messages) {
       const existing = this.messages.get(msg.id);
       if (existing) {
@@ -171,7 +193,7 @@ class MockMemory extends MastraMemory {
     return [];
   }
   async query() {
-    return { messages: [], uiMessages: [] };
+    return { messages: [], uiMessages: [], uiMessagesV4: [], messagesV2: [] };
   }
   async deleteThread(threadId: string) {
     delete this.threads[threadId];
@@ -1322,7 +1344,7 @@ describe('agent', () => {
   });
 
   it('should use custom instructions for title generation when provided in generateTitle config', async () => {
-    let capturedPrompt = '';
+    let capturedPrompt: any = '';
     const customInstructions = 'Generate a creative and engaging title based on the conversation';
 
     const mockMemory = new MockMemory();
@@ -1332,7 +1354,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async options => {
                 // Capture the prompt to verify custom instructions are used
                 const messages = options.prompt;
@@ -1343,8 +1365,9 @@ describe('agent', () => {
                 return {
                   rawCall: { rawPrompt: null, rawSettings: {} },
                   finishReason: 'stop',
-                  usage: { promptTokens: 5, completionTokens: 10 },
-                  text: `Creative Custom Title`,
+                  usage: { promptTokens: 1, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                  content: [{ type: 'text', text: 'Creative Custom Title' }],
+                  warnings: [],
                 };
               },
             }),
@@ -1385,7 +1408,7 @@ describe('agent', () => {
   });
 
   it('should support dynamic instructions selection for title generation', async () => {
-    let capturedPrompt = '';
+    let capturedPrompt: any = '';
     let usedLanguage = '';
 
     const mockMemory = new MockMemory();
@@ -1395,7 +1418,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async options => {
                 const messages = options.prompt;
                 const systemMessage = messages.find((msg: any) => msg.role === 'system');
@@ -1408,16 +1431,18 @@ describe('agent', () => {
                   return {
                     rawCall: { rawPrompt: null, rawSettings: {} },
                     finishReason: 'stop',
-                    usage: { promptTokens: 5, completionTokens: 10 },
-                    text: `日本語のタイトル`,
+                    usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                    content: [{ type: 'text', text: '日本語のタイトル' }],
+                    warnings: [],
                   };
                 } else {
                   usedLanguage = 'en';
                   return {
                     rawCall: { rawPrompt: null, rawSettings: {} },
                     finishReason: 'stop',
-                    usage: { promptTokens: 5, completionTokens: 10 },
-                    text: `English Title`,
+                    usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                    content: [{ type: 'text', text: 'English Title' }],
+                    warnings: [],
                   };
                 }
               },
@@ -1482,7 +1507,7 @@ describe('agent', () => {
   });
 
   it('should use default instructions when instructions config is undefined', async () => {
-    let capturedPrompt = '';
+    let capturedPrompt: any = '';
 
     const mockMemory = new MockMemory();
 
@@ -1490,7 +1515,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async options => {
                 const messages = options.prompt;
                 const systemMessage = messages.find((msg: any) => msg.role === 'system');
@@ -1500,8 +1525,9 @@ describe('agent', () => {
                 return {
                   rawCall: { rawPrompt: null, rawSettings: {} },
                   finishReason: 'stop',
-                  usage: { promptTokens: 5, completionTokens: 10 },
-                  text: `Default Title`,
+                  usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                  content: [{ type: 'text', text: 'Default Title' }],
+                  warnings: [],
                 };
               },
             }),
@@ -1558,13 +1584,14 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async () => {
                 return {
                   rawCall: { rawPrompt: null, rawSettings: {} },
                   finishReason: 'stop',
-                  usage: { promptTokens: 5, completionTokens: 10 },
-                  text: `Title with error handling`,
+                  usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                  content: [{ type: 'text', text: 'Title with error handling' }],
+                  warnings: [],
                 };
               },
             }),
@@ -1604,7 +1631,7 @@ describe('agent', () => {
   });
 
   it('should handle empty or null instructions appropriately', async () => {
-    let capturedPrompt = '';
+    let capturedPrompt: any = '';
 
     const mockMemory = new MockMemory();
 
@@ -1613,7 +1640,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async options => {
                 const messages = options.prompt;
                 const systemMessage = messages.find((msg: any) => msg.role === 'system');
@@ -1623,8 +1650,9 @@ describe('agent', () => {
                 return {
                   rawCall: { rawPrompt: null, rawSettings: {} },
                   finishReason: 'stop',
-                  usage: { promptTokens: 5, completionTokens: 10 },
-                  text: `Title with default instructions`,
+                  usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                  content: [{ type: 'text', text: 'Title with default instructions' }],
+                  warnings: [],
                 };
               },
             }),
@@ -1662,7 +1690,7 @@ describe('agent', () => {
       return {
         threads: {
           generateTitle: {
-            model: new MockLanguageModelV1({
+            model: new MockLanguageModelV2({
               doGenerate: async options => {
                 const messages = options.prompt;
                 const systemMessage = messages.find((msg: any) => msg.role === 'system');
@@ -1672,8 +1700,9 @@ describe('agent', () => {
                 return {
                   rawCall: { rawPrompt: null, rawSettings: {} },
                   finishReason: 'stop',
-                  usage: { promptTokens: 5, completionTokens: 10 },
-                  text: `Title with null instructions`,
+                  usage: { promptTokens: 5, completionTokens: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+                  content: [{ type: 'text', text: 'Title with null instructions' }],
+                  warnings: [],
                 };
               },
             }),
@@ -2082,7 +2111,7 @@ describe('agent memory with metadata', () => {
       return [];
     }
     async query() {
-      return { messages: [], uiMessages: [] };
+      return { messages: [], uiMessages: [], uiMessagesV4: [], messagesV2: [] };
     }
     async deleteThread(threadId: string) {
       delete this.threads[threadId];
@@ -2272,40 +2301,55 @@ describe('agent memory with metadata', () => {
 
 describe('Agent save message parts', () => {
   // Model that emits 10 parts
-  const dummyResponseModel = new MockLanguageModelV1({
+  const chunks = Array.from({ length: 10 }, (_, count) => ({
+    id: `text-${count}`,
+    type: 'text-delta',
+    delta: `Dummy response ${count}`,
+    createdAt: new Date(Date.now() + count * 1000).toISOString(),
+  }));
+  const dummyResponseModel = new MockLanguageModelV2({
     doGenerate: async _options => ({
       text: Array.from({ length: 10 }, (_, count) => `Dummy response ${count}`).join(' '),
       finishReason: 'stop',
-      usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 },
+      usage: {
+        promptTokens: 10,
+        completionTokens: 10,
+        totalTokens: 20,
+        inputTokens: 1,
+        outputTokens: 1,
+      },
       rawCall: { rawPrompt: null, rawSettings: {} },
+      content: [{ type: 'text', text: 'Dummy response' }],
+      warnings: [],
     }),
-    doStream: async _options => {
-      let count = 0;
-      const stream = new ReadableStream({
-        pull(controller) {
-          if (count < 10) {
-            controller.enqueue({
-              type: 'text-delta',
-              textDelta: `Dummy response ${count}`,
-              createdAt: new Date(Date.now() + count * 1000).toISOString(),
-            });
-            count++;
-          } else {
-            controller.close();
-          }
-        },
-      });
-      return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
-    },
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        chunks: [
+          { type: 'text-start', id: 'text-1' },
+          ...chunks,
+          { type: 'text-end', id: 'text-1' },
+          {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: { completionTokens: 10, promptTokens: 3 },
+            providerMetadata: undefined,
+          },
+        ] as LanguageModelV2StreamPart[], // Added type assertion
+      }),
+      request: undefined, // Add request
+      response: { headers: undefined }, // Add response
+    }),
   });
 
   // Model never emits any parts
-  const emptyResponseModel = new MockLanguageModelV1({
+  const emptyResponseModel = new MockLanguageModelV2({
     doGenerate: async _options => ({
       text: undefined,
       finishReason: 'stop',
-      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, inputTokens: 1, outputTokens: 1 },
       rawCall: { rawPrompt: null, rawSettings: {} },
+      content: [],
+      warnings: [],
     }),
     doStream: async () => ({
       stream: simulateReadableStream({
@@ -2316,7 +2360,7 @@ describe('Agent save message parts', () => {
   });
 
   // Model throws immediately before emitting any part
-  const errorResponseModel = new MockLanguageModelV1({
+  const errorResponseModel = new MockLanguageModelV2({
     doGenerate: async _options => {
       throw new Error('Immediate interruption');
     },
@@ -2374,7 +2418,7 @@ describe('Agent save message parts', () => {
         await agent.generate('Please echo this and then use the error tool. Be verbose and take multiple steps.', {
           threadId: 'thread-partial-rescue-generate',
           resourceId: 'resource-partial-rescue-generate',
-          experimental_continueSteps: true,
+          // experimental_continueSteps: true,
           savePerStep: true,
           onStepFinish: (result: any) => {
             if (result.toolCalls && result.toolCalls.length > 1) {
@@ -2408,12 +2452,7 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(
-            part =>
-              part.type === 'tool-invocation' &&
-              part.toolInvocation &&
-              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
-          ),
+          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
@@ -2568,7 +2607,7 @@ describe('Agent save message parts', () => {
       });
       expect(messages.length).toBe(1);
       expect(messages[0].role).toBe('user');
-      expect(messages[0].content.content).toBe('no progress');
+      expect(messages[0].content.parts[0].text).toBe('no progress');
     });
 
     it('should not save any message if interrupted before any part is emitted', async () => {
@@ -2649,7 +2688,7 @@ describe('Agent save message parts', () => {
         {
           threadId: 'thread-partial-rescue',
           resourceId: 'resource-partial-rescue',
-          experimental_continueSteps: true,
+          // experimental_continueSteps: true,
           savePerStep: true,
           onStepFinish: (result: any) => {
             if (result.toolCalls && result.toolCalls.length > 1) {
@@ -2689,12 +2728,7 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(
-            part =>
-              part.type === 'tool-invocation' &&
-              part.toolInvocation &&
-              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
-          ),
+          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
@@ -2848,7 +2882,7 @@ describe('Agent save message parts', () => {
       const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
       expect(messages.length).toBe(1);
       expect(messages[0].role).toBe('user');
-      expect(messages[0].content.content).toBe('no progress');
+      expect(messages[0].content.parts[0].text).toBe('no progress');
     });
 
     it('should not save any message if interrupted before any part is emitted', async () => {
