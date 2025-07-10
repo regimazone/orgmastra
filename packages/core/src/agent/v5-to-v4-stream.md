@@ -136,7 +136,7 @@ v5-to-v4-transformer-test/
 
 ```typescript
 // Extends official AI SDK v5 types for compatibility
-export type UIMessageStreamPart = BaseUIMessageStreamPart |
+export type UIMessageChunk = BaseUIMessageStreamPart |
   { type: 'response-metadata'; ... } |
   { type: 'source'; ... } |
   // ... other legacy formats

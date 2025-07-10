@@ -10,25 +10,14 @@ const __dirname = path.dirname(__filename);
 // AI SDK package version mappings from current beta to latest beta
 const VERSION_MAPPINGS = {
   ai: {
-    '5.0.0-alpha.15': '5.0.0-beta.5',
-    '4.3.16': '5.0.0-beta.5', // Major upgrade from v4 to v5
-    '4.3.17': '5.0.0-beta.5', // Major upgrade from v4 to v5
-    '5.0.0-beta.1': '5.0.0-beta.5',
-    '5.0.0-beta.2': '5.0.0-beta.5',
-    '5.0.0-beta.3': '5.0.0-beta.5',
-    '5.0.0-beta.4': '5.0.0-beta.5',
+    '5.0.0-beta.5': '5.0.0-beta.14',
   },
   '@ai-sdk/provider': {
     '2.0.0-alpha.15': '2.0.0-beta.5',
     '2.0.0-beta.5': '2.0.0-beta.1',
   },
   '@ai-sdk/openai': {
-    '2.0.0-alpha.15': '2.0.0-beta.5',
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
+    '2.0.0-beta.5': '2.0.0-beta.6',
   },
   '@ai-sdk/react': {
     '2.0.0-alpha.15': '2.0.0-beta.5',

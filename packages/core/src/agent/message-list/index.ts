@@ -427,11 +427,18 @@ export class MessageList {
 
           if (existingCallPart && AIV5.isToolUIPart(existingCallPart)) {
             // Update the existing tool-call part with the result
-            latestMessage.content.parts[latestMessage.content.parts.findIndex(p => p === existingCallPart)] = {
-              ...existingCallPart,
-              state: 'output-available',
-              output: part.output,
-            };
+            const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
+            if (existingIndex !== -1) {
+              // Create a new tool part with output-available state, preserving the original type and properties
+              const updatedPart = {
+                type: existingCallPart.type,
+                toolCallId: existingCallPart.toolCallId,
+                state: 'output-available' as const,
+                input: existingCallPart.input,
+                output: part.output,
+              };
+              latestMessage.content.parts[existingIndex] = updatedPart;
+            }
           }
         } else if (
           // if there's no part at this index yet in the existing message we're merging into

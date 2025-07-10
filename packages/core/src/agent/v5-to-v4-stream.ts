@@ -6,10 +6,10 @@
  */
 
 // Import actual AI SDK v5 types and extend them for broader compatibility
-import type { UIMessageStreamPart as BaseUIMessageStreamPart } from 'ai';
+import type { UIMessageChunk as BaseUIMessageStreamPart } from 'ai';
 
 // Extended type that includes common events we might encounter
-export type UIMessageStreamPart =
+export type UIMessageChunk =
   | BaseUIMessageStreamPart
   | { type: 'response-metadata'; id: string; modelId: string; timestamp: Date }
   | { type: 'source'; id: string; title?: string; url?: string; content?: unknown } // Legacy source format
@@ -63,7 +63,7 @@ function generateId(prefix: string): string {
 /**
  * Parse Server-Sent Events stream into individual JSON objects
  */
-export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPart> {
+export function parseSSEStream(): TransformStream<Uint8Array, UIMessageChunk> {
   const decoder = new TextDecoder();
   let buffer = '';
   const maxBufferSize = 1024 * 1024; // 1MB limit
@@ -93,7 +93,7 @@ export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPar
             }
 
             try {
-              const parsed = JSON.parse(data) as UIMessageStreamPart;
+              const parsed = JSON.parse(data) as UIMessageChunk;
               controller.enqueue(parsed);
             } catch {
               console.warn('Failed to parse SSE data:', data.slice(0, 50) + '...');
@@ -111,7 +111,7 @@ export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPar
         const data = buffer.slice('data: '.length);
         if (data !== '[DONE]') {
           try {
-            const parsed = JSON.parse(data) as UIMessageStreamPart;
+            const parsed = JSON.parse(data) as UIMessageChunk;
             controller.enqueue(parsed);
           } catch {
             console.warn('Failed to parse final SSE data:', data.slice(0, 50) + '...');
@@ -123,9 +123,9 @@ export function parseSSEStream(): TransformStream<Uint8Array, UIMessageStreamPar
 }
 
 /**
- * Transform v5 UIMessageStreamPart to v4 DataStream format
+ * Transform v5 UIMessageChunk to v4 DataStream format
  */
-export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamState): string | null {
+export function transformV5ToV4Part(part: UIMessageChunk, state: StreamState): string | null {
   switch (part.type) {
     case 'text-start':
       // Start of text block - no output needed for v4
@@ -310,7 +310,7 @@ export function transformV5ToV4Part(part: UIMessageStreamPart, state: StreamStat
 /**
  * Create a TransformStream that converts v5 parts to v4 format
  */
-export function createV5ToV4Transformer(): TransformStream<UIMessageStreamPart, string> {
+export function createV5ToV4Transformer(): TransformStream<UIMessageChunk, string> {
   // Create isolated state for this specific stream instance
   const streamState = createStreamState();
 
