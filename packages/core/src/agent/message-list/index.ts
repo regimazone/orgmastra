@@ -822,6 +822,12 @@ export class MessageList {
           break;
 
         case 'tool-invocation':
+          if (
+            part.type === 'tool-invocation' &&
+            (part.toolInvocation.state === 'call' || part.toolInvocation.state === 'partial-call')
+          ) {
+            break;
+          }
           parts.push({
             type: 'tool-invocation',
             toolInvocation: part.toolInvocation,
@@ -869,7 +875,10 @@ export class MessageList {
 
     // Add optional fields if they exist
     if (v2Msg.content.toolInvocations?.length) {
-      uiMessage.toolInvocations = v2Msg.content.toolInvocations;
+      uiMessage.toolInvocations =
+        `toolInvocations` in v2Msg.content
+          ? v2Msg.content.toolInvocations?.filter(t => t.state === 'result')
+          : undefined;
     }
 
     if (v2Msg.content.experimental_attachments?.length) {

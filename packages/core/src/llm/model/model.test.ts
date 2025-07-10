@@ -3,6 +3,7 @@ import type { JSONSchema7 } from 'json-schema';
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { RuntimeContext } from '../../runtime-context';
+import type { ConvertedCoreTool } from '../../tools';
 import { createTool } from '../../tools';
 import { makeCoreTool } from '../../utils';
 
@@ -19,7 +20,7 @@ describe('MastraLLM', () => {
 
   const runtimeContext = new RuntimeContext();
 
-  const mockTools = {
+  const mockTools: Record<string, ConvertedCoreTool> = {
     testTool: makeCoreTool(
       createTool({
         id: 'test',
@@ -168,7 +169,7 @@ describe('MastraLLM', () => {
     it('should stream text by default', async () => {
       const messages: ModelMessage[] = [{ role: 'user', content: 'test message' }];
 
-      const result = await aisdkText.stream(messages, {
+      const result = aisdkText.stream(messages, {
         // Store the result
         tools: mockTools,
         temperature: 0.7,
@@ -185,7 +186,7 @@ describe('MastraLLM', () => {
     });
 
     it('should handle string messages', async () => {
-      await aisdkText.stream('test message', {
+      aisdkText.stream('test message', {
         tools: mockTools,
         temperature: 0.7,
         maxSteps: 5,
@@ -196,7 +197,7 @@ describe('MastraLLM', () => {
     });
 
     it('should handle array of string messages', async () => {
-      await aisdkText.stream(['test message 1', 'test message 2'], {
+      aisdkText.stream(['test message 1', 'test message 2'], {
         tools: mockTools,
         temperature: 0.7,
         maxSteps: 5,
@@ -212,7 +213,7 @@ describe('MastraLLM', () => {
         content: z.string(),
       });
 
-      await aisdkObject.stream(messages, {
+      aisdkObject.stream(messages, {
         tools: mockTools,
         output: schema,
         temperature: 0.7,
@@ -233,7 +234,7 @@ describe('MastraLLM', () => {
         required: ['content'],
       } as JSONSchema7;
 
-      await aisdkObject.stream(messages, {
+      aisdkObject.stream(messages, {
         tools: mockTools,
         output: jsonSchema,
         temperature: 0.7,
@@ -249,7 +250,7 @@ describe('MastraLLM', () => {
       const onStepFinish = vi.fn();
       const onFinish = vi.fn();
 
-      await aisdkText.stream(messages, {
+      aisdkText.stream(messages, {
         tools: mockTools,
         onStepFinish,
         onFinish,
@@ -269,7 +270,7 @@ describe('MastraLLM', () => {
       const onStepFinish = vi.fn();
       const onFinish = vi.fn();
 
-      await aisdkObject.stream(messages, {
+      aisdkObject.stream(messages, {
         tools: mockTools,
         output: schema,
         onStepFinish,
@@ -592,7 +593,7 @@ describe('MastraLLM', () => {
         content: z.string(),
       }) as z.ZodType<any>;
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         tools: mockTools,
         structuredOutput: schema,
@@ -608,7 +609,7 @@ describe('MastraLLM', () => {
       const messages: ModelMessage[] = [{ role: 'user', content: 'test message' }];
       const arraySchema = z.object({ content: z.array(z.string()) }) as z.ZodType<any>;
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: arraySchema,
         temperature: 0.7,
@@ -629,7 +630,7 @@ describe('MastraLLM', () => {
         required: ['content'],
       } as JSONSchema7;
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: jsonSchema,
         temperature: 0.7,
@@ -648,7 +649,7 @@ describe('MastraLLM', () => {
       const onStepFinish = vi.fn();
       const onFinish = vi.fn();
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: schema,
         onStepFinish,
@@ -668,7 +669,7 @@ describe('MastraLLM', () => {
       }) as z.ZodType<any>;
       const runId = 'test-run';
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: schema,
         runId,
@@ -686,7 +687,7 @@ describe('MastraLLM', () => {
         content: z.string(),
       }) as z.ZodType<any>;
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: schema,
         tools: mockTools,
@@ -706,7 +707,7 @@ describe('MastraLLM', () => {
 
       const runId = 'test-run';
 
-      await aisdkObject.__streamObject({
+      aisdkObject.__streamObject({
         messages,
         structuredOutput: schema,
         runId,

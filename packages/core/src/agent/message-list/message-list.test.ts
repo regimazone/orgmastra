@@ -3014,24 +3014,8 @@ describe('MessageList', () => {
             type: 'text',
             text: 'Let me use a tool',
           },
-          {
-            type: 'tool-invocation',
-            toolInvocation: {
-              state: 'call',
-              toolCallId: 'call-1',
-              toolName: 'testTool',
-              args: { param: 'value' },
-            },
-          },
         ],
-        toolInvocations: [
-          {
-            state: 'call',
-            toolCallId: 'call-1',
-            toolName: 'testTool',
-            args: { param: 'value' },
-          },
-        ],
+        toolInvocations: [],
       });
     });
 
@@ -3234,7 +3218,7 @@ describe('MessageList', () => {
       const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
       list.add(messageWithCallState, 'response');
 
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV4.ui();
       expect(uiMessages.length).toBe(1);
 
       const uiMessage = uiMessages[0];
@@ -3289,7 +3273,7 @@ describe('MessageList', () => {
       const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
       list.add(messageWithResultState, 'response');
 
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV4.ui();
       expect(uiMessages.length).toBe(1);
 
       const uiMessage = uiMessages[0];
@@ -3372,7 +3356,7 @@ describe('MessageList', () => {
       const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
       list.add(messageWithMixedStates, 'response');
 
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV4.ui();
       const uiMessage = uiMessages[0];
 
       // Only the result state should be preserved
@@ -3383,8 +3367,8 @@ describe('MessageList', () => {
 
       // toolInvocations array should also only have the result
       expect(uiMessage.toolInvocations).toHaveLength(1);
-      expect(uiMessage.toolInvocations[0].state).toBe('result');
-      expect(uiMessage.toolInvocations[0].toolCallId).toBe('call-4');
+      expect(uiMessage.toolInvocations?.[0].state).toBe('result');
+      expect(uiMessage.toolInvocations?.[0].toolCallId).toBe('call-4');
     });
 
     it('should handle clientTool scenario - filter call states when querying from memory', () => {
@@ -3430,7 +3414,7 @@ describe('MessageList', () => {
       list.add(assistantCallMessage, 'memory');
 
       // When converting to UI messages (what the client sees)
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV4.ui();
       expect(uiMessages.length).toBe(1);
 
       const uiMessage = uiMessages[0];
@@ -3485,7 +3469,7 @@ describe('MessageList', () => {
 
       list.add(assistantResultMessage, 'memory');
 
-      const uiMessages2 = list.get.all.ui();
+      const uiMessages2 = list.get.all.aiV4.ui();
       expect(uiMessages2.length).toBe(2);
 
       const uiMessageWithResult = uiMessages2[1];
@@ -3498,8 +3482,8 @@ describe('MessageList', () => {
 
       // toolInvocations array should have the result
       expect(uiMessageWithResult.toolInvocations).toHaveLength(1);
-      expect(uiMessageWithResult.toolInvocations[0].state).toBe('result');
-      expect(uiMessageWithResult.toolInvocations[0].result).toBe(42);
+      expect(uiMessageWithResult.toolInvocations?.[0].state).toBe('result');
+      expect(uiMessageWithResult.toolInvocations?.[0].result).toBe(42);
     });
   });
 });

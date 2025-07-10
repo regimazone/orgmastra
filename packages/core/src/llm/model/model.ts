@@ -650,23 +650,21 @@ export class MastraLLM extends MastraBase {
       return m;
     });
   }
-  async stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>(
+  stream<Z extends ZodSchema | JSONSchema7 | undefined = undefined>(
     messages: MessageInput,
-    { maxSteps = 5, output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
+    { output, ...rest }: LLMStreamOptions<Z> & { memory?: MastraMemory },
   ) {
     if (!output) {
-      return (await this.__stream({
+      return this.__stream({
         messages: this.inputMessagesToModelMessages(messages),
-        maxSteps,
         ...rest,
-      })) as unknown as StreamReturn<Z>;
+      }) as unknown as StreamReturn<Z>;
     }
 
-    return (await this.__streamObject({
+    return this.__streamObject({
       messages: this.inputMessagesToModelMessages(messages),
       structuredOutput: output,
-      maxSteps,
       ...rest,
-    })) as unknown as StreamReturn<Z>;
+    }) as unknown as StreamReturn<Z>;
   }
 }
