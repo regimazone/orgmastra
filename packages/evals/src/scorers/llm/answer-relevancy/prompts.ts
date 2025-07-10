@@ -20,9 +20,9 @@ export const EXTRACT_PROMPT = `
         Example:
         Example text: Look! A bird! Birds are an interesting animal.
         
-        {{
+        {
             "statements": ["Look!", "A bird!", "Birds are interesting animals."]
-        }}
+        }
         
         Please return only JSON format with "statements" array.
         Return empty list for empty input.
