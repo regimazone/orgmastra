@@ -57,7 +57,7 @@ export const ScorerSettingsProvider = ({ children, entityType, entityId }: Score
   const resetEntitySettings = () => {
     const scorers = Object.keys(defaultEntityScorerSettings);
     const newSettings = scorers.reduce((acc, scorerName) => {
-      acc[scorerName] = defaultEntityScorerSettings;
+      acc[scorerName] = { ...defaultEntityScorerSettings };
       return acc;
     }, {} as ScorersSettingsRecord);
 
