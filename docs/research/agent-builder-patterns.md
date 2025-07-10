@@ -265,12 +265,199 @@ Review ← Validate ← Generate Code ← Select Templates
 Deploy → Test → Document → Learn
 ```
 
+## Framework-Specific Code Generation: Learning from the Best
+
+### Traditional Framework Generators
+
+#### Rails Generators
+- **Approach**: Convention over configuration
+- **Commands**: `rails generate scaffold`, `rails generate model`
+- **Advantages**: 
+  - Generates idiomatic Rails code
+  - Follows established patterns
+  - Includes tests, migrations, and views
+  - Customizable templates
+
+#### Angular CLI
+- **Approach**: Schematic-based generation
+- **Commands**: `ng generate component`, `ng generate service`
+- **Advantages**:
+  - TypeScript-first with proper typing
+  - Follows Angular style guide
+  - Includes spec files automatically
+  - Workspace-aware generation
+
+#### Django Management Commands
+- **Approach**: Admin interface and model-driven
+- **Commands**: `python manage.py startapp`, `makemigrations`
+- **Advantages**:
+  - Database-first approach
+  - Automatic admin interface
+  - Built-in authentication patterns
+
+### AI Framework Builders (2024-2025)
+
+#### LangChain/LangGraph + LangSmith
+- **Approach**: Graph-based workflows with observability
+- **Strengths**:
+  - Visual debugging through LangSmith
+  - Modular chain composition
+  - Extensive integrations
+- **Limitations**:
+  - Steep learning curve
+  - Complex for simple use cases
+
+#### AutoGen Studio
+- **Approach**: Visual builder for conversational agents
+- **Strengths**:
+  - Microsoft backing
+  - Actor-based framework
+  - Team collaboration patterns
+- **User Experience**:
+  - Easiest learning curve (10/10)
+  - Limited flexibility
+
+#### CrewAI
+- **Approach**: Role-based multi-agent systems
+- **Strengths**:
+  - Intuitive agent roles
+  - Sequential/collaborative workflows
+  - Andrew Ng's AI Fund backing
+- **Adoption**: Most popular for team-based agents
+
+### Schema-First Generators
+
+#### Prisma
+- **Approach**: Database schema → TypeScript types
+- **Ecosystem**:
+  - Generates for multiple frameworks (NestJS, tRPC, GraphQL)
+  - Type-safe from DB to frontend
+  - Extensible generator system
+
+#### GraphQL Codegen
+- **Approach**: GraphQL schema → TypeScript/clients
+- **Benefits**:
+  - End-to-end type safety
+  - Framework-specific plugins
+  - Operation-specific types
+
+## Mastra's Framework-Specific Opportunities
+
+### 1. Deep Domain Knowledge
+Unlike general-purpose code generators, we can:
+- **Know all valid configurations**: Every Agent option, tool schema, workflow pattern
+- **Validate at generation time**: Catch errors before runtime
+- **Suggest best practices**: Based on Mastra patterns
+- **Generate complete ecosystems**: Agent + tools + workflows + memory
+
+### 2. Type-Safe Generation from Schemas
+```typescript
+// Mastra already uses Zod schemas everywhere
+const toolSchema = z.object({...})
+const workflowSchema = z.object({...})
+
+// We can generate from these schemas:
+- Tool implementations
+- Workflow steps
+- Agent configurations
+- Test cases
+```
+
+### 3. Framework-Aware Optimizations
+- **Memory configuration**: Suggest optimal memory providers based on use case
+- **Model selection**: Recommend models based on agent requirements
+- **Tool composition**: Suggest tool combinations that work well together
+- **Performance patterns**: Generate efficient agent architectures
+
+### 4. Integrated Testing
+Since we control the framework:
+- Generate tests that use Mastra's test utilities
+- Mock Mastra-specific components correctly
+- Test agent behavior with real Mastra patterns
+- Validate tool schemas automatically
+
+### 5. Progressive Enhancement Path
+```
+Simple Agent → Add Tools → Add Memory → Add Workflows → Multi-Agent
+```
+Each step can be validated and tested within Mastra's constraints.
+
+## Comparison: General vs Framework-Specific
+
+| Aspect | General Builders (v0, Lovable) | Framework-Specific (Rails, Mastra) |
+|--------|--------------------------------|-------------------------------------|
+| **Flexibility** | Can build anything | Constrained to framework |
+| **Learning Curve** | Must understand many patterns | Learn one pattern well |
+| **Code Quality** | Variable, often needs fixes | Idiomatic by default |
+| **Validation** | Limited to syntax | Deep semantic validation |
+| **Testing** | Generic or none | Framework-aware tests |
+| **Documentation** | External | Integrated with framework |
+| **Iteration Speed** | Slow (lots to consider) | Fast (constrained scope) |
+
+## Key Success Factors from Research
+
+1. **Convention Over Configuration** (Rails)
+   - Mastra Agent Builder should have sensible defaults
+   - Generate the "Mastra way" by default
+
+2. **Progressive Disclosure** (Angular CLI)
+   - Start simple, add complexity as needed
+   - Hide advanced options until requested
+
+3. **Visual Feedback** (LangSmith, AutoGen Studio)
+   - Show agent architecture visually
+   - Debug with real execution traces
+
+4. **Role-Based Patterns** (CrewAI)
+   - Offer agent templates by role/purpose
+   - Pre-configured for common use cases
+
+5. **Schema-First Safety** (Prisma, GraphQL)
+   - Generate from validated schemas
+   - End-to-end type safety
+
+## Mastra-Specific Implementation Ideas
+
+### 1. Agent Templates by Use Case
+```typescript
+mastra generate agent --template="customer-support"
+mastra generate agent --template="data-analyst"
+mastra generate agent --template="workflow-orchestrator"
+```
+
+### 2. Interactive Builder with Validation
+```
+? What type of agent? (assistant/task-worker/orchestrator)
+? Which model provider? (openai/anthropic/google)
+? Need memory? (none/basic/semantic-recall)
+? Add tools? (y/N)
+✓ Validating configuration...
+✓ Generating agent code...
+✓ Running tests...
+```
+
+### 3. Framework-Aware Code Comments
+```typescript
+// Generated by Mastra Agent Builder
+// Pattern: Customer Support Agent with Escalation
+// Docs: https://mastra.ai/patterns/customer-support
+// Test: npm run test:agent:customer-support
+```
+
+### 4. Integrated Best Practices
+- Always generate with error handling
+- Include telemetry setup
+- Add appropriate logging
+- Configure retry strategies
+
 ## Next Steps
 
 1. Design specific tool interfaces based on these patterns
 2. Create template library for common agent types
 3. Build validation pipeline for generated code
 4. Implement learning system for pattern improvement
+5. Create Mastra-specific generator primitives
+6. Design interactive builder experience
 
 ## References
 
