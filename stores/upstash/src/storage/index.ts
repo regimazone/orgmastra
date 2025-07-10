@@ -1664,4 +1664,17 @@ export class UpstashStore extends MastraStorage {
         `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
+
+  async getScoresByScorerId({
+    scorerId: _scorerId,
+    pagination: _pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    throw new Error(
+      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
+        `To use scores functionality, implement the required methods in this storage adapter.`,
+    );
+  }
 }

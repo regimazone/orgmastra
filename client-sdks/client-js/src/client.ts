@@ -38,6 +38,7 @@ import type {
   CreateNetworkMemoryThreadParams,
   SaveNetworkMessageToMemoryParams,
   GetScoresByRunIdParams,
+  GetScoresByScorerIdParams,
   GetScoresByEntityIdParams,
   SaveScoreParams,
   GetScoresResponse,
@@ -499,6 +500,20 @@ export class MastraClient extends BaseResource {
    */
   public getScorer(scorerId: string): Promise<GetScorerResponse> {
     return this.request(`/api/scores/scorers/${scorerId}`);
+  }
+
+  public getScoresByScorerId(params: GetScoresByScorerIdParams): Promise<GetScoresResponse> {
+    const { page, perPage, scorerId } = params;
+    const searchParams = new URLSearchParams();
+
+    if (page !== undefined) {
+      searchParams.set('page', String(page));
+    }
+    if (perPage !== undefined) {
+      searchParams.set('perPage', String(perPage));
+    }
+    const queryString = searchParams.toString();
+    return this.request(`/api/scores/scorer/${scorerId}${queryString ? `?${queryString}` : ''}`);
   }
 
   /**

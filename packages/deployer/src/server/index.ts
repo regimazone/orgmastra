@@ -69,6 +69,7 @@ import { rootHandler } from './handlers/root';
 import {
   getScorersHandler,
   getScoresByRunIdHandler,
+  getScoresByScorerIdHandler,
   getScoresByEntityIdHandler,
   saveScoreHandler,
   getScorerHandler,
@@ -3534,6 +3535,42 @@ ${err.stack.split('\n').slice(1).join('\n')}
       },
     }),
     getScoresByRunIdHandler,
+  );
+
+  app.get(
+    '/api/scores/scorer/:scorerId',
+    describeRoute({
+      description: 'Get scores by scorer ID',
+      tags: ['scores'],
+      parameters: [
+        {
+          name: 'scorerId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'page',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+          description: 'Page number for pagination (default: 0)',
+        },
+        {
+          name: 'perPage',
+          in: 'query',
+          required: false,
+          schema: { type: 'number' },
+          description: 'Number of items per page (default: 10)',
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Paginated list of scores for run ID',
+        },
+      },
+    }),
+    getScoresByScorerIdHandler,
   );
 
   app.get(

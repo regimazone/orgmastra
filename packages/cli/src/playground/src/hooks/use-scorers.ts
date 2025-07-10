@@ -29,6 +29,31 @@ export const useScoresByEntityId = (entityId: string, entityType: string) => {
   return { scores, isLoading };
 };
 
+export const useScoresByScorerId = (scorerId: string) => {
+  const [scores, setScores] = useState<GetScoresResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchScores = async () => {
+      setIsLoading(true);
+      try {
+        const res = await client.getScoresByScorerId({
+          scorerId,
+          page: 0,
+          perPage: 10,
+        });
+        setScores(res);
+      } catch (error) {
+        setScores(null);
+      }
+    };
+
+    fetchScores();
+  }, [scorerId]);
+
+  return { scores, isLoading };
+};
+
 export const useScorer = (scorerId: string) => {
   const [scorer, setScorer] = useState<GetScorerResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);

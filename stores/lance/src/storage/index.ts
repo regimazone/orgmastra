@@ -1456,6 +1456,21 @@ export class LanceStorage extends MastraStorage {
     });
   }
 
+  async getScoresByScorerId({
+    scorerId: _scorerId,
+    pagination: _pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    throw new MastraError({
+      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
+      text: 'getScoresByScorerId method is not implemented for LanceStorage',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.USER,
+    });
+  }
+
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
     throw new MastraError({
       id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',

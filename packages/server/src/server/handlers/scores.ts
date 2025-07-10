@@ -1,5 +1,5 @@
 import type { ScoreRowData, StoragePagination } from '@mastra/core';
-import type { MastraScorer } from '@mastra/core/agent';
+import type { MastraScorer } from '@mastra/core/eval';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
 import type { Context } from '../types';
 import { handleError } from './error';
@@ -11,8 +11,9 @@ async function getScorersFromSystem({
   runtimeContext: RuntimeContext;
 }) {
   const agents = mastra.getAgents();
+  const workflows = mastra.getWorkflows();
 
-  const scorersMap = new Map<string, MastraScorer & { agentIds: string[] }>();
+  const scorersMap = new Map<string, MastraScorer & { agentIds: string[]; workflowIds: string[] }>();
 
   for (const [agentId, agent] of Object.entries(agents)) {
     const scorers =
@@ -26,8 +27,30 @@ async function getScorersFromSystem({
           scorersMap.get(scorerId)?.agentIds.push(agentId);
         } else {
           scorersMap.set(scorerId, {
+            workflowIds: [],
             ...scorer,
             agentIds: [agentId],
+          });
+        }
+      }
+    }
+  }
+
+  for (const [workflowId, workflow] of Object.entries(workflows)) {
+    const scorers =
+      (await workflow.getScorers({
+        runtimeContext,
+      })) || {};
+
+    if (Object.keys(scorers).length > 0) {
+      for (const [scorerId, scorer] of Object.entries(scorers)) {
+        if (scorersMap.has(scorerId)) {
+          scorersMap.get(scorerId)?.workflowIds.push(workflowId);
+        } else {
+          scorersMap.set(scorerId, {
+            agentIds: [],
+            ...scorer,
+            workflowIds: [workflowId],
           });
         }
       }
@@ -87,6 +110,23 @@ export async function getScoresByRunIdHandler({
   }
 }
 
+export async function getScoresByScorerIdHandler({
+  mastra,
+  scorerId,
+  pagination,
+}: Context & { scorerId: string; pagination: StoragePagination }) {
+  try {
+    const scores =
+      (await mastra.getStorage()?.getScoresByScorerId?.({
+        scorerId,
+        pagination,
+      })) || [];
+    return scores;
+  } catch (error) {
+    return handleError(error, 'Error getting scores by scorer id');
+  }
+}
+
 export async function getScoresByEntityIdHandler({
   mastra,
   entityId,
@@ -110,6 +150,20 @@ export async function getScoresByEntityIdHandler({
       }
 
       entityIdToUse = agent.id;
+    } else if (entityType === 'WORKFLOW') {
+      let workflow;
+      try {
+        workflow = mastra.getWorkflowById(entityId);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // swallow error
+      }
+
+      if (!workflow) {
+        workflow = mastra.getWorkflow(entityId);
+      }
+
+      entityIdToUse = workflow.id;
     }
 
     const scores =

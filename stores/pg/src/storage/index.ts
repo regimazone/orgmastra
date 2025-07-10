@@ -1805,17 +1805,39 @@ export class PostgresStore extends MastraStorage {
    * SCORERS - Not implemented
    */
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_PG_STORE_GET_SCORE_BY_ID_FAILED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.THIRD_PARTY,
+      details: {
+        id: _id,
+      },
+    });
+  }
+
+  async getScoresByScorerId({
+    scorerId: _scorerId,
+    pagination: _pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_PG_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.THIRD_PARTY,
+      details: {
+        scorerId: _scorerId,
+      },
+    });
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_PG_STORE_SAVE_SCORE_FAILED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.THIRD_PARTY,
+    });
   }
 
   async getScoresByRunId({
@@ -1825,10 +1847,14 @@ export class PostgresStore extends MastraStorage {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_PG_STORE_GET_SCORES_BY_RUN_ID_FAILED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.THIRD_PARTY,
+      details: {
+        runId: _runId,
+      },
+    });
   }
 
   async getScoresByEntityId({
@@ -1840,9 +1866,14 @@ export class PostgresStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_PG_STORE_GET_SCORES_BY_ENTITY_ID_FAILED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.THIRD_PARTY,
+      details: {
+        entityId: _entityId,
+        entityType: _entityType,
+      },
+    });
   }
 }

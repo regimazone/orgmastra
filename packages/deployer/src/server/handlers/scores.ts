@@ -2,6 +2,7 @@ import type { ScoreRowData, StoragePagination } from '@mastra/core';
 import {
   getScorersHandler as getOriginalScorersHandler,
   getScoresByRunIdHandler as getOriginalScoresByRunIdHandler,
+  getScoresByScorerIdHandler as getOriginalScoresByScorerIdHandler,
   getScoresByEntityIdHandler as getOriginalScoresByEntityIdHandler,
   saveScoreHandler as getOriginalSaveScoreHandler,
   getScorerHandler as getOriginalScorerHandler,
@@ -52,6 +53,26 @@ export async function getScoresByRunIdHandler(c: Context) {
     return c.json(scores);
   } catch (error) {
     return handleError(error, 'Error getting scores by run id');
+  }
+}
+
+export async function getScoresByScorerIdHandler(c: Context) {
+  const mastra = c.get('mastra');
+  const scorerId = c.req.param('scorerId');
+  const page = parseInt(c.req.query('page') || '0');
+  const perPage = parseInt(c.req.query('perPage') || '10');
+  const pagination: StoragePagination = { page, perPage };
+
+  try {
+    const scores = await getOriginalScoresByScorerIdHandler({
+      mastra,
+      scorerId,
+      pagination,
+    });
+
+    return c.json(scores);
+  } catch (error) {
+    return handleError(error, 'Error getting scores by scorer id');
   }
 }
 

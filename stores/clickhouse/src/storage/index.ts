@@ -1515,4 +1515,19 @@ export class ClickhouseStore extends MastraStorage {
       category: ErrorCategory.USER,
     });
   }
+
+  async getScoresByScorerId({
+    scorerId: _scorerId,
+    pagination: _pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    throw new MastraError({
+      id: 'CLICKHOUSE_STORAGE_METHOD_NOT_IMPLEMENTED',
+      text: 'getScoresByScorerId method is not implemented for ClickhouseStore',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.USER,
+    });
+  }
 }

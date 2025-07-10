@@ -1878,4 +1878,19 @@ export class D1Store extends MastraStorage {
       category: ErrorCategory.USER,
     });
   }
+
+  async getScoresByScorerId({
+    scorerId: _scorerId,
+    pagination: _pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    throw new MastraError({
+      id: 'CLOUDFLARE_D1_STORAGE_METHOD_NOT_IMPLEMENTED',
+      text: 'getScoresByScorerId method is not implemented for D1Store',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.USER,
+    });
+  }
 }

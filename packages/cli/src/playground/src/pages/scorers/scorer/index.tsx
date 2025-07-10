@@ -1,6 +1,6 @@
 import { Breadcrumb, Crumb, Header, /*MainContentContent*/ MainContentLayout } from '@mastra/playground-ui';
 import { useParams, Link } from 'react-router';
-import { useScorer, useScoresByEntityId } from '@/hooks/use-scorers';
+import { useScorer, useScoresByScorerId } from '@/hooks/use-scorers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRightIcon, ChevronDownIcon, EyeIcon, XIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -14,7 +14,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 
-function AgentScore({ score }: { score: any }) {
+function ScoreItem({ score }: { score: any }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -160,11 +160,11 @@ function AgentScore({ score }: { score: any }) {
   );
 }
 
-function AgentScores({ agentId }: { agentId: string }) {
-  const { scores, isLoading } = useScoresByEntityId(agentId, 'AGENT');
-  console.log({ scores, agentId });
+function Scores({ scorerId }: { scorerId: string }) {
+  const { scores, isLoading } = useScoresByScorerId(scorerId);
+  console.log({ scores, scorerId });
 
-  return scores?.scores.map(score => <AgentScore score={score} />);
+  return scores?.scores.map(score => <ScoreItem score={score} />);
 }
 
 export default function Scorer() {
@@ -196,7 +196,7 @@ export default function Scorer() {
     <MainContentLayout>
       <Header>
         <Breadcrumb>
-          <Crumb as={Link} to={`/mcps`}>
+          <Crumb as={Link} to={`/scorers`}>
             Scorers
           </Crumb>
 
@@ -348,12 +348,7 @@ export default function Scorer() {
             </div>
             <div className={cn('mx-auto overflow-y-auto pb-[3rem] relative')}>
               <div className="grid border border-border1f bg-surface3 rounded-xl ">
-                {scorer?.agentIds.map((agentId: string) => {
-                  if (filteredByEntityId !== 'all' && filteredByEntityId !== agentId) {
-                    return null;
-                  }
-                  return <AgentScores agentId={agentId} />;
-                })}
+                <Scores scorerId={scorerId} />;
               </div>
             </div>
           </MainContentRightColumn>
