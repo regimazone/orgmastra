@@ -450,6 +450,209 @@ mastra generate agent --template="workflow-orchestrator"
 - Add appropriate logging
 - Configure retry strategies
 
+## Smart Code Editing: Beyond Find/Replace
+
+### The Find/Replace Problem
+
+Current LLM code editing tools suffer from significant limitations:
+
+#### Exact Match Requirements
+- **40%+ failure rate**: More than 40% of syntactic errors in LLM code generation involve missing or incorrect code blocks
+- **Cascade failures**: When find/replace fails due to whitespace or formatting differences, agents must retry multiple times
+- **Cost multiplication**: Each failed attempt increases API costs and latency
+- **Context pollution**: Failed edits consume valuable context window space
+
+#### Real-World Impact
+```typescript
+// LLM wants to find:
+const agent = new Agent({
+  name: 'MyAgent',
+  model: openai('gpt-4')
+})
+
+// But actual code has:
+const agent = new Agent({
+  name: 'MyAgent',
+  model: openai('gpt-4'),
+  // TODO: add tools later
+})
+
+// Result: Find/replace fails due to comment and trailing comma
+```
+
+### AST-Based Solutions
+
+#### ast-grep: Lightning Fast Pattern Matching
+- **Pattern as code**: Write patterns that look like the code you want to find
+- **Structural matching**: Ignores whitespace, comments, and formatting differences
+- **TypeScript support**: Full support for TS/TSX with type-aware matching
+- **Performance**: Blazing fast Rust implementation, handles thousands of files
+
+Example ast-grep pattern:
+```yaml
+pattern: |
+  new Agent({
+    name: $NAME,
+    $$$ # matches any other properties
+  })
+```
+
+#### ts-morph: TypeScript-Specific Transformations
+- **Type-aware**: Understands TypeScript types and can preserve type safety
+- **Programmatic API**: jQuery-like interface for AST manipulation
+- **Refactoring-focused**: Built for large-scale TypeScript refactoring
+
+Limitations discovered in 2024:
+- LLMs achieve only 26% accuracy on first attempt with AST transforms
+- Improves to 54% after 4 iterations
+- Complex for LLMs to generate correct AST manipulation code
+
+#### jscodeshift: Facebook's Codemod Toolkit
+- **Battle-tested**: Used for massive Facebook codebase migrations
+- **Transform collections**: Process multiple files with consistent transforms
+- **Plugin ecosystem**: Large library of existing transforms
+
+### Mastra-Specific AST Transforms
+
+#### Framework-Aware Transformations
+
+Instead of generic find/replace, we can create Mastra-specific transforms:
+
+##### 1. Add Tool to Agent Transform
+```typescript
+// Input specification
+{
+  transform: "add-tool-to-agent",
+  agentName: "customerSupport",
+  toolName: "searchKnowledgeBase"
+}
+
+// Automatically:
+// - Finds the agent definition
+// - Adds import if needed
+// - Adds tool to tools object
+// - Handles all syntax variations
+```
+
+##### 2. Update Agent Configuration
+```typescript
+{
+  transform: "update-agent-config",
+  agentName: "dataAnalyst",
+  updates: {
+    addMemory: true,
+    memoryType: "semantic",
+    changeModel: "gpt-4o"
+  }
+}
+
+// Handles:
+// - Adding imports for Memory
+// - Creating memory instance
+// - Updating model
+// - Preserving existing config
+```
+
+##### 3. Convert to Dynamic Agent
+```typescript
+{
+  transform: "make-agent-dynamic",
+  agentName: "supportAgent",
+  dynamicProperties: ["model", "tools"]
+}
+
+// Converts static properties to functions
+// Adds RuntimeContext parameter
+// Updates all references
+```
+
+##### 4. Add Workflow to Agent
+```typescript
+{
+  transform: "add-workflow-to-agent",
+  agentName: "orchestrator",
+  workflowName: "dataProcessing"
+}
+```
+
+### Proposed Mastra Code Transform Tool
+
+```typescript
+const mastraCodeTransform = createTool({
+  id: 'mastra-code-transform',
+  description: 'Apply Mastra-specific code transformations',
+  inputSchema: z.object({
+    file: z.string(),
+    transform: z.enum([
+      'add-tool-to-agent',
+      'update-agent-config',
+      'add-memory-to-agent',
+      'make-agent-dynamic',
+      'add-workflow-to-agent',
+      'create-new-tool',
+      'update-tool-schema',
+      'convert-sync-to-async',
+      'add-error-handling',
+      'add-telemetry'
+    ]),
+    params: z.record(z.any())
+  }),
+  execute: async ({ context }) => {
+    // Use ast-grep for pattern matching
+    // Apply Mastra-specific transform rules
+    // Return modified code with validation
+  }
+});
+```
+
+### Benefits Over Find/Replace
+
+| Aspect | Find/Replace | AST Transforms |
+|--------|-------------|----------------|
+| **Whitespace handling** | Fails on differences | Ignores formatting |
+| **Comments** | Breaks matching | Preserves intelligently |
+| **Partial matches** | All or nothing | Structural understanding |
+| **Type safety** | Lost | Preserved |
+| **Imports** | Manual | Automatic |
+| **Success rate** | ~60% | ~95% (framework-specific) |
+
+### Integration with Agent Builder
+
+The Agent Builder can use these transforms to:
+
+1. **Iterative Enhancement**: Apply transforms step-by-step
+2. **Safe Refactoring**: Guaranteed valid Mastra code
+3. **Intelligent Suggestions**: "I see you have an agent without memory. Would you like me to add it?"
+4. **Batch Operations**: Transform multiple agents/tools at once
+
+### Implementation Strategy
+
+1. **Phase 1**: Build transform library for common Mastra patterns
+2. **Phase 2**: Create AST-based tool for agent to use
+3. **Phase 3**: Add visual preview of transforms
+4. **Phase 4**: Learn from successful transforms to improve patterns
+
+### Example: Agent Using Transform Tool
+
+```typescript
+// Instead of:
+"Replace 'model: openai('gpt-4')' with 'model: openai('gpt-4o')'"
+// Multiple attempts, often fails
+
+// The agent does:
+await mastraCodeTransform.execute({
+  context: {
+    file: 'agents/support.ts',
+    transform: 'update-agent-config',
+    params: {
+      agentName: 'supportAgent',
+      updates: { changeModel: 'gpt-4o' }
+    }
+  }
+});
+// Works first time, every time
+```
+
 ## Next Steps
 
 1. Design specific tool interfaces based on these patterns
@@ -458,6 +661,8 @@ mastra generate agent --template="workflow-orchestrator"
 4. Implement learning system for pattern improvement
 5. Create Mastra-specific generator primitives
 6. Design interactive builder experience
+7. **Build AST transform library for Mastra patterns**
+8. **Create visual transform preview system**
 
 ## References
 
