@@ -1,54 +1,63 @@
 # Mastra Agent Builder
 
-An agent that creates other Mastra agents through conversation.
+Creating Mastra agents involves repetitive steps: setting up imports, configuring the agent, adding tools, wiring up memory. This manual process is exactly what agents should automate. LLMs excel at code generation when given the right context and patterns. By creating an Agent Builder, Mastra uses its own capabilities to make itself more accessible - agents building agents represents the natural evolution of development tools.
 
-## What
+## What it is
 
-The Agent Builder is a Mastra Agent with specialized tools for generating agent code. It understands requirements through natural language and produces working TypeScript code.
+The Agent Builder will be a Mastra Agent with specialized tools for generating agent code. It will understand requirements through natural language and produce working Mastra agents, tools, and workflows.
+
+## How it works
 
 ```typescript
-import { agentBuilder } from '@mastra/agent-builder';
+import { AgentBuilder } from '@mastra/agent-builder';
+import { openai } from '@ai-sdk/openai';
+
+const agentBuilder = new AgentBuilder({
+  model: openai('o3'),
+});
 
 const response = await agentBuilder.generate(
-  "Create a customer support agent that searches docs and escalates to Linear"
+  'Create a customer support agent that searches docs and escalates to Linear',
 );
-// Returns: Complete agent code with tools, tests, and setup instructions
+// Will return: Complete agent code with tools, tests, and setup instructions
 ```
 
-## Why
-
-### Problems Solved
-- **Boilerplate**: No more copying agent setup code
-- **Discovery**: Learn Mastra patterns through generated examples  
-- **Validation**: Generated code compiles and includes tests
-- **Integration**: Handles imports, types, and configuration
-
-### Key Innovation
-Instead of generic find/replace, uses AST transforms for reliable code modifications:
-- Add tool to agent
-- Update configuration  
-- Add memory or workflows
-- Modify without breaking
-
-## Quick Start
+You can also extend the default configuration:
 
 ```typescript
-// 1. Install
-npm install @mastra/agent-builder
+import { defaultAgentBuilderConfig } from '@mastra/agent-builder';
 
-// 2. Use as agent
-const result = await agentBuilder.generate("I need a data analysis agent");
-
-// 3. Or use structured output
-const spec = await agentBuilder.generate(prompt, { 
-  output: agentSpecSchema 
+const agentBuilder = new AgentBuilder({
+  model: openai('o3'),
+  tools: {
+    ...defaultAgentBuilderConfig.tools,
+    // additional tools
+  },
+  instructions: defaultAgentBuilderConfig.instructions + '\nAdditional custom instructions.',
 });
 ```
 
-## Documentation
+## Where you can use it
 
-- [Architecture](./ARCHITECTURE.md) - How it works internally
-- [Interfaces](./INTERFACES.md) - All ways to use the builder
+The Agent Builder will be a standard Mastra Agent, which means it can be:
+
+- Used programmatically in your code (as shown above)
+- Added to your Mastra configuration alongside other agents
+- Called from workflows for automated agent generation
+- Added to MCP servers
+
+It will also be:
+
+- Accessed via the Mastra CLI for interactive agent creation
+- Used through the Playground and Mastra Cloud UIs
+
+Since it's just an agent, it inherits all Mastra capabilities: memory for conversation context, tool execution for code generation, and integration with the broader Mastra ecosystem.
+
+## Planning
+
+- [Architecture](./ARCHITECTURE.md) - How it will work internally
+- [Interfaces](./INTERFACES.md) - All planned usage methods
 - [Tools](./TOOLS.md) - Technical tool specifications
 - [Roadmap](./ROADMAP.md) - Shipping phases and capabilities
-- [Patterns](./PATTERNS.md) - Research insights and decisions
+- [Patterns](./PATTERNS.md) - Research insights and design decisions
+
