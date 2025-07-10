@@ -1,4 +1,4 @@
-import { useScorers } from '../hooks/use-scorers';
+import { useScorers } from '@/domains/scorers/hooks/use-scorers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Entry } from '@/components/ui/entry';
 import { GetScorerResponse } from '@mastra/client-js';
