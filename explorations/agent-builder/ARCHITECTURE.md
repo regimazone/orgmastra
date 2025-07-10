@@ -1,95 +1,76 @@
 # Architecture
 
-How the Mastra Agent Builder works internally.
+How the Mastra Agent Builder works internally and why each component exists.
 
 ## Core Concept
 
-The Agent Builder is itself a Mastra Agent, configured with specialized tools for code generation.
+The Agent Builder is a specialized Mastra Agent wrapped in a class that provides configuration flexibility.
 
 ```typescript
-export const agentBuilder = new Agent({
-  name: 'agent-builder',
-  description: 'Creates other Mastra agents',
-  instructions: 'You are an expert at building Mastra agents...',
-  model: openai('gpt-4o'),
-  tools: {
-    configSnippetBuilder,
-    projectScaffolder,
-    codeWriter,
-    patternMatcher,
-    validator,
-    mastraCodeTransform
-  },
-  memory: true
-});
+export class AgentBuilder extends Agent {
+  private agent: Agent;
+
+  constructor(config: AgentBuilderConfig) {
+    this.agent = new Agent({
+      name: 'agent-builder',
+      description: 'An agent that builds other Mastra agents',
+      instructions: defaultInstructions,
+      tools: defaultTools,
+      ...config,
+    });
+
+    return this.agent;
+  }
+}
 ```
 
-## Tool System
+## Custom Tools
 
-### Generation Tools
+Agent creation involves precise requirements - exact import paths, correctly shaped configuration objects, proper initialization order. Beyond getting the syntax right, developers need to discover which patterns work for their use case and ensure all the pieces integrate correctly. When modifying existing code, simple find/replace often breaks due to formatting differences, comments, or varying code styles. The tools split these concerns: generation tools handle boilerplate and structure, intelligence tools ensure correctness and find patterns, the AST tool reliably modifies code regardless of formatting, and dependency management keeps packages in sync.
 
-**configSnippetBuilder**: Generates validated configuration snippets
-- Input: Features needed (memory, MCP, tools)
-- Output: Correct imports and setup code
+The Agent Builder uses four custom tools: getCode (generates code templates), manageProject (handles project setup and dependencies), rewriteCode (AST-based code modifications), and patternLibrary (searches similar implementations). It also has access to the [MCP docs server](https://mastra.ai/en/docs/getting-started/mcp-docs-server) and uses validateCode internally.
 
-**projectScaffolder**: Creates project structure
-- Input: Project type and features
-- Output: Complete directory with dependencies
+See [TOOLS.md](./TOOLS.md) for detailed specifications of each tool.
 
-**codeWriter**: Writes specific components
-- Input: Component type and requirements
-- Output: TypeScript files
-
-### Intelligence Tools
-
-**patternMatcher**: Finds similar patterns
-- Input: Requirements
-- Output: Matching templates and examples
-
-**validator**: Ensures correctness
-- Input: Generated code
-- Output: Compilation results and warnings
-
-### AST Transform Tool
-
-**mastraCodeTransform**: Modifies existing code
-- Uses ast-grep for pattern matching
-- Mastra-specific transformations
-- No find/replace failures
-
-```typescript
-// Instead of error-prone string matching:
-await mastraCodeTransform.execute({
-  file: 'agent.ts',
-  transform: 'add-tool-to-agent',
-  params: { agentName: 'support', toolName: 'search' }
-});
-```
-
-## Generation Flow
+### Generation Pipeline
 
 ```
-User Input
-    ↓
-Requirements Analysis (via conversation)
-    ↓
-Pattern Matching (find similar examples)
-    ↓
-Code Generation (using templates + LLM)
-    ↓
-Validation (TypeScript + tests)
-    ↓
-Output (files + instructions)
+1. User Input: "I need a support agent"
+                    ↓
+2. patternLibrary: Searches for similar agents
+   → "Found 3 support agents with escalation"
+                    ↓
+3. getCode: Generates agent code
+   → Complete agent with tools and configuration
+                    ↓
+4. Internal validation ensures everything works
+   → Compiles ✓, Tests pass ✓, Types correct ✓
+                    ↓
+5. Output: Working agent with documentation
+```
+
+### Modification Pipeline
+
+```
+1. User Input: "Add memory to the agent"
+                    ↓
+2. rewriteCode: Analyzes current code
+   → Finds agent definition via AST
+                    ↓
+3. getCode: Gets memory setup code
+   → Correct imports and configuration
+                    ↓
+4. rewriteCode: Applies changes
+   → Adds imports, creates memory instance, updates agent
+                    ↓
+5. Internal validation verifies modifications
+   → No breaking changes ✓
 ```
 
 ## Memory System
 
-- Conversation context for iterative building
-- Pattern library from successful generations
-- Semantic search for similar requirements
+The Agent Builder includes a customized `new Memory()` instance by default with thread-based conversation memory, semantic retrieval, and pattern learning enabled. Storage and vector providers are configurable by the user.
 
-## Integration Points
+## Integration Architecture
 
-- **MCP**: Access to Mastra docs and examples
-- **Workflows**: Can be used in automated pipelines
-- **Playground**: Special UI for visual building
+Since it's a regular agent, we'll be able to build UIs for it in playground + Cloud in the standard way.
