@@ -74,7 +74,7 @@ const ScorerSettingsItem = ({ scorer }: ScorerSettingsItemProps) => {
             max={1}
             min={0}
             step={0.1}
-            defaultValue={[scorer.sampling?.type === 'ratio' ? scorer.sampling?.rate : 0]}
+            // Remove defaultValue since the component is controlled via value prop
           />
 
           <Txt as="p" variant="ui-sm" className="text-icon3">
