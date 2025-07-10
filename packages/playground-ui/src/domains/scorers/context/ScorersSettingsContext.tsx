@@ -43,7 +43,7 @@ export const ScorerSettingsProvider = ({ children, entityType, entityId }: Score
     } catch {
       // JSON.parse failed, silent fail
     }
-  }, []);
+  }, [entityType, entityId]);
 
   useEffect(() => {
     if (!entitySettings) return;
