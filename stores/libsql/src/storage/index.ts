@@ -983,11 +983,11 @@ export class LibSQLStore extends MastraStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
+              metadata: {
+                ...existingMessage.content.metadata,
+                ...updatableFields.content.metadata,
+              },
+            }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);
@@ -1235,6 +1235,40 @@ export class LibSQLStore extends MastraStorage {
       throw new MastraError(
         {
           id: 'LIBSQL_STORE_SAVE_SCORE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        error,
+      );
+    }
+  }
+
+  async getScoresByScorerId({
+    scorerId,
+    pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    try {
+      const result = await this.client.execute({
+        sql: `SELECT * FROM ${TABLE_SCORERS} WHERE scorerId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+        args: [scorerId, pagination.perPage + 1, pagination.page * pagination.perPage],
+      });
+
+      return {
+        scores: result.rows?.slice(0, pagination.perPage).map(row => this.transformScoreRow(row)) ?? [],
+        pagination: {
+          total: result.rows?.length ?? 0,
+          page: pagination.page,
+          perPage: pagination.perPage,
+          hasMore: result.rows?.length > pagination.perPage,
+        },
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
         },

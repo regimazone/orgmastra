@@ -262,6 +262,26 @@ export class MockStore extends MastraStorage {
     return { score };
   }
 
+  async getScoresByScorerId({
+    scorerId,
+    pagination,
+  }: {
+    scorerId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    this.logger.debug(`MockStore: getScoresByScorerId called for ${scorerId}`);
+    const scores = Object.values(this.data.mastra_scorers).filter((s: any) => s.scorerId === scorerId);
+    return {
+      scores: scores.slice(pagination.page * pagination.perPage, (pagination.page + 1) * pagination.perPage),
+      pagination: {
+        total: scores.length,
+        page: pagination.page,
+        perPage: pagination.perPage,
+        hasMore: scores.length > (pagination.page + 1) * pagination.perPage,
+      },
+    };
+  }
+
   async getScoresByRunId({
     runId,
     pagination,
