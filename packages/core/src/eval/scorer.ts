@@ -52,8 +52,8 @@ const resultSchema = z.array(
 const scoreResultSchema = z.object({
   analyzeStepResult: z.object({
     results: resultSchema.optional(),
-    score: scoreSchema,
   }),
+  score: scoreSchema,
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
@@ -155,13 +155,14 @@ export class Scorer {
 
         const reasonResult = await this.reason({
           ...run,
-          ...inputData,
           analyzeStepResult: inputData.analyzeStepResult,
+          score: inputData.score,
         });
 
         return {
           extractStepResult: getStepResult(extractStep),
           analyzeStepResult: inputData.analyzeStepResult,
+          score: inputData.score,
           ...reasonResult,
         };
       },
@@ -231,7 +232,6 @@ export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, T
   reason?: {
     description: string;
     judge?: LLMJudge;
-    outputSchema: z.ZodType<{ score: number; reason: string }>;
     createPrompt: ({
       run,
     }: {
@@ -252,7 +252,7 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
 
   const llm = new Agent({
     name: opts.name,
-    instructions: opts.description,
+    instructions: opts.judge.instructions,
     model: model,
   });
 
@@ -292,11 +292,10 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
       (runWithScoreResult as ScoringRunWithExtractStepResultAndScore).score = score;
       console.log(`what is the score`, score);
       console.log(`what is the runWithScoreResult`, runWithScoreResult);
+
       return {
-        analyzeStepResult: {
-          ...scorePrompt.object,
-          score: score,
-        },
+        analyzeStepResult: scorePrompt.object!,
+        score: score,
       };
     },
     reason: opts.reason
@@ -311,12 +310,9 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
 
           const reasonPromptTemplate = opts.reason?.createPrompt({ run: runWithAllResults })!;
           const reasonPrompt = await llm.generate(reasonPromptTemplate, {
-            output:
-              opts.reason?.outputSchema ||
-              z.object({
-                reason: z.string(),
-                score: z.number().default(0),
-              }),
+            output: z.object({
+              reason: z.string(),
+            }),
           });
 
           return reasonPrompt.object;
