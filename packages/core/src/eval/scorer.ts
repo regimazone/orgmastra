@@ -36,9 +36,9 @@ export type ScoringRun = {
   structuredOutput?: boolean;
 };
 
-export const extractedElementsSchema = z.record(z.string(), z.any());
+export const extractStepResultSchema = z.record(z.string(), z.any());
 
-export type ExtractedElements = z.infer<typeof extractedElementsSchema>;
+export type ExtractStepResult = z.infer<typeof extractStepResultSchema>;
 
 export const scoreSchema = z.number();
 
@@ -52,24 +52,30 @@ const resultSchema = z.array(
 const scoreResultSchema = z.object({
   score: z.number().optional(),
   results: resultSchema.optional(),
-  extractedElements: extractedElementsSchema.optional(),
+  extractStepResult: extractStepResultSchema.optional(),
+  scoreStepResult: z.any().optional(),
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
 
-export type ScoringRunWithExtractedElement = ScoringRun & { extractedElements?: ExtractedElements };
+export type ScoringRunWithExtractStepResult<TExtract = any> = ScoringRun & {
+  extractStepResult?: TExtract;
+};
 
-export type ScoringRunWithExtractedElementAndScore = ScoringRunWithExtractedElement & ScoreResult;
+export type ScoringRunWithExtractStepResultAndScore<
+  TExtract = any,
+  TScore = any,
+> = ScoringRunWithExtractStepResult<TExtract> & {
+  score?: number;
+  results?: z.infer<typeof resultSchema>;
+  scoreStepResult?: TScore;
+};
 
-export const reasonResultSchema = z.object({
-  reason: z.string(),
-});
+export type ScoringRunWithExtractStepResultAndScoreAndReason = ScoringRunWithExtractStepResultAndScore & {
+  reason: string;
+};
 
-export type ReasonResult = z.infer<typeof reasonResultSchema>;
-
-export type ScoringRunWithExtractedElementAndScoreAndReason = ScoringRunWithExtractedElementAndScore & ReasonResult;
-
-export type ScoreRowData = ScoringRunWithExtractedElementAndScoreAndReason & {
+export type ScoreRowData = ScoringRunWithExtractStepResultAndScoreAndReason & {
   id: string;
   entityId: string;
   scorerId: string;
@@ -77,9 +83,9 @@ export type ScoreRowData = ScoringRunWithExtractedElementAndScoreAndReason & {
   updatedAt: Date;
 };
 
-export type ExtractionStepFn = (run: ScoringRun) => Promise<ExtractedElements>;
-export type ScoreStepFn = (run: ScoringRunWithExtractedElement) => Promise<ScoreResult>;
-export type ReasonStepFn = (run: ScoringRunWithExtractedElementAndScore) => Promise<ReasonResult | null>;
+export type ExtractionStepFn = (run: ScoringRun) => Promise<Record<string, any>>;
+export type ScoreStepFn = (run: ScoringRunWithExtractStepResult) => Promise<ScoreResult>;
+export type ReasonStepFn = (run: ScoringRunWithExtractStepResultAndScore) => Promise<{ reason: string } | null>;
 
 export type ScorerOptions = {
   name: string;
@@ -89,6 +95,7 @@ export type ScorerOptions = {
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
 };
+
 export class Scorer {
   name: string;
   description: string;
@@ -110,12 +117,12 @@ export class Scorer {
     }
   }
 
-  async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractedElementAndScoreAndReason> {
+  async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractStepResultAndScoreAndReason> {
     const extractStep = createStep({
       id: 'extract',
       description: 'Extract relevant element from the run',
       inputSchema: z.any(),
-      outputSchema: extractedElementsSchema,
+      outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
         return this.extract(inputData);
       },
@@ -124,12 +131,12 @@ export class Scorer {
     const scoreStep = createStep({
       id: 'score',
       description: 'Score the extracted element',
-      inputSchema: extractedElementsSchema,
+      inputSchema: extractStepResultSchema,
       outputSchema: scoreResultSchema,
       execute: async ({ inputData }) => {
-        const scoreResult = await this.score({ ...run, extractedElements: inputData });
+        const scoreResult = await this.score({ ...run, extractStepResult: inputData });
 
-        return { ...scoreResult, extractedElements: inputData };
+        return { ...scoreResult, extractStepResult: inputData };
       },
     });
 
@@ -141,7 +148,7 @@ export class Scorer {
       execute: async ({ inputData, getStepResult }) => {
         if (!this.reason) {
           return {
-            extractedElements: getStepResult(extractStep),
+            extractStepResult: getStepResult(extractStep),
             score: inputData.score,
           };
         }
@@ -149,7 +156,7 @@ export class Scorer {
         const reasonResult = await this.reason({ ...run, ...inputData, score: inputData.score });
 
         return {
-          extractedElements: getStepResult(extractStep),
+          extractStepResult: getStepResult(extractStep),
           score: inputData.score,
           ...reasonResult,
         };
@@ -201,52 +208,38 @@ type LLMJudge = {
   instructions: string;
 };
 
-export type LLMScorerOptions = {
+export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, TScoreOutput = any> = {
   name: string;
   description: string;
   judge: LLMJudge;
   prompts: {
     extract: {
-      prompt: string;
       description: string;
       judge?: LLMJudge;
+      outputSchema: z.ZodType<TExtractOutput>;
+      createPrompt: (run: ScoringRun) => { prompt: string };
     };
     score: {
-      prompt: string;
       description: string;
       judge?: LLMJudge;
-      transform?: ({
-        results,
-      }: {
-        results: z.infer<typeof resultSchema>;
-      }) => Omit<z.infer<typeof scoreResultSchema>, 'extractedElements'>;
+      outputSchema: z.ZodType<TScoreOutput>;
+      createPrompt: (run: ScoringRun & { extractStepResult?: TExtractOutput }) => { prompt: string };
+      transform?: ({ results }: { results: z.infer<typeof resultSchema> }) => z.infer<typeof scoreSchema>;
     };
     reason?: {
-      prompt: string;
       description: string;
       judge?: LLMJudge;
+      outputSchema: z.ZodType<{ score: number; reason: string }>;
+      createPrompt: (
+        run: ScoringRun & { extractStepResult?: TExtractOutput; scoreStepResult?: TScoreOutput; score?: number },
+      ) => { prompt: string };
     };
   };
 };
 
-export function renderTemplate(template: string, params: Record<string, any> = {}) {
-  return template.replace(/\{\{([\w\.]+)\}\}/g, (match, path) => {
-    const value = get(params, path);
-
-    console.log(`params: ${JSON.stringify(params, null, 2)}`);
-    console.log(`Value for ${path}: ${value}`);
-    return value !== undefined
-      ? typeof value === 'string'
-        ? value
-        : Array.isArray(value)
-          ? // ? JSON.stringify(value)  // Join arrays with newlines
-            value.join('\n')
-          : JSON.stringify(value)
-      : match;
-  });
-}
-
-export function createLLMScorer(opts: LLMScorerOptions) {
+export function createLLMScorer<TExtractOutput extends Record<string, any> = any, TScoreOutput = any>(
+  opts: LLMScorerOptions<TExtractOutput, TScoreOutput>,
+) {
   const model = opts.judge.model;
 
   const llm = new Agent({
@@ -262,65 +255,56 @@ export function createLLMScorer(opts: LLMScorerOptions) {
     description: opts.description,
     metadata: opts,
     extract: async run => {
-      console.log(
-        `Extract Prompt: ${renderTemplate(opts.prompts.extract.prompt, {
-          ...run,
-        })}`,
-      );
-      const extractPrompt = await llm.generate(
-        renderTemplate(opts.prompts.extract.prompt, {
-          ...run,
-        }),
-        {
-          output: z.object({
-            extractedElements: z.object({
-              statements: z.array(z.string()),
-            }),
-          }),
-        },
-      );
+      const extractPrompt = await llm.generate(opts.prompts.extract.createPrompt(run).prompt, {
+        output: opts.prompts.extract.outputSchema,
+      });
 
-      return extractPrompt.object.extractedElements;
+      return extractPrompt.object as Record<string, any>;
     },
     score: async run => {
-      console.log(
-        `Score Prompt: ${renderTemplate(opts.prompts.score.prompt, {
-          statements: run.extractedElements?.statements,
-          ...run,
-        })}`,
-      );
-      const scorePrompt = await llm.generate(
-        renderTemplate(opts.prompts.score.prompt, {
-          statements: run.extractedElements?.statements,
-          ...run,
-        }),
-        {
-          output: resultSchema,
-        },
-      );
+      // Rename extractedElements to extractStepResult for clarity
+      const runWithExtractResult = {
+        ...run,
+        extractStepResult: run.extractStepResult,
+      };
 
-      console.log(`Score Result: ${JSON.stringify(scorePrompt.object, null, 2)}`);
+      const scorePrompt = await llm.generate(opts.prompts.score.createPrompt(runWithExtractResult as any).prompt, {
+        output: opts.prompts.score.outputSchema,
+      });
 
       if (opts.prompts.score.transform) {
-        const transformed = opts.prompts.score.transform({ results: scorePrompt.object });
-        return { ...transformed, extractedElements: run.extractedElements };
+        const scoreValue = opts.prompts.score.transform({ results: scorePrompt.object as any });
+        return {
+          score: scoreValue,
+          scoreStepResult: scorePrompt.object,
+          extractStepResult: run.extractStepResult,
+        };
       }
 
-      return { results: scorePrompt.object, extractedElements: run.extractedElements };
+      return {
+        scoreStepResult: scorePrompt.object,
+        extractStepResult: run.extractStepResult,
+      };
     },
     reason: hasReason
       ? async run => {
-          const reasonPromptTemplate = opts.prompts.reason?.prompt!;
-          const reasonPrompt = await llm.generate(
-            renderTemplate(reasonPromptTemplate, {
-              ...run,
-            }),
-            {
-              output: z.object({
+          // Prepare run with both extract and score results
+          const runWithAllResults = {
+            ...run,
+            extractStepResult: run.extractStepResult,
+            scoreStepResult: run.scoreStepResult, // Use results as fallback
+            score: run.score,
+          };
+
+          const reasonPromptTemplate = opts.prompts.reason?.createPrompt(runWithAllResults as any).prompt!;
+          const reasonPrompt = await llm.generate(reasonPromptTemplate, {
+            output:
+              opts.prompts.reason?.outputSchema ||
+              z.object({
                 reason: z.string(),
+                score: z.number().optional(),
               }),
-            },
-          );
+          });
 
           return reasonPrompt.object;
         }
