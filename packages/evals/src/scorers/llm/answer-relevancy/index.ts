@@ -1,8 +1,8 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
 import { createLLMScorer } from '@mastra/core/eval';
+import { z } from 'zod';
 import { roundToTwoDecimals } from '../../../metrics/llm/utils';
 import { createExtractPrompt, createReasonPrompt, createScorePrompt } from './prompts';
-import { z } from 'zod';
 
 export const DEFAULT_OPTIONS: Record<'uncertaintyWeight' | 'scale', number> = {
   uncertaintyWeight: 0.3,
@@ -42,20 +42,12 @@ export function createAnswerRelevancyScorer({
     extract: {
       description: 'Extract relevant statements from the LLM output',
       outputSchema: extractOutputSchema,
-      createPrompt: ({ run }) => {
-        const prompt = createExtractPrompt(run.output.content);
-        console.log('prompt', prompt);
-        return prompt;
-      },
+      createPrompt: ({ run }) => createExtractPrompt(run.output.content),
     },
     analyze: {
       description: 'Score the relevance of the statements to the input',
       outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
-      createPrompt: ({ run }) => {
-        const prompt = createScorePrompt(JSON.stringify(run.input), run.extractStepResult?.statements || []);
-        console.log('prompt', prompt);
-        return prompt;
-      },
+      createPrompt: ({ run }) => createScorePrompt(JSON.stringify(run.input), run.extractStepResult?.statements || []),
     },
     reason: {
       description: 'Reason about the results',
@@ -63,27 +55,24 @@ export function createAnswerRelevancyScorer({
         reason: z.string(),
         score: z.number(),
       }),
-      createPrompt: ({ run }) => {
-        const prompt = createReasonPrompt({
+      createPrompt: ({ run }) =>
+        createReasonPrompt({
           input: JSON.stringify(run.input),
           output: run.output.content,
           score: run.score!,
-          results: run.scoreStepResult || [],
+          results: run.analyzeStepResult,
           scale: options.scale,
-        });
-        console.log('prompt', prompt);
-        return prompt;
-      },
+        }),
     },
     calculateScore: ({ run }) => {
-      if (!run.scoreStepResult || run.scoreStepResult.length === 0) {
+      if (!run.analyzeStepResult || run.analyzeStepResult.length === 0) {
         return 0;
       }
 
-      const numberOfResults = run.scoreStepResult.length;
+      const numberOfResults = run.analyzeStepResult.length;
 
       let relevancyCount = 0;
-      for (const { result } of run.scoreStepResult) {
+      for (const { result } of run.analyzeStepResult) {
         if (result.trim().toLowerCase() === 'yes') {
           relevancyCount++;
         } else if (result.trim().toLowerCase() === 'unsure') {

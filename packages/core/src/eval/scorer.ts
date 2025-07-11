@@ -50,7 +50,7 @@ const resultSchema = z.array(
 );
 
 const scoreResultSchema = z.object({
-  scoreStepResult: z.object({
+  analyzeStepResult: z.object({
     results: resultSchema.optional(),
     score: scoreSchema,
   }),
@@ -68,7 +68,7 @@ export type ScoringRunWithExtractStepResultAndScore<
 > = ScoringRunWithExtractStepResult<TExtract> & {
   score?: number;
   results?: z.infer<typeof resultSchema>;
-  scoreStepResult?: TScore;
+  analyzeStepResult?: TScore;
 };
 
 export type ScoringRunWithExtractStepResultAndScoreAndReason = ScoringRunWithExtractStepResultAndScore & {
@@ -149,15 +149,19 @@ export class Scorer {
         if (!this.reason) {
           return {
             extractStepResult: getStepResult(extractStep),
-            scoreStepResult: inputData.scoreStepResult,
+            analyzeStepResult: inputData.analyzeStepResult,
           };
         }
 
-        const reasonResult = await this.reason({ ...run, ...inputData, scoreStepResult: inputData.scoreStepResult });
+        const reasonResult = await this.reason({
+          ...run,
+          ...inputData,
+          analyzeStepResult: inputData.analyzeStepResult,
+        });
 
         return {
           extractStepResult: getStepResult(extractStep),
-          scoreStepResult: inputData.scoreStepResult,
+          analyzeStepResult: inputData.analyzeStepResult,
           ...reasonResult,
         };
       },
@@ -231,13 +235,13 @@ export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, T
     createPrompt: ({
       run,
     }: {
-      run: ScoringRun & { extractStepResult: TExtractOutput; scoreStepResult: TScoreOutput; score: number };
+      run: ScoringRun & { extractStepResult: TExtractOutput; analyzeStepResult: TScoreOutput; score: number };
     }) => string;
   };
   calculateScore: ({
     run,
   }: {
-    run: ScoringRun & { extractStepResult: TExtractOutput; scoreStepResult: TScoreOutput };
+    run: ScoringRun & { extractStepResult: TExtractOutput; analyzeStepResult: TScoreOutput };
   }) => number;
 };
 
@@ -278,7 +282,7 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
 
       const runWithScoreResult = {
         ...runWithExtractResult,
-        scoreStepResult: scorePrompt.object,
+        analyzeStepResult: scorePrompt.object,
       };
 
       if (opts.calculateScore) {
@@ -289,7 +293,7 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
       console.log(`what is the score`, score);
       console.log(`what is the runWithScoreResult`, runWithScoreResult);
       return {
-        scoreStepResult: {
+        analyzeStepResult: {
           ...scorePrompt.object,
           score: score,
         },
@@ -301,8 +305,8 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
           const runWithAllResults = {
             ...run,
             extractStepResult: run.extractStepResult,
-            scoreStepResult: run.scoreStepResult, // Use results as fallback
-            score: run.scoreStepResult.score,
+            analyzeStepResult: run.analyzeStepResult, // Use results as fallback
+            score: run.analyzeStepResult.score,
           };
 
           const reasonPromptTemplate = opts.reason?.createPrompt({ run: runWithAllResults })!;
