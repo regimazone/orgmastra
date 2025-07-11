@@ -25,45 +25,6 @@ import type {
   WorkflowRuns,
 } from './types';
 
-export abstract class MastraMemoryStorage extends MastraBase {
-  constructor({ name }: { name: string }) {
-    super({
-      component: 'MEMORY_STORAGE',
-      name,
-    });
-  }
-
-  abstract getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
-  abstract getMessages(args: StorageGetMessagesArg & { format: 'v2' }): Promise<MastraMessageV2[]>;
-  abstract getMessages({
-    threadId,
-    resourceId,
-    selectBy,
-    format,
-  }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]>;
-
-  /**
-   * Resolves limit for how many messages to fetch
-   *
-   * @param last The number of messages to fetch
-   * @param defaultLimit The default limit to use if last is not provided
-   * @returns The resolved limit
-   */
-  protected resolveMessageLimit({
-    last,
-    defaultLimit,
-  }: {
-    last: number | false | undefined;
-    defaultLimit: number;
-  }): number {
-    // TODO: Figure out consistent default limit for all stores as some stores use 40 and some use no limit (Number.MAX_SAFE_INTEGER)
-    if (typeof last === 'number') return Math.max(0, last);
-    if (last === false) return 0;
-    return defaultLimit;
-  }
-}
-
-
 export abstract class MastraStorage extends MastraBase {
   protected hasInitialized: null | Promise<boolean> = null;
   protected shouldCacheInit = true;
@@ -150,7 +111,13 @@ export abstract class MastraStorage extends MastraBase {
     }
   }
 
-  abstract createTable({ tableName, schema }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
+  abstract createTable({
+    tableName,
+    schema,
+  }: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+  }): Promise<void>;
 
   abstract clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void>;
 
@@ -197,16 +164,16 @@ export abstract class MastraStorage extends MastraBase {
   async getResourceById(_: { resourceId: string }): Promise<StorageResourceType | null> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-      `To use per-resource working memory, switch to one of these supported storage adapters.`,
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
   async saveResource(_: { resource: StorageResourceType }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-      `To use per-resource working memory, switch to one of these supported storage adapters.`,
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -217,8 +184,8 @@ export abstract class MastraStorage extends MastraBase {
   }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-      `To use per-resource working memory, switch to one of these supported storage adapters.`,
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -239,10 +206,10 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]>;
 
   abstract getTraces(args: StorageGetTracesArg): Promise<any[]>;
@@ -369,117 +336,4 @@ export abstract class MastraStorage extends MastraBase {
   abstract getMessagesPaginated(
     args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
   ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }>;
-}
-
-
-export class MastraCompositeStorage extends MastraStorage {
-  #stores: {
-    traces: MastraStorage,
-    conversations: MastraStorage,
-    workflows: MastraStorage,
-    scores: MastraStorage,
-  };
-
-  constructor(stores: {
-    traces: MastraStorage,
-    conversations: MastraStorage,
-    workflows: MastraStorage,
-    scores: MastraStorage,
-  }) {
-    super({
-      name: 'COMPOSITE_STORAGE',
-    });
-
-    this.#stores = stores;
-  }
-
-  async createTable({ tableName, schema }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void> {
-    if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.createTable({ tableName, schema });
-    } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.createTable({ tableName, schema });
-    } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.createTable({ tableName, schema });
-    } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.createTable({ tableName, schema });
-    }
-  }
-
-  async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.clearTable({ tableName });
-    } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.clearTable({ tableName });
-    } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.clearTable({ tableName });
-    } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.clearTable({ tableName });
-    }
-  }
-
-  async alterTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn>; ifNotExists: string[] }): Promise<void> {
-    if (args.tableName === TABLE_MESSAGES || args.tableName === TABLE_THREADS || args.tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.alterTable(args);
-    }
-    if (args.tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.alterTable(args);
-    }
-    if (args.tableName === TABLE_EVALS) {
-      await this.#stores.scores.alterTable(args);
-    }
-  }
-
-  async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.insert({ tableName, record });
-    } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.insert({ tableName, record });
-    } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.insert({ tableName, record });
-    } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.insert({ tableName, record });
-    }
-  }
-
-  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.batchInsert({ tableName, records });
-    }
-  }
-
-  async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    if (tableName === TABLE_TRACES) {
-      return this.#stores.traces.load({ tableName, keys });
-    }
-    if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      return this.#stores.conversations.load({ tableName, keys });
-    }
-    if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      return this.#stores.workflows.load({ tableName, keys });
-    }
-    if (tableName === TABLE_EVALS) {
-      return this.#stores.scores.load({ tableName, keys });
-    }
-  }
-
-  async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
-    return this.#stores.conversations.getThreadById({ threadId });
-  }
-
-  async getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
-    return this.#stores.conversations.getThreadsByResourceId({ resourceId });
-  }
-
-  async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
-    return this.#stores.conversations.saveThread({ thread });
-  }
-
-  async updateThread({ id, title, metadata }: { id: string; title: string; metadata: Record<string, unknown> }): Promise<StorageThreadType> {
-    return this.#stores.conversations.updateThread({ id, title, metadata });
-  }
-
-  async deleteThread({ threadId }: { threadId: string }): Promise<void> {
-    return this.#stores.conversations.deleteThread({ threadId });
-  }
-
 }
