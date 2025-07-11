@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { GetScorerResponse, GetScoresResponse } from '@mastra/client-js';
-import { client } from '@/lib/client';
+import { useMastraClient } from '@/contexts/mastra-client-context';
 
 export const useScoresByEntityId = (entityId: string, entityType: string) => {
+  const client = useMastraClient();
   const [scores, setScores] = useState<GetScoresResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -30,6 +31,7 @@ export const useScoresByEntityId = (entityId: string, entityType: string) => {
 };
 
 export const useScoresByScorerId = (scorerId: string) => {
+  const client = useMastraClient();
   const [scores, setScores] = useState<GetScoresResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +57,7 @@ export const useScoresByScorerId = (scorerId: string) => {
 };
 
 export const useScorer = (scorerId: string) => {
+  const client = useMastraClient();
   const [scorer, setScorer] = useState<GetScorerResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -80,6 +83,7 @@ export const useScorer = (scorerId: string) => {
 };
 
 export const useScorers = () => {
+  const client = useMastraClient();
   const [scorers, setScorers] = useState<Record<string, GetScorerResponse>>({});
   const [isLoading, setIsLoading] = useState(true);
 
