@@ -159,13 +159,19 @@ export const createScorePrompt = (
     JSON:
 `;
 
-export const createReasonPrompt = (
-  input: string,
-  output: string,
-  score: number,
-  results: { result: string; reason: string }[],
-  scale: number,
-) => `
+export const createReasonPrompt = ({
+  input,
+  output,
+  score,
+  results,
+  scale,
+}: {
+  input: string;
+  output: string;
+  score: number;
+  results: { result: string; reason: string }[];
+  scale: number;
+}) => `
     Explain the irrelevancy score where 0 is the lowest and ${scale} is the highest for the LLM's response using this context:
       Context:
       Input: ${input}

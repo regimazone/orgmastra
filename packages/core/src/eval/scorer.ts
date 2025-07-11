@@ -50,10 +50,10 @@ const resultSchema = z.array(
 );
 
 const scoreResultSchema = z.object({
-  score: z.number().optional(),
-  results: resultSchema.optional(),
-  extractStepResult: extractStepResultSchema.optional(),
-  scoreStepResult: z.any().optional(),
+  scoreStepResult: z.object({
+    results: resultSchema.optional(),
+    score: scoreSchema,
+  }),
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
@@ -149,15 +149,15 @@ export class Scorer {
         if (!this.reason) {
           return {
             extractStepResult: getStepResult(extractStep),
-            score: inputData.score,
+            scoreStepResult: inputData.scoreStepResult,
           };
         }
 
-        const reasonResult = await this.reason({ ...run, ...inputData, score: inputData.score });
+        const reasonResult = await this.reason({ ...run, ...inputData, scoreStepResult: inputData.scoreStepResult });
 
         return {
           extractStepResult: getStepResult(extractStep),
-          score: inputData.score,
+          scoreStepResult: inputData.scoreStepResult,
           ...reasonResult,
         };
       },
@@ -212,29 +212,33 @@ export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, T
   name: string;
   description: string;
   judge: LLMJudge;
-  prompts: {
-    extract: {
-      description: string;
-      judge?: LLMJudge;
-      outputSchema: z.ZodType<TExtractOutput>;
-      createPrompt: (run: ScoringRun) => { prompt: string };
-    };
-    score: {
-      description: string;
-      judge?: LLMJudge;
-      outputSchema: z.ZodType<TScoreOutput>;
-      createPrompt: (run: ScoringRun & { extractStepResult?: TExtractOutput }) => { prompt: string };
-      transform?: ({ results }: { results: z.infer<typeof resultSchema> }) => z.infer<typeof scoreSchema>;
-    };
-    reason?: {
-      description: string;
-      judge?: LLMJudge;
-      outputSchema: z.ZodType<{ score: number; reason: string }>;
-      createPrompt: (
-        run: ScoringRun & { extractStepResult?: TExtractOutput; scoreStepResult?: TScoreOutput; score?: number },
-      ) => { prompt: string };
-    };
+  extract: {
+    description: string;
+    judge?: LLMJudge;
+    outputSchema: z.ZodType<TExtractOutput>;
+    createPrompt: ({ run }: { run: ScoringRun }) => string;
   };
+  analyze: {
+    description: string;
+    judge?: LLMJudge;
+    outputSchema: z.ZodType<TScoreOutput>;
+    createPrompt: ({ run }: { run: ScoringRun & { extractStepResult: TExtractOutput } }) => string;
+  };
+  reason?: {
+    description: string;
+    judge?: LLMJudge;
+    outputSchema: z.ZodType<{ score: number; reason: string }>;
+    createPrompt: ({
+      run,
+    }: {
+      run: ScoringRun & { extractStepResult: TExtractOutput; scoreStepResult: TScoreOutput; score: number };
+    }) => string;
+  };
+  calculateScore: ({
+    run,
+  }: {
+    run: ScoringRun & { extractStepResult: TExtractOutput; scoreStepResult: TScoreOutput };
+  }) => number;
 };
 
 export function createLLMScorer<TExtractOutput extends Record<string, any> = any, TScoreOutput = any>(
@@ -248,15 +252,13 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
     model: model,
   });
 
-  const hasReason = !!opts.prompts.reason;
-
   const scorer = new Scorer({
     name: opts.name,
     description: opts.description,
     metadata: opts,
     extract: async run => {
-      const extractPrompt = await llm.generate(opts.prompts.extract.createPrompt(run).prompt, {
-        output: opts.prompts.extract.outputSchema,
+      const extractPrompt = await llm.generate(opts.extract.createPrompt({ run }), {
+        output: opts.extract.outputSchema,
       });
 
       return extractPrompt.object as Record<string, any>;
@@ -268,41 +270,48 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
         extractStepResult: run.extractStepResult,
       };
 
-      const scorePrompt = await llm.generate(opts.prompts.score.createPrompt(runWithExtractResult as any).prompt, {
-        output: opts.prompts.score.outputSchema,
+      const scorePrompt = await llm.generate(opts.analyze.createPrompt({ run: runWithExtractResult }), {
+        output: opts.analyze.outputSchema,
       });
 
-      if (opts.prompts.score.transform) {
-        const scoreValue = opts.prompts.score.transform({ results: scorePrompt.object as any });
-        return {
-          score: scoreValue,
-          scoreStepResult: scorePrompt.object,
-          extractStepResult: run.extractStepResult,
-        };
+      let score = 0;
+
+      const runWithScoreResult = {
+        ...runWithExtractResult,
+        scoreStepResult: scorePrompt.object,
+      };
+
+      if (opts.calculateScore) {
+        score = opts.calculateScore({ run: runWithScoreResult });
       }
 
+      (runWithScoreResult as ScoringRunWithExtractStepResultAndScore).score = score;
+      console.log(`what is the score`, score);
+      console.log(`what is the runWithScoreResult`, runWithScoreResult);
       return {
-        scoreStepResult: scorePrompt.object,
-        extractStepResult: run.extractStepResult,
+        scoreStepResult: {
+          ...scorePrompt.object,
+          score: score,
+        },
       };
     },
-    reason: hasReason
+    reason: opts.reason
       ? async run => {
           // Prepare run with both extract and score results
           const runWithAllResults = {
             ...run,
             extractStepResult: run.extractStepResult,
             scoreStepResult: run.scoreStepResult, // Use results as fallback
-            score: run.score,
+            score: run.scoreStepResult.score,
           };
 
-          const reasonPromptTemplate = opts.prompts.reason?.createPrompt(runWithAllResults as any).prompt!;
+          const reasonPromptTemplate = opts.reason?.createPrompt({ run: runWithAllResults })!;
           const reasonPrompt = await llm.generate(reasonPromptTemplate, {
             output:
-              opts.prompts.reason?.outputSchema ||
+              opts.reason?.outputSchema ||
               z.object({
                 reason: z.string(),
-                score: z.number().optional(),
+                score: z.number().default(0),
               }),
           });
 

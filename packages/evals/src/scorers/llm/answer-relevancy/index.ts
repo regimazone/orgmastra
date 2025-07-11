@@ -39,65 +39,61 @@ export function createAnswerRelevancyScorer({
       model,
       instructions: ANSWER_RELEVANCY_AGENT_INSTRUCTIONS,
     },
-    prompts: {
-      extract: {
-        description: 'Extract relevant statements from the LLM output',
-        outputSchema: extractOutputSchema,
-        createPrompt: run => {
-          return {
-            prompt: createExtractPrompt(run.output.content),
-          };
-        },
+    extract: {
+      description: 'Extract relevant statements from the LLM output',
+      outputSchema: extractOutputSchema,
+      createPrompt: ({ run }) => {
+        const prompt = createExtractPrompt(run.output.content);
+        console.log('prompt', prompt);
+        return prompt;
       },
-      score: {
-        description: 'Score the relevance of the statements to the input',
-        outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
-        createPrompt: run => {
-          const prompt = createScorePrompt(JSON.stringify(run.input), run.extractStepResult?.statements || []);
-          return {
-            prompt,
-          };
-        },
-        transform: ({ results }) => {
-          if (!results || results.length === 0) {
-            return 0;
-          }
-
-          const numberOfResults = results.length;
-
-          let relevancyCount = 0;
-          for (const { result } of results) {
-            if (result.trim().toLowerCase() === 'yes') {
-              relevancyCount++;
-            } else if (result.trim().toLowerCase() === 'unsure') {
-              relevancyCount += options.uncertaintyWeight;
-            }
-          }
-
-          const score = relevancyCount / numberOfResults;
-
-          return roundToTwoDecimals(score * options.scale);
-        },
+    },
+    analyze: {
+      description: 'Score the relevance of the statements to the input',
+      outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
+      createPrompt: ({ run }) => {
+        const prompt = createScorePrompt(JSON.stringify(run.input), run.extractStepResult?.statements || []);
+        console.log('prompt', prompt);
+        return prompt;
       },
-      reason: {
-        description: 'Reason about the results',
-        outputSchema: z.object({
-          reason: z.string(),
-          score: z.number(),
-        }),
-        createPrompt: run => {
-          const prompt = createReasonPrompt(
-            JSON.stringify(run.input),
-            run.output.content,
-            run.score!,
-            run.scoreStepResult || [],
-            options.scale,
-          );
-          return {
-            prompt,
-          };
-        },
+    },
+    reason: {
+      description: 'Reason about the results',
+      outputSchema: z.object({
+        reason: z.string(),
+        score: z.number(),
+      }),
+      createPrompt: ({ run }) => {
+        const prompt = createReasonPrompt({
+          input: JSON.stringify(run.input),
+          output: run.output.content,
+          score: run.score!,
+          results: run.scoreStepResult || [],
+          scale: options.scale,
+        });
+        console.log('prompt', prompt);
+        return prompt;
       },
+    },
+    calculateScore: ({ run }) => {
+      if (!run.scoreStepResult || run.scoreStepResult.length === 0) {
+        return 0;
+      }
+
+      const numberOfResults = run.scoreStepResult.length;
+
+      let relevancyCount = 0;
+      for (const { result } of run.scoreStepResult) {
+        if (result.trim().toLowerCase() === 'yes') {
+          relevancyCount++;
+        } else if (result.trim().toLowerCase() === 'unsure') {
+          relevancyCount += options.uncertaintyWeight;
+        }
+      }
+
+      const score = relevancyCount / numberOfResults;
+
+      return roundToTwoDecimals(score * options.scale);
     },
   });
 }
