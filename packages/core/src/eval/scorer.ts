@@ -3,6 +3,7 @@ import { Agent } from '../agent';
 import type { MastraLanguageModel } from '../memory';
 import { createStep, createWorkflow } from '../workflows';
 import { AvailableHooks, executeHook } from '../hooks';
+import { get } from 'lodash-es';
 
 export type SamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
 
@@ -51,6 +52,7 @@ const resultSchema = z.array(
 const scoreResultSchema = z.object({
   score: z.number().optional(),
   results: resultSchema.optional(),
+  extractedElements: extractedElementsSchema,
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
@@ -125,7 +127,9 @@ export class Scorer {
       inputSchema: extractedElementsSchema,
       outputSchema: scoreResultSchema,
       execute: async ({ inputData }) => {
-        return this.score({ ...run, extractedElements: inputData });
+        const scoreResult = await this.score({ ...run, extractedElements: inputData });
+
+        return { ...scoreResult, extractedElements: inputData };
       },
     });
 
@@ -142,7 +146,7 @@ export class Scorer {
           };
         }
 
-        const reasonResult = await this.reason({ ...run, extractedElements: inputData, score: inputData.score });
+        const reasonResult = await this.reason({ ...run, ...inputData, score: inputData.score });
 
         return {
           extractedElements: getStepResult(extractStep),
@@ -211,7 +215,11 @@ export type LLMScorerOptions = {
       prompt: string;
       description: string;
       judge?: LLMJudge;
-      transform?: ({ results }: { results: z.infer<typeof resultSchema> }) => z.infer<typeof scoreResultSchema>;
+      transform?: ({
+        results,
+      }: {
+        results: z.infer<typeof resultSchema>;
+      }) => Omit<z.infer<typeof scoreResultSchema>, 'extractedElements'>;
     };
     reason?: {
       prompt: string;
@@ -222,11 +230,14 @@ export type LLMScorerOptions = {
 };
 
 export function renderTemplate(template: string, params: Record<string, any> = {}) {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-    return params[key] !== undefined
-      ? typeof params[key] === 'string'
-        ? params[key]
-        : JSON.stringify(params[key])
+  return template.replace(/\{\{([\w\.]+)\}\}/g, (match, path) => {
+    const value = get(params, path);
+    return value !== undefined
+      ? typeof value === 'string'
+        ? value
+        : Array.isArray(value)
+          ? value.join('\n') // Join arrays with newlines
+          : JSON.stringify(value)
       : match;
   });
 }
@@ -274,10 +285,11 @@ export function createLLMScorer(opts: LLMScorerOptions) {
       );
 
       if (opts.prompts.score.transform) {
-        return opts.prompts.score.transform({ results: scorePrompt.object });
+        const transformed = opts.prompts.score.transform({ results: scorePrompt.object });
+        return { ...transformed, extractedElements: run.extractedElements };
       }
 
-      return { results: scorePrompt.object };
+      return { results: scorePrompt.object, extractedElements: run.extractedElements };
     },
     reason: hasReason
       ? async run => {
