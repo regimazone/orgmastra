@@ -86,9 +86,6 @@ export function createCompletenessScorer() {
         throw new Error('Inputs cannot be null or undefined');
       }
 
-      console.log('INPUT', input);
-      console.log('OUTPUT', output);
-
       const inputToProcess = JSON.stringify(input);
       const outputToProcess = run.structuredOutput ? JSON.stringify(output.object) : output.text;
 
@@ -105,14 +102,19 @@ export function createCompletenessScorer() {
       };
     },
     score: async run => {
-      const inputElements = run.extractedElements.inputElements;
-      const outputElements = run.extractedElements.outputElements;
+      const inputElements = run.extractedElements?.inputElements;
+      const outputElements = run.extractedElements?.outputElements;
 
       return {
         score: calculateCoverage({
           original: inputElements,
           simplified: outputElements,
         }),
+      };
+    },
+    reason: async run => {
+      return {
+        reason: 'The output is not complete.',
       };
     },
   });

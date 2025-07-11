@@ -28,7 +28,7 @@ export const EXTRACT_PROMPT = `
         Return empty list for empty input.
         
         Text:
-        {{output}}
+        {{output.content}}
         
         JSON:
   `;
@@ -115,50 +115,50 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
         "Daytime is when the sun is up",
       ]
       JSON:
-      {{
+      {
           "results": [
-              {{
+              {
                   "result": "yes",
                   "reason": "This statement explicitly answers what color the sky is during daytime"
-              }},
-              {{
+              },
+              {
                   "result": "unsure",
                   "reason": "This statement describes the sky but doesn't address its color"
-              }},
-              {{
+              },
+              {
                   "result": "no",
                   "reason": "This statement about breakfast is completely unrelated to the sky"
-              }},
-              {{
+              },
+              {
                   "result": "unsure",
                   "reason": "This statement about blue is related to color but doesn't address the sky"
-              }},
-              {{
+              },
+              {
                   "result": "unsure",
                   "reason": "This statement is about the sky but doesn't address its color"
-              }},
-              {{
+              },
+              {
                   "result": "no",
                   "reason": "This statement is empty"
-              }},
-              {{
+              },
+              {
                   "result": "unsure",
                   "reason": "This statement is incorrect but contains relevant information and still addresses the question"
-              }},
-              {{
+              },
+              {
                   "result": "no",
                   "reason": "This statement is about daytime but doesn't address the sky"
-              }}
+              }
           ]
-      }}
+      }
   
-    The number of results MUST MATCH the number of statements exactly. Statements are always an array of strings.
+    The number of results MUST MATCH the number of statements exactly.
   
     Input:
     {{input}}
   
     Statements:
-    {{statements}}
+    {{extractedElements.statements}}
   
     JSON:
 `;
@@ -174,8 +174,8 @@ export function scorePrompt({ input, statements }: { input: string; statements: 
 export const REASON_PROMPT = `
     Explain the irrelevancy score where 0 is the lowest and {{scale}} is the highest for the LLM's response using this context:
       Context:
-      Input: {{input}}
-      Output: {{output}}
+      Input: {{input.content}}
+      Output: {{output.content}}
       Score: {{score}}
       Results: {{results}}
       
