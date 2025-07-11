@@ -52,12 +52,12 @@ const resultSchema = z.array(
 const scoreResultSchema = z.object({
   score: z.number().optional(),
   results: resultSchema.optional(),
-  extractedElements: extractedElementsSchema,
+  extractedElements: extractedElementsSchema.optional(),
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
 
-export type ScoringRunWithExtractedElement = ScoringRun & { extractedElements: ExtractedElements };
+export type ScoringRunWithExtractedElement = ScoringRun & { extractedElements?: ExtractedElements };
 
 export type ScoringRunWithExtractedElementAndScore = ScoringRunWithExtractedElement & ScoreResult;
 
@@ -232,11 +232,15 @@ export type LLMScorerOptions = {
 export function renderTemplate(template: string, params: Record<string, any> = {}) {
   return template.replace(/\{\{([\w\.]+)\}\}/g, (match, path) => {
     const value = get(params, path);
+
+    console.log(`params: ${JSON.stringify(params, null, 2)}`);
+    console.log(`Value for ${path}: ${value}`);
     return value !== undefined
       ? typeof value === 'string'
         ? value
         : Array.isArray(value)
-          ? value.join('\n') // Join arrays with newlines
+          ? // ? JSON.stringify(value)  // Join arrays with newlines
+            value.join('\n')
           : JSON.stringify(value)
       : match;
   });
@@ -258,6 +262,11 @@ export function createLLMScorer(opts: LLMScorerOptions) {
     description: opts.description,
     metadata: opts,
     extract: async run => {
+      console.log(
+        `Extract Prompt: ${renderTemplate(opts.prompts.extract.prompt, {
+          ...run,
+        })}`,
+      );
       const extractPrompt = await llm.generate(
         renderTemplate(opts.prompts.extract.prompt, {
           ...run,
@@ -274,15 +283,23 @@ export function createLLMScorer(opts: LLMScorerOptions) {
       return extractPrompt.object.extractedElements;
     },
     score: async run => {
+      console.log(
+        `Score Prompt: ${renderTemplate(opts.prompts.score.prompt, {
+          statements: run.extractedElements?.statements,
+          ...run,
+        })}`,
+      );
       const scorePrompt = await llm.generate(
         renderTemplate(opts.prompts.score.prompt, {
-          statements: run.extractedElements.statements,
+          statements: run.extractedElements?.statements,
           ...run,
         }),
         {
           output: resultSchema,
         },
       );
+
+      console.log(`Score Result: ${JSON.stringify(scorePrompt.object, null, 2)}`);
 
       if (opts.prompts.score.transform) {
         const transformed = opts.prompts.score.transform({ results: scorePrompt.object });
