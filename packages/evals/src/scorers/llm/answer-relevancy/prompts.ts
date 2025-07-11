@@ -1,48 +1,44 @@
-import { renderTemplate } from '../utils';
-
-export const EXTRACT_PROMPT = `
+export const createExtractPrompt = (output: string) => `
         Given the text, break it down into meaningful statements while preserving context and relationships.
-    
+
         Don't split too aggressively.
-        
+
         Split compound statements particularly when they:
         - Are joined by "and"
         - Contain multiple distinct facts or claims
         - Have multiple descriptive elements about the subject
-        
-        
+
         Handle special cases:
         - A single word answer should be treated as a complete statement
         - Error messages should be treated as a single statement
         - Empty strings should return an empty list
         - When splitting text, keep related information together
-        
+
         Example:
         Example text: Look! A bird! Birds are an interesting animal.
-        
+
         {
             "statements": ["Look!", "A bird!", "Birds are interesting animals."]
         }
-        
+
         Please return only JSON format with "statements" array.
         Return empty list for empty input.
-        
+
         Text:
-        {{output.content}}
-        
+        ${output}
+
         JSON:
   `;
 
-export function extractPrompt({ output }: { output: string }) {
-  return renderTemplate(EXTRACT_PROMPT, { output });
-}
+export const createScorePrompt = (
+  input: string,
+  statements: string[],
+) => `Evaluate each statement's relevance to the input question, considering direct answers, related context, and uncertain cases.
 
-export const SCORE_PROMPT = `Evaluate each statement's relevance to the input question, considering direct answers, related context, and uncertain cases.
-  
       Return JSON with array of result objects. Each result must include:
       - "result": "yes", "no", or "unsure"
       - "reason": Clear explanation of the result
-  
+
       Result Guidelines:
       - "yes": Statement explicitly and directly answers the input question when it:
           * Contains specific answer to the question asked (e.g., "The color of the sky is blue")
@@ -50,7 +46,7 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
           * Can stand alone as a complete answer
           * Contains appropriate question-type response (e.g., location for "where", person for "who")
           * Note: If statement is incorrect but directly addresses the question, mark as "unsure"
-  
+
       - "unsure": Statement shows partial relevance when it:
           * Discusses the type of information being asked about (e.g., mentions temperatures when asked about temperature)
           * Contains information about the answer without explicit statement
@@ -66,8 +62,7 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
           * References locations or entities in the same category as what's being asked about
           * Provides relevant information without using explicit question-type terminology
           * Contains references to properties of the subject that relate to the question type
-  
-  
+
       - "no": Statement lacks meaningful connection to question when it:
           * Contains neither the subject nor the type of information being requested
           * Contains no terms related to what's being asked about
@@ -77,13 +72,13 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
           * Discusses the subject but not the specific attribute being asked about
           * Note: Assessment is about connection to what's being asked, not factual accuracy
           * Contains no connection to what's being asked about (neither the subject nor the type of information requested)
-  
+
       REMEMBER: 
       - If the statement contains words or phrases that are relevant to the input, it is partially relevant.
       - If the statement is a direct answer to the input, it is relevant.
       - If the statement is completely unrelated to the input or contains nothing, it is not relevant.
       - DO NOT MAKE A JUDGEMENT ON THE CORRECTNESS OF THE STATEMENT, JUST THE RELEVANCY.
-  
+
       STRICT RULES:
       - If a statement mentions the type of information being requested, it should be marked as "unsure" ONLY if it's discussing that type meaningfully (not just mentioning it)
       - Subject mentions alone are NOT enough for relevance - they must connect to what's being asked about
@@ -95,13 +90,12 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
       - Measurement/quantity relevance counts as type-level relevance
       - Administrative/governance terms are only relevant if they relate to the question type
       - Descriptive facts about the subject should be marked as "no" unless they directly relate to the question type
-  
-  
+
       Examples of "no" statements:
           * "Japan has beautiful seasons" for "What is Japan's largest city?"
           * "Trees grow tall" for "How tall is Mount Everest?"
           * "The weather is nice" for "Who is the president?"
-  
+
       Example:
       Input: "What color is the sky during daytime?"
       Statements: [
@@ -151,34 +145,34 @@ export const SCORE_PROMPT = `Evaluate each statement's relevance to the input qu
               }
           ]
       }
-  
-    The number of results MUST MATCH the number of statements exactly.
-  
+
+    The number of results MUST MATCH the number of statements exactly. If there are no statements, the result should be an empty array.
+
     Input:
-    {{input}}
-  
+    ${input}
+
+    Number of statements: ${statements.length}
+
     Statements:
-    {{extractedElements.statements}}
-  
+    ${statements.join('\n')}
+
     JSON:
 `;
 
-export function scorePrompt({ input, statements }: { input: string; statements: string[] }) {
-  return renderTemplate(SCORE_PROMPT, {
-    input,
-    statements,
-    statementsLength: statements.length === 0 ? 1 : statements.length,
-  });
-}
-
-export const REASON_PROMPT = `
-    Explain the irrelevancy score where 0 is the lowest and {{scale}} is the highest for the LLM's response using this context:
+export const createReasonPrompt = (
+  input: string,
+  output: string,
+  score: number,
+  results: { result: string; reason: string }[],
+  scale: number,
+) => `
+    Explain the irrelevancy score where 0 is the lowest and ${scale} is the highest for the LLM's response using this context:
       Context:
-      Input: {{input.content}}
-      Output: {{output.content}}
-      Score: {{score}}
-      Results: {{results}}
-      
+      Input: ${input}
+      Output: ${output}
+      Score: ${score}
+      Results: ${JSON.stringify(results)}
+
       Rules:
       - Explain score based on mix of direct answers and related context
       - Consider both full and partial relevance
@@ -200,19 +194,3 @@ export const REASON_PROMPT = `
             "reason": "The score is 3 because while the answer discusses the right topic, it doesn't directly address the question"
         }
 `;
-
-export function reasonPrompt({
-  score,
-  results,
-  input,
-  output,
-  scale = 1,
-}: {
-  score: number;
-  results: { result: string; reason: string }[];
-  input: string;
-  output: string;
-  scale: number;
-}) {
-  return renderTemplate(REASON_PROMPT, { score, results: JSON.stringify(results), input, output, scale });
-}

@@ -102,8 +102,8 @@ export function createCompletenessScorer() {
       };
     },
     score: async run => {
-      const inputElements = run.extractedElements?.inputElements;
-      const outputElements = run.extractedElements?.outputElements;
+      const inputElements = run.extractStepResult?.inputElements;
+      const outputElements = run.extractStepResult?.outputElements;
 
       return {
         score: calculateCoverage({

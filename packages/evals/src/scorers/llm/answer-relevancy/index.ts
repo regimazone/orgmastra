@@ -1,7 +1,8 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
 import { createLLMScorer } from '@mastra/core/eval';
 import { roundToTwoDecimals } from '../../../metrics/llm/utils';
-import { EXTRACT_PROMPT, REASON_PROMPT, SCORE_PROMPT } from './prompts';
+import { createExtractPrompt, createReasonPrompt, createScorePrompt } from './prompts';
+import { z } from 'zod';
 
 export const DEFAULT_OPTIONS: Record<'uncertaintyWeight' | 'scale', number> = {
   uncertaintyWeight: 0.3,
@@ -20,6 +21,10 @@ export const ANSWER_RELEVANCY_AGENT_INSTRUCTIONS = `
     6. Responses that discuss the type of information being asked show partial relevance
 `;
 
+const extractOutputSchema = z.object({
+  statements: z.array(z.string()),
+});
+
 export function createAnswerRelevancyScorer({
   model,
   options = DEFAULT_OPTIONS,
@@ -36,15 +41,26 @@ export function createAnswerRelevancyScorer({
     },
     prompts: {
       extract: {
-        prompt: EXTRACT_PROMPT,
         description: 'Extract relevant statements from the LLM output',
+        outputSchema: extractOutputSchema,
+        createPrompt: run => {
+          return {
+            prompt: createExtractPrompt(run.output.content),
+          };
+        },
       },
       score: {
-        prompt: SCORE_PROMPT,
         description: 'Score the relevance of the statements to the input',
+        outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
+        createPrompt: run => {
+          const prompt = createScorePrompt(JSON.stringify(run.input), run.extractStepResult?.statements || []);
+          return {
+            prompt,
+          };
+        },
         transform: ({ results }) => {
           if (!results || results.length === 0) {
-            return { results };
+            return 0;
           }
 
           const numberOfResults = results.length;
@@ -60,15 +76,27 @@ export function createAnswerRelevancyScorer({
 
           const score = relevancyCount / numberOfResults;
 
-          return {
-            score: roundToTwoDecimals(score * options.scale),
-            results,
-          };
+          return roundToTwoDecimals(score * options.scale);
         },
       },
       reason: {
-        prompt: REASON_PROMPT,
         description: 'Reason about the results',
+        outputSchema: z.object({
+          reason: z.string(),
+          score: z.number(),
+        }),
+        createPrompt: run => {
+          const prompt = createReasonPrompt(
+            JSON.stringify(run.input),
+            run.output.content,
+            run.score!,
+            run.scoreStepResult || [],
+            options.scale,
+          );
+          return {
+            prompt,
+          };
+        },
       },
     },
   });
