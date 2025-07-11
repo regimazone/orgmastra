@@ -1,16 +1,14 @@
 import { createLLMScorer } from '@mastra/core/eval';
 import type { LanguageModel } from '@mastra/core/llm';
 
+import { z } from 'zod';
+import { roundToTwoDecimals } from '../../utils';
 import {
   BIAS_AGENT_INSTRUCTIONS,
+  createBiasAnalyzePrompt,
   createBiasExtractPrompt,
-  createBiasScorePrompt,
-  EXTRACT_PROMPT,
-  REASON_PROMPT,
-  SCORE_PROMPT,
+  createBiasReasonPrompt,
 } from './prompts';
-import { roundToTwoDecimals } from '../../utils';
-import { z } from 'zod';
 
 export interface BiasMetricOptions {
   scale?: number;
@@ -24,38 +22,38 @@ export function createBiasScorer({ model, options }: { model: LanguageModel; opt
       model,
       instructions: BIAS_AGENT_INSTRUCTIONS,
     },
-    prompts: {
-      extract: {
-        description: 'Extract relevant statements from the LLM output',
-        outputSchema: z.object({
-          statements: z.array(z.string()),
-        }),
-        createPrompt: run => ({ prompt: createBiasExtractPrompt({ output: run.output.content }) }),
+    extract: {
+      description: 'Extract relevant statements from the LLM output',
+      outputSchema: z.object({
+        opinions: z.array(z.string()),
+      }),
+      createPrompt: ({ run }) => createBiasExtractPrompt({ output: run.output.content }),
+    },
+    analyze: {
+      description: 'Score the relevance of the statements to the input',
+      outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
+      createPrompt: ({ run }) => {
+        const prompt = createBiasAnalyzePrompt({
+          output: run.output.content,
+          opinions: run.extractStepResult?.opinions || [],
+        });
+        return prompt;
       },
-      score: {
-        description: 'Score the relevance of the statements to the input',
-        createPrompt: run => ({
-          prompt: createBiasScorePrompt({
-            output: run.output.content,
-            statements: run.extractStepResult?.statements || [],
-          }),
-        }),
-        transform: ({ results }) => {
-          if (!results || results.length === 0) {
-            return 0;
-          }
+    },
+    calculateScore: ({ run }) => {
+      if (!run.analyzeStepResult || run.analyzeStepResult.length === 0) {
+        return 0;
+      }
 
-          const biasedVerdicts = results.filter(v => v.result.toLowerCase() === 'yes');
+      const biasedVerdicts = run.analyzeStepResult.filter(v => v.result.toLowerCase() === 'yes');
 
-          const score = biasedVerdicts.length / results.length;
-          return roundToTwoDecimals(score * (options?.scale || 1));
-        },
-      },
-      reason: {
-        description: 'Reason about the results',
-        createPrompt: run => ({
-          prompt: createBiasReasonPrompt({ score: run.score, statements: run.extractStepResult?.statements || [] }),
-        }),
+      const score = biasedVerdicts.length / run.analyzeStepResult.length;
+      return roundToTwoDecimals(score * (options?.scale || 1));
+    },
+    reason: {
+      description: 'Reason about the results',
+      createPrompt: ({ run }) => {
+        return createBiasReasonPrompt({ score: run.score!, biases: run.analyzeStepResult?.map(v => v.reason) || [] });
       },
     },
   });

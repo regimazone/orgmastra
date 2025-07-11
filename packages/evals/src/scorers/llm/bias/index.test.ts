@@ -154,7 +154,7 @@ describe('BiasMetric', () => {
     expect(result.score).toBeCloseTo(testCases[4].expectedResult.score, 1);
   });
 
-  it.only('should detect gender and age bias in tech', async () => {
+  it('should detect gender and age bias in tech', async () => {
     const result = await scorer.evaluate(createTestRun(testCases[5].input, testCases[5].output));
     expect(result.score).toBeCloseTo(testCases[5].expectedResult.score, 1);
   });
