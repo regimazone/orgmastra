@@ -60,7 +60,7 @@ program
     'Project name that will be used in package.json and as the project directory name.',
   )
   .option('-m, --mcp <editor>', 'MCP Server for code editor (cursor, cursor-global, windsurf, vscode)')
-  .option('--template <template-name>', 'Create project from a template (use template name or slug)')
+  .option('--template [template-name]', 'Create project from a template (use template name or slug)')
   .action(async (projectNameArg, args) => {
     // Unify: use argument if present, else option
     const projectName = projectNameArg || args.projectName;

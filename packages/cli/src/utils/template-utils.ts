@@ -1,7 +1,5 @@
-import fs from 'fs/promises';
-import { join } from 'path';
 import * as p from '@clack/prompts';
-import { logger } from './logger';
+import { TEMPLATES } from '../templates';
 
 export interface Template {
   url: string;
@@ -15,14 +13,7 @@ export interface Template {
 }
 
 export async function loadTemplates(): Promise<Template[]> {
-  try {
-    const templatesPath = join(__dirname, '../templates.json');
-    const templatesContent = await fs.readFile(templatesPath, 'utf-8');
-    return JSON.parse(templatesContent);
-  } catch {
-    logger.error('Could not load templates.json');
-    process.exit(1);
-  }
+  return TEMPLATES;
 }
 
 export async function selectTemplate(templates: Template[]): Promise<Template | null> {

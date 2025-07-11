@@ -27,15 +27,6 @@ export async function addTemplate({ dir }: { dir?: string }) {
   logger.info(`Template "${selectedTemplate.name}" added successfully!`);
 }
 
-async function directoryExists(dirPath: string): Promise<boolean> {
-  try {
-    const stat = await fs.stat(dirPath);
-    return stat.isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 async function validateMastraProject(mastraDir: string): Promise<void> {
   const indexPath = join(mastraDir, 'index.ts');
 

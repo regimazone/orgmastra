@@ -1,17 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { vol } from 'memfs';
-
-// Mock the logger
-vi.mock('./logger', () => ({
-  logger: {
-    log: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    success: vi.fn(),
-    break: vi.fn(),
-  },
-}));
 
 // Mock @clack/prompts
 vi.mock('@clack/prompts', () => ({
@@ -20,30 +7,32 @@ vi.mock('@clack/prompts', () => ({
 }));
 
 beforeEach(() => {
-  vol.reset();
   vi.resetAllMocks();
 });
 
-// Mock fs after importing vol
-vi.mock('fs/promises', async () => {
-  const memfs = await vi.importActual('memfs');
-  return {
-    default: memfs.fs.promises,
-    ...memfs.fs.promises,
-  };
-});
-
-vi.mock('path', () => ({
-  default: {
-    join: vi.fn((...args) => args.join('/')),
-  },
-  join: vi.fn((...args) => args.join('/')),
+// Mock the templates module
+vi.mock('../templates', () => ({
+  TEMPLATES: [
+    {
+      url: 'https://github.com/mastra-ai/template-test',
+      name: 'Test Template',
+      slug: 'template-test',
+      agents: ['test-agent'],
+      mcp: [],
+      tools: ['test-tool'],
+      networks: [],
+      workflows: [],
+    },
+  ],
 }));
 
 describe('template-utils', () => {
   describe('loadTemplates', () => {
-    it('should load templates from templates.json', async () => {
-      const mockTemplates = [
+    it('should load templates from TEMPLATES constant', async () => {
+      const { loadTemplates } = await import('./template-utils');
+      const templates = await loadTemplates();
+
+      expect(templates).toEqual([
         {
           url: 'https://github.com/mastra-ai/template-test',
           name: 'Test Template',
@@ -54,33 +43,7 @@ describe('template-utils', () => {
           networks: [],
           workflows: [],
         },
-      ];
-
-      vol.fromJSON({
-        '/test/templates.json': JSON.stringify(mockTemplates),
-      });
-
-      // Mock path.join to return expected path
-      const path = await import('path');
-      vi.mocked(path.join).mockReturnValue('/test/templates.json');
-
-      const { loadTemplates } = await import('./template-utils');
-      const templates = await loadTemplates();
-
-      expect(templates).toEqual(mockTemplates);
-    });
-
-    it('should exit process if templates.json cannot be loaded', async () => {
-      const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called');
-      });
-
-      vi.stubGlobal('__dirname', '/test');
-
-      const { loadTemplates } = await import('./template-utils');
-
-      await expect(loadTemplates()).rejects.toThrow('process.exit called');
-      expect(mockExit).toHaveBeenCalledWith(1);
+      ]);
     });
   });
 

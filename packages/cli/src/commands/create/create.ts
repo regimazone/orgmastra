@@ -1,12 +1,12 @@
 import * as p from '@clack/prompts';
 import color from 'picocolors';
 
+import { cloneTemplate, installDependencies } from '../../utils/clone-template';
+import { loadTemplates, selectTemplate, findTemplateByName, getDefaultProjectName } from '../../utils/template-utils';
 import { init } from '../init/init';
 import { interactivePrompt } from '../init/utils';
 import type { LLMProvider } from '../init/utils';
 import { getPackageManager } from '../utils.js';
-import { loadTemplates, selectTemplate, findTemplateByName, getDefaultProjectName } from '../../utils/template-utils';
-import { cloneTemplate, installDependencies } from '../../utils/clone-template';
 
 import { createMastraProject } from './utils';
 
@@ -20,7 +20,7 @@ export const create = async (args: {
   timeout?: number;
   directory?: string;
   mcpServer?: 'windsurf' | 'cursor' | 'cursor-global';
-  template?: string;
+  template?: string | boolean;
 }) => {
   // Handle template-based creation
   if (args.template !== undefined) {
@@ -66,11 +66,17 @@ export const create = async (args: {
   postCreate({ projectName });
 };
 
-async function createFromTemplate(args: { projectName?: string; template?: string; timeout?: number }) {
+async function createFromTemplate(args: { projectName?: string; template?: string | boolean; timeout?: number }) {
   const templates = await loadTemplates();
   let selectedTemplate;
 
-  if (args.template) {
+  if (args.template === true) {
+    selectedTemplate = await selectTemplate(templates);
+    if (!selectedTemplate) {
+      p.log.info('No template selected. Exiting.');
+      return;
+    }
+  } else if (args.template) {
     // Template name provided, find it
     selectedTemplate = findTemplateByName(templates, args.template);
     if (!selectedTemplate) {
@@ -78,13 +84,10 @@ async function createFromTemplate(args: { projectName?: string; template?: strin
       templates.forEach(t => p.log.info(`  - ${t.name} (use: ${t.slug.replace('template-', '')})`));
       process.exit(1);
     }
-  } else {
-    // No template specified, let user select
-    selectedTemplate = await selectTemplate(templates);
-    if (!selectedTemplate) {
-      p.log.info('No template selected. Exiting.');
-      return;
-    }
+  }
+
+  if (!selectedTemplate) {
+    throw new Error('No template selected');
   }
 
   // Get project name
