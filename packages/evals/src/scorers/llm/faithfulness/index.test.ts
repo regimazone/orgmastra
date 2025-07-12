@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 import { createFaithfulnessScorer } from './index';
 import { ScoringRun } from '@mastra/core/eval';
+import { createTestRun } from '../../utils';
 
 const testCases = [
   {
@@ -147,25 +148,6 @@ const testCases = [
 const SECONDS = 10000;
 
 const model = openai('gpt-4o');
-
-const createTestRun = (input: string, output: string, context?: string[]): ScoringRun => {
-  return {
-    runId: 'test-run-id',
-    traceId: 'test-trace-id',
-    scorer: {},
-    input: [{ role: 'user', content: input }],
-    output: { role: 'assistant', content: output },
-    metadata: {},
-    additionalContext: { context },
-    resourceId: 'test-resource-id',
-    threadId: 'test-thread-id',
-    source: 'LIVE',
-    entity: {},
-    entityType: 'AGENT',
-    runtimeContext: {},
-    structuredOutput: false,
-  };
-};
 
 describe(
   'FaithfulnessMetric',

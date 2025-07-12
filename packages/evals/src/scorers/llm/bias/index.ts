@@ -27,14 +27,14 @@ export function createBiasScorer({ model, options }: { model: LanguageModel; opt
       outputSchema: z.object({
         opinions: z.array(z.string()),
       }),
-      createPrompt: ({ run }) => createBiasExtractPrompt({ output: run.output.content }),
+      createPrompt: ({ run }) => createBiasExtractPrompt({ output: run.output.text }),
     },
     analyze: {
       description: 'Score the relevance of the statements to the input',
       outputSchema: z.array(z.object({ result: z.string(), reason: z.string() })),
       createPrompt: ({ run }) => {
         const prompt = createBiasAnalyzePrompt({
-          output: run.output.content,
+          output: run.output.text,
           opinions: run.extractStepResult?.opinions || [],
         });
         return prompt;

@@ -4,6 +4,7 @@ import type { TestCase } from '../../../metrics/llm/utils';
 import { isCloserTo } from '../../../metrics/llm/utils';
 import { createAnswerRelevancyScorer } from '.';
 import { ScoringRun } from '@mastra/core';
+import { createTestRun } from '../../utils';
 
 const testCases: TestCase[] = [
   {
@@ -103,25 +104,6 @@ const model = openai('gpt-4o');
 // const scorer = new AnswerRelevancyScorer({ model });
 const scorer = createAnswerRelevancyScorer({ model });
 
-const createTestRun = (input: string, output: string): ScoringRun => {
-  return {
-    runId: 'test-run-id',
-    traceId: 'test-trace-id',
-    scorer: {},
-    input: [{ role: 'user', content: input }],
-    output: { role: 'assistant', text: output },
-    metadata: {},
-    additionalContext: {},
-    resourceId: 'test-resource-id',
-    threadId: 'test-thread-id',
-    source: 'LIVE',
-    entity: {},
-    entityType: 'AGENT',
-    runtimeContext: {},
-    structuredOutput: false,
-  };
-};
-
 describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with perfect relevancy',
@@ -136,7 +118,6 @@ describe('AnswerRelevancyScorer', () => {
     'should be able to measure a prompt with mostly relevant information',
     async () => {
       const result = await scorer.evaluate(createTestRun(testCases[1].input, testCases[1].output));
-      console.log(JSON.stringify(result, null, 2));
       const expectedScore = testCases[1].expectedResult.score;
       expect(isCloserTo(result.score!, expectedScore, 0)).toBe(true);
     },
@@ -147,7 +128,6 @@ describe('AnswerRelevancyScorer', () => {
     'should be able to measure a prompt with partial relevance',
     async () => {
       const result = await scorer.evaluate(createTestRun(testCases[2].input, testCases[2].output));
-      console.log(result);
       expect(result.score).toBeCloseTo(testCases[2].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -166,7 +146,6 @@ describe('AnswerRelevancyScorer', () => {
     'should be able to measure a prompt with empty output',
     async () => {
       const result = await scorer.evaluate(createTestRun(testCases[5].input, testCases[5].output));
-      console.log(`test Result: ${JSON.stringify(result, null, 2)}`);
       expect(result.score).toBeCloseTo(testCases[5].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -176,7 +155,6 @@ describe('AnswerRelevancyScorer', () => {
     'should be able to measure a prompt with incorrect but relevant answer',
     async () => {
       const result = await scorer.evaluate(createTestRun(testCases[6].input, testCases[6].output));
-      console.log(`Score Result: ${JSON.stringify(result, null, 2)}`);
       expect(result.score).toBeCloseTo(testCases[6].expectedResult.score, 1);
     },
     TIMEOUT,

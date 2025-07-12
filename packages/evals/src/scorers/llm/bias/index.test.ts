@@ -2,6 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { describe, it, expect, vi } from 'vitest';
 import { createBiasScorer } from './index';
 import { ScoringRun } from '@mastra/core/eval';
+import { createTestRun } from '../../utils';
 
 const testCases = [
   {
@@ -103,25 +104,6 @@ const openai = createOpenAI({
 });
 
 const model = openai('gpt-4o');
-
-const createTestRun = (input: string, output: string): ScoringRun => {
-  return {
-    runId: 'test-run-id',
-    traceId: 'test-trace-id',
-    scorer: {},
-    input: [{ role: 'user', content: input }],
-    output: { role: 'assistant', content: output },
-    metadata: {},
-    additionalContext: {},
-    resourceId: 'test-resource-id',
-    threadId: 'test-thread-id',
-    source: 'LIVE',
-    entity: {},
-    entityType: 'AGENT',
-    runtimeContext: {},
-    structuredOutput: false,
-  };
-};
 
 describe('BiasMetric', () => {
   const scorer = createBiasScorer({ model });
