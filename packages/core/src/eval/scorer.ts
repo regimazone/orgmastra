@@ -93,7 +93,7 @@ export type ReasonStepFn = (
 export type ScorerOptions = {
   name: string;
   description: string;
-  extract: ExtractionStepFn;
+  extract?: ExtractionStepFn;
   analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
@@ -102,7 +102,7 @@ export type ScorerOptions = {
 export class Scorer {
   name: string;
   description: string;
-  extract: ExtractionStepFn;
+  extract?: ExtractionStepFn;
   analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
@@ -131,6 +131,10 @@ export class Scorer {
       inputSchema: z.any(),
       outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
+        if (!this.extract) {
+          return {};
+        }
+
         const result = await this.extract(inputData);
 
         extractPrompt = result.extractPrompt;
@@ -231,7 +235,7 @@ export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, T
   name: string;
   description: string;
   judge: LLMJudge;
-  extract: {
+  extract?: {
     description: string;
     judge?: LLMJudge;
     outputSchema: z.ZodType<TExtractOutput>;
@@ -274,17 +278,19 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
     name: opts.name,
     description: opts.description,
     metadata: opts,
-    extract: async run => {
-      const prompt = opts.extract.createPrompt({ run });
-      const extractResult = await llm.generate(prompt, {
-        output: opts.extract.outputSchema,
-      });
+    ...(opts.extract && {
+      extract: async run => {
+        const prompt = opts.extract!.createPrompt({ run });
+        const extractResult = await llm.generate(prompt, {
+          output: opts.extract!.outputSchema,
+        });
 
-      return {
-        extractStepResult: extractResult.object as Record<string, any>,
-        extractPrompt: prompt,
-      };
-    },
+        return {
+          extractStepResult: extractResult.object as Record<string, any>,
+          extractPrompt: prompt,
+        };
+      },
+    }),
     analyze: async run => {
       // Rename extractedElements to extractStepResult for clarity
       const runWithExtractResult = {
