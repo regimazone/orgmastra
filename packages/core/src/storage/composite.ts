@@ -21,6 +21,7 @@ import type {
   WorkflowRun,
   EvalRow,
   WorkflowRuns,
+  PaginationArgs,
 } from './types';
 
 export class MastraCompositeStorage extends MastraStorage {
@@ -189,10 +190,10 @@ export class MastraCompositeStorage extends MastraStorage {
 
   async updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]> {
     return this.#stores.conversations.updateMessages(args);
   }
@@ -225,6 +226,13 @@ export class MastraCompositeStorage extends MastraStorage {
 
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     return this.#stores.scores.getEvalsByAgentName(agentName, type);
+  }
+
+  async getEvals(args: {
+    agentName?: string;
+    type?: 'test' | 'live';
+  } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[] }> {
+    return this.#stores.scores.getEvals(args);
   }
 
   async getWorkflowRuns(args?: {
