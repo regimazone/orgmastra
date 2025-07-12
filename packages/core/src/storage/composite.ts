@@ -160,17 +160,12 @@ export class MastraCompositeStorage extends MastraStorage {
     return this.#stores.conversations.saveResource(args);
   }
 
-  async updateResource(_: {
+  async updateResource(args: {
     resourceId: string;
     workingMemory?: string;
     metadata?: Record<string, unknown>;
   }): Promise<StorageResourceType> {
-    return this.#stores.conversations.updateResource(_);
-    throw new Error(
-      `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
-    );
+    return this.#stores.conversations.updateResource(args);
   }
 
   async getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
