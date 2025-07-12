@@ -99,6 +99,7 @@ export type ScorerOptions = {
   analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
+  isLLMScorer?: boolean;
 };
 
 export class Scorer {
@@ -108,6 +109,7 @@ export class Scorer {
   analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
+  isLLMScorer?: boolean;
 
   constructor(opts: ScorerOptions) {
     this.name = opts.name;
@@ -116,6 +118,7 @@ export class Scorer {
     this.analyze = opts.analyze;
     this.reason = opts.reason;
     this.metadata = {};
+    this.isLLMScorer = opts.isLLMScorer;
 
     if (opts.metadata) {
       this.metadata = opts.metadata;
@@ -123,27 +126,18 @@ export class Scorer {
   }
 
   async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractStepResultAndScoreAndReason> {
-    let extractPrompt;
-    let analyzePrompt;
-    let reasonPrompt;
-
     const extractStep = createStep({
       id: 'extract',
       description: 'Extract relevant element from the run',
       inputSchema: z.any(),
       outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
-        console.log(`input data`, JSON.stringify(inputData, null, 2));
         if (!this.extract) {
           return {};
         }
 
-        const result = await this.extract(inputData);
-
-        extractPrompt = result.extractPrompt;
-
-        // TODO: extractStepResult is only available for LLM Scorers we need a way to handl for code scorers
-        return result.extractStepResult || result;
+        const extractStepResult = await this.extract(inputData);
+        return extractStepResult;
       },
     });
 
@@ -153,12 +147,19 @@ export class Scorer {
       inputSchema: extractStepResultSchema,
       outputSchema: scoreResultSchema,
       execute: async ({ inputData }) => {
-        const scoreResult = await this.analyze({ ...run, extractStepResult: inputData });
-        analyzePrompt = scoreResult.analyzePrompt;
+        const extractStepResult = this.isLLMScorer ? inputData.extractStepResult : inputData;
+        const analyzeStepResult = await this.analyze({ ...run, extractStepResult });
 
-        console.log(`Analyze scoreResult`, JSON.stringify(scoreResult, null, 2));
-        console.log(`Analyze inputData`, JSON.stringify(inputData, null, 2));
-        return { ...scoreResult, extractStepResult: inputData };
+        if (this.isLLMScorer) {
+          return analyzeStepResult;
+        }
+
+        const { score, ...rest } = analyzeStepResult;
+
+        // TODO: fix types for non-LLM scorers.
+        // non-LLM scorers do not have analyzeStepResult they should just return score
+        // and additional information
+        return { score, analyzeStepResult: rest as any };
       },
     });
 
@@ -168,34 +169,29 @@ export class Scorer {
       inputSchema: scoreResultSchema,
       outputSchema: z.any(),
       execute: async ({ inputData, getStepResult }) => {
+        const { score, analyzeStepResult, analyzePrompt } = getStepResult(analyzeStep);
+        const { extractStepResult, extractPrompt } = getStepResult(extractStep);
         if (!this.reason) {
-          console.log(
-            `hello`,
-            JSON.stringify({
-              extractStepResult: getStepResult(extractStep),
-              // TODO: analyzeStepResult is only available for LLM Scorers we need a way to handl for code scorers
-              analyzeStepResult: getStepResult(analyzeStep),
-              score: inputData.score,
-            }),
-          );
           return {
-            extractStepResult: getStepResult(extractStep),
-            // TODO: analyzeStepResult is only available for LLM Scorers we need a way to handl for code scorers
-            analyzeStepResult: getStepResult(analyzeStep),
-            score: inputData.score,
+            extractStepResult,
+            analyzeStepResult,
+            analyzePrompt,
+            extractPrompt,
+            score,
           };
         }
 
         const reasonResult = await this.reason({
           ...run,
-          analyzeStepResult: inputData.analyzeStepResult,
-          score: inputData.score,
+          analyzeStepResult,
+          score,
         });
-        reasonPrompt = reasonResult?.reasonPrompt;
         return {
-          extractStepResult: getStepResult(extractStep),
-          analyzeStepResult: inputData.analyzeStepResult,
-          score: inputData.score,
+          extractStepResult,
+          analyzeStepResult,
+          analyzePrompt,
+          extractPrompt,
+          score,
           ...reasonResult,
         };
       },
@@ -225,7 +221,7 @@ export class Scorer {
       );
     }
 
-    return { ...run, ...execution.result, extractPrompt, analyzePrompt, reasonPrompt };
+    return { ...run, ...execution.result };
   }
 }
 
@@ -293,6 +289,7 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
     name: opts.name,
     description: opts.description,
     metadata: opts,
+    isLLMScorer: true,
     ...(opts.extract && {
       extract: async run => {
         const prompt = opts.extract!.createPrompt({ run });
@@ -307,7 +304,6 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
       },
     }),
     analyze: async run => {
-      // Rename extractedElements to extractStepResult for clarity
       const runWithExtractResult = {
         ...run,
         extractStepResult: run.extractStepResult,
