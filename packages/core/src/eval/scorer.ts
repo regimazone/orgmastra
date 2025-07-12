@@ -63,6 +63,7 @@ export type ScoreResult = z.infer<typeof scoreResultSchema>;
 
 export type ScoringRunWithExtractStepResult<TExtract = any> = ScoringRun & {
   extractStepResult?: TExtract;
+  extractPrompt?: string;
 };
 
 export type ScoringRunWithExtractStepResultAndScore<
@@ -72,6 +73,7 @@ export type ScoringRunWithExtractStepResultAndScore<
   score?: number;
   results?: z.infer<typeof resultSchema>;
   analyzeStepResult?: TScore;
+  analyzePrompt?: string;
 };
 
 export type ScoringRunWithExtractStepResultAndScoreAndReason = ScoringRunWithExtractStepResultAndScore & {
