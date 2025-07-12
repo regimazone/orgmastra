@@ -1,4 +1,5 @@
 import type { WorkflowRunState } from '../../workflows';
+import type { WorkflowRun, WorkflowRuns } from '../types';
 import { MastraStorageBase } from './base';
 
 export abstract class MastraWorkflowsStorage extends MastraStorageBase {
@@ -17,7 +18,7 @@ export abstract class MastraWorkflowsStorage extends MastraStorageBase {
 
   abstract getWorkflowRunById(args: { runId: string; workflowName?: string }): Promise<WorkflowRun | null>;
 
-  abstract async persistWorkflowSnapshot({
+  abstract persistWorkflowSnapshot({
     workflowName,
     runId,
     snapshot,
@@ -27,7 +28,7 @@ export abstract class MastraWorkflowsStorage extends MastraStorageBase {
     snapshot: WorkflowRunState;
   }): Promise<void>;
 
-  abstract async loadWorkflowSnapshot({
+  abstract loadWorkflowSnapshot({
     workflowName,
     runId,
   }: {
