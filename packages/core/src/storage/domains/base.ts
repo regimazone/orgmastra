@@ -1,16 +1,21 @@
 import { MastraBase } from '../../base';
-import type { TABLE_NAMES } from '../constants';
+
 import type { StorageColumn } from '../types';
+import type { MastraStore } from './store';
 
 export abstract class MastraStorageBase extends MastraBase {
   protected hasInitialized: null | Promise<boolean> = null;
   protected shouldCacheInit = true;
 
-  constructor({ name }: { name: string }) {
+  store: MastraStore;
+
+  constructor({ name, store }: { name: string; store: MastraStore }) {
     super({
       component: 'STORAGE',
       name,
     });
+
+    this.store = store;
   }
 
   public get supports(): {
@@ -22,22 +27,6 @@ export abstract class MastraStorageBase extends MastraBase {
       resourceWorkingMemory: false,
     };
   }
-
-  abstract initialize({ name, schema }: { name: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
-
-  abstract teardown({ name }: { name: TABLE_NAMES }): Promise<void>;
-
-  abstract migrate(args: {
-    name: TABLE_NAMES;
-    schema: Record<string, StorageColumn>;
-    ifNotExists: string[];
-  }): Promise<void>;
-
-  abstract load<R>({ name, keys }: { name: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
-
-  abstract insert({ name, record }: { name: TABLE_NAMES; record: Record<string, any> }): Promise<void>;
-
-  abstract batchInsert({ name, records }: { name: TABLE_NAMES; records: Record<string, any>[] }): Promise<void>;
 
   protected ensureDate(date: Date | string | undefined): Date | undefined {
     if (!date) return undefined;
@@ -68,39 +57,5 @@ export abstract class MastraStorageBase extends MastraBase {
     if (typeof last === 'number') return Math.max(0, last);
     if (last === false) return 0;
     return defaultLimit;
-  }
-
-  protected getSqlType(type: StorageColumn['type']): string {
-    switch (type) {
-      case 'text':
-        return 'TEXT';
-      case 'timestamp':
-        return 'TIMESTAMP';
-      case 'integer':
-        return 'INTEGER';
-      case 'bigint':
-        return 'BIGINT';
-      case 'jsonb':
-        return 'JSONB';
-      default:
-        return 'TEXT';
-    }
-  }
-
-  protected getDefaultValue(type: StorageColumn['type']): string {
-    switch (type) {
-      case 'text':
-      case 'uuid':
-        return "DEFAULT ''";
-      case 'timestamp':
-        return "DEFAULT '1970-01-01 00:00:00'";
-      case 'integer':
-      case 'bigint':
-        return 'DEFAULT 0';
-      case 'jsonb':
-        return "DEFAULT '{}'";
-      default:
-        return "DEFAULT ''";
-    }
   }
 }

@@ -56,25 +56,25 @@ export class MastraCompositeDomain extends MastraStorage {
     schema: Record<string, StorageColumn>;
   }): Promise<void> {
     if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.initialize({ name: tableName, schema });
+      await this.#stores.traces.store.initialize({ name: tableName, schema });
     } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.initialize({ name: tableName, schema });
+      await this.#stores.conversations.store.initialize({ name: tableName, schema });
     } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.initialize({ name: tableName, schema });
+      await this.#stores.workflows.store.initialize({ name: tableName, schema });
     } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.initialize({ name: tableName, schema });
+      await this.#stores.scores.store.initialize({ name: tableName, schema });
     }
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
     if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.teardown({ name: tableName });
+      await this.#stores.traces.store.teardown({ name: tableName });
     } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.teardown({ name: tableName });
+      await this.#stores.conversations.store.teardown({ name: tableName });
     } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.teardown({ name: tableName });
+      await this.#stores.workflows.store.teardown({ name: tableName });
     } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.teardown({ name: tableName });
+      await this.#stores.scores.store.teardown({ name: tableName });
     }
   }
 
@@ -84,28 +84,28 @@ export class MastraCompositeDomain extends MastraStorage {
     ifNotExists: string[];
   }): Promise<void> {
     if (args.tableName === TABLE_TRACES) {
-      await this.#stores.traces.migrate({
+      await this.#stores.traces.store.migrate({
         name: args.tableName,
         schema: args.schema,
         ifNotExists: args.ifNotExists,
       });
     }
     if (args.tableName === TABLE_MESSAGES || args.tableName === TABLE_THREADS || args.tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.migrate({
+      await this.#stores.conversations.store.migrate({
         name: args.tableName,
         schema: args.schema,
         ifNotExists: args.ifNotExists,
       });
     }
     if (args.tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.migrate({
+      await this.#stores.workflows.store.migrate({
         name: args.tableName,
         schema: args.schema,
         ifNotExists: args.ifNotExists,
       });
     }
     if (args.tableName === TABLE_EVALS) {
-      await this.#stores.scores.migrate({
+      await this.#stores.scores.store.migrate({
         name: args.tableName,
         schema: args.schema,
         ifNotExists: args.ifNotExists,
@@ -115,40 +115,40 @@ export class MastraCompositeDomain extends MastraStorage {
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
     if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.insert({ name: tableName, record });
+      await this.#stores.traces.store.insert({ name: tableName, record });
     } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.insert({ name: tableName, record });
+      await this.#stores.conversations.store.insert({ name: tableName, record });
     } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.insert({ name: tableName, record });
+      await this.#stores.workflows.store.insert({ name: tableName, record });
     } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.insert({ name: tableName, record });
+      await this.#stores.scores.store.insert({ name: tableName, record });
     }
   }
 
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
     if (tableName === TABLE_TRACES) {
-      await this.#stores.traces.batchInsert({ name: tableName, records });
+      await this.#stores.traces.store.batchInsert({ name: tableName, records });
     } else if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      await this.#stores.conversations.batchInsert({ name: tableName, records });
+      await this.#stores.conversations.store.batchInsert({ name: tableName, records });
     } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      await this.#stores.workflows.batchInsert({ name: tableName, records });
+      await this.#stores.workflows.store.batchInsert({ name: tableName, records });
     } else if (tableName === TABLE_EVALS) {
-      await this.#stores.scores.batchInsert({ name: tableName, records });
+      await this.#stores.scores.store.batchInsert({ name: tableName, records });
     }
   }
 
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
     if (tableName === TABLE_TRACES) {
-      return this.#stores.traces.load({ name: tableName, keys });
+      return this.#stores.traces.store.load({ name: tableName, keys });
     }
     if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS || tableName === TABLE_RESOURCES) {
-      return this.#stores.conversations.load({ name: tableName, keys });
+      return this.#stores.conversations.store.load({ name: tableName, keys });
     }
     if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      return this.#stores.workflows.load({ name: tableName, keys });
+      return this.#stores.workflows.store.load({ name: tableName, keys });
     }
     if (tableName === TABLE_EVALS) {
-      return this.#stores.scores.load({ name: tableName, keys });
+      return this.#stores.scores.store.load({ name: tableName, keys });
     }
     return null;
   }

@@ -1,10 +1,11 @@
 import type { WorkflowRunState } from '../../workflows';
 import type { WorkflowRun, WorkflowRuns } from '../types';
 import { MastraStorageBase } from './base';
+import type { MastraStore } from './store';
 
 export abstract class MastraWorkflowsStorage extends MastraStorageBase {
-  constructor() {
-    super({ name: 'WORKFLOWS' });
+  constructor({ store }: { store: MastraStore }) {
+    super({ name: 'WORKFLOWS', store });
   }
 
   abstract getWorkflowRuns(args?: {

@@ -2,10 +2,11 @@ import type { MastraMessageContentV2, MastraMessageV2 } from '../../agent';
 import type { MastraMessageV1, StorageThreadType } from '../../memory/types';
 import type { StorageGetMessagesArg, PaginationInfo, StorageResourceType } from '../types';
 import { MastraStorageBase } from './base';
+import type { MastraStore } from './store';
 
 export abstract class MastraConversationsStorage extends MastraStorageBase {
-  constructor() {
-    super({ name: 'CONVERSATIONS' });
+  constructor({ store }: { store: MastraStore }) {
+    super({ name: 'CONVERSATIONS', store });
   }
 
   abstract getMessages(args: StorageGetMessagesArg & { format?: 'v1' }): Promise<MastraMessageV1[]>;
