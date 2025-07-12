@@ -42,7 +42,9 @@ export function createAnswerRelevancyScorer({
     extract: {
       description: 'Extract relevant statements from the LLM output',
       outputSchema: extractOutputSchema,
-      createPrompt: ({ run }) => createExtractPrompt(run.output.content),
+      createPrompt: ({ run }) => {
+        return createExtractPrompt(run.output.text);
+      },
     },
     analyze: {
       description: 'Score the relevance of the statements to the input',
@@ -51,18 +53,15 @@ export function createAnswerRelevancyScorer({
     },
     reason: {
       description: 'Reason about the results',
-      outputSchema: z.object({
-        reason: z.string(),
-        score: z.number(),
-      }),
-      createPrompt: ({ run }) =>
-        createReasonPrompt({
-          input: JSON.stringify(run.input),
-          output: run.output.content,
-          score: run.score!,
+      createPrompt: ({ run }) => {
+        return createReasonPrompt({
+          input: run.input.map(input => input.content).join(', '),
+          output: run.output.text,
+          score: run.score,
           results: run.analyzeStepResult,
           scale: options.scale,
-        }),
+        });
+      },
     },
     calculateScore: ({ run }) => {
       if (!run.analyzeStepResult || run.analyzeStepResult.length === 0) {
