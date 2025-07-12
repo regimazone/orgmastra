@@ -31,6 +31,13 @@ export class LibSQLInternalStore extends MastraStore {
     this.#initialBackoffMs = initialBackoffMs ?? 100;
   }
 
+  public async hasAttribute(name: string, key: string): Promise<boolean> {
+    const result = await this.#client.execute({
+      sql: `PRAGMA table_info(${name})`,
+    });
+    return (await result.rows)?.some((row: any) => row.name === key);
+  }
+
   private async executeWriteOperationWithRetry<T>(
     operationFn: () => Promise<T>,
     operationDescription: string,

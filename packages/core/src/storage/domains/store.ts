@@ -59,4 +59,6 @@ export abstract class MastraStore extends MastraBase {
         return "DEFAULT ''";
     }
   }
+
+  abstract hasAttribute(name: string, key: string): Promise<boolean>;
 }
