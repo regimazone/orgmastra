@@ -54,6 +54,7 @@ const scoreResultSchema = z.object({
     results: resultSchema.optional(),
   }),
   score: scoreSchema,
+  analyzePrompt: z.string().optional(),
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
@@ -85,13 +86,15 @@ export type ScoreRowData = ScoringRunWithExtractStepResultAndScoreAndReason & {
 
 export type ExtractionStepFn = (run: ScoringRun) => Promise<Record<string, any>>;
 export type ScoreStepFn = (run: ScoringRunWithExtractStepResult) => Promise<ScoreResult>;
-export type ReasonStepFn = (run: ScoringRunWithExtractStepResultAndScore) => Promise<{ reason: string } | null>;
+export type ReasonStepFn = (
+  run: ScoringRunWithExtractStepResultAndScore,
+) => Promise<{ reason: string; reasonPrompt?: string } | null>;
 
 export type ScorerOptions = {
   name: string;
   description: string;
   extract: ExtractionStepFn;
-  score: ScoreStepFn;
+  analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
 };
@@ -100,7 +103,7 @@ export class Scorer {
   name: string;
   description: string;
   extract: ExtractionStepFn;
-  score: ScoreStepFn;
+  analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
 
@@ -108,7 +111,7 @@ export class Scorer {
     this.name = opts.name;
     this.description = opts.description;
     this.extract = opts.extract;
-    this.score = opts.score;
+    this.analyze = opts.analyze;
     this.reason = opts.reason;
     this.metadata = {};
 
@@ -118,23 +121,31 @@ export class Scorer {
   }
 
   async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractStepResultAndScoreAndReason> {
+    let extractPrompt;
+    let analyzePrompt;
+    let reasonPrompt;
+
     const extractStep = createStep({
       id: 'extract',
       description: 'Extract relevant element from the run',
       inputSchema: z.any(),
       outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
-        return this.extract(inputData);
+        const result = await this.extract(inputData);
+
+        extractPrompt = result.extractPrompt;
+        return result.extractStepResult;
       },
     });
 
-    const scoreStep = createStep({
-      id: 'score',
+    const analyzeStep = createStep({
+      id: 'analyze',
       description: 'Score the extracted element',
       inputSchema: extractStepResultSchema,
       outputSchema: scoreResultSchema,
       execute: async ({ inputData }) => {
-        const scoreResult = await this.score({ ...run, extractStepResult: inputData });
+        const scoreResult = await this.analyze({ ...run, extractStepResult: inputData });
+        analyzePrompt = scoreResult.analyzePrompt;
 
         return { ...scoreResult, extractStepResult: inputData };
       },
@@ -150,6 +161,7 @@ export class Scorer {
           return {
             extractStepResult: getStepResult(extractStep),
             analyzeStepResult: inputData.analyzeStepResult,
+            score: inputData.score,
           };
         }
 
@@ -158,7 +170,7 @@ export class Scorer {
           analyzeStepResult: inputData.analyzeStepResult,
           score: inputData.score,
         });
-
+        reasonPrompt = reasonResult?.reasonPrompt;
         return {
           extractStepResult: getStepResult(extractStep),
           analyzeStepResult: inputData.analyzeStepResult,
@@ -172,10 +184,10 @@ export class Scorer {
       id: `scoring-pipeline-${this.name}`,
       inputSchema: z.any(),
       outputSchema: z.any(),
-      steps: [extractStep, scoreStep],
+      steps: [extractStep, analyzeStep],
     })
       .then(extractStep)
-      .then(scoreStep)
+      .then(analyzeStep)
       .then(reasonStep)
       .commit();
 
@@ -192,7 +204,9 @@ export class Scorer {
       );
     }
 
-    return { ...run, ...execution.result };
+    const { extractStepResult, analyzeStepResult, ...rest } = execution.result;
+
+    return { ...run, ...rest, extractPrompt, analyzePrompt, reasonPrompt };
   }
 }
 
@@ -201,7 +215,7 @@ export function createScorer(opts: ScorerOptions) {
     name: opts.name,
     description: opts.description,
     extract: opts.extract,
-    score: opts.score,
+    analyze: opts.analyze,
     reason: opts.reason,
   });
 
@@ -261,20 +275,26 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
     description: opts.description,
     metadata: opts,
     extract: async run => {
-      const extractPrompt = await llm.generate(opts.extract.createPrompt({ run }), {
+      const prompt = opts.extract.createPrompt({ run });
+      const extractResult = await llm.generate(prompt, {
         output: opts.extract.outputSchema,
       });
 
-      return extractPrompt.object as Record<string, any>;
+      return {
+        extractStepResult: extractResult.object as Record<string, any>,
+        extractPrompt: prompt,
+      };
     },
-    score: async run => {
+    analyze: async run => {
       // Rename extractedElements to extractStepResult for clarity
       const runWithExtractResult = {
         ...run,
         extractStepResult: run.extractStepResult,
       };
 
-      const scorePrompt = await llm.generate(opts.analyze.createPrompt({ run: runWithExtractResult }), {
+      const prompt = opts.analyze.createPrompt({ run: runWithExtractResult });
+
+      const analyzeResult = await llm.generate(prompt, {
         output: opts.analyze.outputSchema,
       });
 
@@ -282,7 +302,7 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
 
       const runWithScoreResult = {
         ...runWithExtractResult,
-        analyzeStepResult: scorePrompt.object,
+        analyzeStepResult: analyzeResult.object,
       };
 
       if (opts.calculateScore) {
@@ -290,12 +310,11 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
       }
 
       (runWithScoreResult as ScoringRunWithExtractStepResultAndScore).score = score;
-      console.log(`what is the score`, score);
-      console.log(`what is the runWithScoreResult`, runWithScoreResult);
 
       return {
-        analyzeStepResult: scorePrompt.object!,
+        analyzeStepResult: analyzeResult.object!,
         score: score,
+        analyzePrompt: prompt,
       };
     },
     reason: opts.reason
@@ -305,17 +324,21 @@ export function createLLMScorer<TExtractOutput extends Record<string, any> = any
             ...run,
             extractStepResult: run.extractStepResult,
             analyzeStepResult: run.analyzeStepResult, // Use results as fallback
-            score: run.analyzeStepResult.score,
+            score: run.score || 0,
           };
 
-          const reasonPromptTemplate = opts.reason?.createPrompt({ run: runWithAllResults })!;
-          const reasonPrompt = await llm.generate(reasonPromptTemplate, {
+          const prompt = opts.reason?.createPrompt({ run: runWithAllResults })!;
+
+          const reasonResult = await llm.generate(prompt, {
             output: z.object({
               reason: z.string(),
             }),
           });
 
-          return reasonPrompt.object;
+          return {
+            reason: reasonResult.object.reason,
+            reasonPrompt: prompt,
+          };
         }
       : undefined,
   });
