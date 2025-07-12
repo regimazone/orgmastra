@@ -50,9 +50,11 @@ const resultSchema = z.array(
 );
 
 const scoreResultSchema = z.object({
-  analyzeStepResult: z.object({
-    results: resultSchema.optional(),
-  }),
+  analyzeStepResult: z
+    .object({
+      results: resultSchema.optional(),
+    })
+    .optional(),
   score: scoreSchema,
   analyzePrompt: z.string().optional(),
 });
@@ -131,6 +133,7 @@ export class Scorer {
       inputSchema: z.any(),
       outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
+        console.log(`input data`, JSON.stringify(inputData, null, 2));
         if (!this.extract) {
           return {};
         }
@@ -138,7 +141,9 @@ export class Scorer {
         const result = await this.extract(inputData);
 
         extractPrompt = result.extractPrompt;
-        return result.extractStepResult;
+
+        // TODO: extractStepResult is only available for LLM Scorers we need a way to handl for code scorers
+        return result.extractStepResult || result;
       },
     });
 
@@ -151,6 +156,8 @@ export class Scorer {
         const scoreResult = await this.analyze({ ...run, extractStepResult: inputData });
         analyzePrompt = scoreResult.analyzePrompt;
 
+        console.log(`Analyze scoreResult`, JSON.stringify(scoreResult, null, 2));
+        console.log(`Analyze inputData`, JSON.stringify(inputData, null, 2));
         return { ...scoreResult, extractStepResult: inputData };
       },
     });
@@ -162,9 +169,19 @@ export class Scorer {
       outputSchema: z.any(),
       execute: async ({ inputData, getStepResult }) => {
         if (!this.reason) {
+          console.log(
+            `hello`,
+            JSON.stringify({
+              extractStepResult: getStepResult(extractStep),
+              // TODO: analyzeStepResult is only available for LLM Scorers we need a way to handl for code scorers
+              analyzeStepResult: getStepResult(analyzeStep),
+              score: inputData.score,
+            }),
+          );
           return {
             extractStepResult: getStepResult(extractStep),
-            analyzeStepResult: inputData.analyzeStepResult,
+            // TODO: analyzeStepResult is only available for LLM Scorers we need a way to handl for code scorers
+            analyzeStepResult: getStepResult(analyzeStep),
             score: inputData.score,
           };
         }
@@ -208,9 +225,7 @@ export class Scorer {
       );
     }
 
-    const { extractStepResult, analyzeStepResult, ...rest } = execution.result;
-
-    return { ...run, ...rest, extractPrompt, analyzePrompt, reasonPrompt };
+    return { ...run, ...execution.result, extractPrompt, analyzePrompt, reasonPrompt };
   }
 }
 
