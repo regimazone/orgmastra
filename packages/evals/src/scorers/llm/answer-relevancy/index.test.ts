@@ -109,7 +109,7 @@ const createTestRun = (input: string, output: string): ScoringRun => {
     traceId: 'test-trace-id',
     scorer: {},
     input: [{ role: 'user', content: input }],
-    output: { role: 'assistant', content: output },
+    output: { role: 'assistant', text: output },
     metadata: {},
     additionalContext: {},
     resourceId: 'test-resource-id',
