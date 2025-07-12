@@ -1,4 +1,6 @@
 import { MastraBase } from '../../base';
+import type { TABLE_NAMES } from '../constants';
+import type { StorageColumn } from '../types';
 
 export abstract class MastraStorageBase extends MastraBase {
   protected hasInitialized: null | Promise<boolean> = null;
@@ -20,6 +22,22 @@ export abstract class MastraStorageBase extends MastraBase {
       resourceWorkingMemory: false,
     };
   }
+
+  abstract initialize({ name, schema }: { name: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
+
+  abstract teardown({ name }: { name: TABLE_NAMES }): Promise<void>;
+
+  abstract migrate(args: {
+    name: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+    ifNotExists: string[];
+  }): Promise<void>;
+
+  abstract load<R>({ name, keys }: { name: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
+
+  abstract insert({ name, record }: { name: TABLE_NAMES; record: Record<string, any> }): Promise<void>;
+
+  abstract batchInsert({ name, records }: { name: TABLE_NAMES; records: Record<string, any>[] }): Promise<void>;
 
   protected ensureDate(date: Date | string | undefined): Date | undefined {
     if (!date) return undefined;

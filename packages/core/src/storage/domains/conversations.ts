@@ -1,6 +1,6 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '../../agent';
-import type { StorageThreadType } from '../../memory/types';
-import type { StorageGetMessagesArg, PaginationInfo } from '../types';
+import type { MastraMessageV1, StorageThreadType } from '../../memory/types';
+import type { StorageGetMessagesArg, PaginationInfo, StorageResourceType } from '../types';
 import { MastraStorageBase } from './base';
 
 export abstract class MastraConversationsStorage extends MastraStorageBase {
@@ -58,4 +58,32 @@ export abstract class MastraConversationsStorage extends MastraStorageBase {
   abstract getMessagesPaginated(
     args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
   ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }>;
+
+  async getResourceById(_: { resourceId: string }): Promise<StorageResourceType | null> {
+    throw new Error(
+      `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+    );
+  }
+
+  async saveResource(_: { resource: StorageResourceType }): Promise<StorageResourceType> {
+    throw new Error(
+      `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+    );
+  }
+
+  async updateResource(_: {
+    resourceId: string;
+    workingMemory?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<StorageResourceType> {
+    throw new Error(
+      `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
+        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+    );
+  }
 }
