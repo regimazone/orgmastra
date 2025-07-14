@@ -73,7 +73,7 @@ export class LibSQLStore extends MastraCompositeDomain {
     });
 
     // Set PRAGMAs for better concurrency, especially for file-based databases
-    if (config.url.startsWith('file:') || config.url.includes(':memory:')) {
+    if (config.url?.startsWith('file:') || config.url?.includes(':memory:')) {
       client
         .execute('PRAGMA journal_mode=WAL;')
         .then(() => this.logger.debug('LibSQLStore: PRAGMA journal_mode=WAL set.'))
