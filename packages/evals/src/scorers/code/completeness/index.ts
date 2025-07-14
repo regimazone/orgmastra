@@ -43,8 +43,6 @@ function extractElements(doc: any): string[] {
 }
 
 function calculateCoverage({ original, simplified }: { original: string[]; simplified: string[] }): number {
-  console.log(`original`, original);
-  console.log(`simplified`, simplified);
   if (original.length === 0) {
     return simplified.length === 0 ? 1 : 0;
   }
