@@ -1,9 +1,8 @@
 import { z } from 'zod';
 import { Agent } from '../agent';
+import { AvailableHooks, executeHook } from '../hooks';
 import type { MastraLanguageModel } from '../memory';
 import { createStep, createWorkflow } from '../workflows';
-import { AvailableHooks, executeHook } from '../hooks';
-import { get } from 'lodash-es';
 
 export type SamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
 
