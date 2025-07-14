@@ -983,11 +983,11 @@ export class LibSQLStore extends MastraStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-              metadata: {
-                ...existingMessage.content.metadata,
-                ...updatableFields.content.metadata,
-              },
-            }
+                metadata: {
+                  ...existingMessage.content.metadata,
+                  ...updatableFields.content.metadata,
+                },
+              }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);
@@ -1044,7 +1044,8 @@ export class LibSQLStore extends MastraStorage {
     const runtimeContextValue = row.runtimeContext ? JSON.parse(row.runtimeContext) : null;
     const metadataValue = row.metadata ? JSON.parse(row.metadata) : null;
     const entityValue = row.entity ? JSON.parse(row.entity) : null;
-    const extractedElementsValue = row.extractedElements ? JSON.parse(row.extractedElements) : null;
+    const extractStepResultValue = row.extractStepResult ? JSON.parse(row.extractStepResult) : null;
+    const analyzeStepResultValue = row.analyzeStepResult ? JSON.parse(row.analyzeStepResult) : null;
 
     return {
       id: row.id,
@@ -1053,7 +1054,10 @@ export class LibSQLStore extends MastraStorage {
       scorer: scorerValue,
       score: row.score,
       reason: row.reason,
-      extractedElements: extractedElementsValue,
+      extractStepResult: extractStepResultValue,
+      analyzeStepResult: analyzeStepResultValue,
+      analyzePrompt: row.analyzePrompt,
+      extractPrompt: row.extractPrompt,
       metadata: metadataValue,
       input: inputValue,
       output: outputValue,

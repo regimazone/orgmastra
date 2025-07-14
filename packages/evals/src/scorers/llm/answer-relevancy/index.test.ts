@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import type { TestCase } from '../../../metrics/llm/utils';
 import { isCloserTo } from '../../../metrics/llm/utils';
 import { createAnswerRelevancyScorer } from '.';
+import { ScoringRun } from '@mastra/core';
+import { createTestRun } from '../../utils';
 
 const testCases: TestCase[] = [
   {
@@ -106,20 +108,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with perfect relevancy',
     async () => {
-      const result = await scorer.evaluate({
-        input: [
-          {
-            role: 'user',
-            content: 'What is the capital of France?',
-          },
-        ],
-        output: [
-          {
-            role: 'assistant',
-            content: 'Paris is the capital of France.',
-          },
-        ],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[0].input, testCases[0].output));
       expect(result.score).toBeCloseTo(testCases[0].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -128,10 +117,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with mostly relevant information',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[1].input }],
-        output: [{ role: 'assistant', content: testCases[1].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[1].input, testCases[1].output));
       const expectedScore = testCases[1].expectedResult.score;
       expect(isCloserTo(result.score!, expectedScore, 0)).toBe(true);
     },
@@ -141,11 +127,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with partial relevance',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[2].input }],
-        output: [{ role: 'assistant', content: testCases[2].output }],
-      });
-      console.log(result);
+      const result = await scorer.evaluate(createTestRun(testCases[2].input, testCases[2].output));
       expect(result.score).toBeCloseTo(testCases[2].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -154,10 +136,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with low relevance',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[3].input }],
-        output: [{ role: 'assistant', content: testCases[3].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[3].input, testCases[3].output));
       expect(result.score).toBeCloseTo(testCases[3].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -166,11 +145,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with empty output',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[5].input }],
-        output: [{ role: 'assistant', content: testCases[5].output }],
-      });
-      console.log(`test Result: ${JSON.stringify(result, null, 2)}`);
+      const result = await scorer.evaluate(createTestRun(testCases[5].input, testCases[5].output));
       expect(result.score).toBeCloseTo(testCases[5].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -179,10 +154,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with incorrect but relevant answer',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[6].input }],
-        output: [{ role: 'assistant', content: testCases[6].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[6].input, testCases[6].output));
       expect(result.score).toBeCloseTo(testCases[6].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -191,10 +163,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with a single word correct answer',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[7].input }],
-        output: [{ role: 'assistant', content: testCases[7].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[7].input, testCases[7].output));
       expect(result.score).toBeCloseTo(testCases[7].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -203,10 +172,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with multiple questions',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[8].input }],
-        output: [{ role: 'assistant', content: testCases[8].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[8].input, testCases[8].output));
       expect(result.score).toBeCloseTo(testCases[8].expectedResult.score, 1);
     },
     TIMEOUT,
@@ -215,10 +181,7 @@ describe('AnswerRelevancyScorer', () => {
   it(
     'should be able to measure a prompt with technical gibberish',
     async () => {
-      const result = await scorer.evaluate({
-        input: [{ role: 'user', content: testCases[9].input }],
-        output: [{ role: 'assistant', content: testCases[9].output }],
-      });
+      const result = await scorer.evaluate(createTestRun(testCases[9].input, testCases[9].output));
       expect(result.score).toBeCloseTo(testCases[9].expectedResult.score, 1);
     },
     TIMEOUT,

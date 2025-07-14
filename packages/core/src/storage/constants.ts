@@ -32,8 +32,13 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   scorer: {
     type: 'jsonb',
   },
-  extractedElements: {
+  extractStepResult: {
     type: 'jsonb',
+    nullable: true,
+  },
+  analyzeStepResult: {
+    type: 'jsonb',
+    nullable: true,
   },
   score: {
     type: 'float',
@@ -46,13 +51,25 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
     type: 'jsonb',
     nullable: true,
   },
+  extractPrompt: {
+    type: 'text',
+    nullable: true,
+  },
+  analyzePrompt: {
+    type: 'text',
+    nullable: true,
+  },
+  reasonPrompt: {
+    type: 'text',
+    nullable: true,
+  },
   input: {
     type: 'jsonb', // MESSAGE INPUT
   },
   output: {
     type: 'jsonb', // MESSAGE OUTPUT
   },
-  additionalLLMContext: {
+  additionalContext: {
     type: 'jsonb', // DATA FROM THE CONTEXT PARAM ON AN AGENT
     nullable: true,
   },

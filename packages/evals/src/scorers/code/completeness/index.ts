@@ -78,19 +78,18 @@ export function createCompletenessScorer() {
     description:
       'Leverage the nlp method from "compromise" to extract elements from the input and output and calculate the coverage.',
     extract: async run => {
-      const input = run.input;
-      const output = run.output;
+      const isInputInvalid = !run.input || run.input.some(i => i.content === null || i.content === undefined);
+      const isOutputInvalid = !run.output || run.output.text === null || run.output.text === undefined;
 
-      // Handle null/undefined inputs
-      if (input === null || input === undefined || output === null || output === undefined) {
+      if (isInputInvalid || isOutputInvalid) {
         throw new Error('Inputs cannot be null or undefined');
       }
 
-      console.log('INPUT', input);
-      console.log('OUTPUT', output);
+      const input = run.input.map(i => i.content).join(', ');
+      const output = run.output.text;
 
-      const inputToProcess = JSON.stringify(input);
-      const outputToProcess = run.structuredOutput ? JSON.stringify(output.object) : output.text;
+      const inputToProcess = input;
+      const outputToProcess = output;
 
       const inputDoc = nlp(inputToProcess.trim());
       const outputDoc = nlp(outputToProcess.trim());
@@ -102,11 +101,17 @@ export function createCompletenessScorer() {
       return {
         inputElements,
         outputElements,
+        missingElements: inputElements.filter(e => !outputElements.includes(e)),
+        elementCounts: {
+          input: inputElements.length,
+          output: outputElements.length,
+        },
       };
     },
-    score: async run => {
-      const inputElements = run.extractedElements.inputElements;
-      const outputElements = run.extractedElements.outputElements;
+    analyze: async run => {
+      console.log(`RUN`, JSON.stringify(run, null, 2));
+      const inputElements = run.extractStepResult?.inputElements;
+      const outputElements = run.extractStepResult?.outputElements;
 
       return {
         score: calculateCoverage({

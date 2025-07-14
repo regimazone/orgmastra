@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { Agent } from '../agent';
+import { AvailableHooks, executeHook } from '../hooks';
 import type { MastraLanguageModel } from '../memory';
 import { createStep, createWorkflow } from '../workflows';
-import { AvailableHooks, executeHook } from '../hooks';
 
 export type SamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
 
@@ -35,9 +35,9 @@ export type ScoringRun = {
   structuredOutput?: boolean;
 };
 
-export const extractedElementsSchema = z.record(z.string(), z.any());
+export const extractStepResultSchema = z.record(z.string(), z.any());
 
-export type ExtractedElements = z.infer<typeof extractedElementsSchema>;
+export type ExtractStepResult = z.infer<typeof extractStepResultSchema>;
 
 export const scoreSchema = z.number();
 
@@ -49,25 +49,37 @@ const resultSchema = z.array(
 );
 
 const scoreResultSchema = z.object({
-  score: z.number().optional(),
-  results: resultSchema.optional(),
+  analyzeStepResult: z
+    .object({
+      results: resultSchema.optional(),
+    })
+    .optional(),
+  score: scoreSchema,
+  analyzePrompt: z.string().optional(),
 });
 
 export type ScoreResult = z.infer<typeof scoreResultSchema>;
 
-export type ScoringRunWithExtractedElement = ScoringRun & { extractedElements: ExtractedElements };
+export type ScoringRunWithExtractStepResult<TExtract = any> = ScoringRun & {
+  extractStepResult?: TExtract;
+  extractPrompt?: string;
+};
 
-export type ScoringRunWithExtractedElementAndScore = ScoringRunWithExtractedElement & ScoreResult;
+export type ScoringRunWithExtractStepResultAndScore<
+  TExtract = any,
+  TScore = any,
+> = ScoringRunWithExtractStepResult<TExtract> & {
+  score?: number;
+  results?: z.infer<typeof resultSchema>;
+  analyzeStepResult?: TScore;
+  analyzePrompt?: string;
+};
 
-export const reasonResultSchema = z.object({
-  reason: z.string(),
-});
+export type ScoringRunWithExtractStepResultAndScoreAndReason = ScoringRunWithExtractStepResultAndScore & {
+  reason: string;
+};
 
-export type ReasonResult = z.infer<typeof reasonResultSchema>;
-
-export type ScoringRunWithExtractedElementAndScoreAndReason = ScoringRunWithExtractedElementAndScore & ReasonResult;
-
-export type ScoreRowData = ScoringRunWithExtractedElementAndScoreAndReason & {
+export type ScoreRowData = ScoringRunWithExtractStepResultAndScoreAndReason & {
   id: string;
   entityId: string;
   scorerId: string;
@@ -75,57 +87,80 @@ export type ScoreRowData = ScoringRunWithExtractedElementAndScoreAndReason & {
   updatedAt: Date;
 };
 
-export type ExtractionStepFn = (run: ScoringRun) => Promise<ExtractedElements>;
-export type ScoreStepFn = (run: ScoringRunWithExtractedElement) => Promise<ScoreResult>;
-export type ReasonStepFn = (run: ScoringRunWithExtractedElementAndScore) => Promise<ReasonResult | null>;
+export type ExtractionStepFn = (run: ScoringRun) => Promise<Record<string, any>>;
+export type ScoreStepFn = (run: ScoringRunWithExtractStepResult) => Promise<ScoreResult>;
+export type ReasonStepFn = (
+  run: ScoringRunWithExtractStepResultAndScore,
+) => Promise<{ reason: string; reasonPrompt?: string } | null>;
 
 export type ScorerOptions = {
   name: string;
   description: string;
-  extract: ExtractionStepFn;
-  score: ScoreStepFn;
+  extract?: ExtractionStepFn;
+  analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
+  isLLMScorer?: boolean;
 };
+
 export class Scorer {
   name: string;
   description: string;
-  extract: ExtractionStepFn;
-  score: ScoreStepFn;
+  extract?: ExtractionStepFn;
+  analyze: ScoreStepFn;
   reason?: ReasonStepFn;
   metadata?: Record<string, any>;
+  isLLMScorer?: boolean;
 
   constructor(opts: ScorerOptions) {
     this.name = opts.name;
     this.description = opts.description;
     this.extract = opts.extract;
-    this.score = opts.score;
+    this.analyze = opts.analyze;
     this.reason = opts.reason;
     this.metadata = {};
+    this.isLLMScorer = opts.isLLMScorer;
 
     if (opts.metadata) {
       this.metadata = opts.metadata;
     }
   }
 
-  async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractedElementAndScoreAndReason> {
+  async evaluate(run: ScoringRun): Promise<ScoringRunWithExtractStepResultAndScoreAndReason> {
     const extractStep = createStep({
       id: 'extract',
       description: 'Extract relevant element from the run',
       inputSchema: z.any(),
-      outputSchema: extractedElementsSchema,
+      outputSchema: extractStepResultSchema,
       execute: async ({ inputData }) => {
-        return this.extract(inputData);
+        if (!this.extract) {
+          return {};
+        }
+
+        const extractStepResult = await this.extract(inputData);
+        return extractStepResult;
       },
     });
 
-    const scoreStep = createStep({
-      id: 'score',
+    const analyzeStep = createStep({
+      id: 'analyze',
       description: 'Score the extracted element',
-      inputSchema: extractedElementsSchema,
+      inputSchema: extractStepResultSchema,
       outputSchema: scoreResultSchema,
       execute: async ({ inputData }) => {
-        return this.score({ ...run, extractedElements: inputData });
+        const extractStepResult = this.isLLMScorer ? inputData.extractStepResult : inputData;
+        const analyzeStepResult = await this.analyze({ ...run, extractStepResult });
+
+        if (this.isLLMScorer) {
+          return analyzeStepResult;
+        }
+
+        const { score, ...rest } = analyzeStepResult;
+
+        // TODO: fix types for non-LLM scorers.
+        // non-LLM scorers do not have analyzeStepResult they should just return score
+        // and additional information
+        return { score, analyzeStepResult: rest as any };
       },
     });
 
@@ -135,18 +170,29 @@ export class Scorer {
       inputSchema: scoreResultSchema,
       outputSchema: z.any(),
       execute: async ({ inputData, getStepResult }) => {
+        const { score, analyzeStepResult, analyzePrompt } = getStepResult(analyzeStep);
+        const { extractStepResult, extractPrompt } = getStepResult(extractStep);
         if (!this.reason) {
           return {
-            extractedElements: getStepResult(extractStep),
-            score: inputData.score,
+            extractStepResult,
+            analyzeStepResult,
+            analyzePrompt,
+            extractPrompt,
+            score,
           };
         }
 
-        const reasonResult = await this.reason({ ...run, extractedElements: inputData, score: inputData.score });
-
+        const reasonResult = await this.reason({
+          ...run,
+          analyzeStepResult,
+          score,
+        });
         return {
-          extractedElements: getStepResult(extractStep),
-          score: inputData.score,
+          extractStepResult,
+          analyzeStepResult,
+          analyzePrompt,
+          extractPrompt,
+          score,
           ...reasonResult,
         };
       },
@@ -156,10 +202,10 @@ export class Scorer {
       id: `scoring-pipeline-${this.name}`,
       inputSchema: z.any(),
       outputSchema: z.any(),
-      steps: [extractStep, scoreStep],
+      steps: [extractStep, analyzeStep],
     })
       .then(extractStep)
-      .then(scoreStep)
+      .then(analyzeStep)
       .then(reasonStep)
       .commit();
 
@@ -185,7 +231,7 @@ export function createScorer(opts: ScorerOptions) {
     name: opts.name,
     description: opts.description,
     extract: opts.extract,
-    score: opts.score,
+    analyze: opts.analyze,
     reason: opts.reason,
   });
 
@@ -197,103 +243,120 @@ type LLMJudge = {
   instructions: string;
 };
 
-export type LLMScorerOptions = {
+export type LLMScorerOptions<TExtractOutput extends Record<string, any> = any, TScoreOutput = any> = {
   name: string;
   description: string;
   judge: LLMJudge;
-  prompts: {
-    extract: {
-      prompt: string;
-      description: string;
-      judge?: LLMJudge;
-    };
-    score: {
-      prompt: string;
-      description: string;
-      judge?: LLMJudge;
-      transform?: ({ results }: { results: z.infer<typeof resultSchema> }) => z.infer<typeof scoreResultSchema>;
-    };
-    reason?: {
-      prompt: string;
-      description: string;
-      judge?: LLMJudge;
-    };
+  extract?: {
+    description: string;
+    judge?: LLMJudge;
+    outputSchema: z.ZodType<TExtractOutput>;
+    createPrompt: ({ run }: { run: ScoringRun }) => string;
   };
+  analyze: {
+    description: string;
+    judge?: LLMJudge;
+    outputSchema: z.ZodType<TScoreOutput>;
+    createPrompt: ({ run }: { run: ScoringRun & { extractStepResult: TExtractOutput } }) => string;
+  };
+  reason?: {
+    description: string;
+    judge?: LLMJudge;
+    createPrompt: ({
+      run,
+    }: {
+      run: ScoringRun & { extractStepResult: TExtractOutput; analyzeStepResult: TScoreOutput; score: number };
+    }) => string;
+  };
+  calculateScore: ({
+    run,
+  }: {
+    run: ScoringRun & { extractStepResult: TExtractOutput; analyzeStepResult: TScoreOutput };
+  }) => number;
 };
 
-export function renderTemplate(template: string, params: Record<string, any> = {}) {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-    return params[key] !== undefined
-      ? typeof params[key] === 'string'
-        ? params[key]
-        : JSON.stringify(params[key])
-      : match;
-  });
-}
-
-export function createLLMScorer(opts: LLMScorerOptions) {
+export function createLLMScorer<TExtractOutput extends Record<string, any> = any, TScoreOutput = any>(
+  opts: LLMScorerOptions<TExtractOutput, TScoreOutput>,
+) {
   const model = opts.judge.model;
 
   const llm = new Agent({
     name: opts.name,
-    instructions: opts.description,
+    instructions: opts.judge.instructions,
     model: model,
   });
-
-  const hasReason = !!opts.prompts.reason;
 
   const scorer = new Scorer({
     name: opts.name,
     description: opts.description,
     metadata: opts,
-    extract: async run => {
-      const extractPrompt = await llm.generate(
-        renderTemplate(opts.prompts.extract.prompt, {
-          ...run,
-        }),
-        {
-          output: z.object({
-            extractedElements: z.object({
-              statements: z.array(z.string()),
-            }),
-          }),
-        },
-      );
+    isLLMScorer: true,
+    ...(opts.extract && {
+      extract: async run => {
+        const prompt = opts.extract!.createPrompt({ run });
+        const extractResult = await llm.generate(prompt, {
+          output: opts.extract!.outputSchema,
+        });
 
-      return extractPrompt.object.extractedElements;
-    },
-    score: async run => {
-      const scorePrompt = await llm.generate(
-        renderTemplate(opts.prompts.score.prompt, {
-          statements: run.extractedElements.statements,
-          ...run,
-        }),
-        {
-          output: resultSchema,
-        },
-      );
+        return {
+          extractStepResult: extractResult.object as Record<string, any>,
+          extractPrompt: prompt,
+        };
+      },
+    }),
+    analyze: async run => {
+      const runWithExtractResult = {
+        ...run,
+        extractStepResult: run.extractStepResult,
+      };
 
-      if (opts.prompts.score.transform) {
-        return opts.prompts.score.transform({ results: scorePrompt.object });
+      const prompt = opts.analyze.createPrompt({ run: runWithExtractResult });
+
+      const analyzeResult = await llm.generate(prompt, {
+        output: opts.analyze.outputSchema,
+      });
+
+      let score = 0;
+
+      const runWithScoreResult = {
+        ...runWithExtractResult,
+        analyzeStepResult: analyzeResult.object,
+      };
+
+      if (opts.calculateScore) {
+        score = opts.calculateScore({ run: runWithScoreResult });
       }
 
-      return { results: scorePrompt.object };
-    },
-    reason: hasReason
-      ? async run => {
-          const reasonPromptTemplate = opts.prompts.reason?.prompt!;
-          const reasonPrompt = await llm.generate(
-            renderTemplate(reasonPromptTemplate, {
-              ...run,
-            }),
-            {
-              output: z.object({
-                reason: z.string(),
-              }),
-            },
-          );
+      (runWithScoreResult as ScoringRunWithExtractStepResultAndScore).score = score;
 
-          return reasonPrompt.object;
+      return {
+        analyzeStepResult: analyzeResult.object!,
+        score: score,
+        analyzePrompt: prompt,
+      };
+    },
+    reason: opts.reason
+      ? async run => {
+          // Prepare run with both extract and score results
+          const runWithAllResults = {
+            ...run,
+            extractStepResult: run.extractStepResult,
+            analyzeStepResult: run.analyzeStepResult, // Use results as fallback
+            score: run.score || 0,
+          };
+
+          const prompt = opts.reason?.createPrompt({ run: runWithAllResults })!;
+
+          const reasonResult = await llm.generate(prompt, {
+            output: z.object({
+              reason: z.string(),
+            }),
+          });
+
+          return {
+            reason: reasonResult.object.reason,
+            reasonPrompt: prompt,
+          };
         }
       : undefined,
   });
