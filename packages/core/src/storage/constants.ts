@@ -69,7 +69,7 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   output: {
     type: 'jsonb', // MESSAGE OUTPUT
   },
-  additionalLLMContext: {
+  additionalContext: {
     type: 'jsonb', // DATA FROM THE CONTEXT PARAM ON AN AGENT
     nullable: true,
   },
