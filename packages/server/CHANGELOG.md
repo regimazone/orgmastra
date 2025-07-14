@@ -1,5 +1,11 @@
 # @mastra/deployer
 
+## 0.10.13
+
+### Patch Changes
+
+- @mastra/core@0.10.13
+
 ## 0.10.12
 
 ### Patch Changes

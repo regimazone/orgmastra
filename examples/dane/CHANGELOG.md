@@ -1,5 +1,11 @@
 # @mastra/dane
 
+## 0.0.34
+
+### Patch Changes
+
+- @mastra/core@0.10.13
+
 ## 0.0.33
 
 ### Patch Changes
