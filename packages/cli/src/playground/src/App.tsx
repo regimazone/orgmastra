@@ -1,4 +1,4 @@
-import { Routes, Route, BrowserRouter, Outlet, Link } from 'react-router';
+import { Routes, Route, BrowserRouter, Outlet } from 'react-router';
 
 import { Layout } from '@/components/layout';
 
@@ -35,6 +35,7 @@ import { LinkComponentProvider, MastraClientProvider } from '@mastra/playground-
 import VNextNetwork from './pages/networks/network/v-next';
 import Scorer from './pages/scorers/scorer';
 import { NavigateTo } from './lib/react-router';
+import { Link } from './lib/framework';
 
 function App() {
   const [queryClient] = useState(() => new QueryClient());
