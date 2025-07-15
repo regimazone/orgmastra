@@ -17,6 +17,7 @@ import {
   MastraStorage,
   TABLE_EVALS,
   TABLE_MESSAGES,
+  TABLE_SCORERS,
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_WORKFLOW_SNAPSHOT,
@@ -945,60 +946,192 @@ export class MongoDBStore extends MastraStorage {
   }
 
   /**
-   * SCORERS - Not implemented
+   * SCORERS
    */
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    try {
+      const collection = await this.getCollection('mastra_scorers');
+      const row = await collection.findOne({ id: _id });
+      if (!row) return null;
+      return this.transformScoreRow(row);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_GET_SCORE_BY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { id: _id },
+        },
+        error,
+      );
+    }
   }
 
-  async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
-  }
-
-  async getScoresByRunId({
-    runId: _runId,
-    pagination: _pagination,
-  }: {
-    runId: string;
-    pagination: StoragePagination;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
-  }
-
-  async getScoresByEntityId({
-    entityId: _entityId,
-    entityType: _entityType,
-    pagination: _pagination,
-  }: {
-    pagination: StoragePagination;
-    entityId: string;
-    entityType: string;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+  async saveScore(score: ScoreRowData): Promise<{ score: ScoreRowData }> {
+    try {
+      const collection = await this.getCollection(TABLE_SCORERS);
+      await collection.updateOne({ id: score.id }, { $set: { ...score } }, { upsert: true });
+      return { score };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_SAVE_SCORE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { id: score.id },
+        },
+        error,
+      );
+    }
   }
 
   async getScoresByScorerId({
-    scorerId: _scorerId,
-    pagination: _pagination,
+    scorerId,
+    pagination,
   }: {
     scorerId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    const { page = 0, perPage = 20 } = pagination || {};
+    try {
+      const collection = await this.getCollection(TABLE_SCORERS);
+      const query = { scorerId };
+      const total = await collection.countDocuments(query);
+      const cursor = collection
+        .find(query)
+        .skip(page * perPage)
+        .limit(perPage);
+      const rows = await cursor.toArray();
+      const scores = rows.map(row => this.transformScoreRow(row));
+      return {
+        scores,
+        pagination: {
+          total,
+          page,
+          perPage,
+          hasMore: (page + 1) * perPage < total,
+        },
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { scorerId },
+        },
+        error,
+      );
+    }
+  }
+
+  async getScoresByRunId({
+    runId,
+    pagination,
+  }: {
+    runId: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    const { page = 0, perPage = 20 } = pagination || {};
+    try {
+      const collection = await this.getCollection(TABLE_SCORERS);
+      const query = { runId };
+      const total = await collection.countDocuments(query);
+      const cursor = collection
+        .find(query)
+        .skip(page * perPage)
+        .limit(perPage);
+      const rows = await cursor.toArray();
+      const scores = rows.map(row => this.transformScoreRow(row));
+      return {
+        scores,
+        pagination: {
+          total,
+          page,
+          perPage,
+          hasMore: (page + 1) * perPage < total,
+        },
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_RUN_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { runId },
+        },
+        error,
+      );
+    }
+  }
+
+  async getScoresByEntityId({
+    entityId,
+    entityType,
+    pagination,
+  }: {
+    entityId: string;
+    entityType: string;
+    pagination: StoragePagination;
+  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
+    const { page = 0, perPage = 20 } = pagination || {};
+    try {
+      const collection = await this.getCollection(TABLE_SCORERS);
+      const query: any = { entityId };
+      if (entityType) query.entityType = entityType;
+      const total = await collection.countDocuments(query);
+      const cursor = collection
+        .find(query)
+        .skip(page * perPage)
+        .limit(perPage);
+      const rows = await cursor.toArray();
+      const scores = rows.map(row => this.transformScoreRow(row));
+      return {
+        scores,
+        pagination: {
+          total,
+          page,
+          perPage,
+          hasMore: (page + 1) * perPage < total,
+        },
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_ENTITY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { entityId, entityType },
+        },
+        error,
+      );
+    }
+  }
+
+  private transformScoreRow(row: Record<string, any>): ScoreRowData {
+    const parseField = (v: any) => {
+      if (typeof v === 'string') {
+        try {
+          return JSON.parse(v);
+        } catch {
+          return v;
+        }
+      }
+      return v;
+    };
+    return {
+      ...row,
+      scorer: parseField(row.scorer),
+      extractStepResult: parseField(row.extractStepResult),
+      analyzeStepResult: parseField(row.analyzeStepResult),
+      metadata: parseField(row.metadata),
+      input: parseField(row.input),
+      output: parseField(row.output),
+      additionalContext: parseField(row.additionalContext),
+      runtimeContext: parseField(row.runtimeContext),
+      entity: parseField(row.entity),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    } as ScoreRowData;
   }
 }
