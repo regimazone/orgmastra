@@ -974,12 +974,12 @@ export class LanceStorage extends MastraStorage {
         content:
           typeof msg.content === 'string'
             ? (() => {
-                try {
-                  return JSON.parse(msg.content);
-                } catch {
-                  return msg.content;
-                }
-              })()
+              try {
+                return JSON.parse(msg.content);
+              } catch {
+                return msg.content;
+              }
+            })()
             : msg.content,
       }));
       const list = new MessageList({ threadId, resourceId }).add(normalized, 'memory');
@@ -1324,10 +1324,12 @@ export class LanceStorage extends MastraStorage {
   async persistWorkflowSnapshot({
     workflowName,
     runId,
+    resourceId,
     snapshot,
   }: {
     workflowName: string;
     runId: string;
+    resourceId?: string;
     snapshot: WorkflowRunState;
   }): Promise<void> {
     try {
@@ -1348,6 +1350,7 @@ export class LanceStorage extends MastraStorage {
       const record = {
         workflow_name: workflowName,
         run_id: runId,
+        resourceId,
         snapshot: JSON.stringify(snapshot),
         createdAt,
         updatedAt: now,
@@ -1436,10 +1439,10 @@ export class LanceStorage extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in LanceStore');
     throw new Error('Method not implemented');

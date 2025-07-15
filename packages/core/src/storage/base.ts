@@ -169,16 +169,16 @@ export abstract class MastraStorage extends MastraBase {
   async getResourceById(_: { resourceId: string }): Promise<StorageResourceType | null> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
   async saveResource(_: { resource: StorageResourceType }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -189,8 +189,8 @@ export abstract class MastraStorage extends MastraBase {
   }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -211,10 +211,10 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]>;
 
   abstract getTraces(args: StorageGetTracesArg): Promise<any[]>;
@@ -266,20 +266,31 @@ export abstract class MastraStorage extends MastraBase {
 
     await this.hasInitialized;
 
-    await this?.alterTable?.({
-      tableName: TABLE_MESSAGES,
-      schema: TABLE_SCHEMAS[TABLE_MESSAGES],
-      ifNotExists: ['resourceId'],
-    });
+    if (this?.alterTable) {
+      await Promise.all([
+        this.alterTable?.({
+          tableName: TABLE_MESSAGES,
+          schema: TABLE_SCHEMAS[TABLE_MESSAGES],
+          ifNotExists: ['resourceId'],
+        }),
+        this?.alterTable?.({
+          tableName: TABLE_WORKFLOW_SNAPSHOT,
+          schema: TABLE_SCHEMAS[TABLE_WORKFLOW_SNAPSHOT],
+          ifNotExists: ['resourceId'],
+        })
+      ]);
+    }
   }
 
   async persistWorkflowSnapshot({
     workflowName,
     runId,
+    resourceId,
     snapshot,
   }: {
     workflowName: string;
     runId: string;
+    resourceId?: string;
     snapshot: WorkflowRunState;
   }): Promise<void> {
     await this.init();
@@ -287,6 +298,7 @@ export abstract class MastraStorage extends MastraBase {
     const data = {
       workflow_name: workflowName,
       run_id: runId,
+      resourceId,
       snapshot,
       createdAt: new Date(),
       updatedAt: new Date(),

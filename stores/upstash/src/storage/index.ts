@@ -1173,9 +1173,10 @@ export class UpstashStore extends MastraStorage {
     namespace: string;
     workflowName: string;
     runId: string;
+    resourceId?: string;
     snapshot: WorkflowRunState;
   }): Promise<void> {
-    const { namespace = 'workflows', workflowName, runId, snapshot } = params;
+    const { namespace = 'workflows', workflowName, runId, snapshot, resourceId } = params;
     try {
       await this.insert({
         tableName: TABLE_WORKFLOW_SNAPSHOT,
@@ -1183,6 +1184,7 @@ export class UpstashStore extends MastraStorage {
           namespace,
           workflow_name: workflowName,
           run_id: runId,
+          resourceId,
           snapshot,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1525,10 +1527,10 @@ export class UpstashStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in UpstashStore');
     throw new Error('Method not implemented');
