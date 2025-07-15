@@ -12,6 +12,7 @@ const answerRelevancyScorer = createAnswerRelevancyScorer({ model });
 // const completenessScorer = createCompletenessScorer();
 
 export const evalAgent = new Agent({
+  id: 'eval-agent',
   name: 'Eval Agent',
   instructions: 'You are a helpful assistant that can evaluate code.',
   model: model,
