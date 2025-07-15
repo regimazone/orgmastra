@@ -11,6 +11,7 @@ import {
   TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
   TABLE_TRACES,
+  TABLE_SCORERS,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -1623,58 +1624,203 @@ export class UpstashStore extends MastraStorage {
   /**
    * SCORERS - Not implemented
    */
-  async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+
+  private transformScoreRow(row: Record<string, any>): ScoreRowData {
+    const parseField = (v: any) => {
+      if (typeof v === 'string') {
+        try {
+          return JSON.parse(v);
+        } catch {
+          return v;
+        }
+      }
+      return v;
+    };
+    return {
+      ...row,
+      scorer: parseField(row.scorer),
+      extractStepResult: parseField(row.extractStepResult),
+      analyzeStepResult: parseField(row.analyzeStepResult),
+      metadata: parseField(row.metadata),
+      input: parseField(row.input),
+      output: parseField(row.output),
+      additionalContext: parseField(row.additionalContext),
+      runtimeContext: parseField(row.runtimeContext),
+      entity: parseField(row.entity),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    } as ScoreRowData;
   }
 
-  async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+  async saveScore(score: ScoreRowData): Promise<{ score: ScoreRowData }> {
+    // Use TABLE_SCORERS as table name
+    const { key, processedRecord } = this.processRecord(TABLE_SCORERS, score);
+    try {
+      await this.redis.set(key, processedRecord);
+      return { score };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_UPSTASH_STORAGE_SAVE_SCORE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { id: score.id },
+        },
+        error,
+      );
+    }
   }
 
-  async getScoresByRunId({
-    runId: _runId,
-    pagination: _pagination,
-  }: {
-    runId: string;
-    pagination: StoragePagination;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
-  }
-
-  async getScoresByEntityId({
-    entityId: _entityId,
-    entityType: _entityType,
-    pagination: _pagination,
-  }: {
-    pagination: StoragePagination;
-    entityId: string;
-    entityType: string;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+  async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
+    try {
+      const data = await this.load<ScoreRowData>({
+        tableName: TABLE_SCORERS,
+        keys: { id },
+      });
+      if (!data) return null;
+      return this.transformScoreRow(data);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_UPSTASH_STORAGE_GET_SCORE_BY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { id },
+        },
+        error,
+      );
+    }
   }
 
   async getScoresByScorerId({
-    scorerId: _scorerId,
-    pagination: _pagination,
+    scorerId,
+    pagination = { page: 0, perPage: 20 },
   }: {
     scorerId: string;
-    pagination: StoragePagination;
-  }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    pagination?: { page: number; perPage: number };
+  }): Promise<{
+    scores: ScoreRowData[];
+    pagination: { total: number; page: number; perPage: number; hasMore: boolean };
+  }> {
+    const pattern = `${TABLE_SCORERS}:*`;
+    const keys = await this.scanKeys(pattern);
+    if (keys.length === 0) {
+      return {
+        scores: [],
+        pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
+      };
+    }
+    const pipeline = this.redis.pipeline();
+    keys.forEach(key => pipeline.get(key));
+    const results = await pipeline.exec();
+    // Filter out nulls and by scorerId
+    const filtered = results
+      .map((row: any) => row as Record<string, any> | null)
+      .filter((row): row is Record<string, any> => !!row && typeof row === 'object' && row.scorerId === scorerId);
+    const total = filtered.length;
+    const { page, perPage } = pagination;
+    const start = page * perPage;
+    const end = start + perPage;
+    const paged = filtered.slice(start, end);
+    const scores = paged.map(row => this.transformScoreRow(row));
+    return {
+      scores,
+      pagination: {
+        total,
+        page,
+        perPage,
+        hasMore: end < total,
+      },
+    };
+  }
+
+  async getScoresByRunId({
+    runId,
+    pagination = { page: 0, perPage: 20 },
+  }: {
+    runId: string;
+    pagination?: { page: number; perPage: number };
+  }): Promise<{
+    scores: ScoreRowData[];
+    pagination: { total: number; page: number; perPage: number; hasMore: boolean };
+  }> {
+    const pattern = `${TABLE_SCORERS}:*`;
+    const keys = await this.scanKeys(pattern);
+    if (keys.length === 0) {
+      return {
+        scores: [],
+        pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
+      };
+    }
+    const pipeline = this.redis.pipeline();
+    keys.forEach(key => pipeline.get(key));
+    const results = await pipeline.exec();
+    // Filter out nulls and by runId
+    const filtered = results
+      .map((row: any) => row as Record<string, any> | null)
+      .filter((row): row is Record<string, any> => !!row && typeof row === 'object' && row.runId === runId);
+    const total = filtered.length;
+    const { page, perPage } = pagination;
+    const start = page * perPage;
+    const end = start + perPage;
+    const paged = filtered.slice(start, end);
+    const scores = paged.map(row => this.transformScoreRow(row));
+    return {
+      scores,
+      pagination: {
+        total,
+        page,
+        perPage,
+        hasMore: end < total,
+      },
+    };
+  }
+  async getScoresByEntityId({
+    entityId,
+    entityType,
+    pagination = { page: 0, perPage: 20 },
+  }: {
+    entityId: string;
+    entityType?: string;
+    pagination?: { page: number; perPage: number };
+  }): Promise<{
+    scores: ScoreRowData[];
+    pagination: { total: number; page: number; perPage: number; hasMore: boolean };
+  }> {
+    const pattern = `${TABLE_SCORERS}:*`;
+    const keys = await this.scanKeys(pattern);
+    if (keys.length === 0) {
+      return {
+        scores: [],
+        pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
+      };
+    }
+    const pipeline = this.redis.pipeline();
+    keys.forEach(key => pipeline.get(key));
+    const results = await pipeline.exec();
+
+    const filtered = results
+      .map((row: any) => row as Record<string, any> | null)
+      .filter((row): row is Record<string, any> => {
+        if (!row || typeof row !== 'object') return false;
+        if (row.entityId !== entityId) return false;
+        if (entityType && row.entityType !== entityType) return false;
+        return true;
+      });
+    const total = filtered.length;
+    const { page, perPage } = pagination;
+    const start = page * perPage;
+    const end = start + perPage;
+    const paged = filtered.slice(start, end);
+    const scores = paged.map(row => this.transformScoreRow(row));
+    return {
+      scores,
+      pagination: {
+        total,
+        page,
+        perPage,
+        hasMore: end < total,
+      },
+    };
   }
 }
