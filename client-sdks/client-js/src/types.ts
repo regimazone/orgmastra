@@ -394,6 +394,7 @@ export interface GenerateOrStreamVNextNetworkParams {
   message: string;
   threadId?: string;
   resourceId?: string;
+  runtimeContext?: RuntimeContext | Record<string, any>;
 }
 
 export interface LoopStreamVNextNetworkParams {
@@ -401,6 +402,7 @@ export interface LoopStreamVNextNetworkParams {
   threadId?: string;
   resourceId?: string;
   maxIterations?: number;
+  runtimeContext?: RuntimeContext | Record<string, any>;
 }
 
 export interface LoopVNextNetworkResponse {

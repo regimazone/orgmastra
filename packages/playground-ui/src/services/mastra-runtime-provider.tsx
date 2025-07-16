@@ -9,14 +9,15 @@ import {
   CompositeAttachmentAdapter,
   SimpleTextAttachmentAdapter,
 } from '@assistant-ui/react';
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, ReactNode, useEffect, useRef } from 'react';
 import { RuntimeContext } from '@mastra/core/di';
 
-import { ChatProps } from '@/types';
+import { ChatProps, Message } from '@/types';
 
 import { CoreUserMessage } from '@mastra/core';
 import { fileToBase64 } from '@/lib/file';
 import { useMastraClient } from '@/contexts/mastra-client-context';
+import { useWorkingMemory } from '@/domains/agents/context/agent-working-memory-context';
 import { PDFAttachmentAdapter } from '@/components/assistant-ui/attachments/pdfs-adapter';
 
 const convertMessage = (message: ThreadMessageLike): ThreadMessageLike => {
@@ -92,6 +93,7 @@ export function MastraRuntimeProvider({
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(threadId);
+  const { refetch: refreshWorkingMemory } = useWorkingMemory();
 
   const {
     frequencyPenalty,
@@ -104,7 +106,9 @@ export function MastraRuntimeProvider({
     topP,
     instructions,
     chatWithGenerate,
+    providerOptions,
   } = settings?.modelSettings ?? {};
+  const toolCallIdToName = useRef<Record<string, string>>({});
 
   const runtimeContextInstance = new RuntimeContext();
   Object.entries(runtimeContext ?? {}).forEach(([key, value]) => {
@@ -199,9 +203,15 @@ export function MastraRuntimeProvider({
               image: image.url,
             }));
 
+            const reasoning = message?.parts
+              ?.find(({ type }: { type: string }) => type === 'reasoning')
+              ?.details?.map((detail: { type: 'text'; text: string }) => detail?.text)
+              ?.join(' ');
+
             return {
               ...message,
               content: [
+                ...(reasoning ? [{ type: 'reasoning', text: reasoning }] : []),
                 ...(typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : []),
                 ...toolInvocationsAsContentParts,
                 ...attachmentsAsContentParts,
@@ -304,6 +314,7 @@ export function MastraRuntimeProvider({
           instructions,
           runtimeContext: runtimeContextInstance,
           ...(memory ? { threadId, resourceId: agentId } : {}),
+          providerOptions: providerOptions as any,
         });
         if (generateResponse.response) {
           const latestMessage = generateResponse.response.messages.reduce(
@@ -314,6 +325,7 @@ export function MastraRuntimeProvider({
                   ...acc,
                   content: [
                     ..._content,
+                    ...(generateResponse.reasoning ? [{ type: 'reasoning', text: generateResponse.reasoning }] : []),
                     {
                       type: 'text',
                       text: message.content,
@@ -324,6 +336,9 @@ export function MastraRuntimeProvider({
               if (message.role === 'assistant') {
                 const toolCallContent = Array.isArray(message.content)
                   ? message.content.find(content => content.type === 'tool-call')
+                  : undefined;
+                const reasoningContent = Array.isArray(message.content)
+                  ? message.content.find(content => content.type === 'reasoning')
                   : undefined;
 
                 if (toolCallContent) {
@@ -337,7 +352,9 @@ export function MastraRuntimeProvider({
                   const containsToolCall = newContent.some(c => c.type === 'tool-call');
                   return {
                     ...acc,
-                    content: containsToolCall ? newContent : [..._content, toolCallContent],
+                    content: containsToolCall
+                      ? [...(reasoningContent ? [reasoningContent] : []), ...newContent]
+                      : [..._content, ...(reasoningContent ? [reasoningContent] : []), toolCallContent],
                   } as ThreadMessageLike;
                 }
 
@@ -348,7 +365,7 @@ export function MastraRuntimeProvider({
                 if (textContent) {
                   return {
                     ...acc,
-                    content: [..._content, textContent],
+                    content: [..._content, ...(reasoningContent ? [reasoningContent] : []), textContent],
                   } as ThreadMessageLike;
                 }
               }
@@ -411,6 +428,7 @@ export function MastraRuntimeProvider({
           instructions,
           runtimeContext: runtimeContextInstance,
           ...(memory ? { threadId, resourceId: agentId } : {}),
+          providerOptions: providerOptions as any,
         });
 
         if (!response.body) {
@@ -515,6 +533,7 @@ export function MastraRuntimeProvider({
               assistantToolCallAddedForContent = true;
               return [...currentConversation, newMessage];
             });
+            toolCallIdToName.current[value.toolCallId] = value.toolName;
           },
           async onToolResultPart(value: any) {
             // Update the messages state
@@ -545,12 +564,62 @@ export function MastraRuntimeProvider({
               }
               return currentConversation;
             });
+            try {
+              const toolName = toolCallIdToName.current[value.toolCallId];
+              if (toolName === 'updateWorkingMemory' && value.result?.success) {
+                await refreshWorkingMemory?.();
+              }
+            } finally {
+              // Clean up
+              delete toolCallIdToName.current[value.toolCallId];
+            }
           },
           onErrorPart(error) {
             throw new Error(error);
           },
           onFinishMessagePart({ finishReason }) {
             handleFinishReason(finishReason);
+          },
+          onReasoningPart(value) {
+            setMessages(currentConversation => {
+              // Get the last message (should be the assistant's message)
+              const lastMessage = currentConversation[currentConversation.length - 1];
+
+              // Only process if the last message is from the assistant
+              if (lastMessage && lastMessage.role === 'assistant' && Array.isArray(lastMessage.content)) {
+                // Find and update the reasoning content type
+                const updatedContent = lastMessage.content.map(part => {
+                  if (typeof part === 'object' && part.type === 'reasoning') {
+                    return {
+                      ...part,
+                      text: part.text + value,
+                    };
+                  }
+                  return part;
+                });
+                // Create a new message with the updated reasoning content
+                const updatedMessage: ThreadMessageLike = {
+                  ...lastMessage,
+                  content: updatedContent,
+                };
+
+                // Replace the last message with the updated one
+                return [...currentConversation.slice(0, -1), updatedMessage];
+              }
+
+              // If there's no assistant message yet, create one
+              const newMessage: ThreadMessageLike = {
+                role: 'assistant',
+                content: [
+                  {
+                    type: 'reasoning',
+                    text: value,
+                  },
+                  { type: 'text', text: content },
+                ],
+              };
+              return [...currentConversation, newMessage];
+            });
           },
         });
       }

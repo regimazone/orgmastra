@@ -142,6 +142,24 @@ export abstract class Bundler extends MastraBundler {
     await copy(publicDir, join(outputDirectory, this.outputDir));
   }
 
+  protected async copyDOTNPMRC({
+    rootDir = process.cwd(),
+    outputDirectory,
+  }: {
+    rootDir?: string;
+    outputDirectory: string;
+  }) {
+    const sourceDotNpmRcPath = join(rootDir, '.npmrc');
+    const targetDotNpmRcPath = join(outputDirectory, this.outputDir, '.npmrc');
+
+    try {
+      await stat(sourceDotNpmRcPath);
+      await copy(sourceDotNpmRcPath, targetDotNpmRcPath);
+    } catch {
+      return;
+    }
+  }
+
   protected async getBundlerOptions(
     serverFile: string,
     mastraEntryFile: string,
@@ -208,6 +226,7 @@ export abstract class Bundler extends MastraBundler {
     outputDirectory: string,
     toolsPaths: string[] = [],
     bundleLocation: string = join(outputDirectory, this.outputDir),
+    installDependencies: boolean = true,
   ): Promise<void> {
     this.logger.info('Start bundling Mastra');
 
@@ -397,10 +416,16 @@ export const tools = [${toolsExports.join(', ')}]`,
       await this.copyPublic(dirname(mastraEntryFile), outputDirectory);
       this.logger.info('Done copying public files');
 
-      this.logger.info('Installing dependencies');
-      await this.installDependencies(outputDirectory);
+      this.logger.info('Copying .npmrc file');
+      await this.copyDOTNPMRC({ outputDirectory });
 
-      this.logger.info('Done installing dependencies');
+      this.logger.info('Done copying .npmrc file');
+
+      if (installDependencies) {
+        this.logger.info('Installing dependencies');
+        await this.installDependencies(outputDirectory);
+        this.logger.info('Done installing dependencies');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new MastraError(

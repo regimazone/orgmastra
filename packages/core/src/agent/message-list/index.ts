@@ -97,16 +97,20 @@ export class MessageList {
   private userContextMessages = new Set<MastraMessageV3>();
 
   private generateMessageId?: AIV5.IdGenerator;
+  private _agentNetworkAppend = false;
 
   constructor({
     threadId,
     resourceId,
     generateMessageId,
+    // @ts-ignore Flag for agent network messages
+    _agentNetworkAppend,
   }: { threadId?: string; resourceId?: string; generateMessageId?: AIV5.IdGenerator } = {}) {
     if (threadId) {
       this.memoryInfo = { threadId, resourceId };
       this.generateMessageId = generateMessageId;
     }
+    this._agentNetworkAppend = _agentNetworkAppend || false;
   }
 
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
@@ -362,21 +366,6 @@ export class MessageList {
 
     const latestMessage = this.messages.at(-1);
 
-    const singleToolResult =
-      MessageList.isAIV5CoreMessage(message) &&
-      message.role === 'tool' &&
-      message.content.filter(c => c.type === `tool-result`)?.length === 1 &&
-      message.content[0];
-
-    if (
-      singleToolResult &&
-      (latestMessage?.role !== `assistant` ||
-        !latestMessage.content.parts.some(p => AIV5.isToolUIPart(p) && p.toolCallId === singleToolResult.toolCallId))
-    ) {
-      // remove any tool results that aren't updating a tool call for ModelMessages
-      return;
-    }
-
     if (messageSource === `memory`) {
       for (const existingMessage of this.messages) {
         // don't double store any messages
@@ -386,36 +375,17 @@ export class MessageList {
       }
     }
     // If the last message is an assistant message and the new message is also an assistant message, merge them together and update tool calls with results
-    const latestMessagePartType = latestMessage?.content?.parts?.filter(p => p.type !== `step-start`)?.at?.(-1)?.type;
-
-    const newMessageFirstPart = messageV3.content.parts.filter(p => p.type !== `step-start`).at(0);
-    const newMessageFirstPartType = newMessageFirstPart?.type;
     const shouldAppendToLastAssistantMessage =
       latestMessage?.role === 'assistant' &&
       messageV3.role === 'assistant' &&
-      latestMessage.threadId === messageV3.threadId;
-    // If neither the latest message or the new message is a memory message, merge them together
-    const shouldMergeNewMessages =
-      latestMessage && !this.memoryMessages.has(latestMessage) && messageSource !== 'memory';
-    const shouldAppendToLastAssistantMessageParts =
-      shouldAppendToLastAssistantMessage &&
-      newMessageFirstPartType &&
-      ((AIV5.isToolUIPart(newMessageFirstPart) && latestMessagePartType !== `text`) ||
-        (newMessageFirstPartType === latestMessagePartType && shouldMergeNewMessages));
-
-    if (
-      // backwards compat check!
-      // this condition can technically be removed and it will make it so all new assistant parts will be added to the last assistant message parts instead of creating new db entries.
-      // however, for any downstream code that isn't based around using message parts yet, this may cause tool invocations to show up in the wrong order in their UI, because they use the message.toolInvocations and message.content properties which do not indicate how each is ordered in relation to each other.
-      // this code check then causes any tool invocation to be created as a new message and not update the previous assistant message parts.
-      // without this condition we will see something like
-      // parts: [{type:"step-start"}, {type: "text", text: "let me check the weather"}, {type: "tool-invocation", toolInvocation: x}, {type: "text", text: "the weather in x is y"}]
-      // with this condition we will see
-      // message1.parts: [{type:"step-start"}, {type: "text", text: "let me check the weather"}]
-      // message2.parts: [{type: "tool-invocation", toolInvocation: x}]
-      // message3.parts: [{type: "text", text: "the weather in x is y"}]
-      shouldAppendToLastAssistantMessageParts
-    ) {
+      latestMessage.threadId === messageV3.threadId &&
+      // If the message is from memory, don't append to the last assistant message
+      messageSource !== 'memory';
+    // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
+    const appendNetworkMessage =
+      (this._agentNetworkAppend && latestMessage && !this.memoryMessages.has(latestMessage)) ||
+      !this._agentNetworkAppend;
+    if (shouldAppendToLastAssistantMessage && appendNetworkMessage) {
       latestMessage.createdAt = messageV3.createdAt || latestMessage.createdAt;
 
       for (const [index, part] of messageV3.content.parts.entries()) {
@@ -454,6 +424,9 @@ export class MessageList {
       if (latestMessage.createdAt.getTime() < messageV3.createdAt.getTime()) {
         latestMessage.createdAt = messageV3.createdAt;
       }
+
+      // If latest message gets appended to, it should be added to the new response messages set to ensure it gets saved
+      this.newResponseMessages.add(latestMessage);
     }
     // Else the last message and this message are not both assistant messages OR an existing message has been updated and should be replaced. add a new message to the array or update an existing one.
     else {
@@ -1209,7 +1182,7 @@ export class MessageList {
       if (part.type === `text`) {
         // TODO: we may need to hash this with something like xxhash instead of using length
         // for 99.999% of cases this will be fine though because we're comparing messages that have the same ID already.
-        key += part.text.length;
+        key += `${part.text.length}${part.text}`;
       }
       if (part.type === `tool-invocation`) {
         key += part.toolInvocation.toolCallId;

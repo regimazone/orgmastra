@@ -162,6 +162,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     const { attempts = 0, delay = 0 } = retryConfig ?? {};
     const steps = graph.steps;
 
+    //clear runCounts
+    this.runCounts.clear();
+
     if (steps.length === 0) {
       throw new MastraError({
         id: 'WORKFLOW_EXECUTE_EMPTY_GRAPH',
@@ -228,6 +231,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
             workflowStatus: result.status,
             result: result.result,
             error: result.error,
+            runtimeContext: params.runtimeContext,
           });
           return result;
         }
@@ -263,6 +267,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           workflowStatus: result.status,
           result: result.result,
           error: result.error,
+          runtimeContext: params.runtimeContext,
         });
         return result;
       }
@@ -278,6 +283,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       workflowStatus: result.status,
       result: result.result,
       error: result.error,
+      runtimeContext: params.runtimeContext,
     });
     return result;
   }
@@ -587,6 +593,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       try {
         let suspended: { payload: any } | undefined;
         let bailed: { payload: any } | undefined;
+
         const result = await runStep({
           runId,
           mastra: this.mastra!,
@@ -1255,6 +1262,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     workflowStatus,
     result,
     error,
+    runtimeContext,
   }: {
     workflowId: string;
     runId: string;
@@ -1264,7 +1272,13 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     workflowStatus: 'success' | 'failed' | 'suspended' | 'running' | 'waiting';
     result?: Record<string, any>;
     error?: string | Error;
+    runtimeContext: RuntimeContext;
   }) {
+    const runtimeContextObj: Record<string, any> = {};
+    runtimeContext.forEach((value, key) => {
+      runtimeContextObj[key] = value;
+    });
+
     await this.mastra?.getStorage()?.persistWorkflowSnapshot({
       workflowName: workflowId,
       runId,
@@ -1278,6 +1292,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         suspendedPaths: executionContext.suspendedPaths,
         result,
         error,
+        runtimeContext: runtimeContextObj,
         // @ts-ignore
         timestamp: Date.now(),
       },
@@ -1457,6 +1472,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         stepResults,
         executionContext,
         workflowStatus: 'waiting',
+        runtimeContext,
       });
 
       await this.executeSleep({
@@ -1481,6 +1497,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         stepResults,
         executionContext,
         workflowStatus: 'running',
+        runtimeContext,
       });
 
       const endedAt = Date.now();
@@ -1517,7 +1534,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-result',
         payload: {
           id: entry.id,
-          ...execResults,
+          endedAt,
+          status: 'success',
+          output: prevOutput,
         },
       });
 
@@ -1572,6 +1591,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         stepResults,
         executionContext,
         workflowStatus: 'waiting',
+        runtimeContext,
       });
 
       await this.executeSleepUntil({
@@ -1596,6 +1616,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         stepResults,
         executionContext,
         workflowStatus: 'running',
+        runtimeContext,
       });
 
       const endedAt = Date.now();
@@ -1633,7 +1654,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-result',
         payload: {
           id: entry.id,
-          ...execResults,
+          endedAt,
+          status: 'success',
+          output: prevOutput,
         },
       });
 
@@ -1689,6 +1712,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         stepResults,
         executionContext,
         workflowStatus: 'waiting',
+        runtimeContext,
       });
 
       try {
@@ -1701,6 +1725,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           stepResults,
           executionContext,
           workflowStatus: 'running',
+          runtimeContext,
         });
 
         const { step } = entry;
@@ -1749,7 +1774,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       serializedStepGraph,
       stepResults,
       executionContext,
-      workflowStatus: execResults.status,
+      workflowStatus: execResults.status === 'success' ? 'running' : execResults.status,
+      runtimeContext,
     });
 
     return { result: execResults, stepResults, executionContext };

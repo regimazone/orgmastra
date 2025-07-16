@@ -957,6 +957,7 @@ describe('CloudflareStore Workers Binding', () => {
         suspendedPaths: {},
         status: 'success',
         serializedStepGraph: [],
+        runtimeContext: {},
       };
 
       await store.persistWorkflowSnapshot({
