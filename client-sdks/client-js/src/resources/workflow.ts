@@ -253,20 +253,10 @@ export class Workflow extends BaseResource {
 
     const runtimeContext = parseClientRuntimeContext(params.runtimeContext);
 
-    const result = (await this.request(`/api/workflows/${this.workflowId}/start-async?${searchParams.toString()}`, {
+    return this.request(`/api/workflows/${this.workflowId}/start-async?${searchParams.toString()}`, {
       method: 'POST',
       body: { inputData: params.inputData, runtimeContext },
-    })) as WorkflowRunResult;
-
-    if (result.status === 'failed') {
-      // The return from the HTTP call is a serialized error. We need to turn it back into an error object
-      if (result.error) {
-        const error = result.error as unknown as string;
-        result.error = new Error(error);
-      }
-    }
-
-    return result as WorkflowRunResult;
+    });
   }
 
   /**

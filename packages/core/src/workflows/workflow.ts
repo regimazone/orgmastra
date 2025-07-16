@@ -26,6 +26,7 @@ import type {
   StreamEvent,
   WorkflowRunState,
 } from './types';
+import type { MastraError } from '../error';
 
 export type DefaultEngineType = {};
 
@@ -429,7 +430,7 @@ export type WorkflowResult<TOutput extends z.ZodType<any>, TSteps extends Step<s
               z.infer<NonNullable<StepsRecord<TSteps>[K]['outputSchema']>>
             >;
       };
-      error: Error;
+      error: MastraError;
     }
   | {
       status: 'suspended';
