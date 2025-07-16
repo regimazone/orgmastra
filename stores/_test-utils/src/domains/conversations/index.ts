@@ -2,6 +2,7 @@ import { MastraMessageV1, MastraMessageV2, MastraStorage, StorageThreadType } fr
 import { describe, expect, it } from "vitest";
 import { createSampleMessageV1, createSampleMessageV2, createSampleThread, createSampleThreadWithParams, resetRole } from "./data";
 import { createMessagesPaginatedTest } from "./messages-paginated";
+import { randomUUID } from "node:crypto";
 
 
 export function createConversationsTest({
@@ -11,6 +12,42 @@ export function createConversationsTest({
 }) {
 
     describe('Thread Operations', () => {
+
+        describe('getThreadsByResourceId with pagination', () => {
+            it('should return paginated threads with total count', async () => {
+                const resourceId = `pg-paginated-resource-${randomUUID()}`;
+                const threadPromises = Array.from({ length: 17 }, () =>
+                    storage.saveThread({ thread: { ...createSampleThread(), resourceId } }),
+                );
+                await Promise.all(threadPromises);
+
+                const page1 = await storage.getThreadsByResourceIdPaginated({ resourceId, page: 0, perPage: 7 });
+                expect(page1.threads).toHaveLength(7);
+                expect(page1.total).toBe(17);
+                expect(page1.page).toBe(0);
+                expect(page1.perPage).toBe(7);
+                expect(page1.hasMore).toBe(true);
+
+                const page3 = await storage.getThreadsByResourceIdPaginated({ resourceId, page: 2, perPage: 7 });
+                expect(page3.threads).toHaveLength(3); // 17 total, 7 per page, 3rd page has 17 - 2*7 = 3
+                expect(page3.total).toBe(17);
+                expect(page3.hasMore).toBe(false);
+            });
+
+            it('should return paginated results when no pagination params for getThreadsByResourceId', async () => {
+                const resourceId = `pg-non-paginated-resource-${randomUUID()}`;
+                await storage.saveThread({ thread: { ...createSampleThread(), resourceId } });
+
+                const results = await storage.getThreadsByResourceIdPaginated({ resourceId });
+                expect(Array.isArray(results.threads)).toBe(true);
+                expect(results.threads.length).toBe(1);
+                expect(results.total).toBe(1);
+                expect(results.page).toBe(0);
+                expect(results.perPage).toBe(100);
+                expect(results.hasMore).toBe(false);
+            });
+        });
+
         it('should create and retrieve a thread', async () => {
             const thread = createSampleThread();
 

@@ -6,7 +6,6 @@ import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { IDatabase } from 'pg-promise';
 import { getSchemaName, getTableName } from '../utils';
 
-
 export class StoreOperationsPG extends StoreOperations {
     public client: IDatabase<{}>;
     public schemaName?: string;
