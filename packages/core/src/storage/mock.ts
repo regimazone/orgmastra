@@ -5,7 +5,9 @@ import type { MastraMessageV1, StorageThreadType } from '../memory/types';
 import type { Trace } from '../telemetry';
 import { MastraStorage } from './base';
 import type { TABLE_NAMES } from './constants';
-import { ScoresInMemoryStorage } from './domains/scores/scores.inmemory';
+import { StoreOperationsInMemory } from './domains/operations/inmemory';
+import { ScoresInMemory } from './domains/scores/inmemory';
+import type { InMemoryScores } from './domains/scores/inmemory';
 import type {
   EvalRow,
   PaginationInfo,
@@ -17,9 +19,26 @@ import type {
   WorkflowRuns,
 } from './types';
 
-const scorerStorage = new ScoresInMemoryStorage();
-
 export class MockStore extends MastraStorage {
+  scoresStorage: ScoresInMemory;
+  operationsStorage: StoreOperationsInMemory;
+
+  constructor() {
+    super({ name: 'InMemoryStorage' });
+    // MockStore doesn't need async initialization
+    this.hasInitialized = Promise.resolve(true);
+
+    const operationsStorage = new StoreOperationsInMemory();
+
+    const database = operationsStorage.getDatabase();
+
+    this.scoresStorage = new ScoresInMemory({
+      collection: database.mastra_scorers as InMemoryScores,
+    });
+
+    this.operationsStorage = operationsStorage;
+  }
+
   private data: Record<TABLE_NAMES, Record<string, any>> = {
     mastra_workflow_snapshot: {},
     mastra_evals: {},
@@ -30,48 +49,42 @@ export class MockStore extends MastraStorage {
     mastra_scorers: {},
   };
 
-  constructor() {
-    super({ name: 'MockStore' });
-    // MockStore doesn't need async initialization
-    this.hasInitialized = Promise.resolve(true);
-  }
-
-  async createTable(_: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void> {
-    // In-memory mock, no actual table creation needed
+  async createTable({
+    tableName,
+    schema,
+  }: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+  }): Promise<void> {
+    await this.operationsStorage.createTable({ tableName, schema });
   }
 
   async alterTable({
     tableName,
+    schema,
+    ifNotExists,
   }: {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
     ifNotExists: string[];
   }): Promise<void> {
-    this.logger.debug(`MockStore: alterTable called for ${tableName}`);
-    // In-memory mock, no actual table alteration needed
+    await this.operationsStorage.alterTable({ tableName, schema, ifNotExists });
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    this.logger.debug(`MockStore: clearTable called for ${tableName}`);
-    this.data[tableName] = {};
+    await this.operationsStorage.clearTable({ tableName });
   }
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    this.logger.debug(`MockStore: insert called for ${tableName}`, record);
-    this.data[tableName][record.run_id] = JSON.parse(JSON.stringify(record)); // simple clone - fine for mocking
+    await this.operationsStorage.insert({ tableName, record });
   }
 
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    this.logger.debug(`MockStore: batchInsert called for ${tableName} with ${records.length} records`);
-    for (const record of records) {
-      this.data[tableName][record.run_id] = JSON.parse(JSON.stringify(record)); // simple clone - fine for mocking
-    }
+    await this.operationsStorage.batchInsert({ tableName, records });
   }
 
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    this.logger.debug(`MockStore: load called for ${tableName} with keys`, keys);
-    const record = this.data[tableName][keys.run_id!];
-    return record ? (record as R) : null;
+    return this.operationsStorage.load({ tableName, keys });
   }
 
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
@@ -255,11 +268,11 @@ export class MockStore extends MastraStorage {
   }
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
-    return scorerStorage.getScoreById({ id });
+    return this.scoresStorage.getScoreById({ id });
   }
 
   async saveScore(score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    return scorerStorage.saveScore(score);
+    return this.scoresStorage.saveScore(score);
   }
 
   async getScoresByScorerId({
@@ -269,7 +282,7 @@ export class MockStore extends MastraStorage {
     scorerId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return scorerStorage.getScoresByScorerId({ scorerId, pagination });
+    return this.scoresStorage.getScoresByScorerId({ scorerId, pagination });
   }
 
   async getScoresByRunId({
@@ -279,7 +292,7 @@ export class MockStore extends MastraStorage {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return scorerStorage.getScoresByRunId({ runId, pagination });
+    return this.scoresStorage.getScoresByRunId({ runId, pagination });
   }
 
   async getScoresByEntityId({
@@ -291,7 +304,7 @@ export class MockStore extends MastraStorage {
     entityType: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return scorerStorage.getScoresByEntityId({ entityId, entityType, pagination });
+    return this.scoresStorage.getScoresByEntityId({ entityId, entityType, pagination });
   }
 
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {

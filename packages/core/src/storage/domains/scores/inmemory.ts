@@ -2,14 +2,14 @@ import type { ScoreRowData } from '../../../eval';
 import type { PaginationInfo, StoragePagination } from '../../types';
 import { ScoresStorage } from './base';
 
-type InMemoryScores = Map<string, ScoreRowData>;
+export type InMemoryScores = Map<string, ScoreRowData>;
 
-export class ScoresInMemoryStorage extends ScoresStorage {
+export class ScoresInMemory extends ScoresStorage {
   scores: InMemoryScores;
 
-  constructor() {
+  constructor({ collection }: { collection: InMemoryScores }) {
     super();
-    this.scores = new Map<string, ScoreRowData>();
+    this.scores = collection;
   }
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
