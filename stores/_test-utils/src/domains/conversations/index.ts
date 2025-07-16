@@ -12,7 +12,6 @@ export function createConversationsTest({
 }) {
 
     describe('Thread Operations', () => {
-
         describe('getThreadsByResourceId with pagination', () => {
             it('should return paginated threads with total count', async () => {
                 const resourceId = `pg-paginated-resource-${randomUUID()}`;
