@@ -4,6 +4,7 @@ import type { MetricResult } from '../../eval';
 import type { WorkflowRunState } from '../../workflows';
 import type { MastraStorage } from '../base';
 import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS } from '../constants';
+import { createScoresTest } from '../domains/scores/test-utils';
 
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
@@ -432,6 +433,7 @@ export function createTestSuite(storage: MastraStorage) {
         expect(loadedSnapshot).toEqual(complexSnapshot);
       });
     });
+
     describe('getWorkflowRuns', () => {
       beforeEach(async () => {
         await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
@@ -677,4 +679,6 @@ export function createTestSuite(storage: MastraStorage) {
       expect(nonExistentEvals).toHaveLength(0);
     });
   });
+
+  createScoresTest({ storage });
 }
