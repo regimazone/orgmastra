@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
-import { checkWorkflowSnapshot } from '@internal/storage-test-utils';
+import { checkWorkflowSnapshot, createSampleScoreRow } from '@internal/storage-test-utils';
 import type { EvalRow, MastraMessageV2, StorageThreadType, TraceType, WorkflowRunState } from '@mastra/core';
 import {
   TABLE_EVALS,
   TABLE_MESSAGES,
   TABLE_SCHEMAS,
+  TABLE_SCORERS,
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_WORKFLOW_SNAPSHOT,
@@ -1331,6 +1332,219 @@ describe('LanceStorage tests', async () => {
           ifNotExists: ['uuid_column'],
         }),
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('Scorer Tests', () => {
+    let storage: LanceStorage;
+    const scorerId = 'test-scorer-id';
+    const entityId = 'test-entity-id';
+    const entityType = 'AGENT';
+    const otherEntityType = 'WORKFLOW';
+    const runId = 'test-run-id';
+    const totalScores = 5;
+    let scorersTable: any;
+
+    beforeAll(async () => {
+      storage = await LanceStorage.create('scorer-test', 'lancedb-storage');
+      await storage.dropTable('mastra_scorers');
+      const scorerSchema = TABLE_SCHEMAS[TABLE_SCORERS];
+      await storage.createTable({ tableName: TABLE_SCORERS, schema: scorerSchema });
+      // Create multiple scores with the same scorer ID
+      for (let i = 0; i < totalScores; i++) {
+        const score = createSampleScoreRow({ scorerId, id: `scorer-score-${i}-${randomUUID()}` });
+        await storage.saveScore(score);
+      }
+      // Create multiple scores with the same run ID
+      for (let i = 0; i < totalScores; i++) {
+        const score = createSampleScoreRow({ runId, id: `run-score-${i}-${randomUUID()}` });
+        await storage.saveScore(score);
+      }
+      // Create multiple scores with the same entity ID and type
+      for (let i = 0; i < totalScores; i++) {
+        const score = createSampleScoreRow({ entityId, entityType, id: `entity-score-${i}-${randomUUID()}` });
+        await storage.saveScore(score);
+      }
+      // Create some scores with the same entity ID but different type
+      for (let i = 0; i < 3; i++) {
+        const score = createSampleScoreRow({
+          entityId,
+          entityType: otherEntityType,
+          id: `other-type-score-${i}-${randomUUID()}`,
+        });
+        await storage.saveScore(score);
+      }
+    });
+
+    it('should save and retrieve a scorer', async () => {
+      const scorer = createSampleScoreRow();
+      await storage.saveScore(scorer);
+
+      const found = await storage.getScoreById({ id: scorer.id });
+
+      expect(found?.score).closeTo(scorer.score!, 0.01);
+      expect(found?.reason).toEqual(scorer.reason);
+      expect(found?.extractStepResult).toEqual(scorer.extractStepResult);
+      expect(found?.analyzeStepResult).toEqual(scorer.analyzeStepResult);
+      expect(found?.metadata).toEqual(scorer.metadata);
+      expect(found?.additionalContext).toEqual(scorer.additionalContext);
+      expect(found?.runtimeContext).toEqual(scorer.runtimeContext);
+      expect(found?.entity).toEqual(scorer.entity);
+    });
+
+    it('should retrieve first page of scores by scorer ID', async () => {
+      const result = await storage.getScoresByScorerId({ scorerId, pagination: { perPage: 2, page: 0 } });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.perPage).toBe(2);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+    });
+
+    it('should retrieve second page of scores by scorer ID', async () => {
+      const result = await storage.getScoresByScorerId({ scorerId, pagination: { perPage: 2, page: 1 } });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+    });
+
+    it('should retrieve last page of scores by scorer ID', async () => {
+      const result = await storage.getScoresByScorerId({ scorerId, pagination: { perPage: 2, page: 2 } });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores.length).toBe(1);
+    });
+
+    it('should return empty results for non-existent scorer ID', async () => {
+      const result = await storage.getScoresByScorerId({
+        scorerId: 'non-existent-scorer-id',
+        pagination: { perPage: 10, page: 0 },
+      });
+      expect(result.pagination.total).toBe(0);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores.length).toBe(0);
+    });
+
+    it('should retrieve first page of scores by run ID', async () => {
+      const result = await storage.getScoresByRunId({
+        runId,
+        pagination: { page: 0, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.perPage).toBe(2);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+      expect(result.scores[0].runId).toBe(runId);
+      expect(result.scores[1].runId).toBe(runId);
+    });
+
+    it('should retrieve second page of scores by run ID', async () => {
+      const result = await storage.getScoresByRunId({
+        runId,
+        pagination: { page: 1, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+      expect(result.scores[0].runId).toBe(runId);
+      expect(result.scores[1].runId).toBe(runId);
+    });
+
+    it('should retrieve last page of scores by run ID', async () => {
+      const result = await storage.getScoresByRunId({
+        runId,
+        pagination: { page: 2, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores.length).toBe(1);
+      expect(result.scores[0].runId).toBe(runId);
+    });
+
+    it('should return empty results for non-existent run ID', async () => {
+      const result = await storage.getScoresByRunId({
+        runId: 'non-existent-run-id',
+        pagination: { page: 0, perPage: 10 },
+      });
+      expect(result.pagination.total).toBe(0);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores).toEqual([]);
+    });
+
+    it('should retrieve first page of scores by entity ID and type', async () => {
+      const result = await storage.getScoresByEntityId({
+        entityId,
+        entityType,
+        pagination: { page: 0, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.perPage).toBe(2);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+      expect(result.scores[0].entityId).toBe(entityId);
+      expect(result.scores[0].entityType).toBe(entityType);
+      expect(result.scores[1].entityId).toBe(entityId);
+      expect(result.scores[1].entityType).toBe(entityType);
+    });
+
+    it('should retrieve second page of scores by entity ID and type', async () => {
+      const result = await storage.getScoresByEntityId({
+        entityId,
+        entityType,
+        pagination: { page: 1, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.hasMore).toBe(true);
+      expect(result.scores.length).toBe(2);
+      expect(result.scores[0].entityId).toBe(entityId);
+      expect(result.scores[0].entityType).toBe(entityType);
+      expect(result.scores[1].entityId).toBe(entityId);
+      expect(result.scores[1].entityType).toBe(entityType);
+    });
+
+    it('should retrieve last page of scores by entity ID and type', async () => {
+      const result = await storage.getScoresByEntityId({
+        entityId,
+        entityType,
+        pagination: { page: 2, perPage: 2 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores.length).toBe(1);
+      expect(result.scores[0].entityId).toBe(entityId);
+      expect(result.scores[0].entityType).toBe(entityType);
+    });
+
+    it('should not retrieve scores with different entity type', async () => {
+      const result = await storage.getScoresByEntityId({
+        entityId,
+        entityType,
+        pagination: { page: 0, perPage: 10 },
+      });
+      expect(result.pagination.total).toBe(totalScores);
+      expect(result.scores.length).toBe(totalScores);
+      result.scores.forEach(score => {
+        expect(score.entityType).toBe(entityType);
+      });
+    });
+
+    it('should return empty results for non-existent entity ID', async () => {
+      const result = await storage.getScoresByEntityId({
+        entityId: 'non-existent-entity-id',
+        entityType,
+        pagination: { page: 0, perPage: 10 },
+      });
+      expect(result.pagination.total).toBe(0);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.scores).toEqual([]);
     });
   });
 });
