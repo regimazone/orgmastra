@@ -36,8 +36,10 @@ describe('Agent Memory Tests', () => {
         url: dbFile,
       }),
     });
-    await expect(mastra.getAgent('agent').getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
-    await expect(agent.getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
+    const agentMemory = (await mastra.getAgent('agent').getMemory())!;
+    await expect(agentMemory.query({ threadId: '1' })).resolves.not.toThrow();
+    const agentMemory2 = (await agent.getMemory())!;
+    await expect(agentMemory2.query({ threadId: '1' })).resolves.not.toThrow();
   });
 
   describe('Agent memory message persistence', () => {
@@ -156,7 +158,8 @@ describe('Agent Memory Tests', () => {
       });
 
       // Fetch messages from memory
-      const { messages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages } = await agentMemory.query({ threadId });
 
       // Assert that the context messages are NOT saved
       const savedContextMessages = messages.filter(
@@ -306,8 +309,8 @@ describe('Agent with message processors', () => {
     expect(firstResponse.text).toContain('65');
 
     // Check that tool calls were saved to memory
-    const memory = memoryProcessorAgent.getMemory();
-    const { messages: messagesFromMemory } = await memory!.query({ threadId });
+    const agentMemory = (await memoryProcessorAgent.getMemory())!;
+    const { messages: messagesFromMemory } = await agentMemory.query({ threadId });
     const toolMessages = messagesFromMemory.filter(
       m => m.role === 'tool' || (m.role === 'assistant' && typeof m.content !== 'string'),
     );
