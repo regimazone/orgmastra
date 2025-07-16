@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import { describe, it, expect } from 'vitest';
-import type { ScoreRowData } from '../../../eval';
-import type { MastraStorage } from '../../base';
+import { describe, it, expect, beforeEach } from 'vitest';
+import type { ScoreRowData } from '@mastra/core/eval';
+import { TABLE_SCORERS, type MastraStorage } from '@mastra/core/storage';
 
 export function createMockScore({ scorerId }: { scorerId: string }): ScoreRowData {
   return {
@@ -11,7 +11,7 @@ export function createMockScore({ scorerId }: { scorerId: string }): ScoreRowDat
     scorerId,
     createdAt: new Date(),
     updatedAt: new Date(),
-    runId: 'run-123',
+    runId: randomUUID(),
     reason: 'Sample reason',
     extractStepResult: {
       text: 'Sample extract step result',
@@ -49,6 +49,10 @@ export function createMockScore({ scorerId }: { scorerId: string }): ScoreRowDat
 
 export function createScoresTest({ storage }: { storage: MastraStorage }) {
   describe('Score Operations', () => {
+    beforeEach(async () => {
+      await storage.clearTable({ tableName: TABLE_SCORERS });
+    });
+
     it('should retrieve scores by scorer id', async () => {
       const scorerId = `scorer-${randomUUID()}`;
 
@@ -76,6 +80,34 @@ export function createScoresTest({ storage }: { storage: MastraStorage }) {
         pagination: { page: 0, perPage: 10 },
       });
       expect(nonExistentScores?.scores).toHaveLength(0);
+    });
+
+    it('should save scorer', async () => {
+      const scorerId = `scorer-${randomUUID()}`;
+      const scorer = createMockScore({ scorerId });
+      await storage.saveScore(scorer);
+      const result = await storage.getScoresByRunId({ runId: scorer.runId, pagination: { page: 0, perPage: 10 } });
+      expect(result.scores).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.perPage).toBe(10);
+      expect(result.pagination.hasMore).toBe(false);
+    });
+
+    it('getScoresByEntityId should return paginated scores with total count when returnPaginationResults is true', async () => {
+      const scorer = createMockScore({ scorerId: `scorer-${randomUUID()}` });
+      await storage.saveScore(scorer);
+
+      const result = await storage.getScoresByEntityId({
+        entityId: scorer.entity!.id!,
+        entityType: scorer.entityType!,
+        pagination: { page: 0, perPage: 10 },
+      });
+      expect(result.scores).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.perPage).toBe(10);
+      expect(result.pagination.hasMore).toBe(false);
     });
   });
 }

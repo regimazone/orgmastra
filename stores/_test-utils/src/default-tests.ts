@@ -3,9 +3,16 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from
 import type { MetricResult, ScoreRowData } from '@mastra/core/eval';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { MastraStorage, StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
-import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
+import {
+  TABLE_WORKFLOW_SNAPSHOT,
+  TABLE_EVALS,
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_SCORERS,
+} from '@mastra/core/storage';
 import { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core';
 import { MastraMessageContentV2 } from '@mastra/core/agent';
+import { createScoresTest } from './domains/scores';
 
 // Sample test data factory functions to ensure unique records
 export const createSampleThread = ({
@@ -87,33 +94,6 @@ export const createSampleEval = (agentName: string, isTest = false, createdAt?: 
     run_id: `run-${randomUUID()}`,
     created_at: createdAt || new Date().toISOString(),
     createdAt: createdAt || new Date(),
-  };
-};
-
-export const createSampleScoreRow = (): ScoreRowData => {
-  const entity = {
-    id: randomUUID(),
-    type: 'test',
-  };
-  return {
-    id: randomUUID(),
-
-    runId: randomUUID(),
-    scorer: { agentName: 'test-agent' },
-    result: { score: 0.8 },
-    metadata: {},
-    input: { text: 'Sample input' },
-    output: { text: 'Sample output' },
-    additionalLLMContext: {},
-    runtimeContext: {},
-    entityType: 'test',
-    entity,
-    entityId: entity.id,
-    source: 'test',
-    resourceId: randomUUID(),
-    threadId: randomUUID(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
   };
 };
 
@@ -837,6 +817,7 @@ export function createTestSuite(storage: MastraStorage) {
         expect(loadedSnapshot).toEqual(complexSnapshot);
       });
     });
+
     describe('getWorkflowRuns', () => {
       beforeEach(async () => {
         await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
@@ -980,6 +961,7 @@ export function createTestSuite(storage: MastraStorage) {
         expect(snapshot.context?.[stepId1]?.status).toBe('completed');
       });
     });
+
     describe('getWorkflowRunById', () => {
       const workflowName = 'workflow-id-test';
       let runId: string;
@@ -1021,6 +1003,7 @@ export function createTestSuite(storage: MastraStorage) {
         expect(notFound).toBeNull();
       });
     });
+
     describe('getWorkflowRuns with resourceId', () => {
       const workflowName = 'workflow-id-test';
       let resourceId: string;
@@ -1591,4 +1574,6 @@ export function createTestSuite(storage: MastraStorage) {
       });
     });
   });
+
+  createScoresTest({ storage });
 }

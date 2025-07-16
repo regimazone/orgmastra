@@ -13,7 +13,6 @@ import {
   TABLE_TRACES,
   TABLE_RESOURCES,
   TABLE_WORKFLOW_SNAPSHOT,
-  TABLE_SCORERS,
 } from '@mastra/core/storage';
 import type {
   EvalRow,
@@ -31,6 +30,8 @@ import type {
 import type { Trace } from '@mastra/core/telemetry';
 import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { WorkflowRunState } from '@mastra/core/workflows';
+import { StoreOperationsLibSQL } from './domains/operations';
+import { ScoresLibSQL } from './domains/scores';
 
 function safelyParseJSON(jsonString: string): any {
   try {
@@ -56,10 +57,17 @@ export interface LibSQLConfig {
   initialBackoffMs?: number;
 }
 
+type StorageDomains = {
+  operations: StoreOperationsLibSQL;
+  scores: ScoresLibSQL;
+};
+
 export class LibSQLStore extends MastraStorage {
   private client: Client;
   private readonly maxRetries: number;
   private readonly initialBackoffMs: number;
+
+  private stores: StorageDomains;
 
   constructor(config: LibSQLConfig) {
     super({ name: `LibSQLStore` });
@@ -85,6 +93,19 @@ export class LibSQLStore extends MastraStorage {
         .then(() => this.logger.debug('LibSQLStore: PRAGMA busy_timeout=5000 set.'))
         .catch(err => this.logger.warn('LibSQLStore: Failed to set PRAGMA busy_timeout.', err));
     }
+
+    const operations = new StoreOperationsLibSQL({
+      client: this.client,
+      maxRetries: this.maxRetries,
+      initialBackoffMs: this.initialBackoffMs,
+    });
+
+    const scores = new ScoresLibSQL({ client: this.client, operations });
+
+    this.stores = {
+      operations,
+      scores,
+    };
   }
 
   public get supports(): {
@@ -1036,45 +1057,6 @@ export class LibSQLStore extends MastraStorage {
     return updatedResult.rows.map(row => this.parseRow(row));
   }
 
-  private transformScoreRow(row: Record<string, any>): ScoreRowData {
-    const scorerValue = JSON.parse(row.scorer ?? '{}');
-    const inputValue = JSON.parse(row.input ?? '{}');
-    const outputValue = JSON.parse(row.output ?? '{}');
-    const additionalLLMContextValue = row.additionalLLMContext ? JSON.parse(row.additionalLLMContext) : null;
-    const runtimeContextValue = row.runtimeContext ? JSON.parse(row.runtimeContext) : null;
-    const metadataValue = row.metadata ? JSON.parse(row.metadata) : null;
-    const entityValue = row.entity ? JSON.parse(row.entity) : null;
-    const extractStepResultValue = row.extractStepResult ? JSON.parse(row.extractStepResult) : null;
-    const analyzeStepResultValue = row.analyzeStepResult ? JSON.parse(row.analyzeStepResult) : null;
-
-    return {
-      id: row.id,
-      traceId: row.traceId,
-      runId: row.runId,
-      scorer: scorerValue,
-      score: row.score,
-      reason: row.reason,
-      extractStepResult: extractStepResultValue,
-      analyzeStepResult: analyzeStepResultValue,
-      analyzePrompt: row.analyzePrompt,
-      extractPrompt: row.extractPrompt,
-      metadata: metadataValue,
-      input: inputValue,
-      output: outputValue,
-      additionalContext: additionalLLMContextValue,
-      runtimeContext: runtimeContextValue,
-      entityType: row.entityType,
-      entity: entityValue,
-      entityId: row.entityId,
-      scorerId: row.scorerId,
-      source: row.source,
-      resourceId: row.resourceId,
-      threadId: row.threadId,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
   private transformEvalRow(row: Record<string, any>): EvalRow {
     const resultValue = JSON.parse(row.result as string);
     const testInfoValue = row.test_info ? JSON.parse(row.test_info as string) : undefined;
@@ -1212,39 +1194,11 @@ export class LibSQLStore extends MastraStorage {
   }
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
-    const result = await this.client.execute({
-      sql: `SELECT * FROM ${TABLE_SCORERS} WHERE id = ?`,
-      args: [id],
-    });
-    return result.rows?.[0] ? this.transformScoreRow(result.rows[0]) : null;
+    return this.stores.scores.getScoreById({ id });
   }
 
   async saveScore(score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }> {
-    try {
-      const id = crypto.randomUUID();
-
-      await this.insert({
-        tableName: TABLE_SCORERS,
-        record: {
-          id,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          ...score,
-        },
-      });
-
-      const scoreFromDb = await this.getScoreById({ id });
-      return { score: scoreFromDb! };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_SAVE_SCORE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.scores.saveScore(score);
   }
 
   async getScoresByScorerId({
@@ -1258,51 +1212,7 @@ export class LibSQLStore extends MastraStorage {
     entityType?: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    try {
-      const conditions: string[] = [];
-      const queryParams: InValue[] = [];
-
-      if (scorerId) {
-        conditions.push(`scorerId = ?`);
-        queryParams.push(scorerId);
-      }
-
-      if (entityId) {
-        conditions.push(`entityId = ?`);
-        queryParams.push(entityId);
-      }
-
-      if (entityType) {
-        conditions.push(`entityType = ?`);
-        queryParams.push(entityType);
-      }
-
-      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-      const result = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_SCORERS} ${whereClause} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
-        args: [...queryParams, pagination.perPage + 1, pagination.page * pagination.perPage],
-      });
-
-      return {
-        scores: result.rows?.slice(0, pagination.perPage).map(row => this.transformScoreRow(row)) ?? [],
-        pagination: {
-          total: result.rows?.length ?? 0,
-          page: pagination.page,
-          perPage: pagination.perPage,
-          hasMore: result.rows?.length > pagination.perPage,
-        },
-      };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.scores.getScoresByScorerId({ scorerId, entityId, entityType, pagination });
   }
 
   async getScoresByRunId({
@@ -1312,30 +1222,7 @@ export class LibSQLStore extends MastraStorage {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    try {
-      const result = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_SCORERS} WHERE runId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
-        args: [runId, pagination.perPage + 1, pagination.page * pagination.perPage],
-      });
-      return {
-        scores: result.rows?.slice(0, pagination.perPage).map(row => this.transformScoreRow(row)) ?? [],
-        pagination: {
-          total: result.rows?.length ?? 0,
-          page: pagination.page,
-          perPage: pagination.perPage,
-          hasMore: result.rows?.length > pagination.perPage,
-        },
-      };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_SCORES_BY_RUN_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.scores.getScoresByRunId({ runId, pagination });
   }
 
   async getScoresByEntityId({
@@ -1347,30 +1234,7 @@ export class LibSQLStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    try {
-      const result = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_SCORERS} WHERE entityId = ? AND entityType = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
-        args: [entityId, entityType, pagination.perPage + 1, pagination.page * pagination.perPage],
-      });
-      return {
-        scores: result.rows?.slice(0, pagination.perPage).map(row => this.transformScoreRow(row)) ?? [],
-        pagination: {
-          total: result.rows?.length ?? 0,
-          page: pagination.page,
-          perPage: pagination.perPage,
-          hasMore: result.rows?.length > pagination.perPage,
-        },
-      };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_SCORES_BY_ENTITY_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.scores.getScoresByEntityId({ entityId, entityType, pagination });
   }
 
   /**

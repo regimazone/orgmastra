@@ -7,7 +7,6 @@ import {
   createSampleMessageV1,
   resetRole,
   createSampleMessageV2,
-  createSampleScoreRow,
 } from '@internal/storage-test-utils';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core';
 import { Mastra } from '@mastra/core/mastra';
@@ -21,6 +20,7 @@ const TEST_DB_URL = 'file::memory:?cache=shared';
 const libsql = new LibSQLStore({
   url: TEST_DB_URL,
 });
+
 const mastra = new Mastra({
   storage: libsql,
 });
@@ -128,39 +128,6 @@ describe('LibSQLStore Pagination Features', () => {
       });
       expect(onlyDayBefore.total).toBe(2);
       expect(onlyDayBefore.evals).toHaveLength(2);
-    });
-  });
-
-  describe('Scorers', () => {
-    it('should save scorer', async () => {
-      const scorer = createSampleScoreRow();
-      await store.saveScore(scorer);
-      const result = await store.getScoresByRunId({ runId: scorer.runId, pagination: { page: 0, perPage: 10 } });
-      expect(result.scores).toHaveLength(1);
-      expect(result.pagination.total).toBe(1);
-      expect(result.pagination.page).toBe(0);
-      expect(result.pagination.perPage).toBe(10);
-      expect(result.pagination.hasMore).toBe(false);
-    });
-
-    it('getScoresByEntityId should return paginated scores with total count when returnPaginationResults is true', async () => {
-      const scorer = createSampleScoreRow();
-      await store.saveScore(scorer);
-
-      console.log({
-        entityId: scorer.entity!.id!,
-        entityType: scorer.entityType!,
-      });
-      const result = await store.getScoresByEntityId({
-        entityId: scorer.entity!.id!,
-        entityType: scorer.entityType!,
-        pagination: { page: 0, perPage: 10 },
-      });
-      expect(result.scores).toHaveLength(1);
-      expect(result.pagination.total).toBe(1);
-      expect(result.pagination.page).toBe(0);
-      expect(result.pagination.perPage).toBe(10);
-      expect(result.pagination.hasMore).toBe(false);
     });
   });
 
