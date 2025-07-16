@@ -75,6 +75,10 @@ export class MockStore extends MastraStorage {
     await this.operationsStorage.clearTable({ tableName });
   }
 
+  async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    await this.operationsStorage.dropTable({ tableName });
+  }
+
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
     await this.operationsStorage.insert({ tableName, record });
   }

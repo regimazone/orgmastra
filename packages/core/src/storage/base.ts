@@ -129,6 +129,8 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void>;
 
+  abstract dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void>;
+
   abstract alterTable(args: {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
@@ -172,16 +174,16 @@ export abstract class MastraStorage extends MastraBase {
   async getResourceById(_: { resourceId: string }): Promise<StorageResourceType | null> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
   async saveResource(_: { resource: StorageResourceType }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -192,8 +194,8 @@ export abstract class MastraStorage extends MastraBase {
   }): Promise<StorageResourceType> {
     throw new Error(
       `Resource working memory is not supported by this storage adapter (${this.constructor.name}). ` +
-        `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
-        `To use per-resource working memory, switch to one of these supported storage adapters.`,
+      `Supported storage adapters: LibSQL (@mastra/libsql), PostgreSQL (@mastra/pg), Upstash (@mastra/upstash). ` +
+      `To use per-resource working memory, switch to one of these supported storage adapters.`,
     );
   }
 
@@ -214,10 +216,10 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]>;
 
   abstract getTraces(args: StorageGetTracesArg): Promise<any[]>;

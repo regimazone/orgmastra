@@ -3,79 +3,84 @@ import type { StorageColumn } from '../../types';
 import { StoreOperations } from './base';
 
 export class StoreOperationsInMemory extends StoreOperations {
-  data: Record<TABLE_NAMES, Map<string, Record<string, any>>>;
+    data: Record<TABLE_NAMES, Map<string, Record<string, any>>>;
 
-  constructor() {
-    super();
-    this.data = {
-      mastra_workflow_snapshot: new Map(),
-      mastra_evals: new Map(),
-      mastra_messages: new Map(),
-      mastra_threads: new Map(),
-      mastra_traces: new Map(),
-      mastra_resources: new Map(),
-      mastra_scorers: new Map(),
-    };
-  }
-
-  getDatabase() {
-    return this.data;
-  }
-
-  async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    this.logger.debug(`MockStore: insert called for ${tableName}`, record);
-
-    const table = this.data[tableName];
-
-    table.set(record.id, record);
-  }
-
-  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    this.logger.debug(`MockStore: batchInsert called for ${tableName} with ${records.length} records`);
-
-    const table = this.data[tableName];
-
-    for (const record of records) {
-      table.set(record.id, record);
+    constructor() {
+        super();
+        this.data = {
+            mastra_workflow_snapshot: new Map(),
+            mastra_evals: new Map(),
+            mastra_messages: new Map(),
+            mastra_threads: new Map(),
+            mastra_traces: new Map(),
+            mastra_resources: new Map(),
+            mastra_scorers: new Map(),
+        };
     }
-  }
 
-  async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    this.logger.debug(`MockStore: load called for ${tableName} with keys`, keys);
+    getDatabase() {
+        return this.data;
+    }
 
-    const table = this.data[tableName];
+    async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+        this.logger.debug(`MockStore: insert called for ${tableName}`, record);
 
-    const records = Array.from(table.values());
+        const table = this.data[tableName];
 
-    return records.filter(record => Object.keys(keys).every(key => record[key] === keys[key])) as R;
-  }
+        table.set(record.id, record);
+    }
 
-  async createTable({
-    tableName,
-    schema,
-  }: {
-    tableName: TABLE_NAMES;
-    schema: Record<string, StorageColumn>;
-  }): Promise<void> {
-    this.logger.debug(`MockStore: createTable called for ${tableName} with schema`, schema);
+    async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+        this.logger.debug(`MockStore: batchInsert called for ${tableName} with ${records.length} records`);
 
-    this.data[tableName] = new Map();
-  }
+        const table = this.data[tableName];
 
-  async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    this.logger.debug(`MockStore: clearTable called for ${tableName}`);
+        for (const record of records) {
+            table.set(record.id, record);
+        }
+    }
 
-    this.data[tableName] = new Map();
-  }
+    async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
+        this.logger.debug(`MockStore: load called for ${tableName} with keys`, keys);
 
-  async alterTable({
-    tableName,
-    schema,
-  }: {
-    tableName: TABLE_NAMES;
-    schema: Record<string, StorageColumn>;
-    ifNotExists: string[];
-  }): Promise<void> {
-    this.logger.debug(`MockStore: alterTable called for ${tableName} with schema`, schema);
-  }
+        const table = this.data[tableName];
+
+        const records = Array.from(table.values());
+
+        return records.filter(record => Object.keys(keys).every(key => record[key] === keys[key])) as R;
+    }
+
+    async createTable({
+        tableName,
+        schema,
+    }: {
+        tableName: TABLE_NAMES;
+        schema: Record<string, StorageColumn>;
+    }): Promise<void> {
+        this.logger.debug(`MockStore: createTable called for ${tableName} with schema`, schema);
+
+        this.data[tableName] = new Map();
+    }
+
+    async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+        this.logger.debug(`MockStore: clearTable called for ${tableName}`);
+
+        this.data[tableName] = new Map();
+    }
+
+    async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+        this.logger.debug(`MockStore: dropTable called for ${tableName}`);
+        this.data[tableName] = new Map();
+    }
+
+    async alterTable({
+        tableName,
+        schema,
+    }: {
+        tableName: TABLE_NAMES;
+        schema: Record<string, StorageColumn>;
+        ifNotExists: string[];
+    }): Promise<void> {
+        this.logger.debug(`MockStore: alterTable called for ${tableName} with schema`, schema);
+    }
 }
