@@ -1089,18 +1089,11 @@ export class PostgresStore extends MastraStorage {
     // Use this.schema to scope the check
     const schema = this.schema || 'public';
 
-    console.log(
-      await this.db.many(
-        `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
-        [schema, table, column, column.toLowerCase()],
-      )
-    )
-
     const result = await this.db.oneOrNone(
       `SELECT 1 FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 AND (column_name = $3 OR column_name = $4)`,
       [schema, table, column, column.toLowerCase()],
     );
-    console.log(result, 'RESULT');
+
     return !!result;
   }
 

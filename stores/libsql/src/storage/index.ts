@@ -43,25 +43,25 @@ function safelyParseJSON(jsonString: string): any {
 
 export type LibSQLConfig =
   | {
-      url: string;
-      authToken?: string;
-      /**
-       * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
-       * @default 5
-       */
-      maxRetries?: number;
-      /**
-       * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
-       * The backoff time will double with each retry (exponential backoff).
-       * @default 100
-       */
-      initialBackoffMs?: number;
-    }
+    url: string;
+    authToken?: string;
+    /**
+     * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
+     * @default 5
+     */
+    maxRetries?: number;
+    /**
+     * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
+     * The backoff time will double with each retry (exponential backoff).
+     * @default 100
+     */
+    initialBackoffMs?: number;
+  }
   | {
-      client: Client;
-      maxRetries?: number;
-      initialBackoffMs?: number;
-    };
+    client: Client;
+    maxRetries?: number;
+    initialBackoffMs?: number;
+  };
 
 type StorageDomains = {
   operations: StoreOperationsLibSQL;
@@ -128,33 +128,6 @@ export class LibSQLStore extends MastraStorage {
     };
   }
 
-  private getCreateTableSQL(tableName: TABLE_NAMES, schema: Record<string, StorageColumn>): string {
-    const parsedTableName = parseSqlIdentifier(tableName, 'table name');
-    const columns = Object.entries(schema).map(([name, col]) => {
-      const parsedColumnName = parseSqlIdentifier(name, 'column name');
-      let type = col.type.toUpperCase();
-      if (type === 'TEXT') type = 'TEXT';
-      if (type === 'TIMESTAMP') type = 'TEXT'; // Store timestamps as ISO strings
-      // if (type === 'BIGINT') type = 'INTEGER';
-
-      const nullable = col.nullable ? '' : 'NOT NULL';
-      const primaryKey = col.primaryKey ? 'PRIMARY KEY' : '';
-
-      return `${parsedColumnName} ${type} ${nullable} ${primaryKey}`.trim();
-    });
-
-    // For workflow_snapshot table, create a composite primary key
-    if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      const stmnt = `CREATE TABLE IF NOT EXISTS ${parsedTableName} (
-                ${columns.join(',\n')},
-                PRIMARY KEY (workflow_name, run_id)
-            )`;
-      return stmnt;
-    }
-
-    return `CREATE TABLE IF NOT EXISTS ${parsedTableName} (${columns.join(', ')})`;
-  }
-
   async createTable({
     tableName,
     schema,
@@ -162,36 +135,7 @@ export class LibSQLStore extends MastraStorage {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
   }): Promise<void> {
-    try {
-      this.logger.debug(`Creating database table`, { tableName, operation: 'schema init' });
-      const sql = this.getCreateTableSQL(tableName, schema);
-      await this.client.execute(sql);
-    } catch (error) {
-      // this.logger.error(`Error creating table ${tableName}: ${error}`);
-      // throw error;
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_CREATE_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
-  }
-
-  protected getSqlType(type: StorageColumn['type']): string {
-    switch (type) {
-      case 'bigint':
-        return 'INTEGER'; // SQLite uses INTEGER for all integer sizes
-      case 'jsonb':
-        return 'TEXT'; // Store JSON as TEXT in SQLite
-      default:
-        return super.getSqlType(type);
-    }
+    await this.stores.operations.createTable({ tableName, schema });
   }
 
   /**
@@ -209,63 +153,15 @@ export class LibSQLStore extends MastraStorage {
     schema: Record<string, StorageColumn>;
     ifNotExists: string[];
   }): Promise<void> {
-    const parsedTableName = parseSqlIdentifier(tableName, 'table name');
-
-    try {
-      // 1. Get existing columns using PRAGMA
-      const pragmaQuery = `PRAGMA table_info(${parsedTableName})`;
-      const result = await this.client.execute(pragmaQuery);
-      const existingColumnNames = new Set(result.rows.map((row: any) => row.name.toLowerCase()));
-
-      // 2. Add missing columns
-      for (const columnName of ifNotExists) {
-        if (!existingColumnNames.has(columnName.toLowerCase()) && schema[columnName]) {
-          const columnDef = schema[columnName];
-          const sqlType = this.getSqlType(columnDef.type); // ensure this exists or implement
-          const nullable = columnDef.nullable === false ? 'NOT NULL' : '';
-          // In SQLite, you must provide a DEFAULT if adding a NOT NULL column to a non-empty table
-          const defaultValue = columnDef.nullable === false ? this.getDefaultValue(columnDef.type) : '';
-          const alterSql =
-            `ALTER TABLE ${parsedTableName} ADD COLUMN "${columnName}" ${sqlType} ${nullable} ${defaultValue}`.trim();
-
-          await this.client.execute(alterSql);
-          this.logger?.debug?.(`Added column ${columnName} to table ${parsedTableName}`);
-        }
-      }
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_ALTER_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    await this.stores.operations.alterTable({ tableName, schema, ifNotExists });
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    const parsedTableName = parseSqlIdentifier(tableName, 'table name');
-    try {
-      await this.client.execute(`DELETE FROM ${parsedTableName}`);
-    } catch (e) {
-      const mastraError = new MastraError(
-        {
-          id: 'LIBSQL_STORE_CLEAR_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        e,
-      );
-      this.logger?.trackException?.(mastraError);
-      this.logger?.error?.(mastraError.toString());
-    }
+    await this.stores.operations.clearTable({ tableName });
+  }
+
+  async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    await this.stores.operations.dropTable({ tableName });
   }
 
   private prepareStatement({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): {
@@ -322,87 +218,15 @@ export class LibSQLStore extends MastraStorage {
   }
 
   public insert(args: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    return this.executeWriteOperationWithRetry(() => this.doInsert(args), `insert into table ${args.tableName}`);
-  }
-
-  private async doInsert({
-    tableName,
-    record,
-  }: {
-    tableName: TABLE_NAMES;
-    record: Record<string, any>;
-  }): Promise<void> {
-    await this.client.execute(
-      this.prepareStatement({
-        tableName,
-        record,
-      }),
-    );
+    return this.stores.operations.insert(args);
   }
 
   public batchInsert(args: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    return this.executeWriteOperationWithRetry(
-      () => this.doBatchInsert(args),
-      `batch insert into table ${args.tableName}`,
-    ).catch(error => {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_BATCH_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName: args.tableName,
-          },
-        },
-        error,
-      );
-    });
-  }
-
-  private async doBatchInsert({
-    tableName,
-    records,
-  }: {
-    tableName: TABLE_NAMES;
-    records: Record<string, any>[];
-  }): Promise<void> {
-    if (records.length === 0) return;
-    const batchStatements = records.map(r => this.prepareStatement({ tableName, record: r }));
-    await this.client.batch(batchStatements, 'write');
+    return this.stores.operations.batchInsert(args);
   }
 
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    const parsedTableName = parseSqlIdentifier(tableName, 'table name');
-
-    const parsedKeys = Object.keys(keys).map(key => parseSqlIdentifier(key, 'column name'));
-
-    const conditions = parsedKeys.map(key => `${key} = ?`).join(' AND ');
-    const values = Object.values(keys);
-
-    const result = await this.client.execute({
-      sql: `SELECT * FROM ${parsedTableName} WHERE ${conditions} ORDER BY createdAt DESC LIMIT 1`,
-      args: values,
-    });
-
-    if (!result.rows || result.rows.length === 0) {
-      return null;
-    }
-
-    const row = result.rows[0];
-    // Checks whether the string looks like a JSON object ({}) or array ([])
-    // If the string starts with { or [, it assumes it's JSON and parses it
-    // Otherwise, it just returns, preventing unintended number conversions
-    const parsed = Object.fromEntries(
-      Object.entries(row || {}).map(([k, v]) => {
-        try {
-          return [k, typeof v === 'string' ? (v.startsWith('{') || v.startsWith('[') ? JSON.parse(v) : v) : v];
-        } catch {
-          return [k, v];
-        }
-      }),
-    );
-
-    return parsed as R;
+    return this.stores.operations.load({ tableName, keys });
   }
 
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
@@ -1014,11 +838,11 @@ export class LibSQLStore extends MastraStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
+              metadata: {
+                ...existingMessage.content.metadata,
+                ...updatableFields.content.metadata,
+              },
+            }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);

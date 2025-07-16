@@ -101,9 +101,6 @@ export class StoreOperationsPG extends StoreOperations {
         try {
             const schemaName = getSchemaName(this.schemaName);
             const tableNameWithSchema = getTableName({ indexName: tableName, schemaName });
-            console.log({
-                tableNameWithSchema
-            })
             await this.client.none(`TRUNCATE TABLE ${tableNameWithSchema} CASCADE`);
         } catch (error) {
             throw new MastraError(
