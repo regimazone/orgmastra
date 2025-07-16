@@ -41,21 +41,27 @@ function safelyParseJSON(jsonString: string): any {
   }
 }
 
-export interface LibSQLConfig {
-  url: string;
-  authToken?: string;
-  /**
-   * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
-   * @default 5
-   */
-  maxRetries?: number;
-  /**
-   * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
-   * The backoff time will double with each retry (exponential backoff).
-   * @default 100
-   */
-  initialBackoffMs?: number;
-}
+export type LibSQLConfig =
+  | {
+      url: string;
+      authToken?: string;
+      /**
+       * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
+       * @default 5
+       */
+      maxRetries?: number;
+      /**
+       * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
+       * The backoff time will double with each retry (exponential backoff).
+       * @default 100
+       */
+      initialBackoffMs?: number;
+    }
+  | {
+      client: Client;
+      maxRetries?: number;
+      initialBackoffMs?: number;
+    };
 
 type StorageDomains = {
   operations: StoreOperationsLibSQL;
@@ -75,23 +81,27 @@ export class LibSQLStore extends MastraStorage {
     this.maxRetries = config.maxRetries ?? 5;
     this.initialBackoffMs = config.initialBackoffMs ?? 100;
 
-    // need to re-init every time for in memory dbs or the tables might not exist
-    if (config.url.endsWith(':memory:')) {
-      this.shouldCacheInit = false;
-    }
+    if ('url' in config) {
+      // need to re-init every time for in memory dbs or the tables might not exist
+      if (config.url.endsWith(':memory:')) {
+        this.shouldCacheInit = false;
+      }
 
-    this.client = createClient(config);
+      this.client = createClient({ url: config.url });
 
-    // Set PRAGMAs for better concurrency, especially for file-based databases
-    if (config.url.startsWith('file:') || config.url.includes(':memory:')) {
-      this.client
-        .execute('PRAGMA journal_mode=WAL;')
-        .then(() => this.logger.debug('LibSQLStore: PRAGMA journal_mode=WAL set.'))
-        .catch(err => this.logger.warn('LibSQLStore: Failed to set PRAGMA journal_mode=WAL.', err));
-      this.client
-        .execute('PRAGMA busy_timeout = 5000;') // 5 seconds
-        .then(() => this.logger.debug('LibSQLStore: PRAGMA busy_timeout=5000 set.'))
-        .catch(err => this.logger.warn('LibSQLStore: Failed to set PRAGMA busy_timeout.', err));
+      // Set PRAGMAs for better concurrency, especially for file-based databases
+      if (config.url.startsWith('file:') || config.url.includes(':memory:')) {
+        this.client
+          .execute('PRAGMA journal_mode=WAL;')
+          .then(() => this.logger.debug('LibSQLStore: PRAGMA journal_mode=WAL set.'))
+          .catch(err => this.logger.warn('LibSQLStore: Failed to set PRAGMA journal_mode=WAL.', err));
+        this.client
+          .execute('PRAGMA busy_timeout = 5000;') // 5 seconds
+          .then(() => this.logger.debug('LibSQLStore: PRAGMA busy_timeout=5000 set.'))
+          .catch(err => this.logger.warn('LibSQLStore: Failed to set PRAGMA busy_timeout.', err));
+      }
+    } else {
+      this.client = config.client;
     }
 
     const operations = new StoreOperationsLibSQL({
