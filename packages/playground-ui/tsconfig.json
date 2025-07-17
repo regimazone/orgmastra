@@ -21,6 +21,11 @@
       "react": ["./node_modules/@types/react"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../cli/src/playground/src/domains/traces/hooks/use-traces.tsx",
+    "../cli/src/playground/src/domains/traces/utils/refine-traces.ts"
+  ],
   "exclude": ["node_modules"]
 }
