@@ -68,5 +68,5 @@ export abstract class StoreOperations extends MastraBase {
     records: Record<string, any>[];
   }): Promise<void>;
 
-  abstract load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
+  abstract load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<R | null>;
 }

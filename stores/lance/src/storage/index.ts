@@ -23,15 +23,20 @@ import type {
   WorkflowRun,
   WorkflowRuns,
   StoragePagination,
+  StorageDomains,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { DataType } from 'apache-arrow';
 import { Utf8, Int32, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
+import { getPrimaryKeys, getTableSchema, processResultWithTypeConversion, validateKeyTypes } from './domains/utils';
+import { StoreOperationsLance } from './domains/operations';
+
+
 
 export class LanceStorage extends MastraStorage {
+  stores: StorageDomains;
   private lanceClient!: Connection;
-
   /**
    * Creates a new instance of LanceStorage
    * @param uri The URI to connect to LanceDB
@@ -58,6 +63,9 @@ export class LanceStorage extends MastraStorage {
     const instance = new LanceStorage(name);
     try {
       instance.lanceClient = await connect(uri, options);
+      instance.stores = {
+        operations: new StoreOperationsLance({ client: instance.lanceClient }),
+      } as unknown as StorageDomains;
       return instance;
     } catch (e: any) {
       throw new MastraError(
@@ -73,23 +81,15 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  private getPrimaryKeys(tableName: TABLE_NAMES): string[] {
-    let primaryId: string[] = ['id'];
-    if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      primaryId = ['workflow_name', 'run_id'];
-    } else if (tableName === TABLE_EVALS) {
-      primaryId = ['agent_name', 'metric_name', 'run_id'];
-    }
-
-    return primaryId;
-  }
-
   /**
    * @internal
    * Private constructor to enforce using the create factory method
    */
   private constructor(name: string) {
     super({ name });
+    this.stores = {
+      operations: new StoreOperationsLance({ client: this.lanceClient }),
+    } as unknown as StorageDomains;
   }
 
   async createTable({
@@ -99,391 +99,34 @@ export class LanceStorage extends MastraStorage {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
   }): Promise<void> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for createTable.');
-      }
-      if (!schema) {
-        throw new Error('schema is required for createTable.');
-      }
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_CREATE_TABLE_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          details: { tableName },
-        },
-        error,
-      );
-    }
-
-    try {
-      const arrowSchema = this.translateSchema(schema);
-      await this.lanceClient.createEmptyTable(tableName, arrowSchema);
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_CREATE_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.createTable({ tableName, schema });
   }
 
-  private translateSchema(schema: Record<string, StorageColumn>): Schema {
-    const fields = Object.entries(schema).map(([name, column]) => {
-      // Convert string type to Arrow DataType
-      let arrowType: DataType;
-      switch (column.type.toLowerCase()) {
-        case 'text':
-        case 'uuid':
-          arrowType = new Utf8();
-          break;
-        case 'int':
-        case 'integer':
-          arrowType = new Int32();
-          break;
-        case 'bigint':
-          arrowType = new Float64();
-          break;
-        case 'float':
-          arrowType = new Float32();
-          break;
-        case 'jsonb':
-        case 'json':
-          arrowType = new Utf8();
-          break;
-        case 'binary':
-          arrowType = new Binary();
-          break;
-        case 'timestamp':
-          arrowType = new Float64();
-          break;
-        default:
-          // Default to string for unknown types
-          arrowType = new Utf8();
-      }
-
-      // Create a field with the appropriate arrow type
-      return new Field(name, arrowType, column.nullable ?? true);
-    });
-
-    return new Schema(fields);
+  async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    return this.stores.operations.dropTable({ tableName });
   }
 
-  /**
-   * Drop a table if it exists
-   * @param tableName Name of the table to drop
-   */
-  async dropTable(tableName: TABLE_NAMES): Promise<void> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for dropTable.');
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_DROP_TABLE_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      await this.lanceClient.dropTable(tableName);
-    } catch (error: any) {
-      if (error.toString().includes('was not found') || error.message?.includes('Table not found')) {
-        this.logger.debug(`Table '${tableName}' does not exist, skipping drop`);
-        return;
-      }
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_DROP_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
-  }
-
-  /**
-   * Get table schema
-   * @param tableName Name of the table
-   * @returns Table schema
-   */
-  async getTableSchema(tableName: TABLE_NAMES): Promise<SchemaLike> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for getTableSchema.');
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_GET_TABLE_SCHEMA_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      const table = await this.lanceClient.openTable(tableName);
-      const rawSchema = await table.schema();
-      const fields = rawSchema.fields as FieldLike[];
-
-      // Convert schema to SchemaLike format
-      return {
-        fields,
-        metadata: new Map<string, string>(),
-        get names() {
-          return fields.map((field: FieldLike) => field.name);
-        },
-      };
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_GET_TABLE_SCHEMA_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
-  }
-
-  protected getDefaultValue(type: StorageColumn['type']): string {
-    switch (type) {
-      case 'text':
-        return "''";
-      case 'timestamp':
-        return 'CURRENT_TIMESTAMP';
-      case 'integer':
-      case 'bigint':
-        return '0';
-      case 'jsonb':
-        return "'{}'";
-      case 'uuid':
-        return "''";
-      default:
-        return super.getDefaultValue(type);
-    }
-  }
-
-  /**
-   * Alters table schema to add columns if they don't exist
-   * @param tableName Name of the table
-   * @param schema Schema of the table
-   * @param ifNotExists Array of column names to add if they don't exist
-   */
   async alterTable({
     tableName,
     schema,
     ifNotExists,
   }: {
-    tableName: string;
+    tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
     ifNotExists: string[];
   }): Promise<void> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for alterTable.');
-      }
-      if (!schema) {
-        throw new Error('schema is required for alterTable.');
-      }
-      if (!ifNotExists || ifNotExists.length === 0) {
-        this.logger.debug('No columns specified to add in alterTable, skipping.');
-        return;
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_ALTER_TABLE_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      const table = await this.lanceClient.openTable(tableName);
-      const currentSchema = await table.schema();
-      const existingFields = new Set(currentSchema.fields.map((f: any) => f.name));
-
-      const typeMap: Record<string, string> = {
-        text: 'string',
-        integer: 'int',
-        bigint: 'bigint',
-        timestamp: 'timestamp',
-        jsonb: 'string',
-        uuid: 'string',
-      };
-
-      // Find columns to add
-      const columnsToAdd = ifNotExists
-        .filter(col => schema[col] && !existingFields.has(col))
-        .map(col => {
-          const colDef = schema[col];
-          return {
-            name: col,
-            valueSql: colDef?.nullable
-              ? `cast(NULL as ${typeMap[colDef.type ?? 'text']})`
-              : `cast(${this.getDefaultValue(colDef?.type ?? 'text')} as ${typeMap[colDef?.type ?? 'text']})`,
-          };
-        });
-
-      if (columnsToAdd.length > 0) {
-        await table.addColumns(columnsToAdd);
-        this.logger?.info?.(`Added columns [${columnsToAdd.map(c => c.name).join(', ')}] to table ${tableName}`);
-      }
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_ALTER_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.alterTable({ tableName, schema, ifNotExists });
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for clearTable.');
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_CLEAR_TABLE_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      const table = await this.lanceClient.openTable(tableName);
-
-      // delete function always takes a predicate as an argument, so we use '1=1' to delete all records because it is always true.
-      await table.delete('1=1');
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_CLEAR_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.clearTable({ tableName });
   }
 
-  /**
-   * Insert a single record into a table. This function overwrites the existing record if it exists. Use this function for inserting records into tables with custom schemas.
-   * @param tableName The name of the table to insert into.
-   * @param record The record to insert.
-   */
-  async insert({ tableName, record }: { tableName: string; record: Record<string, any> }): Promise<void> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for insert.');
-      }
-      if (!record || Object.keys(record).length === 0) {
-        throw new Error('record is required and cannot be empty for insert.');
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_INSERT_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      const table = await this.lanceClient.openTable(tableName);
-
-      const primaryId = this.getPrimaryKeys(tableName as TABLE_NAMES);
-
-      const processedRecord = { ...record };
-
-      for (const key in processedRecord) {
-        if (
-          processedRecord[key] !== null &&
-          typeof processedRecord[key] === 'object' &&
-          !(processedRecord[key] instanceof Date)
-        ) {
-          this.logger.debug('Converting object to JSON string: ', processedRecord[key]);
-          processedRecord[key] = JSON.stringify(processedRecord[key]);
-        }
-      }
-
-      await table.mergeInsert(primaryId).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([processedRecord]);
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+  async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+    return this.stores.operations.insert({ tableName, record });
   }
 
-  /**
-   * Insert multiple records into a table. This function overwrites the existing records if they exist. Use this function for inserting records into tables with custom schemas.
-   * @param tableName The name of the table to insert into.
-   * @param records The records to insert.
-   */
-  async batchInsert({ tableName, records }: { tableName: string; records: Record<string, any>[] }): Promise<void> {
+  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
     try {
       if (!this.lanceClient) {
         throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
@@ -510,7 +153,7 @@ export class LanceStorage extends MastraStorage {
     try {
       const table = await this.lanceClient.openTable(tableName);
 
-      const primaryId = this.getPrimaryKeys(tableName as TABLE_NAMES);
+      const primaryId = getPrimaryKeys(tableName as TABLE_NAMES);
 
       const processedRecords = records.map(record => {
         const processedRecord = { ...record };
@@ -546,194 +189,18 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  /**
-   * Load a record from the database by its key(s)
-   * @param tableName The name of the table to query
-   * @param keys Record of key-value pairs to use for lookup
-   * @throws Error if invalid types are provided for keys
-   * @returns The loaded record with proper type conversions, or null if not found
-   */
   async load({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<any> {
-    try {
-      if (!this.lanceClient) {
-        throw new Error('LanceDB client not initialized. Call LanceStorage.create() first.');
-      }
-      if (!tableName) {
-        throw new Error('tableName is required for load.');
-      }
-      if (!keys || Object.keys(keys).length === 0) {
-        throw new Error('keys are required and cannot be empty for load.');
-      }
-    } catch (validationError: any) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_LOAD_INVALID_ARGS',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-          text: validationError.message,
-          details: { tableName },
-        },
-        validationError,
-      );
-    }
-
-    try {
-      const table = await this.lanceClient.openTable(tableName);
-      const tableSchema = await this.getTableSchema(tableName);
-      const query = table.query();
-
-      // Build filter condition with 'and' between all conditions
-      if (Object.keys(keys).length > 0) {
-        // Validate key types against schema
-        this.validateKeyTypes(keys, tableSchema);
-
-        const filterConditions = Object.entries(keys)
-          .map(([key, value]) => {
-            // Check if key is in camelCase and wrap it in backticks if it is
-            const isCamelCase = /^[a-z][a-zA-Z]*$/.test(key) && /[A-Z]/.test(key);
-            const quotedKey = isCamelCase ? `\`${key}\`` : key;
-
-            // Handle different types appropriately
-            if (typeof value === 'string') {
-              return `${quotedKey} = '${value}'`;
-            } else if (value === null) {
-              return `${quotedKey} IS NULL`;
-            } else {
-              // For numbers, booleans, etc.
-              return `${quotedKey} = ${value}`;
-            }
-          })
-          .join(' AND ');
-
-        this.logger.debug('where clause generated: ' + filterConditions);
-        query.where(filterConditions);
-      }
-
-      const result = await query.limit(1).toArray();
-
-      if (result.length === 0) {
-        this.logger.debug('No record found');
-        return null;
-      }
-
-      // Process the result with type conversions
-      return this.processResultWithTypeConversion(result[0], tableSchema);
-    } catch (error: any) {
-      // If it's already a MastraError (e.g. from validateKeyTypes if we change it later), rethrow
-      if (error instanceof MastraError) throw error;
-      throw new MastraError(
-        {
-          id: 'STORAGE_LANCE_STORAGE_LOAD_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName, keyCount: Object.keys(keys).length, firstKey: Object.keys(keys)[0] ?? '' },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.load({ tableName, keys });
   }
 
-  /**
-   * Validates that key types match the schema definition
-   * @param keys The keys to validate
-   * @param tableSchema The table schema to validate against
-   * @throws Error if a key has an incompatible type
-   */
-  private validateKeyTypes(keys: Record<string, any>, tableSchema: SchemaLike): void {
-    // Create a map of field names to their expected types
-    const fieldTypes = new Map(
-      tableSchema.fields.map((field: any) => [field.name, field.type?.toString().toLowerCase()]),
-    );
-
-    for (const [key, value] of Object.entries(keys)) {
-      const fieldType = fieldTypes.get(key);
-
-      if (!fieldType) {
-        throw new Error(`Field '${key}' does not exist in table schema`);
-      }
-
-      // Type validation
-      if (value !== null) {
-        if ((fieldType.includes('int') || fieldType.includes('bigint')) && typeof value !== 'number') {
-          throw new Error(`Expected numeric value for field '${key}', got ${typeof value}`);
-        }
-
-        if (fieldType.includes('utf8') && typeof value !== 'string') {
-          throw new Error(`Expected string value for field '${key}', got ${typeof value}`);
-        }
-
-        if (fieldType.includes('timestamp') && !(value instanceof Date) && typeof value !== 'string') {
-          throw new Error(`Expected Date or string value for field '${key}', got ${typeof value}`);
-        }
-      }
-    }
-  }
-
-  /**
-   * Process a database result with appropriate type conversions based on the table schema
-   * @param rawResult The raw result object from the database
-   * @param tableSchema The schema of the table containing type information
-   * @returns Processed result with correct data types
-   */
-  private processResultWithTypeConversion(
-    rawResult: Record<string, any> | Record<string, any>[],
-    tableSchema: SchemaLike,
-  ): Record<string, any> | Record<string, any>[] {
-    // Build a map of field names to their schema types
-    const fieldTypeMap = new Map();
-    tableSchema.fields.forEach((field: any) => {
-      const fieldName = field.name;
-      const fieldTypeStr = field.type.toString().toLowerCase();
-      fieldTypeMap.set(fieldName, fieldTypeStr);
-    });
-
-    // Handle array case
-    if (Array.isArray(rawResult)) {
-      return rawResult.map(item => this.processResultWithTypeConversion(item, tableSchema));
-    }
-
-    // Handle single record case
-    const processedResult = { ...rawResult };
-
-    // Convert each field according to its schema type
-    for (const key in processedResult) {
-      const fieldTypeStr = fieldTypeMap.get(key);
-      if (!fieldTypeStr) continue;
-
-      // Skip conversion for ID fields - preserve their original format
-      // if (key === 'id') {
-      //   continue;
-      // }
-
-      // Only try to convert string values
-      if (typeof processedResult[key] === 'string') {
-        // Numeric types
-        if (fieldTypeStr.includes('int32') || fieldTypeStr.includes('float32')) {
-          if (!isNaN(Number(processedResult[key]))) {
-            processedResult[key] = Number(processedResult[key]);
-          }
-        } else if (fieldTypeStr.includes('int64')) {
-          processedResult[key] = Number(processedResult[key]);
-        } else if (fieldTypeStr.includes('utf8')) {
-          try {
-            processedResult[key] = JSON.parse(processedResult[key]);
-          } catch (e) {
-            // If JSON parsing fails, keep the original string
-            this.logger.debug(`Failed to parse JSON for key ${key}: ${e}`);
-          }
-        }
-      } else if (typeof processedResult[key] === 'bigint') {
-        // Convert BigInt values to regular numbers for application layer
-        processedResult[key] = Number(processedResult[key]);
-      }
-    }
-
-    return processedResult;
-  }
-
-  getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
+  async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
     try {
-      return this.load({ tableName: TABLE_THREADS, keys: { id: threadId } });
+      const thread = await this.load({ tableName: TABLE_THREADS, keys: { id: threadId } });
+      return {
+        ...thread,
+        createdAt: new Date(thread.createdAt),
+        updatedAt: new Date(thread.updatedAt),
+      }
     } catch (error: any) {
       throw new MastraError(
         {
@@ -753,9 +220,9 @@ export class LanceStorage extends MastraStorage {
       const query = table.query().where(`\`resourceId\` = '${resourceId}'`);
 
       const records = await query.toArray();
-      return this.processResultWithTypeConversion(
+      return processResultWithTypeConversion(
         records,
-        await this.getTableSchema(TABLE_THREADS),
+        await getTableSchema({ tableName: TABLE_THREADS, client: this.lanceClient }),
       ) as StorageThreadType[];
     } catch (error: any) {
       throw new MastraError(
@@ -810,9 +277,9 @@ export class LanceStorage extends MastraStorage {
       const query = table.query().where(`id = '${id}'`);
 
       const records = await query.toArray();
-      return this.processResultWithTypeConversion(
+      return processResultWithTypeConversion(
         records[0],
-        await this.getTableSchema(TABLE_THREADS),
+        await getTableSchema({ tableName: TABLE_THREADS, client: this.lanceClient }),
       ) as StorageThreadType;
     } catch (error: any) {
       throw new MastraError(
@@ -970,18 +437,18 @@ export class LanceStorage extends MastraStorage {
         records = records.slice(-limit);
       }
 
-      const messages = this.processResultWithTypeConversion(records, await this.getTableSchema(TABLE_MESSAGES));
+      const messages = processResultWithTypeConversion(records, await getTableSchema({ tableName: TABLE_MESSAGES, client: this.lanceClient }));
       const normalized = messages.map((msg: MastraMessageV2 | MastraMessageV1) => ({
         ...msg,
         content:
           typeof msg.content === 'string'
             ? (() => {
-                try {
-                  return JSON.parse(msg.content);
-                } catch {
-                  return msg.content;
-                }
-              })()
+              try {
+                return JSON.parse(msg.content);
+              } catch {
+                return msg.content;
+              }
+            })()
             : msg.content,
       }));
       const list = new MessageList({ threadId, resourceId }).add(normalized, 'memory');
@@ -1070,7 +537,7 @@ export class LanceStorage extends MastraStorage {
       const table = await this.lanceClient.openTable(TABLE_TRACES);
       const query = table.query().where(`id = '${traceId}'`);
       const records = await query.toArray();
-      return this.processResultWithTypeConversion(records[0], await this.getTableSchema(TABLE_TRACES)) as TraceType;
+      return processResultWithTypeConversion(records[0], await getTableSchema({ tableName: TABLE_TRACES, client: this.lanceClient })) as TraceType;
     } catch (error: any) {
       throw new MastraError(
         {
@@ -1438,10 +905,10 @@ export class LanceStorage extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+    {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in LanceStore');
     throw new Error('Method not implemented');

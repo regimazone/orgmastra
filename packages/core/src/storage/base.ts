@@ -183,7 +183,7 @@ export abstract class MastraStorage extends MastraBase {
     return this.batchInsert({ tableName: TABLE_TRACES, records });
   }
 
-  abstract load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
+  abstract load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<R | null>;
 
   abstract getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null>;
 

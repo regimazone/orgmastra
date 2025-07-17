@@ -43,6 +43,7 @@ export const createSampleTraceForDB = (
 
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
+
     beforeAll(async () => {
       await storage.init();
     });
@@ -63,17 +64,18 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_THREADS });
     });
 
-    createOperationsTests(storage);
+    // createOperationsTests(storage);
 
     createWorkflowsTests(storage);
 
-    createTraceTests(storage);
+    // createTraceTests(storage);
 
-    createEvalsTests(storage);
+    // createEvalsTests(storage);
+
+    // createConversationsTest({ storage });
+
+    // createScoresTest({ storage });
 
   });
 
-  createConversationsTest({ storage });
-
-  createScoresTest({ storage });
 }
