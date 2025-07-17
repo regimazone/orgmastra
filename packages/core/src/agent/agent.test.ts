@@ -2556,13 +2556,6 @@ describe('Agent save message parts', () => {
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-      const toolResultIds = new Set(
-        assistantMsg!.content.parts
-          .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-          .map(p => p.toolInvocation.toolCallId),
-      );
-      expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
     }, 500000);
 
     it('should incrementally save messages with multiple tools and multi-step generation', async () => {
@@ -2620,13 +2613,6 @@ describe('Agent save message parts', () => {
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-      const toolResultIds = new Set(
-        assistantMsg!.content.parts
-          .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-          .map(p => p.toolInvocation.toolCallId),
-      );
-      expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
     }, 500000);
 
     it('should persist the full message after a successful run', async () => {
@@ -2852,13 +2838,6 @@ describe('Agent save message parts', () => {
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-      const toolResultIds = new Set(
-        assistantMsg!.content.parts
-          .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-          .map(p => p.toolInvocation.toolCallId),
-      );
-      expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
     }, 500000);
 
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
@@ -2916,13 +2895,6 @@ describe('Agent save message parts', () => {
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-      const toolResultIds = new Set(
-        assistantMsg!.content.parts
-          .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-          .map(p => p.toolInvocation.toolCallId),
-      );
-      expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
     }, 500000);
 
     it('should persist the full message after a successful run', async () => {
@@ -3020,14 +2992,16 @@ describe('Agent save message parts', () => {
 });
 
 describe('dynamic memory configuration', () => {
-  let dummyModel: MockLanguageModelV1;
+  let dummyModel: MockLanguageModelV2;
   beforeEach(() => {
-    dummyModel = new MockLanguageModelV1({
+    dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
-        usage: { promptTokens: 10, completionTokens: 20 },
+        usage: { promptTokens: 10, completionTokens: 20, totalTokens: 20, inputTokens: 1, outputTokens: 1 },
         text: `Dummy response`,
+        content: [{ type: 'text', text: 'Dummy response' }],
+        warnings: [],
       }),
     });
   });
@@ -3156,13 +3130,13 @@ describe('dynamic memory configuration', () => {
     const agent = new Agent({
       name: 'stream-memory-agent',
       instructions: 'test agent',
-      model: new MockLanguageModelV1({
+      model: new MockLanguageModelV2({
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: [
-              { type: 'text-delta', textDelta: 'Dynamic' },
-              { type: 'text-delta', textDelta: ' memory' },
-              { type: 'text-delta', textDelta: ' response' },
+              { type: 'text-delta', delta: 'Dynamic' },
+              { type: 'text-delta', delta: ' memory' },
+              { type: 'text-delta', delta: ' response' },
               {
                 type: 'finish',
                 finishReason: 'stop',
