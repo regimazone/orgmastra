@@ -1,5 +1,5 @@
 import { useParams } from 'react-router';
-import { TracesView, TracesViewSkeleton } from '@mastra/playground-ui';
+import { TracesView } from '@mastra/playground-ui';
 import { useLegacyWorkflow } from '@/hooks/use-workflows';
 import { useTraces } from '@/domains/traces/hooks/use-traces';
 
@@ -13,10 +13,6 @@ function WorkflowTracesPage() {
     setEndOfListElement,
     error,
   } = useTraces(legacyWorkflow?.name || '', true);
-
-  if (isWorkflowLoading) {
-    return <TracesViewSkeleton />;
-  }
 
   return (
     <TracesView
