@@ -10,7 +10,7 @@ import {
   TABLE_RESOURCES,
   TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
-  TABLE_TRACES,
+  serializeDate,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -24,10 +24,13 @@ import type {
   PaginationArgs,
   StorageGetTracesArg,
   StoragePagination,
+  StorageDomains,
 } from '@mastra/core/storage';
 
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { Redis } from '@upstash/redis';
+import { StoreOperationsUpstash } from './domains/operations';
+import { TracesUpstash } from './domains/traces';
 
 export interface UpstashConfig {
   url: string;
@@ -36,6 +39,7 @@ export interface UpstashConfig {
 
 export class UpstashStore extends MastraStorage {
   private redis: Redis;
+  stores: StorageDomains;
 
   constructor(config: UpstashConfig) {
     super({ name: 'Upstash' });
@@ -43,15 +47,25 @@ export class UpstashStore extends MastraStorage {
       url: config.url,
       token: config.token,
     });
+
+    const operations = new StoreOperationsUpstash({ redis: this.redis });
+    const traces = new TracesUpstash({ redis: this.redis, operations });
+
+    this.stores = {
+      operations,
+      traces,
+    } as unknown as StorageDomains;
   }
 
   public get supports(): {
     selectByIncludeResourceScope: boolean;
     resourceWorkingMemory: boolean;
+    hasColumn: boolean;
   } {
     return {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
+      hasColumn: false,
     };
   }
 
@@ -94,17 +108,6 @@ export class UpstashStore extends MastraStorage {
     };
   }
 
-  private parseJSON(value: any): any {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    }
-    return value;
-  }
-
   private getKey(tableName: TABLE_NAMES, keys: Record<string, any>): string {
     const keyParts = Object.entries(keys)
       .filter(([_, value]) => value !== undefined)
@@ -115,7 +118,7 @@ export class UpstashStore extends MastraStorage {
   /**
    * Scans for keys matching the given pattern using SCAN and returns them as an array.
    * @param pattern Redis key pattern, e.g. "table:*"
-   * @param batchSize Number of keys to scan per batch (default: 1000)
+   * @param batchSize Number of keys to scan per batch (default: 10000)
    */
   private async scanKeys(pattern: string, batchSize = 10000): Promise<string[]> {
     let cursor = '0';
@@ -135,7 +138,7 @@ export class UpstashStore extends MastraStorage {
   /**
    * Deletes all keys matching the given pattern using SCAN and DEL in batches.
    * @param pattern Redis key pattern, e.g. "table:*"
-   * @param batchSize Number of keys to delete per batch (default: 1000)
+   * @param batchSize Number of keys to delete per batch (default: 10000)
    */
   private async scanAndDelete(pattern: string, batchSize = 10000): Promise<number> {
     let cursor = '0';
@@ -206,8 +209,8 @@ export class UpstashStore extends MastraStorage {
     // Convert dates to ISO strings before storing
     const processedRecord = {
       ...record,
-      createdAt: this.serializeDate(record.createdAt),
-      updatedAt: this.serializeDate(record.updatedAt),
+      createdAt: serializeDate(record.createdAt),
+      updatedAt: serializeDate(record.updatedAt),
     };
 
     return { key, processedRecord };
@@ -297,25 +300,7 @@ export class UpstashStore extends MastraStorage {
    * @deprecated use getTracesPaginated instead
    */
   public async getTraces(args: StorageGetTracesArg): Promise<any[]> {
-    if (args.fromDate || args.toDate) {
-      (args as any).dateRange = {
-        start: args.fromDate,
-        end: args.toDate,
-      };
-    }
-    try {
-      const { traces } = await this.getTracesPaginated(args);
-      return traces;
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_GET_TRACES_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.traces.getTraces(args);
   }
 
   public async getTracesPaginated(
@@ -326,119 +311,11 @@ export class UpstashStore extends MastraStorage {
       filters?: Record<string, any>;
     } & PaginationArgs,
   ): Promise<PaginationInfo & { traces: any[] }> {
-    const { name, scope, page = 0, perPage = 100, attributes, filters, dateRange } = args;
-    const fromDate = dateRange?.start;
-    const toDate = dateRange?.end;
+    return this.stores.traces.getTracesPaginated(args);
+  }
 
-    try {
-      const pattern = `${TABLE_TRACES}:*`;
-      const keys = await this.scanKeys(pattern);
-
-      if (keys.length === 0) {
-        return {
-          traces: [],
-          total: 0,
-          page,
-          perPage: perPage || 100,
-          hasMore: false,
-        };
-      }
-
-      const pipeline = this.redis.pipeline();
-      keys.forEach(key => pipeline.get(key));
-      const results = await pipeline.exec();
-
-      let filteredTraces = results.filter(
-        (record): record is Record<string, any> => record !== null && typeof record === 'object',
-      );
-
-      if (name) {
-        filteredTraces = filteredTraces.filter(record => record.name?.toLowerCase().startsWith(name.toLowerCase()));
-      }
-      if (scope) {
-        filteredTraces = filteredTraces.filter(record => record.scope === scope);
-      }
-      if (attributes) {
-        filteredTraces = filteredTraces.filter(record => {
-          const recordAttributes = record.attributes;
-          if (!recordAttributes) return false;
-          const parsedAttributes =
-            typeof recordAttributes === 'string' ? JSON.parse(recordAttributes) : recordAttributes;
-          return Object.entries(attributes).every(([key, value]) => parsedAttributes[key] === value);
-        });
-      }
-      if (filters) {
-        filteredTraces = filteredTraces.filter(record =>
-          Object.entries(filters).every(([key, value]) => record[key] === value),
-        );
-      }
-      if (fromDate) {
-        filteredTraces = filteredTraces.filter(
-          record => new Date(record.createdAt).getTime() >= new Date(fromDate).getTime(),
-        );
-      }
-      if (toDate) {
-        filteredTraces = filteredTraces.filter(
-          record => new Date(record.createdAt).getTime() <= new Date(toDate).getTime(),
-        );
-      }
-
-      filteredTraces.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      const transformedTraces = filteredTraces.map(record => ({
-        id: record.id,
-        parentSpanId: record.parentSpanId,
-        traceId: record.traceId,
-        name: record.name,
-        scope: record.scope,
-        kind: record.kind,
-        status: this.parseJSON(record.status),
-        events: this.parseJSON(record.events),
-        links: this.parseJSON(record.links),
-        attributes: this.parseJSON(record.attributes),
-        startTime: record.startTime,
-        endTime: record.endTime,
-        other: this.parseJSON(record.other),
-        createdAt: this.ensureDate(record.createdAt),
-      }));
-
-      const total = transformedTraces.length;
-      const resolvedPerPage = perPage || 100;
-      const start = page * resolvedPerPage;
-      const end = start + resolvedPerPage;
-      const paginatedTraces = transformedTraces.slice(start, end);
-      const hasMore = end < total;
-
-      return {
-        traces: paginatedTraces,
-        total,
-        page,
-        perPage: resolvedPerPage,
-        hasMore,
-      };
-    } catch (error) {
-      const mastraError = new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_GET_TRACES_PAGINATED_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            name: args.name || '',
-            scope: args.scope || '',
-          },
-        },
-        error,
-      );
-      this.logger?.trackException(mastraError);
-      this.logger.error(mastraError.toString());
-      return {
-        traces: [],
-        total: 0,
-        page,
-        perPage: perPage || 100,
-        hasMore: false,
-      };
-    }
+  async batchTraceInsert(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.stores.traces.batchTraceInsert(args);
   }
 
   async createTable({
@@ -448,23 +325,7 @@ export class UpstashStore extends MastraStorage {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
   }): Promise<void> {
-    // Redis is schemaless, so we don't need to create tables
-    // But we can store the schema for reference
-    try {
-      await this.redis.set(`schema:${tableName}`, schema);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_CREATE_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.createTable({ tableName, schema });
   }
 
   /**
@@ -473,101 +334,32 @@ export class UpstashStore extends MastraStorage {
    * @param schema Schema of the table
    * @param ifNotExists Array of column names to add if they don't exist
    */
-  async alterTable(_args: {
+  async alterTable(args: {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
     ifNotExists: string[];
   }): Promise<void> {
-    // Nothing to do here, Redis is schemaless
+    return this.stores.operations.alterTable(args);
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    const pattern = `${tableName}:*`;
-    try {
-      await this.scanAndDelete(pattern);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_CLEAR_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.clearTable({ tableName });
+  }
+
+  async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    return this.stores.operations.dropTable({ tableName });
   }
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    const { key, processedRecord } = this.processRecord(tableName, record);
-
-    try {
-      await this.redis.set(key, processedRecord);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.insert({ tableName, record });
   }
 
   async batchInsert(input: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    const { tableName, records } = input;
-    if (!records.length) return;
-
-    const batchSize = 1000;
-    try {
-      for (let i = 0; i < records.length; i += batchSize) {
-        const batch = records.slice(i, i + batchSize);
-        const pipeline = this.redis.pipeline();
-        for (const record of batch) {
-          const { key, processedRecord } = this.processRecord(tableName, record);
-          pipeline.set(key, processedRecord);
-        }
-        await pipeline.exec();
-      }
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_BATCH_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.batchInsert(input);
   }
 
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    const key = this.getKey(tableName, keys);
-    try {
-      const data = await this.redis.get<R>(key);
-      return data || null;
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_LOAD_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            tableName,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.load<R>({ tableName, keys });
   }
 
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
@@ -839,10 +631,22 @@ export class UpstashStore extends MastraStorage {
     }
 
     // Add an index to each message to maintain order
-    const messagesWithIndex = messages.map((message, index) => ({
-      ...message,
-      _index: index,
-    }));
+    const messagesWithIndex = messages.map((message, index) => {
+      if (!message.threadId) {
+        throw new Error(
+          `Expected to find a threadId for message, but couldn't find one. An unexpected error has occurred.`,
+        );
+      }
+      if (!message.resourceId) {
+        throw new Error(
+          `Expected to find a resourceId for message, but couldn't find one. An unexpected error has occurred.`,
+        );
+      }
+      return {
+        ...message,
+        _index: index,
+      };
+    });
 
     // Get current thread data once (all messages belong to same thread)
     const threadKey = this.getKey(TABLE_THREADS, { id: threadId });
@@ -1056,11 +860,15 @@ export class UpstashStore extends MastraStorage {
         // Convert V1 format back to V2 format
         return prepared.map(msg => ({
           ...msg,
+          createdAt: new Date(msg.createdAt),
           content: msg.content || { format: 2, parts: [{ type: 'text', text: '' }] },
         })) as MastraMessageV2[];
       }
 
-      return prepared;
+      return prepared.map(msg => ({
+        ...msg,
+        createdAt: new Date(msg.createdAt),
+      }));
     } catch (error) {
       throw new MastraError(
         {
@@ -1090,9 +898,10 @@ export class UpstashStore extends MastraStorage {
 
     try {
       const includedMessages = await this._getIncludedMessages(threadId, selectBy);
+
       messages.push(...includedMessages);
 
-      const allMessageIds = await this.redis.zrange(threadMessagesKey, 0, -1);
+      const allMessageIds = await this.redis.zrange(threadMessagesKey, args?.selectBy?.last ? -args.selectBy.last : 0, -1);
       if (allMessageIds.length === 0) {
         return {
           messages: [],
@@ -1525,15 +1334,165 @@ export class UpstashStore extends MastraStorage {
     // No explicit cleanup needed for Upstash Redis
   }
 
-  async updateMessages(_args: {
-    messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-      {
-        id: string;
-        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-      }[];
+  async updateMessages(args: {
+    messages: (Partial<Omit<MastraMessageV2, 'createdAt'>> & {
+      id: string;
+      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+    })[]
   }): Promise<MastraMessageV2[]> {
-    this.logger.error('updateMessages is not yet implemented in UpstashStore');
-    throw new Error('Method not implemented');
+    const { messages } = args;
+
+    if (messages.length === 0) {
+      return [];
+    }
+
+    try {
+      // Get all message IDs to update
+      const messageIds = messages.map(m => m.id);
+
+      // Find all existing messages by scanning for their keys
+      const existingMessages: (MastraMessageV2 | MastraMessageV1)[] = [];
+      const messageIdToKey: Record<string, string> = {};
+
+      // Scan for all message keys that match any of the IDs
+      for (const messageId of messageIds) {
+        const pattern = this.getMessageKey('*', messageId);
+        const keys = await this.scanKeys(pattern);
+
+        for (const key of keys) {
+          const message = await this.redis.get<MastraMessageV2 | MastraMessageV1>(key);
+          if (message && message.id === messageId) {
+            existingMessages.push(message);
+            messageIdToKey[messageId] = key;
+            break; // Found the message, no need to continue scanning
+          }
+        }
+      }
+
+      if (existingMessages.length === 0) {
+        return [];
+      }
+
+      const threadIdsToUpdate = new Set<string>();
+      const pipeline = this.redis.pipeline();
+
+      // Process each existing message for updates
+      for (const existingMessage of existingMessages) {
+        const updatePayload = messages.find(m => m.id === existingMessage.id);
+        if (!updatePayload) continue;
+
+        const { id, ...fieldsToUpdate } = updatePayload;
+        if (Object.keys(fieldsToUpdate).length === 0) continue;
+
+        // Track thread IDs that need updating
+        threadIdsToUpdate.add(existingMessage.threadId!);
+        if (updatePayload.threadId && updatePayload.threadId !== existingMessage.threadId) {
+          threadIdsToUpdate.add(updatePayload.threadId);
+        }
+
+        // Create updated message object
+        const updatedMessage = { ...existingMessage };
+
+        // Special handling for the content field to merge instead of overwrite
+        if (fieldsToUpdate.content) {
+          const existingContent = existingMessage.content as MastraMessageContentV2;
+          const newContent = {
+            ...existingContent,
+            ...fieldsToUpdate.content,
+            // Deep merge metadata if it exists on both
+            ...(existingContent?.metadata && fieldsToUpdate.content.metadata
+              ? {
+                metadata: {
+                  ...existingContent.metadata,
+                  ...fieldsToUpdate.content.metadata,
+                },
+              }
+              : {}),
+          };
+          updatedMessage.content = newContent;
+        }
+
+        // Update other fields
+        for (const key in fieldsToUpdate) {
+          if (Object.prototype.hasOwnProperty.call(fieldsToUpdate, key) && key !== 'content') {
+            (updatedMessage as any)[key] = fieldsToUpdate[key as keyof typeof fieldsToUpdate];
+          }
+        }
+
+        // Update the message in Redis
+        const key = messageIdToKey[id];
+        if (key) {
+          // If the message is being moved to a different thread, we need to handle the key change
+          if (updatePayload.threadId && updatePayload.threadId !== existingMessage.threadId) {
+            // Remove from old thread's sorted set
+            const oldThreadMessagesKey = this.getThreadMessagesKey(existingMessage.threadId!);
+            pipeline.zrem(oldThreadMessagesKey, id);
+
+            // Delete the old message key
+            pipeline.del(key);
+
+            // Create new message key with new threadId
+            const newKey = this.getMessageKey(updatePayload.threadId, id);
+            pipeline.set(newKey, updatedMessage);
+
+            // Add to new thread's sorted set
+            const newThreadMessagesKey = this.getThreadMessagesKey(updatePayload.threadId);
+            const score = (updatedMessage as any)._index !== undefined ? (updatedMessage as any)._index : new Date(updatedMessage.createdAt).getTime();
+            pipeline.zadd(newThreadMessagesKey, { score, member: id });
+          } else {
+            // No thread change, just update the existing key
+            pipeline.set(key, updatedMessage);
+          }
+        }
+      }
+
+      // Update thread timestamps
+      const now = new Date();
+      for (const threadId of threadIdsToUpdate) {
+        if (threadId) {
+          const threadKey = this.getKey(TABLE_THREADS, { id: threadId });
+          const existingThread = await this.redis.get<StorageThreadType>(threadKey);
+          if (existingThread) {
+            const updatedThread = {
+              ...existingThread,
+              updatedAt: now,
+            };
+            pipeline.set(threadKey, this.processRecord(TABLE_THREADS, updatedThread).processedRecord);
+          }
+        }
+      }
+
+      // Execute all updates
+      await pipeline.exec();
+
+      // Return the updated messages
+      const updatedMessages: MastraMessageV2[] = [];
+      for (const messageId of messageIds) {
+        const key = messageIdToKey[messageId];
+        if (key) {
+          const updatedMessage = await this.redis.get<MastraMessageV2 | MastraMessageV1>(key);
+          if (updatedMessage) {
+            // Convert to V2 format if needed
+            const v2e = updatedMessage as MastraMessageV2;
+            updatedMessages.push(v2e);
+          }
+        }
+      }
+
+      return updatedMessages;
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_UPSTASH_STORAGE_UPDATE_MESSAGES_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: {
+            messageIds: messages.map(m => m.id).join(','),
+          },
+        },
+        error,
+      );
+    }
   }
 
   async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
@@ -1626,14 +1585,14 @@ export class UpstashStore extends MastraStorage {
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
     throw new Error(
       `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
+      `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
     throw new Error(
       `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
+      `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
 
@@ -1646,7 +1605,7 @@ export class UpstashStore extends MastraStorage {
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     throw new Error(
       `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
+      `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
 
@@ -1661,7 +1620,7 @@ export class UpstashStore extends MastraStorage {
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     throw new Error(
       `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
+      `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
 
@@ -1674,7 +1633,7 @@ export class UpstashStore extends MastraStorage {
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     throw new Error(
       `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
+      `To use scores functionality, implement the required methods in this storage adapter.`,
     );
   }
 }

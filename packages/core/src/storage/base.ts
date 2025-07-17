@@ -43,6 +43,16 @@ export type StorageDomains = {
   traces: TracesStorage;
 }
 
+export function ensureDate(date: Date | string | undefined): Date | undefined {
+  if (!date) return undefined;
+  return date instanceof Date ? date : new Date(date);
+}
+
+export function serializeDate(date: Date | string | undefined): string | undefined {
+  if (!date) return undefined;
+  const dateObj = ensureDate(date);
+  return dateObj?.toISOString();
+}
 export abstract class MastraStorage extends MastraBase {
   /** @deprecated import from { TABLE_WORKFLOW_SNAPSHOT } '@mastra/core/storage' instead */
   static readonly TABLE_WORKFLOW_SNAPSHOT = TABLE_WORKFLOW_SNAPSHOT;
@@ -70,10 +80,12 @@ export abstract class MastraStorage extends MastraBase {
   public get supports(): {
     selectByIncludeResourceScope: boolean;
     resourceWorkingMemory: boolean;
+    hasColumn: boolean;
   } {
     return {
       selectByIncludeResourceScope: false,
       resourceWorkingMemory: false,
+      hasColumn: false,
     };
   }
 

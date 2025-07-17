@@ -1,0 +1,200 @@
+import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
+import { serializeDate, TABLE_EVALS, TABLE_MESSAGES, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
+import type { TABLE_NAMES, StorageColumn } from '@mastra/core/storage';
+import type { Redis } from '@upstash/redis';
+
+export interface StoreOperationsUpstash {
+    createTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
+    alterTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn>; ifNotExists: string[] }): Promise<void>;
+    clearTable(args: { tableName: TABLE_NAMES }): Promise<void>;
+    dropTable(args: { tableName: TABLE_NAMES }): Promise<void>;
+    insert(args: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void>;
+    batchInsert(args: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void>;
+    load<R>(args: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
+    hasColumn(tableName: TABLE_NAMES, column: string): Promise<boolean>;
+    scanKeys(pattern: string, batchSize?: number): Promise<string[]>;
+}
+
+export class StoreOperationsUpstash implements StoreOperationsUpstash {
+    private redis: Redis;
+
+    constructor({ redis }: { redis: Redis }) {
+        this.redis = redis;
+    }
+
+    async createTable({ tableName: _tableName, schema: _schema }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void> {
+        // For Redis/Upstash, tables are created implicitly when data is inserted
+        // This method is a no-op for Redis-based storage
+    }
+
+    async alterTable({ tableName: _tableName, schema: _schema, ifNotExists: _ifNotExists }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn>; ifNotExists: string[] }): Promise<void> {
+        // For Redis/Upstash, schema changes are handled implicitly
+        // This method is a no-op for Redis-based storage
+    }
+
+    async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+        const pattern = `${tableName}:*`;
+        try {
+            await this.scanAndDelete(pattern);
+        } catch (error) {
+            throw new MastraError(
+                {
+                    id: 'STORAGE_UPSTASH_STORAGE_CLEAR_TABLE_FAILED',
+                    domain: ErrorDomain.STORAGE,
+                    category: ErrorCategory.THIRD_PARTY,
+                    details: {
+                        tableName,
+                    },
+                },
+                error,
+            );
+        }
+    }
+
+    async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+        return this.clearTable({ tableName });
+    }
+
+    private processRecord(tableName: TABLE_NAMES, record: Record<string, any>) {
+        let key: string;
+
+        if (tableName === TABLE_MESSAGES) {
+            // For messages, use threadId as the primary key component
+            key = this.getKey(tableName, { threadId: record.threadId, id: record.id });
+        } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
+            key = this.getKey(tableName, {
+                namespace: record.namespace || 'workflows',
+                workflow_name: record.workflow_name,
+                run_id: record.run_id,
+                ...(record.resourceId ? { resourceId: record.resourceId } : {}),
+            });
+        } else if (tableName === TABLE_EVALS) {
+            key = this.getKey(tableName, { id: record.run_id });
+        } else {
+            key = this.getKey(tableName, { id: record.id });
+        }
+
+        // Convert dates to ISO strings before storing
+        const processedRecord = {
+            ...record,
+            createdAt: serializeDate(record.createdAt),
+            updatedAt: serializeDate(record.updatedAt),
+        };
+
+        return { key, processedRecord };
+    }
+
+    async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+        const { key, processedRecord } = this.processRecord(tableName, record);
+
+        try {
+            await this.redis.set(key, processedRecord);
+        } catch (error) {
+            throw new MastraError(
+                {
+                    id: 'STORAGE_UPSTASH_STORAGE_INSERT_FAILED',
+                    domain: ErrorDomain.STORAGE,
+                    category: ErrorCategory.THIRD_PARTY,
+                    details: {
+                        tableName,
+                    },
+                },
+                error,
+            );
+        }
+    }
+
+    async batchInsert(input: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+        const { tableName, records } = input;
+        if (!records.length) return;
+
+        const batchSize = 1000;
+        try {
+            for (let i = 0; i < records.length; i += batchSize) {
+                const batch = records.slice(i, i + batchSize);
+                const pipeline = this.redis.pipeline();
+                for (const record of batch) {
+                    const { key, processedRecord } = this.processRecord(tableName, record);
+                    pipeline.set(key, processedRecord);
+                }
+                await pipeline.exec();
+            }
+        } catch (error) {
+            throw new MastraError(
+                {
+                    id: 'STORAGE_UPSTASH_STORAGE_BATCH_INSERT_FAILED',
+                    domain: ErrorDomain.STORAGE,
+                    category: ErrorCategory.THIRD_PARTY,
+                    details: {
+                        tableName,
+                    },
+                },
+                error,
+            );
+        }
+    }
+
+    async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
+        const key = this.getKey(tableName, keys);
+        try {
+            const data = await this.redis.get<R>(key);
+            return data || null;
+        } catch (error) {
+            throw new MastraError(
+                {
+                    id: 'STORAGE_UPSTASH_STORAGE_LOAD_FAILED',
+                    domain: ErrorDomain.STORAGE,
+                    category: ErrorCategory.THIRD_PARTY,
+                    details: {
+                        tableName,
+                    },
+                },
+                error,
+            );
+        }
+    }
+
+    async hasColumn(_tableName: TABLE_NAMES, _column: string): Promise<boolean> {
+        // For Redis/Upstash, columns are dynamic and always available
+        // This method always returns true for Redis-based storage
+        return true;
+    }
+
+    async scanKeys(pattern: string, batchSize = 10000): Promise<string[]> {
+        let cursor = '0';
+        let keys: string[] = [];
+        do {
+            const [nextCursor, batch] = await this.redis.scan(cursor, {
+                match: pattern,
+                count: batchSize,
+            });
+            keys.push(...batch);
+            cursor = nextCursor;
+        } while (cursor !== '0');
+        return keys;
+    }
+
+    private getKey(tableName: TABLE_NAMES, keys: Record<string, any>): string {
+        const keyParts = Object.entries(keys)
+            .filter(([_, value]) => value !== undefined)
+            .map(([key, value]) => `${key}:${value}`);
+        return `${tableName}:${keyParts.join(':')}`;
+    }
+
+    private async scanAndDelete(pattern: string, batchSize = 10000): Promise<number> {
+        let cursor = '0';
+        let totalDeleted = 0;
+        do {
+            const [nextCursor, keys] = await this.redis.scan(cursor, {
+                match: pattern,
+                count: batchSize,
+            });
+            if (keys.length > 0) {
+                await this.redis.del(...keys);
+                totalDeleted += keys.length;
+            }
+            cursor = nextCursor;
+        } while (cursor !== '0');
+        return totalDeleted;
+    }
+} 

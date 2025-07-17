@@ -118,13 +118,11 @@ export class LibSQLStore extends MastraStorage {
     };
   }
 
-  public get supports(): {
-    selectByIncludeResourceScope: boolean;
-    resourceWorkingMemory: boolean;
-  } {
+  public get supports() {
     return {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
+      hasColumn: true,
     };
   }
 
