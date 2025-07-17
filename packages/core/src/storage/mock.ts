@@ -3,16 +3,25 @@ import type { MastraMessageV2 } from '../agent';
 import type { ScoreRowData } from '../eval';
 import type { MastraMessageV1, StorageThreadType } from '../memory/types';
 import type { Trace } from '../telemetry';
+import type { WorkflowRunState } from '../workflows';
 import { MastraStorage } from './base';
 import type { TABLE_NAMES } from './constants';
 import { StoreOperationsInMemory } from './domains/operations/inmemory';
 import { ScoresInMemory } from './domains/scores/inmemory';
 import type { InMemoryScores } from './domains/scores/inmemory';
+import { TracesInMemory } from './domains/traces/inmemory';
+import type { InMemoryTraces } from './domains/traces/inmemory';
+import { WorkflowsInMemory } from './domains/workflows';
+import type { InMemoryWorkflows } from './domains/workflows/inmemory';
+
 import type {
   EvalRow,
+  PaginationArgs,
   PaginationInfo,
   StorageColumn,
   StorageGetMessagesArg,
+  StorageGetTracesArg,
+  StorageGetTracesPaginatedArg,
   StoragePagination,
   StorageResourceType,
   WorkflowRun,
@@ -22,6 +31,8 @@ import type {
 export class MockStore extends MastraStorage {
   scoresStorage: ScoresInMemory;
   operationsStorage: StoreOperationsInMemory;
+  workflowsStorage: WorkflowsInMemory;
+  tracesStorage: TracesInMemory;
 
   constructor() {
     super({ name: 'InMemoryStorage' });
@@ -36,6 +47,16 @@ export class MockStore extends MastraStorage {
       collection: database.mastra_scorers as InMemoryScores,
     });
 
+    this.workflowsStorage = new WorkflowsInMemory({
+      collection: database.mastra_workflow_snapshot as InMemoryWorkflows,
+      operations: operationsStorage,
+    });
+
+    this.tracesStorage = new TracesInMemory({
+      collection: database.mastra_traces as InMemoryTraces,
+      operations: operationsStorage,
+    });
+
     this.operationsStorage = operationsStorage;
   }
 
@@ -48,6 +69,28 @@ export class MockStore extends MastraStorage {
     mastra_resources: {},
     mastra_scorers: {},
   };
+
+  async persistWorkflowSnapshot({
+    workflowName,
+    runId,
+    snapshot,
+  }: {
+    workflowName: string;
+    runId: string;
+    snapshot: WorkflowRunState;
+  }): Promise<void> {
+    await this.workflowsStorage.persistWorkflowSnapshot({ workflowName, runId, snapshot });
+  }
+
+  async loadWorkflowSnapshot({
+    workflowName,
+    runId,
+  }: {
+    workflowName: string;
+    runId: string;
+  }): Promise<WorkflowRunState | null> {
+    return this.workflowsStorage.loadWorkflowSnapshot({ workflowName, runId });
+  }
 
   async createTable({
     tableName,
@@ -247,28 +290,15 @@ export class MockStore extends MastraStorage {
     fromDate?: Date;
     toDate?: Date;
   }): Promise<any[]> {
-    this.logger.debug(`MockStore: getTraces called`);
-    // Mock implementation - basic filtering
-    let traces = Object.values(this.data.mastra_traces);
+    return this.tracesStorage.getTraces({ name, scope, page, perPage, attributes, filters, fromDate, toDate });
+  }
 
-    if (name) traces = traces.filter((t: any) => t.name?.startsWith(name));
-    if (scope) traces = traces.filter((t: any) => t.scope === scope);
-    if (attributes) {
-      traces = traces.filter((t: any) =>
-        Object.entries(attributes).every(([key, value]) => t.attributes?.[key] === value),
-      );
-    }
-    if (filters) {
-      traces = traces.filter((t: any) => Object.entries(filters).every(([key, value]) => t[key] === value));
-    }
-    if (fromDate) traces = traces.filter((t: any) => new Date(t.createdAt) >= fromDate);
-    if (toDate) traces = traces.filter((t: any) => new Date(t.createdAt) <= toDate);
+  async getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }> {
+    return this.tracesStorage.getTracesPaginated(args);
+  }
 
-    // Apply pagination and sort
-    traces.sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    const start = page * perPage;
-    const end = start + perPage;
-    return traces.slice(start, end);
+  async batchTraceInsert(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.tracesStorage.batchTraceInsert(args);
   }
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
@@ -311,6 +341,49 @@ export class MockStore extends MastraStorage {
     return this.scoresStorage.getScoresByEntityId({ entityId, entityType, pagination });
   }
 
+  async getEvals(options: { agentName?: string; type?: 'test' | 'live' } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[] }> {
+    this.logger.debug(`MockStore: getEvals called`, options);
+
+    let evals = Object.values(this.data.mastra_evals) as EvalRow[];
+
+    // Filter by agentName if provided
+    if (options.agentName) {
+      evals = evals.filter((evalR) => evalR.agentName === options.agentName);
+    }
+
+    // Filter by type if provided
+    if (options.type === 'test') {
+      evals = evals.filter((evalR) => evalR.testInfo && evalR.testInfo.testPath);
+    } else if (options.type === 'live') {
+      evals = evals.filter((evalR) => !evalR.testInfo || !evalR.testInfo.testPath);
+    }
+
+    // Filter by date range if provided
+    if (options.dateRange?.start) {
+      evals = evals.filter((evalR) => new Date(evalR.createdAt) >= options.dateRange!.start!);
+    }
+    if (options.dateRange?.end) {
+      evals = evals.filter((evalR) => new Date(evalR.createdAt) <= options.dateRange!.end!);
+    }
+
+    // Sort by createdAt (newest first)
+    evals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const total = evals.length;
+    const page = options.page || 0;
+    const perPage = options.perPage || 100;
+    const start = page * perPage;
+    const end = start + perPage;
+
+    return {
+      evals: evals.slice(start, end),
+      total,
+      page,
+      perPage,
+      hasMore: total > end,
+    };
+  }
+
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     this.logger.debug(`MockStore: getEvalsByAgentName called for ${agentName}`);
     // Mock implementation - filter evals by agentName and type
@@ -343,37 +416,7 @@ export class MockStore extends MastraStorage {
     offset?: number;
     resourceId?: string;
   } = {}): Promise<WorkflowRuns> {
-    this.logger.debug(`MockStore: getWorkflowRuns called`);
-    let runs = Object.values(this.data.mastra_workflow_snapshot || {});
-
-    if (workflowName) runs = runs.filter((run: any) => run.workflow_name === workflowName);
-    if (fromDate) runs = runs.filter((run: any) => new Date(run.createdAt) >= fromDate);
-    if (toDate) runs = runs.filter((run: any) => new Date(run.createdAt) <= toDate);
-    if (resourceId) runs = runs.filter((run: any) => run.resourceId === resourceId);
-
-    const total = runs.length;
-
-    // Sort by createdAt
-    runs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    // Apply pagination
-    if (limit !== undefined && offset !== undefined) {
-      const start = offset;
-      const end = start + limit;
-      runs = runs.slice(start, end);
-    }
-
-    // Deserialize snapshot if it's a string
-    const parsedRuns = runs.map((run: any) => ({
-      ...run,
-      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : { ...run.snapshot },
-      createdAt: new Date(run.createdAt),
-      updatedAt: new Date(run.updatedAt),
-      runId: run.run_id,
-      workflowName: run.workflow_name,
-    }));
-
-    return { runs: parsedRuns as WorkflowRun[], total };
+    return this.workflowsStorage.getWorkflowRuns({ workflowName, fromDate, toDate, limit, offset, resourceId });
   }
 
   async getWorkflowRunById({
@@ -383,71 +426,10 @@ export class MockStore extends MastraStorage {
     runId: string;
     workflowName?: string;
   }): Promise<WorkflowRun | null> {
-    this.logger.debug(`MockStore: getWorkflowRunById called for runId ${runId}`);
-    let run = Object.values(this.data.mastra_workflow_snapshot || {}).find((r: any) => r.run_id === runId);
-
-    if (run && workflowName && run.workflow_name !== workflowName) {
-      run = undefined; // Not found if workflowName doesn't match
-    }
-
-    if (!run) return null;
-
-    // Deserialize snapshot if it's a string
-    const parsedRun = {
-      ...run,
-      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : run.snapshot,
-      createdAt: new Date(run.createdAt),
-      updatedAt: new Date(run.updatedAt),
-      runId: run.run_id,
-      workflowName: run.workflow_name,
-    };
-
-    return parsedRun as WorkflowRun;
+    return this.workflowsStorage.getWorkflowRunById({ runId, workflowName });
   }
 
-  async getTracesPaginated({
-    name,
-    scope,
-    attributes,
-    page,
-    perPage,
-    fromDate,
-    toDate,
-  }: {
-    name?: string;
-    scope?: string;
-    attributes?: Record<string, string>;
-    page: number;
-    perPage: number;
-    fromDate?: Date;
-    toDate?: Date;
-  }): Promise<PaginationInfo & { traces: Trace[] }> {
-    this.logger.debug(`MockStore: getTracesPaginated called`);
-    // Mock implementation - basic filtering
-    let traces = Object.values(this.data.mastra_traces);
 
-    if (name) traces = traces.filter((t: any) => t.name?.startsWith(name));
-    if (scope) traces = traces.filter((t: any) => t.scope === scope);
-    if (attributes) {
-      traces = traces.filter((t: any) =>
-        Object.entries(attributes).every(([key, value]) => t.attributes?.[key] === value),
-      );
-    }
-    if (fromDate) traces = traces.filter((t: any) => new Date(t.createdAt) >= fromDate);
-    if (toDate) traces = traces.filter((t: any) => new Date(t.createdAt) <= toDate);
-
-    // Apply pagination and sort
-    traces.sort((a: any, b: any) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    const start = page * perPage;
-    const end = start + perPage;
-    return {
-      traces: traces.slice(start, end),
-      total: traces.length,
-      page,
-      perPage,
-      hasMore: traces.length > end,
-    };
-  }
 
   async getThreadsByResourceIdPaginated(args: {
     resourceId: string;

@@ -10,6 +10,8 @@ export abstract class StoreOperations extends MastraBase {
     });
   }
 
+  abstract hasColumn(table: string, column: string): Promise<boolean>;
+
   protected getSqlType(type: StorageColumn['type']): string {
     switch (type) {
       case 'text':
@@ -47,6 +49,8 @@ export abstract class StoreOperations extends MastraBase {
   abstract createTable({ tableName }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
 
   abstract clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void>;
+
+  abstract dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void>;
 
   abstract alterTable(args: {
     tableName: TABLE_NAMES;

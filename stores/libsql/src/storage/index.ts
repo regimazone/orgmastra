@@ -10,9 +10,8 @@ import {
   TABLE_EVALS,
   TABLE_MESSAGES,
   TABLE_THREADS,
-  TABLE_TRACES,
   TABLE_RESOURCES,
-  TABLE_WORKFLOW_SNAPSHOT,
+
 } from '@mastra/core/storage';
 import type {
   EvalRow,
@@ -25,6 +24,7 @@ import type {
   WorkflowRun,
   WorkflowRuns,
   StoragePagination,
+  StorageGetTracesArg,
 } from '@mastra/core/storage';
 
 import type { Trace } from '@mastra/core/telemetry';
@@ -32,14 +32,8 @@ import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { StoreOperationsLibSQL } from './domains/operations';
 import { ScoresLibSQL } from './domains/scores';
-
-function safelyParseJSON(jsonString: string): any {
-  try {
-    return JSON.parse(jsonString);
-  } catch {
-    return {};
-  }
-}
+import { TracesLibSQL } from './domains/traces';
+import { WorkflowsLibSQL } from './domains/workflows';
 
 export type LibSQLConfig =
   | {
@@ -66,6 +60,8 @@ export type LibSQLConfig =
 type StorageDomains = {
   operations: StoreOperationsLibSQL;
   scores: ScoresLibSQL;
+  traces: TracesLibSQL;
+  workflows: WorkflowsLibSQL;
 };
 
 export class LibSQLStore extends MastraStorage {
@@ -73,7 +69,7 @@ export class LibSQLStore extends MastraStorage {
   private readonly maxRetries: number;
   private readonly initialBackoffMs: number;
 
-  private stores: StorageDomains;
+  stores: StorageDomains;
 
   constructor(config: LibSQLConfig) {
     super({ name: `LibSQLStore` });
@@ -111,10 +107,14 @@ export class LibSQLStore extends MastraStorage {
     });
 
     const scores = new ScoresLibSQL({ client: this.client, operations });
+    const traces = new TracesLibSQL({ client: this.client, operations });
+    const workflows = new WorkflowsLibSQL({ client: this.client, operations });
 
     this.stores = {
       operations,
       scores,
+      traces,
+      workflows,
     };
   }
 
@@ -162,59 +162,6 @@ export class LibSQLStore extends MastraStorage {
 
   async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
     await this.stores.operations.dropTable({ tableName });
-  }
-
-  private prepareStatement({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): {
-    sql: string;
-    args: InValue[];
-  } {
-    const parsedTableName = parseSqlIdentifier(tableName, 'table name');
-    const columns = Object.keys(record).map(col => parseSqlIdentifier(col, 'column name'));
-    const values = Object.values(record).map(v => {
-      if (typeof v === `undefined`) {
-        // returning an undefined value will cause libsql to throw
-        return null;
-      }
-      if (v instanceof Date) {
-        return v.toISOString();
-      }
-      return typeof v === 'object' ? JSON.stringify(v) : v;
-    });
-    const placeholders = values.map(() => '?').join(', ');
-
-    return {
-      sql: `INSERT OR REPLACE INTO ${parsedTableName} (${columns.join(', ')}) VALUES (${placeholders})`,
-      args: values,
-    };
-  }
-
-  private async executeWriteOperationWithRetry<T>(
-    operationFn: () => Promise<T>,
-    operationDescription: string,
-  ): Promise<T> {
-    let retries = 0;
-
-    while (true) {
-      try {
-        return await operationFn();
-      } catch (error: any) {
-        if (
-          error.message &&
-          (error.message.includes('SQLITE_BUSY') || error.message.includes('database is locked')) &&
-          retries < this.maxRetries
-        ) {
-          retries++;
-          const backoffTime = this.initialBackoffMs * Math.pow(2, retries - 1);
-          this.logger.warn(
-            `LibSQLStore: Encountered SQLITE_BUSY during ${operationDescription}. Retrying (${retries}/${this.maxRetries}) in ${backoffTime}ms...`,
-          );
-          await new Promise(resolve => setTimeout(resolve, backoffTime));
-        } else {
-          this.logger.error(`LibSQLStore: Error during ${operationDescription} after ${retries} retries: ${error}`);
-          throw error;
-        }
-      }
-    }
   }
 
   public insert(args: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
@@ -1072,146 +1019,48 @@ export class LibSQLStore extends MastraStorage {
   }
 
   /**
+   * TRACES
+   */
+
+  /**
    * @deprecated use getTracesPaginated instead.
    */
-  public async getTraces(args: {
-    name?: string;
-    scope?: string;
-    page: number;
-    perPage: number;
-    attributes?: Record<string, string>;
-    filters?: Record<string, any>;
-    fromDate?: Date;
-    toDate?: Date;
-  }): Promise<Trace[]> {
-    if (args.fromDate || args.toDate) {
-      (args as any).dateRange = {
-        start: args.fromDate,
-        end: args.toDate,
-      };
-    }
-    try {
-      const result = await this.getTracesPaginated(args);
-      return result.traces;
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_TRACES_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+  async getTraces(args: StorageGetTracesArg): Promise<Trace[]> {
+    return this.stores.traces.getTraces(args);
   }
 
-  public async getTracesPaginated(
-    args: {
-      name?: string;
-      scope?: string;
-      attributes?: Record<string, string>;
-      filters?: Record<string, any>;
-    } & PaginationArgs,
-  ): Promise<PaginationInfo & { traces: Trace[] }> {
-    const { name, scope, page = 0, perPage = 100, attributes, filters, dateRange } = args;
-    const fromDate = dateRange?.start;
-    const toDate = dateRange?.end;
-    const currentOffset = page * perPage;
+  async getTracesPaginated(args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[]; }> {
+    return this.stores.traces.getTracesPaginated(args);
+  }
 
-    const queryArgs: InValue[] = [];
-    const conditions: string[] = [];
+  async batchTraceInsert(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.stores.traces.batchTraceInsert(args);
+  }
 
-    if (name) {
-      conditions.push('name LIKE ?');
-      queryArgs.push(`${name}%`);
-    }
-    if (scope) {
-      conditions.push('scope = ?');
-      queryArgs.push(scope);
-    }
-    if (attributes) {
-      Object.entries(attributes).forEach(([key, value]) => {
-        conditions.push(`json_extract(attributes, '$.${key}') = ?`);
-        queryArgs.push(value);
-      });
-    }
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        conditions.push(`${parseSqlIdentifier(key, 'filter key')} = ?`);
-        queryArgs.push(value);
-      });
-    }
-    if (fromDate) {
-      conditions.push('createdAt >= ?');
-      queryArgs.push(fromDate.toISOString());
-    }
-    if (toDate) {
-      conditions.push('createdAt <= ?');
-      queryArgs.push(toDate.toISOString());
-    }
+  /**
+   * WORKFLOWS
+   */
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  async persistWorkflowSnapshot({
+    workflowName,
+    runId,
+    snapshot,
+  }: {
+    workflowName: string;
+    runId: string;
+    snapshot: WorkflowRunState;
+  }): Promise<void> {
+    return this.stores.workflows.persistWorkflowSnapshot({ workflowName, runId, snapshot });
+  }
 
-    try {
-      const countResult = await this.client.execute({
-        sql: `SELECT COUNT(*) as count FROM ${TABLE_TRACES} ${whereClause}`,
-        args: queryArgs,
-      });
-      const total = Number(countResult.rows?.[0]?.count ?? 0);
-
-      if (total === 0) {
-        return {
-          traces: [],
-          total: 0,
-          page,
-          perPage,
-          hasMore: false,
-        };
-      }
-
-      const dataResult = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_TRACES} ${whereClause} ORDER BY "startTime" DESC LIMIT ? OFFSET ?`,
-        args: [...queryArgs, perPage, currentOffset],
-      });
-
-      const traces =
-        dataResult.rows?.map(
-          row =>
-            ({
-              id: row.id,
-              parentSpanId: row.parentSpanId,
-              traceId: row.traceId,
-              name: row.name,
-              scope: row.scope,
-              kind: row.kind,
-              status: safelyParseJSON(row.status as string),
-              events: safelyParseJSON(row.events as string),
-              links: safelyParseJSON(row.links as string),
-              attributes: safelyParseJSON(row.attributes as string),
-              startTime: row.startTime,
-              endTime: row.endTime,
-              other: safelyParseJSON(row.other as string),
-              createdAt: row.createdAt,
-            }) as Trace,
-        ) ?? [];
-
-      return {
-        traces,
-        total,
-        page,
-        perPage,
-        hasMore: currentOffset + traces.length < total,
-      };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_TRACES_PAGINATED_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+  async loadWorkflowSnapshot({
+    workflowName,
+    runId,
+  }: {
+    workflowName: string;
+    runId: string;
+  }): Promise<WorkflowRunState | null> {
+    return this.stores.workflows.loadWorkflowSnapshot({ workflowName, runId });
   }
 
   async getWorkflowRuns({
@@ -1229,67 +1078,7 @@ export class LibSQLStore extends MastraStorage {
     offset?: number;
     resourceId?: string;
   } = {}): Promise<WorkflowRuns> {
-    try {
-      const conditions: string[] = [];
-      const args: InValue[] = [];
-
-      if (workflowName) {
-        conditions.push('workflow_name = ?');
-        args.push(workflowName);
-      }
-
-      if (fromDate) {
-        conditions.push('createdAt >= ?');
-        args.push(fromDate.toISOString());
-      }
-
-      if (toDate) {
-        conditions.push('createdAt <= ?');
-        args.push(toDate.toISOString());
-      }
-
-      if (resourceId) {
-        const hasResourceId = await this.hasColumn(TABLE_WORKFLOW_SNAPSHOT, 'resourceId');
-        if (hasResourceId) {
-          conditions.push('resourceId = ?');
-          args.push(resourceId);
-        } else {
-          console.warn(`[${TABLE_WORKFLOW_SNAPSHOT}] resourceId column not found. Skipping resourceId filter.`);
-        }
-      }
-
-      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-      let total = 0;
-      // Only get total count when using pagination
-      if (limit !== undefined && offset !== undefined) {
-        const countResult = await this.client.execute({
-          sql: `SELECT COUNT(*) as count FROM ${TABLE_WORKFLOW_SNAPSHOT} ${whereClause}`,
-          args,
-        });
-        total = Number(countResult.rows?.[0]?.count ?? 0);
-      }
-
-      // Get results
-      const result = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_WORKFLOW_SNAPSHOT} ${whereClause} ORDER BY createdAt DESC${limit !== undefined && offset !== undefined ? ` LIMIT ? OFFSET ?` : ''}`,
-        args: limit !== undefined && offset !== undefined ? [...args, limit, offset] : args,
-      });
-
-      const runs = (result.rows || []).map(row => this.parseWorkflowRun(row));
-
-      // Use runs.length as total when not paginating
-      return { runs, total: total || runs.length };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_WORKFLOW_RUNS_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.getWorkflowRuns({ workflowName, fromDate, toDate, limit, offset, resourceId });
   }
 
   async getWorkflowRunById({
@@ -1299,42 +1088,7 @@ export class LibSQLStore extends MastraStorage {
     runId: string;
     workflowName?: string;
   }): Promise<WorkflowRun | null> {
-    const conditions: string[] = [];
-    const args: (string | number)[] = [];
-
-    if (runId) {
-      conditions.push('run_id = ?');
-      args.push(runId);
-    }
-
-    if (workflowName) {
-      conditions.push('workflow_name = ?');
-      args.push(workflowName);
-    }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    try {
-      const result = await this.client.execute({
-        sql: `SELECT * FROM ${TABLE_WORKFLOW_SNAPSHOT} ${whereClause}`,
-        args,
-      });
-
-      if (!result.rows?.[0]) {
-        return null;
-      }
-
-      return this.parseWorkflowRun(result.rows[0]);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'LIBSQL_STORE_GET_WORKFLOW_RUN_BY_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.getWorkflowRunById({ runId, workflowName });
   }
 
   async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
@@ -1425,33 +1179,6 @@ export class LibSQLStore extends MastraStorage {
     });
 
     return updatedResource;
-  }
-
-  private async hasColumn(table: string, column: string): Promise<boolean> {
-    const result = await this.client.execute({
-      sql: `PRAGMA table_info(${table})`,
-    });
-    return (await result.rows)?.some((row: any) => row.name === column);
-  }
-
-  private parseWorkflowRun(row: Record<string, any>): WorkflowRun {
-    let parsedSnapshot: WorkflowRunState | string = row.snapshot as string;
-    if (typeof parsedSnapshot === 'string') {
-      try {
-        parsedSnapshot = JSON.parse(row.snapshot as string) as WorkflowRunState;
-      } catch (e) {
-        // If parsing fails, return the raw snapshot string
-        console.warn(`Failed to parse snapshot for workflow ${row.workflow_name}: ${e}`);
-      }
-    }
-    return {
-      workflowName: row.workflow_name as string,
-      runId: row.run_id as string,
-      snapshot: parsedSnapshot,
-      resourceId: row.resourceId as string,
-      createdAt: new Date(row.createdAt as string),
-      updatedAt: new Date(row.updatedAt as string),
-    };
   }
 }
 
