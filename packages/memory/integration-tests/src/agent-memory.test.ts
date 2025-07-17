@@ -82,7 +82,8 @@ describe('Agent Memory Tests', () => {
       );
 
       // Fetch messages from memory
-      const { messages, uiMessages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages, uiMessages } = await agentMemory.query({ threadId });
       const userMessages = messages.filter(m => m.role === 'user').map(m => m.content);
       const userUiMessages = uiMessages
         .filter(m => m.role === 'user')
@@ -111,7 +112,8 @@ describe('Agent Memory Tests', () => {
       });
 
       // Fetch messages from memory
-      const { messages, uiMessages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages, uiMessages } = await agentMemory.query({ threadId });
       const userMessages = messages.filter(m => m.role === 'user').map(m => m.content);
       const userUiMessages = uiMessages
         .filter(m => m.role === 'user')
