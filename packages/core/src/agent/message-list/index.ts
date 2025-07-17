@@ -390,26 +390,30 @@ export class MessageList {
 
       for (const [index, part] of messageV3.content.parts.entries()) {
         // If the incoming part is a tool-invocation result, find the corresponding call in the latest message
-        if (AIV5.isToolUIPart(part) && part.state === 'output-available') {
+        if (AIV5.isToolUIPart(part)) {
           const existingCallPart = [...latestMessage.content.parts]
             .reverse()
             .find(p => AIV5.isToolUIPart(p) && p.toolCallId === part.toolCallId);
 
-          if (existingCallPart && AIV5.isToolUIPart(existingCallPart)) {
-            // Update the existing tool-call part with the result
-            const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
-            if (existingIndex !== -1) {
-              // Create a new tool part with output-available state, preserving the original type and properties
-              const updatedPart = {
-                type: existingCallPart.type,
-                toolCallId: existingCallPart.toolCallId,
-                state: 'output-available' as const,
-                input: existingCallPart.input,
-                output: part.output,
-              };
-              latestMessage.content.parts[existingIndex] = updatedPart;
+          const existingCallToolInvocation = !!existingCallPart && AIV5.isToolUIPart(existingCallPart);
+
+          if (existingCallToolInvocation) {
+            if (existingCallPart.state === 'input-available' && part.state === 'output-available') {
+              // Update the existing tool-call part with the result
+              const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
+              if (existingIndex !== -1) {
+                // Create a new tool part with output-available state, preserving the original type and properties
+                const updatedPart = {
+                  type: existingCallPart.type,
+                  toolCallId: existingCallPart.toolCallId,
+                  state: 'output-available' as const,
+                  input: existingCallPart.input,
+                  output: part.output,
+                };
+                latestMessage.content.parts[existingIndex] = updatedPart;
+              }
+              // Otherwise we do nothing, as we're not updating the tool call
             }
-            // Otherwise we do nothing, as we're not updating the tool call
           } else {
             this.pushNewMessage({
               latestMessage,
