@@ -409,16 +409,20 @@ export class MessageList {
               };
               latestMessage.content.parts[existingIndex] = updatedPart;
             }
+            // Otherwise we do nothing, as we're not updating the tool call
+          } else {
+            this.pushNewMessage({
+              latestMessage,
+              index,
+              part,
+            });
           }
-        } else if (
-          // if there's no part at this index yet in the existing message we're merging into
-          !latestMessage.content.parts[index] ||
-          // or there is and the parts are not identical
-          MessageList.cacheKeyFromAIV5Parts([latestMessage.content.parts[index]]) !==
-            MessageList.cacheKeyFromAIV5Parts([part])
-        ) {
-          // For all other part types that aren't already present, simply push them to the latest message's parts
-          latestMessage.content.parts.push(part);
+        } else {
+          this.pushNewMessage({
+            latestMessage,
+            index,
+            part,
+          });
         }
       }
       if (latestMessage.createdAt.getTime() < messageV3.createdAt.getTime()) {
@@ -456,6 +460,32 @@ export class MessageList {
     this.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     return this;
+  }
+
+  private pushNewMessage({
+    latestMessage,
+    index,
+    part,
+  }: {
+    latestMessage: MastraMessageV3;
+    index: number;
+    part: MastraMessageContentV3['parts'][number];
+  }) {
+    const indexCheck =
+      // if there is no part at the index, or
+      !latestMessage.content.parts[index] ||
+      // or there is and the parts are not identical
+      MessageList.cacheKeyFromAIV5Parts([latestMessage.content.parts[index]]) !==
+        MessageList.cacheKeyFromAIV5Parts([part]);
+
+    // Get the cache key for the part
+    const partKey = MessageList.cacheKeyFromAIV5Parts([part]);
+    // Check if the part already exists in the message
+    const alreadyExists = latestMessage.content.parts.some(p => MessageList.cacheKeyFromAIV5Parts([p]) === partKey);
+    // If the part isn't already present, or is a step-start and the parts are not identical, push it to the message
+    if (!alreadyExists || (part.type === 'step-start' && indexCheck)) {
+      latestMessage.content.parts.push(part);
+    }
   }
 
   private inputToMastraMessageV3(message: MessageInput, messageSource: MessageSource): MastraMessageV3 {
