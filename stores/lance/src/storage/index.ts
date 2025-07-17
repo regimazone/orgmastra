@@ -10,22 +10,22 @@ import {
   TABLE_EVALS,
   TABLE_MESSAGES,
   TABLE_THREADS,
-  TABLE_TRACES,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
   PaginationInfo,
   StorageGetMessagesArg,
-  StorageGetTracesArg,
   StorageColumn,
   EvalRow,
   WorkflowRuns,
   StoragePagination,
   StorageDomains,
+  StorageGetTracesPaginatedArg,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { StoreOperationsLance } from './domains/operations';
+import { StoreTracesLance } from './domains/traces';
 import { getPrimaryKeys, getTableSchema, processResultWithTypeConversion } from './domains/utils';
 import { StoreWorkflowsLance } from './domains/workflows';
 
@@ -62,6 +62,7 @@ export class LanceStorage extends MastraStorage {
       instance.stores = {
         operations: new StoreOperationsLance({ client: instance.lanceClient }),
         workflows: new StoreWorkflowsLance({ client: instance.lanceClient }),
+        traces: new StoreTracesLance({ client: instance.lanceClient }),
       } as unknown as StorageDomains;
       return instance;
     } catch (e: any) {
@@ -87,6 +88,7 @@ export class LanceStorage extends MastraStorage {
     this.stores = {
       operations: new StoreOperationsLance({ client: this.lanceClient }),
       workflows: new StoreWorkflowsLance({ client: this.lanceClient }),
+      traces: new StoreTracesLance({ client: this.lanceClient }),
     } as unknown as StorageDomains;
   }
 
@@ -504,111 +506,20 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  async saveTrace({ trace }: { trace: TraceType }): Promise<TraceType> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_TRACES);
-      const record = {
-        ...trace,
-        attributes: JSON.stringify(trace.attributes),
-        status: JSON.stringify(trace.status),
-        events: JSON.stringify(trace.events),
-        links: JSON.stringify(trace.links),
-        other: JSON.stringify(trace.other),
-      };
-      await table.add([record], { mode: 'append' });
-
-      return trace;
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_SAVE_TRACE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+  async saveTrace(args: { trace: TraceType }): Promise<TraceType> {
+    return (this.stores as any).traces.saveTrace(args);
   }
 
-  async getTraceById({ traceId }: { traceId: string }): Promise<TraceType> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_TRACES);
-      const query = table.query().where(`id = '${traceId}'`);
-      const records = await query.toArray();
-      return processResultWithTypeConversion(records[0], await getTableSchema({ tableName: TABLE_TRACES, client: this.lanceClient })) as TraceType;
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_GET_TRACE_BY_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
+  async getTraceById(args: { traceId: string }): Promise<TraceType> {
+    return (this.stores as any).traces.getTraceById(args);
   }
 
-  async getTraces({ name, scope, page = 1, perPage = 10, attributes }: { name?: string; scope?: string; page: number; perPage: number; attributes?: Record<string, string>; }): Promise<Trace[]> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_TRACES);
-      const query = table.query();
+  async getTraces(args: { name?: string; scope?: string; page: number; perPage: number; attributes?: Record<string, string>; }): Promise<Trace[]> {
+    return (this.stores as any).traces.getTraces(args);
+  }
 
-      if (name) {
-        query.where(`name = '${name}'`);
-      }
-
-      if (scope) {
-        query.where(`scope = '${scope}'`);
-      }
-
-      if (attributes) {
-        query.where(`attributes = '${JSON.stringify(attributes)}'`);
-      }
-
-      // Calculate offset based on page and perPage
-      const offset = (page - 1) * perPage;
-
-      // Apply limit for pagination
-      query.limit(perPage);
-
-      // Apply offset if greater than 0
-      if (offset > 0) {
-        query.offset(offset);
-      }
-
-      const records = await query.toArray();
-      // Convert TraceType[] to Trace[] (parentSpanId: string)
-      return records.map(record => {
-        const processed = {
-          ...record,
-          attributes: JSON.parse(record.attributes),
-          status: JSON.parse(record.status),
-          events: JSON.parse(record.events),
-          links: JSON.parse(record.links),
-          other: JSON.parse(record.other),
-          startTime: new Date(record.startTime),
-          endTime: new Date(record.endTime),
-          createdAt: new Date(record.createdAt),
-        };
-        // parentSpanId: always string
-        if (processed.parentSpanId === null || processed.parentSpanId === undefined) {
-          processed.parentSpanId = '';
-        } else {
-          processed.parentSpanId = String(processed.parentSpanId);
-        }
-        return processed as Trace;
-      });
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_GET_TRACES_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { name: name ?? '', scope: scope ?? '' },
-        },
-        error,
-      );
-    }
+  async getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }> {
+    return (this.stores as any).traces.getTracesPaginated(args);
   }
 
   async saveEvals({ evals }: { evals: EvalRow[] }): Promise<EvalRow[]> {
@@ -643,13 +554,21 @@ export class LanceStorage extends MastraStorage {
 
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     try {
-      if (type) {
-        this.logger.warn('Type is not implemented yet in LanceDB storage');
-      }
       const table = await this.lanceClient.openTable(TABLE_EVALS);
       const query = table.query().where(`agent_name = '${agentName}'`);
       const records = await query.toArray();
-      return records.map(record => {
+
+      // Filter by type if specified
+      let filteredRecords = records;
+      if (type === 'live') {
+        // Live evals have test_info as null
+        filteredRecords = records.filter(record => record.test_info === null);
+      } else if (type === 'test') {
+        // Test evals have test_info as a JSON string
+        filteredRecords = records.filter(record => record.test_info !== null);
+      }
+
+      return filteredRecords.map(record => {
         return {
           id: record.id,
           input: record.input,
@@ -658,7 +577,7 @@ export class LanceStorage extends MastraStorage {
           metricName: record.metric_name,
           result: JSON.parse(record.result),
           instructions: record.instructions,
-          testInfo: JSON.parse(record.test_info),
+          testInfo: record.test_info ? JSON.parse(record.test_info) : null,
           globalRunId: record.global_run_id,
           runId: record.run_id,
           createdAt: new Date(record.created_at).toString(),
@@ -718,17 +637,6 @@ export class LanceStorage extends MastraStorage {
     runId: string;
   }): Promise<WorkflowRunState | null> {
     return this.stores.workflows.loadWorkflowSnapshot({ workflowName, runId });
-  }
-
-  async getTracesPaginated(_args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[] }> {
-    throw new MastraError(
-      {
-        id: 'LANCE_STORE_GET_TRACES_PAGINATED_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      },
-      'Method not implemented.',
-    );
   }
 
   async getThreadsByResourceIdPaginated(_args: {
@@ -835,22 +743,106 @@ export class LanceStorage extends MastraStorage {
     });
   }
 
-  // Add this stub to satisfy the abstract method requirement
   async getEvals(
-    _options: {
+    options: {
       agentName?: string;
       type?: 'test' | 'live';
       page?: number;
       perPage?: number;
       fromDate?: Date;
       toDate?: Date;
+      dateRange?: { start?: Date; end?: Date };
     }
   ): Promise<PaginationInfo & { evals: EvalRow[] }> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'getEvals method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    try {
+      const table = await this.lanceClient.openTable(TABLE_EVALS);
+
+      // Build combined where clause
+      const conditions: string[] = [];
+
+      if (options.agentName) {
+        conditions.push(`agent_name = '${options.agentName}'`);
+      }
+
+      // Apply type filtering
+      if (options.type === 'live') {
+        conditions.push('length(test_info) = 0');
+      } else if (options.type === 'test') {
+        conditions.push('length(test_info) > 0');
+      }
+
+      // Apply date filtering
+      const startDate = options.dateRange?.start || options.fromDate;
+      const endDate = options.dateRange?.end || options.toDate;
+
+      if (startDate) {
+        conditions.push(`\`created_at\` >= ${startDate.getTime()}`);
+      }
+
+      if (endDate) {
+        conditions.push(`\`created_at\` <= ${endDate.getTime()}`);
+      }
+
+      // Get total count with the same conditions
+      let total = 0;
+      if (conditions.length > 0) {
+        console.log('Date filtering conditions:', conditions.join(' AND '));
+        total = await table.countRows(conditions.join(' AND '));
+        console.log('Total count:', total);
+      } else {
+        total = await table.countRows();
+      }
+
+      // Build query for fetching records
+      const query = table.query();
+
+      // Apply combined where clause if we have conditions
+      if (conditions.length > 0) {
+        const whereClause = conditions.join(' AND ');
+        query.where(whereClause);
+      }
+
+      const records = await query.toArray();
+
+
+      const evals = records.sort((a, b) => b.created_at - a.created_at).map(record => {
+        return {
+          id: record.id,
+          input: record.input,
+          output: record.output,
+          agentName: record.agent_name,
+          metricName: record.metric_name,
+          result: JSON.parse(record.result),
+          instructions: record.instructions,
+          testInfo: record.test_info ? JSON.parse(record.test_info) : null,
+          globalRunId: record.global_run_id,
+          runId: record.run_id,
+          createdAt: new Date(record.created_at).toISOString(),
+        };
+      }) as EvalRow[];
+
+      // Apply pagination after filtering
+      const page = options.page || 0;
+      const perPage = options.perPage || 10;
+      const pagedEvals = evals.slice(page * perPage, (page + 1) * perPage);
+
+      return {
+        evals: pagedEvals,
+        total: total,
+        page,
+        perPage,
+        hasMore: total > (page + 1) * perPage,
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'LANCE_STORE_GET_EVALS_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { agentName: options.agentName ?? '' },
+        },
+        error,
+      );
+    }
   }
 }

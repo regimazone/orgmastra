@@ -395,6 +395,8 @@ export class StoreOperationsLance extends StoreOperations {
                 return processedRecord;
             });
 
+            console.log(processedRecords);
+
             await table.mergeInsert(primaryId).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute(processedRecords);
         } catch (error: any) {
             throw new MastraError(
