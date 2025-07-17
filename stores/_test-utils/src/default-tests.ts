@@ -9,7 +9,7 @@ import {
 } from '@mastra/core/storage';
 import { createScoresTest } from './domains/scores';
 import { createConversationsTest } from './domains/conversations';
-import { createTestSuiteWorkflows } from './domains/workflows';
+import { createWorkflowsTests } from './domains/workflows';
 import { createTraceTests } from './domains/traces';
 import { createEvalsTests } from './domains/evals';
 import { createOperationsTests } from './domains/operations';
@@ -65,7 +65,7 @@ export function createTestSuite(storage: MastraStorage) {
 
     createOperationsTests(storage);
 
-    createTestSuiteWorkflows(storage);
+    createWorkflowsTests(storage);
 
     createTraceTests(storage);
 

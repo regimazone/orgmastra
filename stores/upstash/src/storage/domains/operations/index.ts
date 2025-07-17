@@ -1,26 +1,15 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import { serializeDate, TABLE_EVALS, TABLE_MESSAGES, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
+import { StoreOperations } from '@mastra/core/storage';
 import type { TABLE_NAMES, StorageColumn } from '@mastra/core/storage';
 import type { Redis } from '@upstash/redis';
 import { processRecord } from '../utils';
 
-export interface StoreOperationsUpstash {
-    createTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
-    alterTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn>; ifNotExists: string[] }): Promise<void>;
-    clearTable(args: { tableName: TABLE_NAMES }): Promise<void>;
-    dropTable(args: { tableName: TABLE_NAMES }): Promise<void>;
-    insert(args: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void>;
-    batchInsert(args: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void>;
-    load<R>(args: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null>;
-    hasColumn(tableName: TABLE_NAMES, column: string): Promise<boolean>;
-    scanKeys(pattern: string, batchSize?: number): Promise<string[]>;
-}
+export class StoreOperationsUpstash extends StoreOperations {
+    private client: Redis;
 
-export class StoreOperationsUpstash implements StoreOperationsUpstash {
-    private redis: Redis;
-
-    constructor({ redis }: { redis: Redis }) {
-        this.redis = redis;
+    constructor({ client }: { client: Redis }) {
+        super();
+        this.client = client;
     }
 
     async createTable({ tableName: _tableName, schema: _schema }: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void> {
@@ -60,7 +49,7 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
         const { key, processedRecord } = processRecord(tableName, record);
 
         try {
-            await this.redis.set(key, processedRecord);
+            await this.client.set(key, processedRecord);
         } catch (error) {
             throw new MastraError(
                 {
@@ -84,7 +73,7 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
         try {
             for (let i = 0; i < records.length; i += batchSize) {
                 const batch = records.slice(i, i + batchSize);
-                const pipeline = this.redis.pipeline();
+                const pipeline = this.client.pipeline();
                 for (const record of batch) {
                     const { key, processedRecord } = processRecord(tableName, record);
                     pipeline.set(key, processedRecord);
@@ -109,7 +98,7 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
     async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
         const key = this.getKey(tableName, keys);
         try {
-            const data = await this.redis.get<R>(key);
+            const data = await this.client.get<R>(key);
             return data || null;
         } catch (error) {
             throw new MastraError(
@@ -136,7 +125,7 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
         let cursor = '0';
         let keys: string[] = [];
         do {
-            const [nextCursor, batch] = await this.redis.scan(cursor, {
+            const [nextCursor, batch] = await this.client.scan(cursor, {
                 match: pattern,
                 count: batchSize,
             });
@@ -157,12 +146,12 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
         let cursor = '0';
         let totalDeleted = 0;
         do {
-            const [nextCursor, keys] = await this.redis.scan(cursor, {
+            const [nextCursor, keys] = await this.client.scan(cursor, {
                 match: pattern,
                 count: batchSize,
             });
             if (keys.length > 0) {
-                await this.redis.del(...keys);
+                await this.client.del(...keys);
                 totalDeleted += keys.length;
             }
             cursor = nextCursor;

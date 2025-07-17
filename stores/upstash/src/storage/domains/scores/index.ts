@@ -34,12 +34,12 @@ function transformScoreRow(row: Record<string, any>): ScoreRowData {
 
 
 export class ScoresUpstash extends ScoresStorage {
-    private redis: Redis;
+    private client: Redis;
     private operations: StoreOperationsUpstash;
 
-    constructor({ redis, operations }: { redis: Redis; operations: StoreOperationsUpstash }) {
+    constructor({ client, operations }: { client: Redis; operations: StoreOperationsUpstash }) {
         super();
-        this.redis = redis;
+        this.client = client;
         this.operations = operations;
     }
 
@@ -82,7 +82,7 @@ export class ScoresUpstash extends ScoresStorage {
                 pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
             };
         }
-        const pipeline = this.redis.pipeline();
+        const pipeline = this.client.pipeline();
         keys.forEach(key => pipeline.get(key));
         const results = await pipeline.exec();
         // Filter out nulls and by scorerId
@@ -110,7 +110,7 @@ export class ScoresUpstash extends ScoresStorage {
     async saveScore(score: ScoreRowData): Promise<{ score: ScoreRowData }> {
         const { key, processedRecord } = processRecord(TABLE_SCORERS, score);
         try {
-            await this.redis.set(key, processedRecord);
+            await this.client.set(key, processedRecord);
             return { score };
         } catch (error) {
             throw new MastraError(
@@ -143,7 +143,7 @@ export class ScoresUpstash extends ScoresStorage {
                 pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
             };
         }
-        const pipeline = this.redis.pipeline();
+        const pipeline = this.client.pipeline();
         keys.forEach(key => pipeline.get(key));
         const results = await pipeline.exec();
         // Filter out nulls and by runId
@@ -187,7 +187,7 @@ export class ScoresUpstash extends ScoresStorage {
                 pagination: { total: 0, page: pagination.page, perPage: pagination.perPage, hasMore: false },
             };
         }
-        const pipeline = this.redis.pipeline();
+        const pipeline = this.client.pipeline();
         keys.forEach(key => pipeline.get(key));
         const results = await pipeline.exec();
 

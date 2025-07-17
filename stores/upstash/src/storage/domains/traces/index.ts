@@ -6,12 +6,12 @@ import type { StoreOperationsUpstash } from '../operations';
 import { ensureDate, parseJSON } from '../utils';
 
 export class TracesUpstash extends TracesStorage {
-    private redis: Redis;
+    private client: Redis;
     private operations: StoreOperationsUpstash;
 
-    constructor({ redis, operations }: { redis: Redis; operations: StoreOperationsUpstash }) {
+    constructor({ client, operations }: { client: Redis; operations: StoreOperationsUpstash }) {
         super();
-        this.redis = redis;
+        this.client = client;
         this.operations = operations;
     }
 
@@ -66,7 +66,7 @@ export class TracesUpstash extends TracesStorage {
                 };
             }
 
-            const pipeline = this.redis.pipeline();
+            const pipeline = this.client.pipeline();
             keys.forEach(key => pipeline.get(key));
             const results = await pipeline.exec();
 

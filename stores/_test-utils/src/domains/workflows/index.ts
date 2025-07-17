@@ -4,8 +4,7 @@ import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeEach } from "vitest";
 import { checkWorkflowSnapshot, createSampleWorkflowSnapshot } from "./data";
 
-export function createTestSuiteWorkflows(storage: MastraStorage) {
-
+export function createWorkflowsTests(storage: MastraStorage) {
     describe('getWorkflowRuns', () => {
         beforeEach(async () => {
             await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });

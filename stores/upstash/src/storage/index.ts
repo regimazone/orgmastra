@@ -8,9 +8,7 @@ import {
   TABLE_MESSAGES,
   TABLE_THREADS,
   TABLE_RESOURCES,
-  TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
-  serializeDate,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -33,6 +31,7 @@ import { StoreOperationsUpstash } from './domains/operations';
 import { ScoresUpstash } from './domains/scores';
 import { TracesUpstash } from './domains/traces';
 import { processRecord } from './domains/utils';
+import { WorkflowsUpstash } from './domains/workflows';
 
 export interface UpstashConfig {
   url: string;
@@ -50,15 +49,17 @@ export class UpstashStore extends MastraStorage {
       token: config.token,
     });
 
-    const operations = new StoreOperationsUpstash({ redis: this.redis });
-    const traces = new TracesUpstash({ redis: this.redis, operations });
-    const scores = new ScoresUpstash({ redis: this.redis, operations });
+    const operations = new StoreOperationsUpstash({ client: this.redis });
+    const traces = new TracesUpstash({ client: this.redis, operations });
+    const scores = new ScoresUpstash({ client: this.redis, operations });
+    const workflows = new WorkflowsUpstash({ client: this.redis, operations });
 
     this.stores = {
       operations,
       traces,
       scores,
-    } as unknown as StorageDomains;
+      workflows,
+    };
   }
 
   public get supports(): {
@@ -168,56 +169,6 @@ export class UpstashStore extends MastraStorage {
 
   private getThreadMessagesKey(threadId: string): string {
     return `thread:${threadId}:messages`;
-  }
-
-  private parseWorkflowRun(row: any): WorkflowRun {
-    let parsedSnapshot: WorkflowRunState | string = row.snapshot as string;
-    if (typeof parsedSnapshot === 'string') {
-      try {
-        parsedSnapshot = JSON.parse(row.snapshot as string) as WorkflowRunState;
-      } catch (e) {
-        // If parsing fails, return the raw snapshot string
-        console.warn(`Failed to parse snapshot for workflow ${row.workflow_name}: ${e}`);
-      }
-    }
-
-    return {
-      workflowName: row.workflow_name,
-      runId: row.run_id,
-      snapshot: parsedSnapshot,
-      createdAt: this.ensureDate(row.createdAt)!,
-      updatedAt: this.ensureDate(row.updatedAt)!,
-      resourceId: row.resourceId,
-    };
-  }
-
-  private processRecord(tableName: TABLE_NAMES, record: Record<string, any>) {
-    let key: string;
-
-    if (tableName === TABLE_MESSAGES) {
-      // For messages, use threadId as the primary key component
-      key = this.getKey(tableName, { threadId: record.threadId, id: record.id });
-    } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-      key = this.getKey(tableName, {
-        namespace: record.namespace || 'workflows',
-        workflow_name: record.workflow_name,
-        run_id: record.run_id,
-        ...(record.resourceId ? { resourceId: record.resourceId } : {}),
-      });
-    } else if (tableName === TABLE_EVALS) {
-      key = this.getKey(tableName, { id: record.run_id });
-    } else {
-      key = this.getKey(tableName, { id: record.id });
-    }
-
-    // Convert dates to ISO strings before storing
-    const processedRecord = {
-      ...record,
-      createdAt: serializeDate(record.createdAt),
-      updatedAt: serializeDate(record.updatedAt),
-    };
-
-    return { key, processedRecord };
   }
 
   /**
@@ -990,34 +941,7 @@ export class UpstashStore extends MastraStorage {
     runId: string;
     snapshot: WorkflowRunState;
   }): Promise<void> {
-    const { namespace = 'workflows', workflowName, runId, snapshot } = params;
-    try {
-      await this.insert({
-        tableName: TABLE_WORKFLOW_SNAPSHOT,
-        record: {
-          namespace,
-          workflow_name: workflowName,
-          run_id: runId,
-          snapshot,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_PERSIST_WORKFLOW_SNAPSHOT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            namespace,
-            workflowName,
-            runId,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.persistWorkflowSnapshot(params);
   }
 
   async loadWorkflowSnapshot(params: {
@@ -1025,36 +949,37 @@ export class UpstashStore extends MastraStorage {
     workflowName: string;
     runId: string;
   }): Promise<WorkflowRunState | null> {
-    const { namespace = 'workflows', workflowName, runId } = params;
-    const key = this.getKey(TABLE_WORKFLOW_SNAPSHOT, {
-      namespace,
-      workflow_name: workflowName,
-      run_id: runId,
-    });
-    try {
-      const data = await this.redis.get<{
-        namespace: string;
-        workflow_name: string;
-        run_id: string;
-        snapshot: WorkflowRunState;
-      }>(key);
-      if (!data) return null;
-      return data.snapshot;
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_LOAD_WORKFLOW_SNAPSHOT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            namespace,
-            workflowName,
-            runId,
-          },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.loadWorkflowSnapshot(params);
+  }
+
+  async getWorkflowRuns(
+    {
+      workflowName,
+      fromDate,
+      toDate,
+      limit,
+      offset,
+      resourceId,
+    }: {
+      workflowName?: string;
+      fromDate?: Date;
+      toDate?: Date;
+      limit?: number;
+      offset?: number;
+      resourceId?: string;
+    } = {},
+  ): Promise<WorkflowRuns> {
+    return this.stores.workflows.getWorkflowRuns({ workflowName, fromDate, toDate, limit, offset, resourceId });
+  }
+
+  async getWorkflowRunById({
+    runId,
+    workflowName,
+  }: {
+    runId: string;
+    workflowName?: string;
+  }): Promise<WorkflowRun | null> {
+    return this.stores.workflows.getWorkflowRunById({ runId, workflowName });
   }
 
   /**
@@ -1198,139 +1123,6 @@ export class UpstashStore extends MastraStorage {
         perPage,
         hasMore: false,
       };
-    }
-  }
-
-  async getWorkflowRuns(
-    {
-      namespace,
-      workflowName,
-      fromDate,
-      toDate,
-      limit,
-      offset,
-      resourceId,
-    }: {
-      namespace: string;
-      workflowName?: string;
-      fromDate?: Date;
-      toDate?: Date;
-      limit?: number;
-      offset?: number;
-      resourceId?: string;
-    } = { namespace: 'workflows' },
-  ): Promise<WorkflowRuns> {
-    try {
-      // Get all workflow keys
-      let pattern = this.getKey(TABLE_WORKFLOW_SNAPSHOT, { namespace }) + ':*';
-      if (workflowName && resourceId) {
-        pattern = this.getKey(TABLE_WORKFLOW_SNAPSHOT, {
-          namespace,
-          workflow_name: workflowName,
-          run_id: '*',
-          resourceId,
-        });
-      } else if (workflowName) {
-        pattern = this.getKey(TABLE_WORKFLOW_SNAPSHOT, { namespace, workflow_name: workflowName }) + ':*';
-      } else if (resourceId) {
-        pattern = this.getKey(TABLE_WORKFLOW_SNAPSHOT, { namespace, workflow_name: '*', run_id: '*', resourceId });
-      }
-      const keys = await this.scanKeys(pattern);
-
-      // Check if we have any keys before using pipeline
-      if (keys.length === 0) {
-        return { runs: [], total: 0 };
-      }
-
-      // Use pipeline for batch fetching to improve performance
-      const pipeline = this.redis.pipeline();
-      keys.forEach(key => pipeline.get(key));
-      const results = await pipeline.exec();
-
-      // Filter and transform results - handle undefined results
-      let runs = results
-        .map((result: any) => result as Record<string, any> | null)
-        .filter(
-          (record): record is Record<string, any> =>
-            record !== null && record !== undefined && typeof record === 'object' && 'workflow_name' in record,
-        )
-        // Only filter by workflowName if it was specifically requested
-        .filter(record => !workflowName || record.workflow_name === workflowName)
-        .map(w => this.parseWorkflowRun(w!))
-        .filter(w => {
-          if (fromDate && w.createdAt < fromDate) return false;
-          if (toDate && w.createdAt > toDate) return false;
-          return true;
-        })
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-      const total = runs.length;
-
-      // Apply pagination if requested
-      if (limit !== undefined && offset !== undefined) {
-        runs = runs.slice(offset, offset + limit);
-      }
-
-      return { runs, total };
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_GET_WORKFLOW_RUNS_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            namespace,
-            workflowName: workflowName || '',
-            resourceId: resourceId || '',
-          },
-        },
-        error,
-      );
-    }
-  }
-
-  async getWorkflowRunById({
-    namespace = 'workflows',
-    runId,
-    workflowName,
-  }: {
-    namespace: string;
-    runId: string;
-    workflowName?: string;
-  }): Promise<WorkflowRun | null> {
-    try {
-      const key = this.getKey(TABLE_WORKFLOW_SNAPSHOT, { namespace, workflow_name: workflowName, run_id: runId }) + '*';
-      const keys = await this.scanKeys(key);
-      const workflows = await Promise.all(
-        keys.map(async key => {
-          const data = await this.redis.get<{
-            workflow_name: string;
-            run_id: string;
-            snapshot: WorkflowRunState | string;
-            createdAt: string | Date;
-            updatedAt: string | Date;
-            resourceId: string;
-          }>(key);
-          return data;
-        }),
-      );
-      const data = workflows.find(w => w?.run_id === runId && w?.workflow_name === workflowName) as WorkflowRun | null;
-      if (!data) return null;
-      return this.parseWorkflowRun(data);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_UPSTASH_STORAGE_GET_WORKFLOW_RUN_BY_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: {
-            namespace,
-            runId,
-            workflowName: workflowName || '',
-          },
-        },
-        error,
-      );
     }
   }
 
