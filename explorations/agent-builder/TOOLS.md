@@ -2,31 +2,72 @@
 
 Technical specifications for Agent Builder tools.
 
-## Code Generation Tools
+## Pattern Library Tool
 
-### getCode
+### patternLibrary
 
-Generates code templates for various Mastra components. Combines pre-validated snippets with dynamic generation to create agents, tools, workflows, or configuration snippets. Returns code ready to write to files.
+Provides code patterns by name. Without a pattern name, lists all available patterns. With a pattern name, returns the complete code for that pattern.
 
 ```typescript
 createTool({
-  id: 'get-code',
+  id: 'pattern-library',
   inputSchema: z.object({
-    templateType: z.enum(['agent', 'tool', 'workflow', 'snippet']),
-    features: z.array(z.string()).optional(),
-    requirements: z.array(z.string()).optional(),
-    name: z.string().optional(),
-    description: z.string().optional(),
-    modelProvider: z.enum(['openai', 'anthropic', 'google']).optional()
+    patternName: z.string().optional()
   }),
   outputSchema: z.object({
-    code: z.string(),
+    patterns: z.array(z.string()).optional(), // when listing all
+    code: z.string().optional(),
     imports: z.string().optional(),
     dependencies: z.array(z.string()).optional(),
-    filePath: z.string().optional()
+    description: z.string().optional(),
+    usage: z.string().optional(),
+    testingGuide: z.string().optional() // how to write tests for this pattern
   })
 })
 ```
+
+Example patterns:
+- `agent` - Basic agent setup
+- `agent.withTools` - Agent with custom tools
+- `agent.withMemory` - Agent with memory integration
+- `agentNetwork` - Agent network configuration
+- `memory` - Basic memory configuration
+- `memory.withLibsql` - Memory with LibSQL storage
+- `memory.withPostgres` - Memory with PostgreSQL
+- `workflows` - Basic workflow
+- `workflow.withSteps` - Multi-step workflow
+- `tool` - Custom tool template
+- `mcp` - MCP server setup
+
+## Implementation Guide Tool
+
+### implementationGuide
+
+Provides concise explanations of how Mastra features work, when to use them, and why. Returns 2-3 sentence descriptions focused on practical usage.
+
+```typescript
+createTool({
+  id: 'implementation-guide',
+  inputSchema: z.object({
+    feature: z.string()
+  }),
+  outputSchema: z.object({
+    description: z.string(),
+    whenToUse: z.string(),
+    example: z.string().optional()
+  })
+})
+```
+
+Example features:
+- `agent` - Core agent concepts and usage
+- `memory` - Memory system capabilities
+- `workflows` - Workflow orchestration
+- `tools` - Tool creation and integration
+- `mcp` - MCP server integration
+- `evals` - Evaluation framework
+
+## Project Management Tool
 
 ### manageProject
 
@@ -126,28 +167,6 @@ createTool({
       type: z.string(),
       message: z.string(),
       location: z.string()
-    }))
-  })
-})
-```
-
-### patternLibrary
-
-Searches a library of successful agent implementations. Given requirements like ['customer support', 'ticket creation'], it finds similar agents through semantic search and returns their patterns. Each successful generation adds to the library.
-
-```typescript
-createTool({
-  id: 'pattern-library',
-  inputSchema: z.object({
-    requirements: z.array(z.string()),
-    domain: z.string().optional(),
-    complexity: z.enum(['simple', 'moderate', 'complex'])
-  }),
-  outputSchema: z.object({
-    patterns: z.array(z.object({
-      name: z.string(),
-      similarity: z.number(),
-      template: z.string()
     }))
   })
 })
