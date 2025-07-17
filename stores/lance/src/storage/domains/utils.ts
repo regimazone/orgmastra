@@ -74,8 +74,6 @@ export function processResultWithTypeConversion(
         //   continue;
         // }
 
-        console.log({ fieldTypeStr, key, processedResult });
-
         // Only try to convert string values
         if (typeof processedResult[key] === 'string') {
             // Numeric types
@@ -85,12 +83,13 @@ export function processResultWithTypeConversion(
                 }
             } else if (fieldTypeStr.includes('int64')) {
                 processedResult[key] = Number(processedResult[key]);
-            } else if (fieldTypeStr.includes('utf8')) {
+            } else if (fieldTypeStr.includes('utf8') && key !== 'id') {
                 try {
-                    processedResult[key] = JSON.parse(processedResult[key]);
-                } catch (e) {
-                    // If JSON parsing fails, keep the original string
-                    console.error(`Failed to parse JSON for key ${key}: ${e}`);
+                    const parsed = JSON.parse(processedResult[key]);
+                    if (typeof parsed === 'object') {
+                        processedResult[key] = JSON.parse(processedResult[key]);
+                    }
+                } catch {
                 }
             }
         } else if (typeof processedResult[key] === 'bigint') {
@@ -99,6 +98,8 @@ export function processResultWithTypeConversion(
         } else if (fieldTypeStr.includes('float64') && ['createdAt', 'updatedAt'].includes(key)) {
             processedResult[key] = new Date(processedResult[key]);
         }
+
+        console.log(key, 'processedResult', processedResult);
     }
 
     return processedResult;

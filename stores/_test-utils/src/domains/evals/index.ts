@@ -1,12 +1,17 @@
 import type { MetricResult } from "@mastra/core/eval";
 import type { MastraStorage } from "@mastra/core/storage";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { createSampleEval } from "./data";
 import { TABLE_EVALS } from "@mastra/core/storage";
 import { randomUUID } from "crypto";
 
 export function createEvalsTests(storage: MastraStorage) {
     describe('getEvals with pagination', () => {
+
+        beforeEach(async () => {
+            await storage.clearTable({ tableName: TABLE_EVALS });
+        });
+
         it('should return paginated evals with total count (page/perPage)', async () => {
             const agentName = 'libsql-pagination-agent-evals';
             const evalRecords = Array.from({ length: 25 }, (_, i) => createSampleEval(agentName, i % 2 === 0));
@@ -43,6 +48,7 @@ export function createEvalsTests(storage: MastraStorage) {
             const agentName = 'libsql-pagination-type-evals';
             const testEvals = Array.from({ length: 10 }, () => createSampleEval(agentName, true));
             const liveEvals = Array.from({ length: 8 }, () => createSampleEval(agentName, false));
+
             await storage.batchInsert({ tableName: TABLE_EVALS, records: [...testEvals, ...liveEvals].map(r => r as any) });
 
             const testResults = await storage.getEvals({ agentName, type: 'test', page: 0, perPage: 5 });
@@ -56,7 +62,7 @@ export function createEvalsTests(storage: MastraStorage) {
         });
 
         it('should filter by date with pagination for getEvals', async () => {
-            const agentName = 'libsql-pagination-date-evals';
+            const agentName = 'store-pagination-date-evals';
             const now = new Date();
             const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             const dayBeforeYesterday = new Date(now.getTime() - 48 * 60 * 60 * 1000);

@@ -3,17 +3,22 @@ import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import type { TraceType } from '@mastra/core/memory';
 import {
     TABLE_TRACES,
+    TracesStorage,
 } from '@mastra/core/storage';
 import type {
     PaginationInfo,
     StorageGetTracesPaginatedArg,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
+import type { StoreOperationsLance } from '../operations';
 
-export class StoreTracesLance {
+export class StoreTracesLance extends TracesStorage {
     private client: Connection;
-    constructor({ client }: { client: Connection }) {
+    private operations: StoreOperationsLance;
+    constructor({ client, operations }: { client: Connection, operations: StoreOperationsLance }) {
+        super();
         this.client = client;
+        this.operations = operations;
     }
 
     async saveTrace({ trace }: { trace: TraceType }): Promise<TraceType> {
@@ -189,5 +194,13 @@ export class StoreTracesLance {
                 error,
             );
         }
+    }
+
+    async batchTraceInsert({ records }: { records: Record<string, any>[] }): Promise<void> {
+        this.logger.debug('Batch inserting traces', { count: records.length });
+        await this.operations.batchInsert({
+            tableName: TABLE_TRACES,
+            records,
+        });
     }
 } 

@@ -25,10 +25,10 @@ import type {
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { StoreOperationsLance } from './domains/operations';
+import { StoreScoresLance } from './domains/scores';
 import { StoreTracesLance } from './domains/traces';
 import { getPrimaryKeys, getTableSchema, processResultWithTypeConversion } from './domains/utils';
 import { StoreWorkflowsLance } from './domains/workflows';
-
 
 export class LanceStorage extends MastraStorage {
   stores: StorageDomains;
@@ -59,11 +59,13 @@ export class LanceStorage extends MastraStorage {
     const instance = new LanceStorage(name);
     try {
       instance.lanceClient = await connect(uri, options);
+      const operations = new StoreOperationsLance({ client: instance.lanceClient });
       instance.stores = {
         operations: new StoreOperationsLance({ client: instance.lanceClient }),
         workflows: new StoreWorkflowsLance({ client: instance.lanceClient }),
-        traces: new StoreTracesLance({ client: instance.lanceClient }),
-      } as unknown as StorageDomains;
+        traces: new StoreTracesLance({ client: instance.lanceClient, operations }),
+        scores: new StoreScoresLance({ client: instance.lanceClient }),
+      }
       return instance;
     } catch (e: any) {
       throw new MastraError(
@@ -85,10 +87,13 @@ export class LanceStorage extends MastraStorage {
    */
   private constructor(name: string) {
     super({ name });
+    const operations = new StoreOperationsLance({ client: this.lanceClient });
+
     this.stores = {
       operations: new StoreOperationsLance({ client: this.lanceClient }),
       workflows: new StoreWorkflowsLance({ client: this.lanceClient }),
-      traces: new StoreTracesLance({ client: this.lanceClient }),
+      traces: new StoreTracesLance({ client: this.lanceClient, operations }),
+      scores: new StoreScoresLance({ client: this.lanceClient }),
     } as unknown as StorageDomains;
   }
 
@@ -196,6 +201,11 @@ export class LanceStorage extends MastraStorage {
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
     try {
       const thread = await this.load({ tableName: TABLE_THREADS, keys: { id: threadId } });
+
+      if (!thread) {
+        return null;
+      }
+
       return {
         ...thread,
         createdAt: new Date(thread.createdAt),
@@ -269,34 +279,79 @@ export class LanceStorage extends MastraStorage {
     title: string;
     metadata: Record<string, unknown>;
   }): Promise<StorageThreadType> {
-    try {
-      const record = { id, title, metadata: JSON.stringify(metadata) };
-      const table = await this.lanceClient.openTable(TABLE_THREADS);
-      await table.mergeInsert('id').whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([record]);
+    const maxRetries = 3;
 
-      const query = table.query().where(`id = '${id}'`);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Get current state atomically
+        const current = await this.getThreadById({ threadId: id });
+        if (!current) {
+          throw new Error(`Thread with id ${id} not found`);
+        }
 
-      const records = await query.toArray();
-      return processResultWithTypeConversion(
-        records[0],
-        await getTableSchema({ tableName: TABLE_THREADS, client: this.lanceClient }),
-      ) as StorageThreadType;
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_UPDATE_THREAD_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
+        // Merge metadata
+        const mergedMetadata = { ...current.metadata, ...metadata };
+
+        // Update atomically
+        const record = {
+          id,
+          title,
+          metadata: JSON.stringify(mergedMetadata),
+          updatedAt: new Date().getTime()
+        };
+
+        const table = await this.lanceClient.openTable(TABLE_THREADS);
+        await table.mergeInsert('id')
+          .whenMatchedUpdateAll()
+          .whenNotMatchedInsertAll()
+          .execute([record]);
+
+        const updatedThread = await this.getThreadById({ threadId: id });
+        if (!updatedThread) {
+          throw new Error(`Failed to retrieve updated thread ${id}`);
+        }
+        return updatedThread;
+
+      } catch (error: any) {
+        if (error.message?.includes('Commit conflict') && attempt < maxRetries - 1) {
+          // Wait with exponential backoff before retrying
+          const delay = Math.pow(2, attempt) * 10; // 10ms, 20ms, 40ms
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // If it's not a commit conflict or we've exhausted retries, throw the error
+        throw new MastraError(
+          {
+            id: 'LANCE_STORE_UPDATE_THREAD_FAILED',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.THIRD_PARTY,
+          },
+          error,
+        );
+      }
     }
+
+    // This should never be reached, but just in case
+    throw new MastraError(
+      {
+        id: 'LANCE_STORE_UPDATE_THREAD_FAILED',
+        domain: ErrorDomain.STORAGE,
+        category: ErrorCategory.THIRD_PARTY,
+      },
+      new Error('All retries exhausted'),
+    );
   }
 
   async deleteThread({ threadId }: { threadId: string }): Promise<void> {
     try {
+      // Delete the thread
       const table = await this.lanceClient.openTable(TABLE_THREADS);
       await table.delete(`id = '${threadId}'`);
+
+      // Delete all messages with the matching thread_id
+      const messagesTable = await this.lanceClient.openTable(TABLE_MESSAGES);
+      await messagesTable.delete(`thread_id = '${threadId}'`);
     } catch (error: any) {
       throw new MastraError(
         {
@@ -336,6 +391,7 @@ export class LanceStorage extends MastraStorage {
 
     for (const item of messagesWithContext) {
       const messageIndex = messageIndexMap.get(item.id);
+
       if (messageIndex !== undefined) {
         // Add previous messages if requested
         if (item.withPreviousMessages) {
@@ -400,28 +456,28 @@ export class LanceStorage extends MastraStorage {
       }
       const limit = this.resolveMessageLimit({ last: selectBy?.last, defaultLimit: Number.MAX_SAFE_INTEGER });
       const table = await this.lanceClient.openTable(TABLE_MESSAGES);
-      let query = table.query().where(`\`threadId\` = '${threadId}'`);
 
-      // Apply selectBy filters if provided
-      if (selectBy) {
-        // Handle 'include' to fetch specific messages
-        if (selectBy.include && selectBy.include.length > 0) {
-          const includeIds = selectBy.include.map(item => item.id);
-          // Add additional query to include specific message IDs
-          // This will be combined with the threadId filter
-          const includeClause = includeIds.map(id => `\`id\` = '${id}'`).join(' OR ');
-          query = query.where(`(\`threadId\` = '${threadId}' OR (${includeClause}))`);
+      let allRecords: any[] = [];
 
-          // Note: The surrounding messages (withPreviousMessages/withNextMessages) will be
-          // handled after we retrieve the results
+      // Handle selectBy.include for cross-thread context retrieval
+      if (selectBy?.include && selectBy.include.length > 0) {
+        // Get all unique thread IDs from include items
+        const threadIds = [...new Set(selectBy.include.map(item => item.threadId))];
+
+        // Fetch all messages from all relevant threads
+        for (const threadId of threadIds) {
+          const threadQuery = table.query().where(`thread_id = '${threadId}'`);
+          let threadRecords = await threadQuery.toArray();
+          allRecords.push(...threadRecords);
         }
+      } else {
+        // Regular single-thread query
+        let query = table.query().where(`\`thread_id\` = '${threadId}'`);
+        allRecords = await query.toArray();
       }
 
-      // Fetch all records matching the query
-      let records = await query.toArray();
-
       // Sort the records chronologically
-      records.sort((a, b) => {
+      allRecords.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime();
         const dateB = new Date(b.createdAt).getTime();
         return dateA - dateB; // Ascending order
@@ -429,28 +485,32 @@ export class LanceStorage extends MastraStorage {
 
       // Process the include.withPreviousMessages and include.withNextMessages if specified
       if (selectBy?.include && selectBy.include.length > 0) {
-        records = this.processMessagesWithContext(records, selectBy.include);
+        allRecords = this.processMessagesWithContext(allRecords, selectBy.include);
       }
 
       // If we're fetching the last N messages, take only the last N after sorting
       if (limit !== Number.MAX_SAFE_INTEGER) {
-        records = records.slice(-limit);
+        allRecords = allRecords.slice(-limit);
       }
 
-      const messages = processResultWithTypeConversion(records, await getTableSchema({ tableName: TABLE_MESSAGES, client: this.lanceClient }));
-      const normalized = messages.map((msg: MastraMessageV2 | MastraMessageV1) => ({
-        ...msg,
-        content:
-          typeof msg.content === 'string'
-            ? (() => {
-              try {
-                return JSON.parse(msg.content);
-              } catch {
-                return msg.content;
-              }
-            })()
-            : msg.content,
-      }));
+      const messages = processResultWithTypeConversion(allRecords, await getTableSchema({ tableName: TABLE_MESSAGES, client: this.lanceClient }));
+      const normalized = messages.map((msg: any) => {
+        const { thread_id, ...rest } = msg;
+        return {
+          ...rest,
+          threadId: thread_id,
+          content:
+            typeof msg.content === 'string'
+              ? (() => {
+                try {
+                  return JSON.parse(msg.content);
+                } catch {
+                  return msg.content;
+                }
+              })()
+              : msg.content,
+        };
+      });
       const list = new MessageList({ threadId, resourceId }).add(normalized, 'memory');
       if (format === 'v2') return list.get.all.v2();
       return list.get.all.v1();
@@ -483,13 +543,40 @@ export class LanceStorage extends MastraStorage {
         throw new Error('Thread ID is required');
       }
 
-      const transformedMessages = messages.map((message: MastraMessageV2 | MastraMessageV1) => ({
-        ...message,
-        content: JSON.stringify(message.content),
-      }));
+      // Validate all messages before saving
+      for (const message of messages) {
+        if (!message.id) {
+          throw new Error('Message ID is required');
+        }
+        if (!message.threadId) {
+          throw new Error('Thread ID is required for all messages');
+        }
+        if (message.resourceId === null || message.resourceId === undefined) {
+          throw new Error('Resource ID cannot be null or undefined');
+        }
+        if (!message.content) {
+          throw new Error('Message content is required');
+        }
+      }
+
+      const transformedMessages = messages.map((message: MastraMessageV2 | MastraMessageV1) => {
+        const { threadId, type, ...rest } = message;
+        return {
+          ...rest,
+          thread_id: threadId,
+          type: type ?? 'v2',
+          content: JSON.stringify(message.content),
+        };
+      });
 
       const table = await this.lanceClient.openTable(TABLE_MESSAGES);
       await table.mergeInsert('id').whenMatchedUpdateAll().whenNotMatchedInsertAll().execute(transformedMessages);
+
+      // Update the thread's updatedAt timestamp
+      const threadsTable = await this.lanceClient.openTable(TABLE_THREADS);
+      const currentTime = new Date().getTime();
+      const updateRecord = { id: threadId, updatedAt: currentTime };
+      await threadsTable.mergeInsert('id').whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([updateRecord]);
 
       const list = new MessageList().add(messages, 'memory');
       if (format === `v2`) return list.get.all.v2();
@@ -520,36 +607,6 @@ export class LanceStorage extends MastraStorage {
 
   async getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }> {
     return (this.stores as any).traces.getTracesPaginated(args);
-  }
-
-  async saveEvals({ evals }: { evals: EvalRow[] }): Promise<EvalRow[]> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_EVALS);
-      const transformedEvals = evals.map(evalRecord => ({
-        input: evalRecord.input,
-        output: evalRecord.output,
-        agent_name: evalRecord.agentName,
-        metric_name: evalRecord.metricName,
-        result: JSON.stringify(evalRecord.result),
-        instructions: evalRecord.instructions,
-        test_info: JSON.stringify(evalRecord.testInfo),
-        global_run_id: evalRecord.globalRunId,
-        run_id: evalRecord.runId,
-        created_at: new Date(evalRecord.createdAt).getTime(),
-      }));
-
-      await table.add(transformedEvals, { mode: 'append' });
-      return evals;
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_SAVE_EVALS_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-        },
-        error,
-      );
-    }
   }
 
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
@@ -639,32 +696,223 @@ export class LanceStorage extends MastraStorage {
     return this.stores.workflows.loadWorkflowSnapshot({ workflowName, runId });
   }
 
-  async getThreadsByResourceIdPaginated(_args: {
+  async getThreadsByResourceIdPaginated(args: {
     resourceId: string;
     page?: number;
     perPage?: number;
   }): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
-    throw new MastraError(
-      {
-        id: 'LANCE_STORE_GET_THREADS_BY_RESOURCE_ID_PAGINATED_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      },
-      'Method not implemented.',
-    );
+    try {
+      const { resourceId, page = 0, perPage = 10 } = args;
+      const table = await this.lanceClient.openTable(TABLE_THREADS);
+
+      // Get total count
+      const total = await table.countRows(`\`resourceId\` = '${resourceId}'`);
+
+      // Get paginated results
+      const query = table.query().where(`\`resourceId\` = '${resourceId}'`);
+      const offset = page * perPage;
+      query.limit(perPage);
+      if (offset > 0) {
+        query.offset(offset);
+      }
+
+      const records = await query.toArray();
+
+      // Sort by updatedAt descending (most recent first)
+      records.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      const schema = await getTableSchema({ tableName: TABLE_THREADS, client: this.lanceClient });
+      const threads = records.map(record =>
+        processResultWithTypeConversion(record, schema)
+      ) as StorageThreadType[];
+
+      return {
+        threads,
+        total,
+        page,
+        perPage,
+        hasMore: total > (page + 1) * perPage,
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'LANCE_STORE_GET_THREADS_BY_RESOURCE_ID_PAGINATED_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        error,
+      );
+    }
   }
 
   async getMessagesPaginated(
-    _args: StorageGetMessagesArg,
+    args: StorageGetMessagesArg & { format?: 'v1' | 'v2' },
   ): Promise<PaginationInfo & { messages: MastraMessageV1[] | MastraMessageV2[] }> {
-    throw new MastraError(
-      {
-        id: 'LANCE_STORE_GET_MESSAGES_PAGINATED_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      },
-      'Method not implemented.',
-    );
+    try {
+      const {
+        threadId,
+        resourceId,
+        selectBy,
+        format = 'v1',
+      } = args;
+
+      if (!threadId) {
+        throw new Error('Thread ID is required for getMessagesPaginated');
+      }
+
+      // Extract pagination and dateRange from selectBy.pagination
+      const page = selectBy?.pagination?.page ?? 0;
+      const perPage = selectBy?.pagination?.perPage ?? 10;
+      const dateRange = selectBy?.pagination?.dateRange;
+      const fromDate = dateRange?.start;
+      const toDate = dateRange?.end;
+
+      const table = await this.lanceClient.openTable(TABLE_MESSAGES);
+      const messages: any[] = [];
+
+      // Handle selectBy.include first (before pagination)
+      if (selectBy?.include && Array.isArray(selectBy.include)) {
+        // Get all unique thread IDs from include items
+        const threadIds = [...new Set(selectBy.include.map(item => item.threadId))];
+
+        // Fetch all messages from all relevant threads
+        const allThreadMessages: any[] = [];
+        for (const threadId of threadIds) {
+          const threadQuery = table.query().where(`thread_id = '${threadId}'`);
+          let threadRecords = await threadQuery.toArray();
+
+          // Apply date filtering in JS for context
+          if (fromDate) threadRecords = threadRecords.filter(m => m.createdAt >= fromDate.getTime());
+          if (toDate) threadRecords = threadRecords.filter(m => m.createdAt <= toDate.getTime());
+
+          allThreadMessages.push(...threadRecords);
+        }
+
+        // Sort all messages by createdAt
+        allThreadMessages.sort((a, b) => a.createdAt - b.createdAt);
+
+        // Apply processMessagesWithContext to the combined array
+        const contextMessages = this.processMessagesWithContext(
+          allThreadMessages,
+          selectBy.include,
+        );
+        messages.push(...contextMessages);
+      }
+
+      // Build query conditions for the main thread
+      const conditions: string[] = [`thread_id = '${threadId}'`];
+      if (resourceId) {
+        conditions.push(`\`resourceId\` = '${resourceId}'`);
+      }
+      if (fromDate) {
+        conditions.push(`\`createdAt\` >= ${fromDate.getTime()}`);
+      }
+      if (toDate) {
+        conditions.push(`\`createdAt\` <= ${toDate.getTime()}`);
+      }
+
+      // Get total count (excluding already included messages)
+      let total = 0;
+      if (conditions.length > 0) {
+        total = await table.countRows(conditions.join(' AND '));
+      } else {
+        total = await table.countRows();
+      }
+
+      // If no messages and no included messages, return empty result
+      if (total === 0 && messages.length === 0) {
+        return {
+          messages: [],
+          total: 0,
+          page,
+          perPage,
+          hasMore: false,
+        };
+      }
+
+      // Fetch paginated messages (excluding already included ones)
+      const excludeIds = messages.map(m => m.id);
+      let selectedMessages: any[] = [];
+
+      if (selectBy?.last && selectBy.last > 0) {
+        // Handle selectBy.last: get last N messages for the main thread
+        const query = table.query();
+        if (conditions.length > 0) {
+          query.where(conditions.join(' AND '));
+        }
+        let records = await query.toArray();
+        records = records.sort((a, b) => a.createdAt - b.createdAt);
+
+        // Exclude already included messages
+        if (excludeIds.length > 0) {
+          records = records.filter(m => !excludeIds.includes(m.id));
+        }
+
+        selectedMessages = records.slice(-selectBy.last);
+      } else {
+        // Regular pagination
+        const query = table.query();
+        if (conditions.length > 0) {
+          query.where(conditions.join(' AND '));
+        }
+        let records = await query.toArray();
+        records = records.sort((a, b) => a.createdAt - b.createdAt);
+
+        // Exclude already included messages
+        if (excludeIds.length > 0) {
+          records = records.filter(m => !excludeIds.includes(m.id));
+        }
+
+        selectedMessages = records.slice(page * perPage, (page + 1) * perPage);
+      }
+
+      // Merge all messages and deduplicate
+      const allMessages = [...messages, ...selectedMessages];
+      const seen = new Set();
+      const dedupedMessages = allMessages.filter(m => {
+        const key = `${m.id}:${m.thread_id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Convert to correct format (v1/v2)
+      const formattedMessages = dedupedMessages.map((msg: any) => {
+        const { thread_id, ...rest } = msg;
+        return {
+          ...rest,
+          threadId: thread_id,
+          content:
+            typeof msg.content === 'string'
+              ? (() => {
+                try {
+                  return JSON.parse(msg.content);
+                } catch {
+                  return msg.content;
+                }
+              })()
+              : msg.content,
+        };
+      });
+
+      const list = new MessageList().add(formattedMessages, 'memory');
+      return {
+        messages: format === 'v2' ? list.get.all.v2() : list.get.all.v1(),
+        total: total, // Total should be the count of messages matching the filters
+        page,
+        perPage,
+        hasMore: total > (page + 1) * perPage,
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'LANCE_STORE_GET_MESSAGES_PAGINATED_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        error,
+      );
+    }
   }
 
   async updateMessages(_args: {
@@ -679,68 +927,43 @@ export class LanceStorage extends MastraStorage {
   }
 
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'getScoreById method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    return this.stores.scores.getScoreById({ id: _id });
   }
 
   async getScoresByScorerId({
-    scorerId: _scorerId,
-    pagination: _pagination,
+    scorerId,
+    pagination,
   }: {
     scorerId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'getScoresByScorerId method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    return this.stores.scores.getScoresByScorerId({ scorerId, pagination });
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'saveScore method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    return this.stores.scores.saveScore(_score);
   }
 
   async getScoresByRunId({
-    runId: _runId,
-    pagination: _pagination,
+    runId,
+    pagination,
   }: {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'getScoresByRunId method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    return this.stores.scores.getScoresByRunId({ runId, pagination });
   }
 
   async getScoresByEntityId({
-    entityId: _entityId,
-    entityType: _entityType,
-    pagination: _pagination,
+    entityId,
+    entityType,
+    pagination,
   }: {
     pagination: StoragePagination;
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
-      text: 'getScoresByEntityId method is not implemented for LanceStorage',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.USER,
-    });
+    return this.stores.scores.getScoresByEntityId({ entityId, entityType, pagination });
   }
 
   async getEvals(
@@ -786,9 +1009,7 @@ export class LanceStorage extends MastraStorage {
       // Get total count with the same conditions
       let total = 0;
       if (conditions.length > 0) {
-        console.log('Date filtering conditions:', conditions.join(' AND '));
         total = await table.countRows(conditions.join(' AND '));
-        console.log('Total count:', total);
       } else {
         total = await table.countRows();
       }

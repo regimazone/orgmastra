@@ -68,14 +68,13 @@ export function createTestSuite(storage: MastraStorage) {
 
     createWorkflowsTests(storage);
 
-    // createTraceTests(storage);
+    createTraceTests(storage);
 
-    // createEvalsTests(storage);
+    createEvalsTests(storage);
 
-    // createConversationsTest({ storage });
+    createConversationsTest({ storage });
 
-    // createScoresTest({ storage });
-
+    createScoresTest({ storage });
   });
 
 }

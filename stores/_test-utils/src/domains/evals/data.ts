@@ -14,7 +14,7 @@ export const createSampleEval = (agentName: string, isTest = false, createdAt?: 
         test_info: testInfo,
         global_run_id: `global-${randomUUID()}`,
         run_id: `run-${randomUUID()}`,
-        created_at: createdAt || new Date().toISOString(),
+        created_at: createdAt || new Date(),
         createdAt: createdAt || new Date(),
     };
 };

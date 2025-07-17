@@ -473,7 +473,6 @@ export class StoreOperationsLance extends StoreOperations {
                 this.logger.debug('No record found');
                 return null;
             }
-
             // Process the result with type conversions
             return processResultWithTypeConversion(result[0], tableSchema);
         } catch (error: any) {
