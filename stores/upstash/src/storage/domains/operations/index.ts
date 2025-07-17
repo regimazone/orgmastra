@@ -2,6 +2,7 @@ import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { serializeDate, TABLE_EVALS, TABLE_MESSAGES, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
 import type { TABLE_NAMES, StorageColumn } from '@mastra/core/storage';
 import type { Redis } from '@upstash/redis';
+import { processRecord } from '../utils';
 
 export interface StoreOperationsUpstash {
     createTable(args: { tableName: TABLE_NAMES; schema: Record<string, StorageColumn> }): Promise<void>;
@@ -55,37 +56,8 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
         return this.clearTable({ tableName });
     }
 
-    private processRecord(tableName: TABLE_NAMES, record: Record<string, any>) {
-        let key: string;
-
-        if (tableName === TABLE_MESSAGES) {
-            // For messages, use threadId as the primary key component
-            key = this.getKey(tableName, { threadId: record.threadId, id: record.id });
-        } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-            key = this.getKey(tableName, {
-                namespace: record.namespace || 'workflows',
-                workflow_name: record.workflow_name,
-                run_id: record.run_id,
-                ...(record.resourceId ? { resourceId: record.resourceId } : {}),
-            });
-        } else if (tableName === TABLE_EVALS) {
-            key = this.getKey(tableName, { id: record.run_id });
-        } else {
-            key = this.getKey(tableName, { id: record.id });
-        }
-
-        // Convert dates to ISO strings before storing
-        const processedRecord = {
-            ...record,
-            createdAt: serializeDate(record.createdAt),
-            updatedAt: serializeDate(record.updatedAt),
-        };
-
-        return { key, processedRecord };
-    }
-
     async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-        const { key, processedRecord } = this.processRecord(tableName, record);
+        const { key, processedRecord } = processRecord(tableName, record);
 
         try {
             await this.redis.set(key, processedRecord);
@@ -114,7 +86,7 @@ export class StoreOperationsUpstash implements StoreOperationsUpstash {
                 const batch = records.slice(i, i + batchSize);
                 const pipeline = this.redis.pipeline();
                 for (const record of batch) {
-                    const { key, processedRecord } = this.processRecord(tableName, record);
+                    const { key, processedRecord } = processRecord(tableName, record);
                     pipeline.set(key, processedRecord);
                 }
                 await pipeline.exec();

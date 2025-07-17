@@ -31,6 +31,8 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import { Redis } from '@upstash/redis';
 import { StoreOperationsUpstash } from './domains/operations';
 import { TracesUpstash } from './domains/traces';
+import { processRecord } from './domains/utils';
+import { ScoresUpstash } from './domains/scores';
 
 export interface UpstashConfig {
   url: string;
@@ -50,10 +52,12 @@ export class UpstashStore extends MastraStorage {
 
     const operations = new StoreOperationsUpstash({ redis: this.redis });
     const traces = new TracesUpstash({ redis: this.redis, operations });
+    const scores = new ScoresUpstash({ redis: this.redis, operations });
 
     this.stores = {
       operations,
       traces,
+      scores,
     } as unknown as StorageDomains;
   }
 
@@ -700,7 +704,7 @@ export class UpstashStore extends MastraStorage {
             ...existingThread,
             updatedAt: new Date(),
           };
-          pipeline.set(threadKey, this.processRecord(TABLE_THREADS, updatedThread).processedRecord);
+          pipeline.set(threadKey, processRecord(TABLE_THREADS, updatedThread).processedRecord);
         }
 
         await pipeline.exec();
@@ -1457,7 +1461,7 @@ export class UpstashStore extends MastraStorage {
               ...existingThread,
               updatedAt: now,
             };
-            pipeline.set(threadKey, this.processRecord(TABLE_THREADS, updatedThread).processedRecord);
+            pipeline.set(threadKey, processRecord(TABLE_THREADS, updatedThread).processedRecord);
           }
         }
       }
@@ -1579,21 +1583,12 @@ export class UpstashStore extends MastraStorage {
     }
   }
 
-  /**
-   * SCORERS - Not implemented
-   */
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-      `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoreById({ id: _id });
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-      `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.saveScore(_score);
   }
 
   async getScoresByRunId({
@@ -1603,10 +1598,7 @@ export class UpstashStore extends MastraStorage {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-      `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByRunId({ runId: _runId, pagination: _pagination });
   }
 
   async getScoresByEntityId({
@@ -1618,10 +1610,7 @@ export class UpstashStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-      `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByEntityId({ entityId: _entityId, entityType: _entityType, pagination: _pagination });
   }
 
   async getScoresByScorerId({
@@ -1631,9 +1620,6 @@ export class UpstashStore extends MastraStorage {
     scorerId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-      `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByScorerId({ scorerId: _scorerId, pagination: _pagination });
   }
 }

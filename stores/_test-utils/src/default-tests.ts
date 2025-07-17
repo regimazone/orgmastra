@@ -208,5 +208,5 @@ export function createTestSuite(storage: MastraStorage) {
 
   createConversationsTest({ storage });
 
-  // createScoresTest({ storage });
+  createScoresTest({ storage });
 }
