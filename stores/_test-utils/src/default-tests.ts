@@ -64,7 +64,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_THREADS });
     });
 
-    // createOperationsTests(storage);
+    createOperationsTests(storage);
 
     createWorkflowsTests(storage);
 

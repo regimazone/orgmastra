@@ -1,5 +1,5 @@
 import type { MastraStorage, StorageColumn, TABLE_NAMES } from "@mastra/core/storage";
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import { TABLE_THREADS } from "@mastra/core/storage";
 import { createSampleThread } from "../conversations/data";
 
@@ -136,6 +136,10 @@ export function createOperationsTests(storage: MastraStorage) {
 
         afterEach(async () => {
             await storage.clearTable({ tableName: TEST_TABLE as TABLE_NAMES });
+        });
+
+        afterAll(async () => {
+            await storage.dropTable({ tableName: TEST_TABLE as TABLE_NAMES });
         });
 
         it('adds a new column to an existing table', async () => {

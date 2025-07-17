@@ -1,5 +1,5 @@
 import { connect } from '@lancedb/lancedb';
-import type { Connection, ConnectionOptions, SchemaLike, FieldLike } from '@lancedb/lancedb';
+import type { Connection, ConnectionOptions } from '@lancedb/lancedb';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { MessageList } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
@@ -11,7 +11,6 @@ import {
   TABLE_MESSAGES,
   TABLE_THREADS,
   TABLE_TRACES,
-  TABLE_WORKFLOW_SNAPSHOT,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -20,18 +19,15 @@ import type {
   StorageGetTracesArg,
   StorageColumn,
   EvalRow,
-  WorkflowRun,
   WorkflowRuns,
   StoragePagination,
   StorageDomains,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
-import type { DataType } from 'apache-arrow';
-import { Utf8, Int32, Float32, Binary, Schema, Field, Float64 } from 'apache-arrow';
-import { getPrimaryKeys, getTableSchema, processResultWithTypeConversion, validateKeyTypes } from './domains/utils';
 import { StoreOperationsLance } from './domains/operations';
-
+import { getPrimaryKeys, getTableSchema, processResultWithTypeConversion } from './domains/utils';
+import { StoreWorkflowsLance } from './domains/workflows';
 
 
 export class LanceStorage extends MastraStorage {
@@ -65,6 +61,7 @@ export class LanceStorage extends MastraStorage {
       instance.lanceClient = await connect(uri, options);
       instance.stores = {
         operations: new StoreOperationsLance({ client: instance.lanceClient }),
+        workflows: new StoreWorkflowsLance({ client: instance.lanceClient }),
       } as unknown as StorageDomains;
       return instance;
     } catch (e: any) {
@@ -89,6 +86,7 @@ export class LanceStorage extends MastraStorage {
     super({ name });
     this.stores = {
       operations: new StoreOperationsLance({ client: this.lanceClient }),
+      workflows: new StoreWorkflowsLance({ client: this.lanceClient }),
     } as unknown as StorageDomains;
   }
 
@@ -550,19 +548,7 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  async getTraces({
-    name,
-    scope,
-    page = 1,
-    perPage = 10,
-    attributes,
-  }: {
-    name?: string;
-    scope?: string;
-    page: number;
-    perPage: number;
-    attributes?: Record<string, string>;
-  }): Promise<TraceType[]> {
+  async getTraces({ name, scope, page = 1, perPage = 10, attributes }: { name?: string; scope?: string; page: number; perPage: number; attributes?: Record<string, string>; }): Promise<Trace[]> {
     try {
       const table = await this.lanceClient.openTable(TABLE_TRACES);
       const query = table.query();
@@ -591,8 +577,9 @@ export class LanceStorage extends MastraStorage {
       }
 
       const records = await query.toArray();
+      // Convert TraceType[] to Trace[] (parentSpanId: string)
       return records.map(record => {
-        return {
+        const processed = {
           ...record,
           attributes: JSON.parse(record.attributes),
           status: JSON.parse(record.status),
@@ -603,7 +590,14 @@ export class LanceStorage extends MastraStorage {
           endTime: new Date(record.endTime),
           createdAt: new Date(record.createdAt),
         };
-      }) as TraceType[];
+        // parentSpanId: always string
+        if (processed.parentSpanId === null || processed.parentSpanId === undefined) {
+          processed.parentSpanId = '';
+        } else {
+          processed.parentSpanId = String(processed.parentSpanId);
+        }
+        return processed as Trace;
+      });
     } catch (error: any) {
       throw new MastraError(
         {
@@ -683,27 +677,6 @@ export class LanceStorage extends MastraStorage {
     }
   }
 
-  private parseWorkflowRun(row: any): WorkflowRun {
-    let parsedSnapshot: WorkflowRunState | string = row.snapshot as string;
-    if (typeof parsedSnapshot === 'string') {
-      try {
-        parsedSnapshot = JSON.parse(row.snapshot as string) as WorkflowRunState;
-      } catch (e) {
-        // If parsing fails, return the raw snapshot string
-        console.warn(`Failed to parse snapshot for workflow ${row.workflow_name}: ${e}`);
-      }
-    }
-
-    return {
-      workflowName: row.workflow_name,
-      runId: row.run_id,
-      snapshot: parsedSnapshot,
-      createdAt: this.ensureDate(row.createdAt)!,
-      updatedAt: this.ensureDate(row.updatedAt)!,
-      resourceId: row.resourceId,
-    };
-  }
-
   async getWorkflowRuns(args?: {
     namespace?: string;
     workflowName?: string;
@@ -712,53 +685,9 @@ export class LanceStorage extends MastraStorage {
     limit?: number;
     offset?: number;
   }): Promise<WorkflowRuns> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
-      const query = table.query();
-
-      if (args?.workflowName) {
-        query.where(`workflow_name = '${args.workflowName}'`);
-      }
-
-      if (args?.fromDate) {
-        query.where(`\`createdAt\` >= ${args.fromDate.getTime()}`);
-      }
-
-      if (args?.toDate) {
-        query.where(`\`createdAt\` <= ${args.toDate.getTime()}`);
-      }
-
-      if (args?.limit) {
-        query.limit(args.limit);
-      }
-
-      if (args?.offset) {
-        query.offset(args.offset);
-      }
-
-      const records = await query.toArray();
-      return {
-        runs: records.map(record => this.parseWorkflowRun(record)),
-        total: records.length,
-      };
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_GET_WORKFLOW_RUNS_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { namespace: args?.namespace ?? '', workflowName: args?.workflowName ?? '' },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.getWorkflowRuns(args);
   }
 
-  /**
-   * Retrieve a single workflow run by its runId.
-   * @param args The ID of the workflow run to retrieve
-   * @returns The workflow run object or null if not found
-   */
   async getWorkflowRunById(args: { runId: string; workflowName?: string }): Promise<{
     workflowName: string;
     runId: string;
@@ -766,28 +695,7 @@ export class LanceStorage extends MastraStorage {
     createdAt: Date;
     updatedAt: Date;
   } | null> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
-      let whereClause = `run_id = '${args.runId}'`;
-      if (args.workflowName) {
-        whereClause += ` AND workflow_name = '${args.workflowName}'`;
-      }
-      const query = table.query().where(whereClause);
-      const records = await query.toArray();
-      if (records.length === 0) return null;
-      const record = records[0];
-      return this.parseWorkflowRun(record);
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_GET_WORKFLOW_RUN_BY_ID_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { runId: args.runId, workflowName: args.workflowName ?? '' },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.getWorkflowRunById(args);
   }
 
   async persistWorkflowSnapshot({
@@ -799,46 +707,9 @@ export class LanceStorage extends MastraStorage {
     runId: string;
     snapshot: WorkflowRunState;
   }): Promise<void> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
-
-      // Try to find the existing record
-      const query = table.query().where(`workflow_name = '${workflowName}' AND run_id = '${runId}'`);
-      const records = await query.toArray();
-      let createdAt: number;
-      const now = Date.now();
-
-      if (records.length > 0) {
-        createdAt = records[0].createdAt ?? now;
-      } else {
-        createdAt = now;
-      }
-
-      const record = {
-        workflow_name: workflowName,
-        run_id: runId,
-        snapshot: JSON.stringify(snapshot),
-        createdAt,
-        updatedAt: now,
-      };
-
-      await table
-        .mergeInsert(['workflow_name', 'run_id'])
-        .whenMatchedUpdateAll()
-        .whenNotMatchedInsertAll()
-        .execute([record]);
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_PERSIST_WORKFLOW_SNAPSHOT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { workflowName, runId },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.persistWorkflowSnapshot({ workflowName, runId, snapshot });
   }
+
   async loadWorkflowSnapshot({
     workflowName,
     runId,
@@ -846,22 +717,7 @@ export class LanceStorage extends MastraStorage {
     workflowName: string;
     runId: string;
   }): Promise<WorkflowRunState | null> {
-    try {
-      const table = await this.lanceClient.openTable(TABLE_WORKFLOW_SNAPSHOT);
-      const query = table.query().where(`workflow_name = '${workflowName}' AND run_id = '${runId}'`);
-      const records = await query.toArray();
-      return records.length > 0 ? JSON.parse(records[0].snapshot) : null;
-    } catch (error: any) {
-      throw new MastraError(
-        {
-          id: 'LANCE_STORE_LOAD_WORKFLOW_SNAPSHOT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { workflowName, runId },
-        },
-        error,
-      );
-    }
+    return this.stores.workflows.loadWorkflowSnapshot({ workflowName, runId });
   }
 
   async getTracesPaginated(_args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[] }> {
@@ -974,6 +830,25 @@ export class LanceStorage extends MastraStorage {
     throw new MastraError({
       id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
       text: 'getScoresByEntityId method is not implemented for LanceStorage',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.USER,
+    });
+  }
+
+  // Add this stub to satisfy the abstract method requirement
+  async getEvals(
+    _options: {
+      agentName?: string;
+      type?: 'test' | 'live';
+      page?: number;
+      perPage?: number;
+      fromDate?: Date;
+      toDate?: Date;
+    }
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
+    throw new MastraError({
+      id: 'LANCE_STORAGE_METHOD_NOT_IMPLEMENTED',
+      text: 'getEvals method is not implemented for LanceStorage',
       domain: ErrorDomain.STORAGE,
       category: ErrorCategory.USER,
     });
