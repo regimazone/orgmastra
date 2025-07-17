@@ -37,6 +37,13 @@ export interface WorkflowRuns {
   total: number;
 }
 
+export interface StorageWorkflowRun {
+  workflow_name: string;
+  run_id: string;
+  snapshot: WorkflowRunState | string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 export interface WorkflowRun {
   workflowName: string;
   runId: string;
@@ -83,6 +90,19 @@ export type StorageGetMessagesArg = {
 export type ScorerRow = {
   input: string;
 };
+
+export type StorageEvalRow = {
+  input: string;
+  output: string;
+  result: Record<string, any>;
+  agent_name: string;
+  metric_name: string;
+  instructions: string;
+  test_info: Record<string, any> | null;
+  global_run_id: string;
+  run_id: string;
+  created_at: Date;
+}
 
 export type EvalRow = {
   input: string;

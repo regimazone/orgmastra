@@ -158,6 +158,9 @@ export function createOperationsTests(storage: MastraStorage) {
                 tableName: TEST_TABLE as TABLE_NAMES,
                 keys: { id: 1 },
             });
+
+            console.log('row', row);
+
             expect(row?.age).toBe(42);
         });
 

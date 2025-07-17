@@ -5,10 +5,12 @@
   "type": "module",
   "main": "src/default-tests.ts",
   "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
   "exports": {
     ".": "./src/default-tests.ts"
   },
-  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",

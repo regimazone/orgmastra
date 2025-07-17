@@ -9,6 +9,7 @@ export default defineConfig({
       'speech/*',
       '!vector-stores/docker-compose.yaml',
       '!vector-stores/**/*.md',
+      'stores/_test-utils/**/*',
     ],
   },
 });

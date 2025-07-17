@@ -1,4 +1,4 @@
-import type { TABLE_NAMES } from '../../constants';
+import { TABLE_EVALS, TABLE_WORKFLOW_SNAPSHOT, type TABLE_NAMES } from '../../constants';
 import type { StorageColumn } from '../../types';
 import { StoreOperations } from './base';
 
@@ -23,20 +23,34 @@ export class StoreOperationsInMemory extends StoreOperations {
     }
 
     async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-        this.logger.debug(`MockStore: insert called for ${tableName}`, record);
-
+        console.log(`[insert] tableName: ${tableName}, record:`, record);
         const table = this.data[tableName];
-
-        table.set(record.id, record);
+        let key = record.id;
+        if ([TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS].includes(tableName) && !record.id && record.run_id) {
+            key = record.run_id;
+            record.id = key;
+        } else if (!record.id) {
+            key = `auto-${Date.now()}-${Math.random()}`;
+            record.id = key;
+        }
+        console.log(`[insert] Using key: ${key}`);
+        table.set(key, record);
     }
 
     async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-        this.logger.debug(`MockStore: batchInsert called for ${tableName} with ${records.length} records`);
-
+        console.log(`[batchInsert] tableName: ${tableName}, records:`, records);
         const table = this.data[tableName];
-
         for (const record of records) {
-            table.set(record.id, record);
+            let key = record.id;
+            if ([TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS].includes(tableName) && !record.id && record.run_id) {
+                key = record.run_id;
+                record.id = key;
+            } else if (!record.id) {
+                key = `auto-${Date.now()}-${Math.random()}`;
+                record.id = key;
+            }
+            console.log(`[batchInsert] Using key: ${key}`);
+            table.set(key, record);
         }
     }
 
@@ -47,7 +61,7 @@ export class StoreOperationsInMemory extends StoreOperations {
 
         const records = Array.from(table.values());
 
-        return records.filter(record => Object.keys(keys).every(key => record[key] === keys[key])) as R;
+        return records.filter(record => Object.keys(keys).every(key => record[key] === keys[key]))?.[0] as R | null;
     }
 
     async createTable({
@@ -65,12 +79,12 @@ export class StoreOperationsInMemory extends StoreOperations {
     async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
         this.logger.debug(`MockStore: clearTable called for ${tableName}`);
 
-        this.data[tableName] = new Map();
+        this.data[tableName].clear();
     }
 
     async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
         this.logger.debug(`MockStore: dropTable called for ${tableName}`);
-        this.data[tableName] = new Map();
+        this.data[tableName].clear();
     }
 
     async alterTable({

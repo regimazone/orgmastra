@@ -1,20 +1,18 @@
 import type { WorkflowRunState } from "../../../workflows";
 import { TABLE_WORKFLOW_SNAPSHOT } from "../../constants";
-import type { WorkflowRun, WorkflowRuns } from "../../types";
+import type { StorageWorkflowRun, WorkflowRun, WorkflowRuns } from "../../types";
 import type { StoreOperations } from "../operations";
 import { WorkflowsStorage } from "./base";
 
-export type InMemoryWorkflows = Map<string, WorkflowRun>;
+export type InMemoryWorkflows = Map<string, StorageWorkflowRun>;
 
 export class WorkflowsInMemory extends WorkflowsStorage {
-    workflows: InMemoryWorkflows;
     operations: StoreOperations;
     collection: InMemoryWorkflows;
 
     constructor({ collection, operations }: { collection: InMemoryWorkflows, operations: StoreOperations }) {
         super();
         this.collection = collection;
-        this.workflows = collection;
         this.operations = operations;
     }
 
@@ -35,7 +33,8 @@ export class WorkflowsInMemory extends WorkflowsStorage {
             updatedAt: new Date(),
         };
 
-        this.logger.debug('Persisting workflow snapshot', { workflowName, runId, data });
+        console.log('[persistWorkflowSnapshot] args:', { workflowName, runId, snapshot });
+        console.log('[persistWorkflowSnapshot] data:', data);
         await this.operations.insert({
             tableName: TABLE_WORKFLOW_SNAPSHOT,
             record: data,
@@ -73,14 +72,21 @@ export class WorkflowsInMemory extends WorkflowsStorage {
         offset?: number;
         resourceId?: string;
     } = {}): Promise<WorkflowRuns> {
-        this.logger.debug(`MockStore: getWorkflowRuns called`);
+        console.log(`[getWorkflowRuns] called with`, { workflowName, fromDate, toDate, limit, offset, resourceId });
         let runs = Array.from(this.collection.values());
+        console.log(`[getWorkflowRuns] initial runs:`, runs);
 
         if (workflowName) runs = runs.filter((run: any) => run.workflow_name === workflowName);
-        if (fromDate) runs = runs.filter((run: any) => new Date(run.createdAt) >= fromDate);
-        if (toDate) runs = runs.filter((run: any) => new Date(run.createdAt) <= toDate);
+        if (fromDate && toDate) {
+            runs = runs.filter((run: any) => new Date(run.createdAt).getTime() >= fromDate.getTime() && new Date(run.createdAt).getTime() <= toDate.getTime());
+        } else if (fromDate) {
+            runs = runs.filter((run: any) => new Date(run.createdAt).getTime() >= fromDate.getTime());
+        } else if (toDate) {
+            runs = runs.filter((run: any) => new Date(run.createdAt).getTime() <= toDate.getTime());
+        }
         if (resourceId) runs = runs.filter((run: any) => run.resourceId === resourceId);
 
+        console.log(`[getWorkflowRuns] after filtering:`, runs);
         const total = runs.length;
 
         // Sort by createdAt
@@ -103,6 +109,7 @@ export class WorkflowsInMemory extends WorkflowsStorage {
             workflowName: run.workflow_name,
         }));
 
+        console.log(`[getWorkflowRuns] parsedRuns:`, parsedRuns);
         return { runs: parsedRuns as WorkflowRun[], total };
     }
 
@@ -113,10 +120,10 @@ export class WorkflowsInMemory extends WorkflowsStorage {
         runId: string;
         workflowName?: string;
     }): Promise<WorkflowRun | null> {
-        this.logger.debug(`MockStore: getWorkflowRunById called for runId ${runId}`);
-        let run = Array.from(this.collection.values()).find((r: any) => r.run_id === runId);
+        console.log(`[getWorkflowRunById] called for runId ${runId}, workflowName ${workflowName}`);
+        let run = Array.from(this.collection.values()).find((r: any) => r.run_id === runId)
 
-        if (run && workflowName && run.workflowName !== workflowName) {
+        if (run && workflowName && run.workflow_name !== workflowName) {
             run = undefined; // Not found if workflowName doesn't match
         }
 
@@ -128,10 +135,11 @@ export class WorkflowsInMemory extends WorkflowsStorage {
             snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : run.snapshot,
             createdAt: new Date(run.createdAt),
             updatedAt: new Date(run.updatedAt),
-            runId: run.runId,
-            workflowName: run.workflowName,
+            runId: run.run_id,
+            workflowName: run.workflow_name,
         };
 
+        console.log(`[getWorkflowRunById] parsedRun:`, parsedRun);
         return parsedRun as WorkflowRun;
     }
 

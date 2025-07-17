@@ -102,27 +102,8 @@ export function createEvalsTests(storage: MastraStorage) {
     });
 
     describe('Eval Operations', () => {
-        const createSampleEval = (agentName: string, isTest = false) => {
-            const testInfo = isTest ? { testPath: 'test/path.ts', testName: 'Test Name' } : undefined;
-
-            return {
-                id: randomUUID(),
-                agentName,
-                input: 'Sample input',
-                output: 'Sample output',
-                result: { score: 0.8 } as MetricResult,
-                metricName: 'sample-metric',
-                instructions: 'Sample instructions',
-                testInfo,
-                globalRunId: `global-${randomUUID()}`,
-                runId: `run-${randomUUID()}`,
-                createdAt: new Date().toISOString(),
-            };
-        };
-
         it('should retrieve evals by agent name', async () => {
             const agentName = `test-agent-${randomUUID()}`;
-
             // Create sample evals
             const liveEval = createSampleEval(agentName, false);
             const testEval = createSampleEval(agentName, true);
@@ -132,33 +113,33 @@ export function createEvalsTests(storage: MastraStorage) {
             await storage.insert({
                 tableName: TABLE_EVALS,
                 record: {
-                    agent_name: liveEval.agentName,
+                    agent_name: liveEval.agent_name,
                     input: liveEval.input,
                     output: liveEval.output,
                     result: liveEval.result,
-                    metric_name: liveEval.metricName,
+                    metric_name: liveEval.metric_name,
                     instructions: liveEval.instructions,
                     test_info: null,
-                    global_run_id: liveEval.globalRunId,
-                    run_id: liveEval.runId,
-                    created_at: liveEval.createdAt,
-                    createdAt: new Date(liveEval.createdAt),
+                    global_run_id: liveEval.global_run_id,
+                    run_id: liveEval.run_id,
+                    created_at: liveEval.created_at,
+                    createdAt: new Date(liveEval.created_at),
                 },
             });
 
             await storage.insert({
                 tableName: TABLE_EVALS,
                 record: {
-                    agent_name: testEval.agentName,
+                    agent_name: testEval.agent_name,
                     input: testEval.input,
                     output: testEval.output,
                     result: testEval.result,
-                    metric_name: testEval.metricName,
+                    metric_name: testEval.metric_name,
                     instructions: testEval.instructions,
-                    test_info: JSON.stringify(testEval.testInfo),
-                    global_run_id: testEval.globalRunId,
-                    run_id: testEval.runId,
-                    created_at: testEval.createdAt,
+                    test_info: testEval.test_info,
+                    global_run_id: testEval.global_run_id,
+                    run_id: testEval.run_id,
+                    created_at: testEval.created_at,
                     createdAt: new Date(testEval.createdAt),
                 },
             });
@@ -166,35 +147,36 @@ export function createEvalsTests(storage: MastraStorage) {
             await storage.insert({
                 tableName: TABLE_EVALS,
                 record: {
-                    agent_name: otherAgentEval.agentName,
+                    agent_name: otherAgentEval.agent_name,
                     input: otherAgentEval.input,
                     output: otherAgentEval.output,
                     result: otherAgentEval.result,
-                    metric_name: otherAgentEval.metricName,
+                    metric_name: otherAgentEval.metric_name,
                     instructions: otherAgentEval.instructions,
                     test_info: null,
-                    global_run_id: otherAgentEval.globalRunId,
-                    run_id: otherAgentEval.runId,
-                    created_at: otherAgentEval.createdAt,
-                    createdAt: new Date(otherAgentEval.createdAt),
+                    global_run_id: otherAgentEval.global_run_id,
+                    run_id: otherAgentEval.run_id,
+                    created_at: otherAgentEval.created_at,
+                    createdAt: new Date(otherAgentEval.created_at),
                 },
             });
 
             // Test getting all evals for the agent
             const allEvals = await storage.getEvalsByAgentName(agentName);
             expect(allEvals).toHaveLength(2);
-            expect(allEvals.map((e: any) => e.runId)).toEqual(expect.arrayContaining([liveEval.runId, testEval.runId]));
+            expect(allEvals.map((e) => e.runId)).toEqual(expect.arrayContaining([liveEval.run_id, testEval.run_id]));
 
             // Test getting only live evals
             const liveEvals = await storage.getEvalsByAgentName(agentName, 'live');
+            console.log(`[test] liveEvals:`, liveEvals);
             expect(liveEvals).toHaveLength(1);
-            expect(liveEvals?.[0]?.runId).toBe(liveEval.runId);
+            expect(liveEvals?.[0]?.runId).toBe(liveEval.run_id);
 
             // Test getting only test evals
             const testEvals = await storage.getEvalsByAgentName(agentName, 'test');
             expect(testEvals).toHaveLength(1);
-            expect(testEvals?.[0]?.runId).toBe(testEval.runId);
-            expect(testEvals?.[0]?.testInfo).toEqual(testEval.testInfo);
+            expect(testEvals?.[0]?.runId).toBe(testEval.run_id);
+            expect(testEvals?.[0]?.testInfo).toEqual(testEval.test_info);
 
             // Test getting evals for non-existent agent
             const nonExistentEvals = await storage.getEvalsByAgentName('non-existent-agent');

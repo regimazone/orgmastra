@@ -17,6 +17,7 @@ import {
   TABLE_SCHEMAS,
 } from './constants';
 import type { TABLE_NAMES } from './constants';
+import type { LegacyEvalsStorage, MemoryStorage } from './domains';
 import type { StoreOperations } from './domains/operations';
 import type { ScoresStorage } from './domains/scores';
 import type { TracesStorage } from './domains/traces';
@@ -26,7 +27,6 @@ import type {
   PaginationInfo,
   StorageColumn,
   StorageGetMessagesArg,
-
   StorageResourceType,
   StoragePagination,
   WorkflowRun,
@@ -37,10 +37,12 @@ import type {
 } from './types';
 
 export type StorageDomains = {
+  legacyEvals: LegacyEvalsStorage;
   operations: StoreOperations;
   workflows: WorkflowsStorage;
   scores: ScoresStorage;
   traces: TracesStorage;
+  memory: MemoryStorage;
 }
 
 export function ensureDate(date: Date | string | undefined): Date | undefined {
@@ -418,8 +420,6 @@ export abstract class MastraStorage extends MastraBase {
   }): Promise<WorkflowRuns>;
 
   abstract getWorkflowRunById(args: { runId: string; workflowName?: string }): Promise<WorkflowRun | null>;
-
-
 
   abstract getThreadsByResourceIdPaginated(args: {
     resourceId: string;
