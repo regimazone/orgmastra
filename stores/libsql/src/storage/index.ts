@@ -176,7 +176,7 @@ export class LibSQLStore extends MastraStorage {
 
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
     try {
-      const result = await this.load<StorageThreadType>({
+      const result = await this.load<Omit<StorageThreadType, 'createdAt' | 'updatedAt'> & { createdAt: string, updatedAt: string }>({
         tableName: TABLE_THREADS,
         keys: { id: threadId },
       });
@@ -188,6 +188,8 @@ export class LibSQLStore extends MastraStorage {
       return {
         ...result,
         metadata: typeof result.metadata === 'string' ? JSON.parse(result.metadata) : result.metadata,
+        createdAt: new Date(result.createdAt),
+        updatedAt: new Date(result.updatedAt),
       };
     } catch (error) {
       throw new MastraError(
