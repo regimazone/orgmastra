@@ -81,11 +81,7 @@ Since it's just an agent, it inherits all Mastra capabilities: memory for conver
 
 ## Planning
 
-- [Architecture](./ARCHITECTURE.md) - How it will work internally
-- [Interfaces](./INTERFACES.md) - All planned usage methods
 - [Tools](./TOOLS.md) - Technical tool specifications
-- [Roadmap](./ROADMAP.md) - Shipping phases and capabilities
-- [Patterns](./PATTERNS.md) - Research insights and design decisions
 
 ## Open Questions
 
