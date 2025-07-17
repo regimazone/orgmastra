@@ -30,9 +30,9 @@ import type {
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { Redis } from '@upstash/redis';
 import { StoreOperationsUpstash } from './domains/operations';
+import { ScoresUpstash } from './domains/scores';
 import { TracesUpstash } from './domains/traces';
 import { processRecord } from './domains/utils';
-import { ScoresUpstash } from './domains/scores';
 
 export interface UpstashConfig {
   url: string;
