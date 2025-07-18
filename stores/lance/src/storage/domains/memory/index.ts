@@ -626,15 +626,129 @@ export class StoreMemoryLance extends MemoryStorage {
     }
   }
 
-  async updateMessages(_args: {
+  /**
+   * Parse message data from LanceDB record format to MastraMessageV2 format
+   */
+  private parseMessageData(data: any): MastraMessageV2 {
+    const { thread_id, ...rest } = data;
+    return {
+      ...rest,
+      threadId: thread_id,
+      content:
+        typeof data.content === 'string'
+          ? (() => {
+              try {
+                return JSON.parse(data.content);
+              } catch {
+                return data.content;
+              }
+            })()
+          : data.content,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
+    } as MastraMessageV2;
+  }
+
+  async updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
       {
         id: string;
         content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
       }[];
   }): Promise<MastraMessageV2[]> {
-    this.logger.error('updateMessages is not yet implemented in LanceStore');
-    throw new Error('Method not implemented');
+    const { messages } = args;
+    this.logger.debug('Updating messages', { count: messages.length });
+
+    if (!messages.length) {
+      return [];
+    }
+
+    const updatedMessages: MastraMessageV2[] = [];
+    const affectedThreadIds = new Set<string>();
+
+    try {
+      for (const updateData of messages) {
+        const { id, ...updates } = updateData;
+
+        // Get the existing message
+        const existingMessage = await this.operations.load({ tableName: TABLE_MESSAGES, keys: { id } });
+        if (!existingMessage) {
+          this.logger.warn('Message not found for update', { id });
+          continue;
+        }
+
+        const existingMsg = this.parseMessageData(existingMessage);
+        const originalThreadId = existingMsg.threadId;
+        affectedThreadIds.add(originalThreadId!);
+
+        // Prepare the update payload
+        const updatePayload: any = {};
+
+        // Handle basic field updates
+        if ('role' in updates && updates.role !== undefined) updatePayload.role = updates.role;
+        if ('type' in updates && updates.type !== undefined) updatePayload.type = updates.type;
+        if ('resourceId' in updates && updates.resourceId !== undefined) updatePayload.resourceId = updates.resourceId;
+        if ('threadId' in updates && updates.threadId !== undefined && updates.threadId !== null) {
+          updatePayload.thread_id = updates.threadId;
+          affectedThreadIds.add(updates.threadId as string);
+        }
+
+        // Handle content updates
+        if (updates.content) {
+          const existingContent = existingMsg.content;
+          let newContent = { ...existingContent };
+
+          // Deep merge metadata if provided
+          if (updates.content.metadata !== undefined) {
+            newContent.metadata = {
+              ...(existingContent.metadata || {}),
+              ...(updates.content.metadata || {}),
+            };
+          }
+
+          // Update content string if provided
+          if (updates.content.content !== undefined) {
+            newContent.content = updates.content.content;
+          }
+
+          // Update parts if provided (only if it exists in the content type)
+          if ('parts' in updates.content && updates.content.parts !== undefined) {
+            (newContent as any).parts = updates.content.parts;
+          }
+
+          updatePayload.content = JSON.stringify(newContent);
+        }
+
+        // Update the message using merge insert
+        await this.operations.insert({ tableName: TABLE_MESSAGES, record: { id, ...updatePayload } });
+
+        // Get the updated message
+        const updatedMessage = await this.operations.load({ tableName: TABLE_MESSAGES, keys: { id } });
+        if (updatedMessage) {
+          updatedMessages.push(this.parseMessageData(updatedMessage));
+        }
+      }
+
+      // Update timestamps for all affected threads
+      for (const threadId of affectedThreadIds) {
+        await this.operations.insert({
+          tableName: TABLE_THREADS,
+          record: { id: threadId, updatedAt: Date.now() },
+        });
+      }
+
+      return updatedMessages;
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'LANCE_STORE_UPDATE_MESSAGES_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { count: messages.length },
+        },
+        error,
+      );
+    }
   }
 
   async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
@@ -768,40 +882,66 @@ export class StoreMemoryLance extends MemoryStorage {
     workingMemory?: string;
     metadata?: Record<string, unknown>;
   }): Promise<StorageResourceType> {
-    const existingResource = await this.getResourceById({ resourceId });
+    const maxRetries = 3;
 
-    if (!existingResource) {
-      // Create new resource if it doesn't exist
-      const newResource: StorageResourceType = {
-        id: resourceId,
-        workingMemory,
-        metadata: metadata || {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      return this.saveResource({ resource: newResource });
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const existingResource = await this.getResourceById({ resourceId });
+
+        if (!existingResource) {
+          // Create new resource if it doesn't exist
+          const newResource: StorageResourceType = {
+            id: resourceId,
+            workingMemory,
+            metadata: metadata || {},
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          return this.saveResource({ resource: newResource });
+        }
+
+        const updatedResource = {
+          ...existingResource,
+          workingMemory: workingMemory !== undefined ? workingMemory : existingResource.workingMemory,
+          metadata: {
+            ...existingResource.metadata,
+            ...metadata,
+          },
+          updatedAt: new Date(),
+        };
+
+        const record = {
+          id: resourceId,
+          workingMemory: updatedResource.workingMemory || '',
+          metadata: updatedResource.metadata ? JSON.stringify(updatedResource.metadata) : '',
+          updatedAt: updatedResource.updatedAt.getTime(), // Store as timestamp (milliseconds)
+        };
+
+        const table = await this.client.openTable(TABLE_RESOURCES);
+        await table.mergeInsert('id').whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([record]);
+
+        return updatedResource;
+      } catch (error: any) {
+        if (error.message?.includes('Commit conflict') && attempt < maxRetries - 1) {
+          // Wait with exponential backoff before retrying
+          const delay = Math.pow(2, attempt) * 10; // 10ms, 20ms, 40ms
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // If it's not a commit conflict or we've exhausted retries, throw the error
+        throw new MastraError(
+          {
+            id: 'LANCE_STORE_UPDATE_RESOURCE_FAILED',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.THIRD_PARTY,
+          },
+          error,
+        );
+      }
     }
 
-    const updatedResource = {
-      ...existingResource,
-      workingMemory: workingMemory !== undefined ? workingMemory : existingResource.workingMemory,
-      metadata: {
-        ...existingResource.metadata,
-        ...metadata,
-      },
-      updatedAt: new Date(),
-    };
-
-    const record = {
-      id: resourceId,
-      workingMemory: updatedResource.workingMemory || '',
-      metadata: updatedResource.metadata ? JSON.stringify(updatedResource.metadata) : '',
-      updatedAt: updatedResource.updatedAt.getTime(), // Store as timestamp (milliseconds)
-    };
-
-    const table = await this.client.openTable(TABLE_RESOURCES);
-    await table.mergeInsert('id').whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([record]);
-
-    return updatedResource;
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Unexpected end of retry loop');
   }
 }
