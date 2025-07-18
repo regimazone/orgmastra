@@ -2956,26 +2956,29 @@ describe('MessageList', () => {
         newUIMessages3.map(m => ({ ...m, createdAt: expect.any(Date) })),
       );
 
-      const responseMessages2 = [
-        { id: randomUUID(), role: 'assistant', content: "Ok fine I'll call a tool then" },
+      const responseMessages2: AIV5.ModelMessage[] = [
         {
-          id: randomUUID(),
-          role: 'assistant',
-          content: [{ type: 'tool-call', args: { ok: 'fine' }, toolCallId: 'ok-fine-1', toolName: 'okFineTool' }],
+          role: 'assistant' as const,
+          content: "Ok fine I'll call a tool then",
         },
         {
-          id: randomUUID(),
-          role: 'tool',
-          content: [{ type: 'tool-result', toolName: 'okFineTool', toolCallId: 'ok-fine-1', result: { lets: 'go' } }],
+          role: 'assistant' as const,
+          content: [
+            { type: 'tool-call' as const, input: { ok: 'fine' }, toolCallId: 'ok-fine-1', toolName: 'okFineTool' },
+          ],
+        },
+        {
+          role: 'tool' as const,
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolName: 'okFineTool',
+              toolCallId: 'ok-fine-1',
+              output: { type: 'json', value: { lets: 'go' } },
+            },
+          ],
         },
       ];
-      const newUIMessages5 = appendResponseMessages({
-        messages: newUIMessages3,
-        responseMessages: responseMessages2,
-      });
-
-      // Only add the new messages from the response, not the entire history
-      const onlyNewMessages = newUIMessages5.slice(newUIMessages3.length);
 
       // Add the response messages directly instead of the processed UIMessages
       expect(list.add(responseMessages2, 'response').get.all.aiV4.ui()).toEqual([
@@ -2990,20 +2993,20 @@ describe('MessageList', () => {
             {
               type: 'tool-invocation',
               toolInvocation: {
-                result: '',
+                result: { lets: 'go' },
                 toolCallId: 'ok-fine-1',
                 toolName: 'okFineTool',
-                args: undefined,
+                args: { ok: 'fine' },
                 state: 'result',
               },
             },
           ],
           toolInvocations: [
             {
-              result: '',
+              result: { lets: 'go' },
               toolCallId: 'ok-fine-1',
               toolName: 'okFineTool',
-              args: undefined,
+              args: { ok: 'fine' },
               state: 'result',
             },
           ],
