@@ -84,6 +84,7 @@ export function createThreadsTest({ storage }: { storage: MastraStorage }) {
 
       // Verify persistence
       const retrievedThread = await storage.getThreadById({ threadId: thread.id });
+      console.log('retrievedThread', retrievedThread);
       expect(retrievedThread).toEqual(updatedThread);
     });
 

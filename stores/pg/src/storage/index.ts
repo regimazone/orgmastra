@@ -99,7 +99,7 @@ export class PostgresStore extends MastraStorage {
       const traces = new TracesPG({ client: this.client, operations, schema: this.schema });
       const workflows = new WorkflowsPG({ client: this.client, operations, schema: this.schema });
       const legacyEvals = new LegacyEvalsPG({ client: this.client, schema: this.schema });
-      const memory = new MemoryPG({ client: this.client, schema: this.schema });
+      const memory = new MemoryPG({ client: this.client, schema: this.schema, operations });
 
       this.stores = {
         operations,
