@@ -3,7 +3,13 @@ import type { CoreTool, MastraMessageV1 } from '@mastra/core';
 import { MessageList } from '@mastra/core/agent';
 import type { MastraMessageV2 } from '@mastra/core/agent';
 import { MastraMemory } from '@mastra/core/memory';
-import type { MemoryConfig, SharedMemoryConfig, StorageThreadType, WorkingMemoryTemplate, StorageEpisodeType } from '@mastra/core/memory';
+import type {
+  MemoryConfig,
+  SharedMemoryConfig,
+  StorageThreadType,
+  WorkingMemoryTemplate,
+  StorageEpisodeType,
+} from '@mastra/core/memory';
 import type { StorageGetMessagesArg } from '@mastra/core/storage';
 import { embedMany } from 'ai';
 import type { CoreMessage, TextPart, UIMessage } from 'ai';
@@ -1050,7 +1056,7 @@ ${
     if (categories.length > 0) {
       const existingCategories = await this.storage.getCategoriesForResource({ resourceId });
       const newCategories = categories.filter(cat => !existingCategories.includes(cat));
-      
+
       if (newCategories.length > 0) {
         const resource = await this.storage.getResourceById({ resourceId });
         if (resource) {
@@ -1065,7 +1071,7 @@ ${
         }
       }
     }
-    
+
     return episode;
   }
 
@@ -1125,7 +1131,7 @@ ${
       if (episode) {
         const existingCategories = await this.storage.getCategoriesForResource({ resourceId: episode.resourceId });
         const newCategories = updates.categories.filter(cat => !existingCategories.includes(cat));
-        
+
         if (newCategories.length > 0) {
           const resource = await this.storage.getResourceById({ resourceId: episode.resourceId });
           if (resource) {
@@ -1175,17 +1181,17 @@ ${
     // Update episode1 to include episode2 in its relatedEpisodeIds and relationships
     const relatedIds1 = episode1.relatedEpisodeIds || [];
     const relationships1 = episode1.relationships || [];
-    
+
     if (!relatedIds1.includes(episodeId2)) {
       relatedIds1.push(episodeId2);
       relationships1.push({
         episodeId: episodeId2,
         type: relationshipType,
       });
-      
+
       await this.storage.updateEpisode({
         id: episodeId1,
-        updates: { 
+        updates: {
           relatedEpisodeIds: relatedIds1,
           relationships: relationships1,
         },
@@ -1196,17 +1202,17 @@ ${
     if (relationshipType === 'related-to' || relationshipType === 'similar-to') {
       const relatedIds2 = episode2.relatedEpisodeIds || [];
       const relationships2 = episode2.relationships || [];
-      
+
       if (!relatedIds2.includes(episodeId1)) {
         relatedIds2.push(episodeId1);
         relationships2.push({
           episodeId: episodeId1,
           type: relationshipType,
         });
-        
+
         await this.storage.updateEpisode({
           id: episodeId2,
-          updates: { 
+          updates: {
             relatedEpisodeIds: relatedIds2,
             relationships: relationships2,
           },
@@ -1250,9 +1256,7 @@ ${
       return [];
     }
 
-    const relatedEpisodes = await Promise.all(
-      episode.relatedEpisodeIds.map(id => this.storage.getEpisodeById({ id }))
-    );
+    const relatedEpisodes = await Promise.all(episode.relatedEpisodeIds.map(id => this.storage.getEpisodeById({ id })));
 
     const directRelated = relatedEpisodes.filter(ep => ep !== null) as StorageEpisodeType[];
 
@@ -1267,9 +1271,9 @@ ${
         const secondLevel = await Promise.all(
           relatedEp.relatedEpisodeIds
             .filter(id => id !== episodeId && !episode.relatedEpisodeIds?.includes(id))
-            .map(id => this.storage.getEpisodeById({ id }))
+            .map(id => this.storage.getEpisodeById({ id })),
         );
-        
+
         secondLevel.forEach(ep => {
           if (ep && !indirectRelated.has(ep.id)) {
             indirectRelated.set(ep.id, ep);
@@ -1345,9 +1349,8 @@ Available tools:
       .join('\n');
 
     const categories = includeCategories ? await this.getEpisodeCategories({ resourceId }) : [];
-    const categoryInfo = includeCategories && categories.length > 0 
-      ? `\nAvailable categories: ${categories.join(', ')}` 
-      : '';
+    const categoryInfo =
+      includeCategories && categories.length > 0 ? `\nAvailable categories: ${categories.join(', ')}` : '';
 
     return `EPISODIC_MEMORY_SYSTEM_INSTRUCTION:
 You have access to the user's episodic memory. Recent episodes:

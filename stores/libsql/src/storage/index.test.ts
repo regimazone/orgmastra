@@ -604,9 +604,9 @@ describe('LibSQLStore Episode Features', () => {
       episode.categories = ['work', 'important', 'milestone'];
       episode.messageIds = ['msg-1', 'msg-2', 'msg-3'];
       episode.relatedEpisodeIds = ['ep-1', 'ep-2'];
-      
+
       await store.saveEpisode({ episode });
-      
+
       const retrieved = await store.getEpisodeById({ id: episode.id });
       expect(retrieved).toBeTruthy();
       expect(Array.isArray(retrieved!.categories)).toBe(true);
@@ -622,9 +622,9 @@ describe('LibSQLStore Episode Features', () => {
       episode.categories = [];
       episode.messageIds = [];
       episode.relatedEpisodeIds = [];
-      
+
       await store.saveEpisode({ episode });
-      
+
       const retrieved = await store.getEpisodeById({ id: episode.id });
       expect(retrieved!.categories).toEqual([]);
       expect(retrieved!.messageIds).toEqual([]);
@@ -642,9 +642,9 @@ describe('LibSQLStore Episode Features', () => {
         },
         timestamp: new Date().toISOString(),
       };
-      
+
       await store.saveEpisode({ episode });
-      
+
       const retrieved = await store.getEpisodeById({ id: episode.id });
       expect(retrieved!.metadata).toEqual(episode.metadata);
     });
@@ -655,9 +655,9 @@ describe('LibSQLStore Episode Features', () => {
       const resourceId = `resource-${randomUUID()}`;
       const episode = createSampleEpisode({ resourceId });
       episode.categories = ['work', 'project'];
-      
+
       await store.saveEpisode({ episode });
-      
+
       // Check resource was created with categories
       const resource = await store.getResourceById({ resourceId });
       expect(resource).toBeTruthy();
@@ -668,17 +668,17 @@ describe('LibSQLStore Episode Features', () => {
 
     it('should update resource categories when new categories are added', async () => {
       const resourceId = `resource-${randomUUID()}`;
-      
+
       // Save first episode
       const episode1 = createSampleEpisode({ resourceId });
       episode1.categories = ['work', 'meeting'];
       await store.saveEpisode({ episode: episode1 });
-      
+
       // Save second episode with new categories
       const episode2 = createSampleEpisode({ resourceId });
       episode2.categories = ['personal', 'meeting']; // 'meeting' is duplicate
       await store.saveEpisode({ episode: episode2 });
-      
+
       // Check categories are properly merged
       const categories = await store.getCategoriesForResource({ resourceId });
       expect(categories).toContain('work');
@@ -691,15 +691,15 @@ describe('LibSQLStore Episode Features', () => {
       const resourceId = `resource-${randomUUID()}`;
       const episode = createSampleEpisode({ resourceId });
       episode.categories = ['work'];
-      
+
       await store.saveEpisode({ episode });
-      
+
       // Update episode with new categories
       await store.updateEpisode({
         id: episode.id,
         updates: { categories: ['personal', 'health'] },
       });
-      
+
       // Check categories were updated
       const categories = await store.getCategoriesForResource({ resourceId });
       expect(categories).toContain('work'); // Original still there
@@ -711,12 +711,12 @@ describe('LibSQLStore Episode Features', () => {
   describe('Episode update error handling', () => {
     it('should throw error when updating non-existent episode', async () => {
       const nonExistentId = `episode-${randomUUID()}`;
-      
+
       await expect(
         store.updateEpisode({
           id: nonExistentId,
           updates: { title: 'New Title' },
-        })
+        }),
       ).rejects.toThrow('EPISODE_NOT_FOUND');
     });
   });
@@ -724,25 +724,21 @@ describe('LibSQLStore Episode Features', () => {
   describe('Episode ordering', () => {
     it('should return episodes ordered by createdAt descending', async () => {
       const resourceId = `resource-${randomUUID()}`;
-      const dates = [
-        new Date('2024-01-01'),
-        new Date('2024-01-03'),
-        new Date('2024-01-02'),
-      ];
-      
-      const episodes = dates.map((date, i) => 
-        createSampleEpisode({ 
-          resourceId, 
+      const dates = [new Date('2024-01-01'), new Date('2024-01-03'), new Date('2024-01-02')];
+
+      const episodes = dates.map((date, i) =>
+        createSampleEpisode({
+          resourceId,
           date,
           id: `episode-${i}`,
-        })
+        }),
       );
-      
+
       // Save in random order
       for (const episode of episodes) {
         await store.saveEpisode({ episode });
       }
-      
+
       // Get episodes - should be ordered by createdAt desc
       const retrieved = await store.getEpisodesByResourceId({ resourceId });
       expect(retrieved).toHaveLength(3);
@@ -757,13 +753,13 @@ describe('LibSQLStore Episode Features', () => {
       const resourceId = `resource-${randomUUID()}`;
       const episode = createSampleEpisode({ resourceId });
       episode.categories = ['Work', 'IMPORTANT', 'MileStone'];
-      
+
       await store.saveEpisode({ episode });
-      
+
       // Exact case match
       const workEpisodes = await store.getEpisodesByCategory({ resourceId, category: 'Work' });
       expect(workEpisodes).toHaveLength(1);
-      
+
       // Different case - should not match
       const workLowercase = await store.getEpisodesByCategory({ resourceId, category: 'work' });
       expect(workLowercase).toHaveLength(0);
@@ -771,32 +767,32 @@ describe('LibSQLStore Episode Features', () => {
 
     it('should filter episodes with JSON_EACH correctly', async () => {
       const resourceId = `resource-${randomUUID()}`;
-      
+
       // Create episodes with overlapping categories
       const episodes = [
         createSampleEpisode({ resourceId }),
         createSampleEpisode({ resourceId }),
         createSampleEpisode({ resourceId }),
       ];
-      
+
       episodes[0].categories = ['alpha', 'beta'];
       episodes[1].categories = ['beta', 'gamma'];
       episodes[2].categories = ['gamma', 'delta'];
-      
+
       for (const episode of episodes) {
         await store.saveEpisode({ episode });
       }
-      
+
       // Test each category
       const alphaEpisodes = await store.getEpisodesByCategory({ resourceId, category: 'alpha' });
       expect(alphaEpisodes).toHaveLength(1);
-      
+
       const betaEpisodes = await store.getEpisodesByCategory({ resourceId, category: 'beta' });
       expect(betaEpisodes).toHaveLength(2);
-      
+
       const gammaEpisodes = await store.getEpisodesByCategory({ resourceId, category: 'gamma' });
       expect(gammaEpisodes).toHaveLength(2);
-      
+
       const deltaEpisodes = await store.getEpisodesByCategory({ resourceId, category: 'delta' });
       expect(deltaEpisodes).toHaveLength(1);
     });

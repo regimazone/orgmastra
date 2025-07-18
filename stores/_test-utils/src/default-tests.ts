@@ -3,7 +3,13 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from
 import type { MetricResult } from '@mastra/core/eval';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { MastraStorage, StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
-import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS, TABLE_EPISODES } from '@mastra/core/storage';
+import {
+  TABLE_WORKFLOW_SNAPSHOT,
+  TABLE_EVALS,
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_EPISODES,
+} from '@mastra/core/storage';
 import { MastraMessageV1, MastraMessageV2, StorageThreadType, StorageEpisodeType } from '@mastra/core';
 import { MastraMessageContentV2 } from '@mastra/core/agent';
 
@@ -217,7 +223,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_EVALS });
       await storage.clearTable({ tableName: TABLE_MESSAGES });
       await storage.clearTable({ tableName: TABLE_THREADS });
-      
+
       // Clear episodes table if supported
       if (storage.supports.resourceEpisodicMemory) {
         await storage.clearTable({ tableName: TABLE_EPISODES });
@@ -230,7 +236,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_EVALS });
       await storage.clearTable({ tableName: TABLE_MESSAGES });
       await storage.clearTable({ tableName: TABLE_THREADS });
-      
+
       // Clear episodes table if supported
       if (storage.supports.resourceEpisodicMemory) {
         await storage.clearTable({ tableName: TABLE_EPISODES });
@@ -1617,10 +1623,10 @@ export function createTestSuite(storage: MastraStorage) {
         }
 
         const episode = createSampleEpisode();
-        
+
         // Save episode
         await storage.saveEpisode({ episode });
-        
+
         // Retrieve episode
         const retrieved = await storage.getEpisodeById({ id: episode.id });
         expect(retrieved).toBeTruthy();
@@ -1647,12 +1653,12 @@ export function createTestSuite(storage: MastraStorage) {
           createSampleEpisode({ resourceId }),
           createSampleEpisode({ resourceId: `other-${randomUUID()}` }), // Different resource
         ];
-        
+
         // Save all episodes
         for (const episode of episodes) {
           await storage.saveEpisode({ episode });
         }
-        
+
         // Get episodes for specific resource
         const resourceEpisodes = await storage.getEpisodesByResourceId({ resourceId });
         expect(resourceEpisodes).toHaveLength(3);
@@ -1670,22 +1676,22 @@ export function createTestSuite(storage: MastraStorage) {
           createSampleEpisode({ resourceId, date: new Date() }),
           createSampleEpisode({ resourceId, date: new Date() }),
         ];
-        
+
         // Modify categories
         episodes[0].categories = ['work', 'important'];
         episodes[1].categories = ['personal', 'family'];
         episodes[2].categories = ['work', 'meeting'];
-        
+
         // Save all episodes
         for (const episode of episodes) {
           await storage.saveEpisode({ episode });
         }
-        
+
         // Get episodes by category
         const workEpisodes = await storage.getEpisodesByCategory({ resourceId, category: 'work' });
         expect(workEpisodes).toHaveLength(2);
         expect(workEpisodes.every(ep => ep.categories.includes('work'))).toBe(true);
-        
+
         const familyEpisodes = await storage.getEpisodesByCategory({ resourceId, category: 'family' });
         expect(familyEpisodes).toHaveLength(1);
         expect(familyEpisodes[0].categories).toContain('family');
@@ -1698,7 +1704,7 @@ export function createTestSuite(storage: MastraStorage) {
 
         const episode = createSampleEpisode();
         await storage.saveEpisode({ episode });
-        
+
         // Update episode
         const updates = {
           title: 'Updated Title',
@@ -1706,9 +1712,9 @@ export function createTestSuite(storage: MastraStorage) {
           categories: ['updated', 'test'],
           significance: 0.9,
         };
-        
+
         await storage.updateEpisode({ id: episode.id, updates });
-        
+
         // Verify updates
         const updated = await storage.getEpisodeById({ id: episode.id });
         expect(updated?.title).toBe(updates.title);
@@ -1731,17 +1737,17 @@ export function createTestSuite(storage: MastraStorage) {
           createSampleEpisode({ resourceId }),
           createSampleEpisode({ resourceId }),
         ];
-        
+
         // Set different categories
         episodes[0].categories = ['work', 'meeting'];
         episodes[1].categories = ['personal', 'health'];
         episodes[2].categories = ['work', 'project', 'meeting'];
-        
+
         // Save all episodes
         for (const episode of episodes) {
           await storage.saveEpisode({ episode });
         }
-        
+
         // Get all categories for resource
         const categories = await storage.getCategoriesForResource({ resourceId });
         expect(categories).toContain('work');
@@ -1781,21 +1787,21 @@ export function createTestSuite(storage: MastraStorage) {
         const episode1 = createSampleEpisode();
         const episode2 = createSampleEpisode();
         const episode3 = createSampleEpisode();
-        
+
         // Set up relationships
         episode1.relatedEpisodeIds = [episode2.id, episode3.id];
         episode2.relatedEpisodeIds = [episode1.id];
-        
+
         // Save episodes
         await storage.saveEpisode({ episode: episode1 });
         await storage.saveEpisode({ episode: episode2 });
         await storage.saveEpisode({ episode: episode3 });
-        
+
         // Verify relationships are stored
         const retrieved1 = await storage.getEpisodeById({ id: episode1.id });
         expect(retrieved1?.relatedEpisodeIds).toContain(episode2.id);
         expect(retrieved1?.relatedEpisodeIds).toContain(episode3.id);
-        
+
         const retrieved2 = await storage.getEpisodeById({ id: episode2.id });
         expect(retrieved2?.relatedEpisodeIds).toContain(episode1.id);
       });
@@ -1807,29 +1813,29 @@ export function createTestSuite(storage: MastraStorage) {
 
         const resourceId = `resource-${randomUUID()}`;
         const sequenceId = `sequence-${randomUUID()}`;
-        
+
         const episodes = [
           createSampleEpisode({ resourceId, date: new Date('2024-01-01') }),
           createSampleEpisode({ resourceId, date: new Date('2024-01-02') }),
           createSampleEpisode({ resourceId, date: new Date('2024-01-03') }),
           createSampleEpisode({ resourceId, date: new Date('2024-01-04') }), // Not in sequence
         ];
-        
+
         // Assign sequence to first 3 episodes
         episodes[0].sequenceId = sequenceId;
         episodes[1].sequenceId = sequenceId;
         episodes[2].sequenceId = sequenceId;
         episodes[3].sequenceId = undefined;
-        
+
         // Save all episodes
         for (const episode of episodes) {
           await storage.saveEpisode({ episode });
         }
-        
+
         // Retrieve all episodes and filter by sequence
         const allEpisodes = await storage.getEpisodesByResourceId({ resourceId });
         const sequenceEpisodes = allEpisodes.filter(ep => ep.sequenceId === sequenceId);
-        
+
         expect(sequenceEpisodes).toHaveLength(3);
         expect(sequenceEpisodes.every(ep => ep.sequenceId === sequenceId)).toBe(true);
       });

@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { config } from 'dotenv';
 import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { fastembed } from '@mastra/fastembed';
 import { LibSQLVector, LibSQLStore } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { config } from 'dotenv';
 
 config({ path: '.env.test' });
 
@@ -22,7 +22,7 @@ describe('Episodic Memory Integration Tests', () => {
 
   beforeEach(async () => {
     const dbPath = join(await mkdtemp(join(tmpdir(), `memory-episodic-test-${Date.now()}`)), 'test.db');
-    
+
     storage = new LibSQLStore({
       url: `file:${dbPath}`,
     });
@@ -61,7 +61,8 @@ describe('Episodic Memory Integration Tests', () => {
 
     agent = new Agent({
       name: 'Episodic Memory Test Agent',
-      instructions: 'You are a helpful AI agent. Use episodic memory to remember important events and facts about the user.',
+      instructions:
+        'You are a helpful AI agent. Use episodic memory to remember important events and facts about the user.',
       model: openai('gpt-4o'),
       memory,
     });
@@ -76,12 +77,10 @@ describe('Episodic Memory Integration Tests', () => {
 
   it('should create an episode through agent conversation', async () => {
     const thread = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'Episode Test Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Have a conversation that should trigger episode creation
@@ -93,7 +92,7 @@ describe('Episodic Memory Integration Tests', () => {
     // Check if episodes were created
     const episodes = await memory.listEpisodes({ resourceId });
     expect(episodes.length).toBeGreaterThan(0);
-    
+
     const episode = episodes[0];
     expect(episode.title).toBeTruthy();
     expect(episode.categories).toContain('work');
@@ -101,12 +100,10 @@ describe('Episodic Memory Integration Tests', () => {
 
   it('should use episodes in subsequent conversations', async () => {
     const thread1 = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'First Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Create an episode directly
@@ -115,7 +112,8 @@ describe('Episodic Memory Integration Tests', () => {
       threadId: thread1.id,
       title: 'User loves hiking',
       shortSummary: 'User enjoys hiking in the mountains',
-      detailedSummary: 'The user expressed a deep passion for hiking, particularly in mountainous regions. They mentioned hiking every weekend.',
+      detailedSummary:
+        'The user expressed a deep passion for hiking, particularly in mountainous regions. They mentioned hiking every weekend.',
       categories: ['hobbies', 'outdoor-activities'],
       messageIds: [],
       significance: 0.8,
@@ -123,12 +121,10 @@ describe('Episodic Memory Integration Tests', () => {
 
     // Create a new thread to test episode recall
     const thread2 = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'Second Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Ask about hobbies in the new thread
@@ -142,12 +138,10 @@ describe('Episodic Memory Integration Tests', () => {
 
   it('should link related episodes', async () => {
     const thread = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'Relationship Test Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Create two related episodes
@@ -190,7 +184,7 @@ describe('Episodic Memory Integration Tests', () => {
 
     expect(related).toHaveLength(1);
     expect(related[0].id).toBe(episode2.id);
-    
+
     // Check that the relationship was stored on episode1
     const updatedEpisode1 = await memory.storage.getEpisodeById({ id: episode1.id });
     expect(updatedEpisode1?.relationships).toHaveLength(1);
@@ -200,12 +194,10 @@ describe('Episodic Memory Integration Tests', () => {
 
   it('should include episode context in system message', async () => {
     const thread = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'Context Test Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     // Create an episode with significance
@@ -226,25 +218,24 @@ describe('Episodic Memory Integration Tests', () => {
       resourceId,
     });
 
-    expect(systemMessage.toLowerCase()).toContain('episodic memory');
-    expect(systemMessage).toContain('peanut');
-    expect(systemMessage).toContain('health, important');
+    expect(systemMessage).toBeTruthy();
+    expect(systemMessage!.toLowerCase()).toContain('episodic memory');
+    expect(systemMessage!).toContain('peanut');
+    expect(systemMessage!).toContain('health, important');
   });
 
   it('should handle episode sequences', async () => {
     const thread = await memory.createThread({
-      id: randomUUID(),
+      threadId: randomUUID(),
       title: 'Sequence Test Thread',
       resourceId,
       metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     const sequenceId = randomUUID();
 
     // Create episodes in a sequence
-    const episode1 = await memory.createEpisode({
+    await memory.createEpisode({
       resourceId,
       threadId: thread.id,
       title: 'Trip Day 1: Arrived in Paris',
@@ -257,7 +248,7 @@ describe('Episodic Memory Integration Tests', () => {
       significance: 0.7,
     });
 
-    const episode2 = await memory.createEpisode({
+    await memory.createEpisode({
       resourceId,
       threadId: thread.id,
       title: 'Trip Day 2: Louvre Museum',

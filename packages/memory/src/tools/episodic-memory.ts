@@ -21,22 +21,10 @@ export const createEpisodeTool = (config?: MemoryConfig): CoreTool => {
         .describe(
           'Categories to organize this episode (e.g., "life-event", "family", "work", "health", "travel", "preference", "story")',
         ),
-      causalContext: z
-        .string()
-        .optional()
-        .describe('Why this happened or what led to this event/situation'),
-      spatialContext: z
-        .string()
-        .optional()
-        .describe('Where this occurred - location, place, or environment'),
-      relatedEpisodeIds: z
-        .array(z.string())
-        .optional()
-        .describe('IDs of other episodes that relate to this one'),
-      sequenceId: z
-        .string()
-        .optional()
-        .describe('ID to group episodes that are part of the same sequence or story'),
+      causalContext: z.string().optional().describe('Why this happened or what led to this event/situation'),
+      spatialContext: z.string().optional().describe('Where this occurred - location, place, or environment'),
+      relatedEpisodeIds: z.array(z.string()).optional().describe('IDs of other episodes that relate to this one'),
+      sequenceId: z.string().optional().describe('ID to group episodes that are part of the same sequence or story'),
       significance: z
         .number()
         .min(0)
@@ -50,7 +38,18 @@ export const createEpisodeTool = (config?: MemoryConfig): CoreTool => {
     }),
     execute: async (params: any) => {
       const { context, memory, threadId, resourceId } = params;
-      const { title, shortSummary, detailedSummary, categories, causalContext, spatialContext, relatedEpisodeIds, sequenceId, significance, messageIds } = context;
+      const {
+        title,
+        shortSummary,
+        detailedSummary,
+        categories,
+        causalContext,
+        spatialContext,
+        relatedEpisodeIds,
+        sequenceId,
+        significance,
+        messageIds,
+      } = context;
       if (!memory) {
         throw new Error('Memory is required to create episodes');
       }
@@ -134,10 +133,7 @@ export const listEpisodesTool = (config?: MemoryConfig): CoreTool => {
   return {
     description: 'List memory episodes for the current user, optionally filtered by category',
     parameters: z.object({
-      category: z
-        .string()
-        .optional()
-        .describe('Filter episodes by category (e.g., "family", "work", "travel")'),
+      category: z.string().optional().describe('Filter episodes by category (e.g., "family", "work", "travel")'),
       limit: z.number().optional().default(10).describe('Maximum number of episodes to return'),
     }),
     execute: async (params: any) => {
