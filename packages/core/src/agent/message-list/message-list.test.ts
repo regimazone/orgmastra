@@ -2701,7 +2701,7 @@ describe('MessageList', () => {
       const list = new MessageList({ threadId: '68' }).add(history, 'memory');
 
       const uiMessages = list.get.all.aiV4.ui();
-      
+
       // History contains 11 messages when loaded with 'memory' source
       expect(uiMessages.length).toBe(11);
       const expectedMessages = [
@@ -2976,7 +2976,7 @@ describe('MessageList', () => {
 
       // Only add the new messages from the response, not the entire history
       const onlyNewMessages = newUIMessages5.slice(newUIMessages3.length);
-      
+
       // Add the response messages directly instead of the processed UIMessages
       expect(list.add(responseMessages2, 'response').get.all.aiV4.ui()).toEqual([
         ...newUIMessages4.map(m => ({ ...m, createdAt: expect.any(Date) })),
