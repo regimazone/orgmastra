@@ -86,6 +86,10 @@ export class StoreOperationsPG extends StoreOperations {
         record.createdAtZ = record.createdAt;
       }
 
+      if (record.created_at) {
+        record.created_atZ = record.created_at;
+      }
+
       if (record.updatedAt) {
         record.updatedAtZ = record.updatedAt;
       }
