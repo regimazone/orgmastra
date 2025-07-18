@@ -64,7 +64,7 @@ export function createTestSuite(storage: MastraStorage) {
 
     // createEvalsTests(storage);
 
-    // createConversationsTest({ storage });
+    createConversationsTest({ storage });
 
     // createScoresTest({ storage });
   });

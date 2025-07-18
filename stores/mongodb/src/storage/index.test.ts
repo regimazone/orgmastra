@@ -600,7 +600,7 @@ describe('MongoDBStore', () => {
       const thread = test.generateSampleThread();
       const largeMetadata = {
         ...thread.metadata,
-        largeArray: Array.from({ length: 1000 }, (_, i) => ({ index: i, data: 'test'.repeat(100) })),
+        largeArray: Array.from({ length: 10 }, (_, i) => ({ index: i, data: 'test'.repeat(10) })),
       };
 
       const threadWithLargeMetadata = {

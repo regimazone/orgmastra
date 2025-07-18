@@ -91,6 +91,24 @@ export class StoreOperationsDynamoDB extends StoreOperations {
       processed.snapshot = JSON.stringify(processed.snapshot);
     }
 
+    // Convert trace-specific fields to JSON strings if they're objects
+    // These fields have set/get functions in the entity but validation happens before set
+    if (processed.attributes && typeof processed.attributes === 'object') {
+      processed.attributes = JSON.stringify(processed.attributes);
+    }
+
+    if (processed.status && typeof processed.status === 'object') {
+      processed.status = JSON.stringify(processed.status);
+    }
+
+    if (processed.events && typeof processed.events === 'object') {
+      processed.events = JSON.stringify(processed.events);
+    }
+
+    if (processed.links && typeof processed.links === 'object') {
+      processed.links = JSON.stringify(processed.links);
+    }
+
     return processed;
   }
 
