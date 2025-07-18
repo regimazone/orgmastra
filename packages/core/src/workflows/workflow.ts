@@ -1029,6 +1029,8 @@ export class Workflow<
   /**
    * Creates a new workflow run instance and stores a snapshot of the workflow in the storage
    * @param options Optional configuration for the run
+   * @param options.runId Optional custom run ID, defaults to a random UUID
+   * @param options.resourceId Optional resource ID to associate with this run
    * @returns A Run instance that can be used to execute the workflow
    */
   async createRunAsync(options?: {
