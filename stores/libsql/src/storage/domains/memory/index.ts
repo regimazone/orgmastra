@@ -604,7 +604,9 @@ export class MemoryLibSQL extends MemoryStorage {
     public async getThreadsByResourceIdPaginated(
         args: {
             resourceId: string;
-        } & PaginationArgs,
+            page: number;
+            perPage: number;
+        },
     ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
         const { resourceId, page = 0, perPage = 100 } = args;
 

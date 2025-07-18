@@ -187,7 +187,9 @@ export class LibSQLStore extends MastraStorage {
   public async getThreadsByResourceIdPaginated(
     args: {
       resourceId: string;
-    } & PaginationArgs,
+      page: number;
+      perPage: number;
+    },
   ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
     return this.stores.memory.getThreadsByResourceIdPaginated(args);
   }
