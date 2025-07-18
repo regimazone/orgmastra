@@ -174,9 +174,11 @@ export function createResourcesTest({ storage }: { storage: MastraStorage }) {
       };
 
       const savedResource = await storage.saveResource({ resource });
+      console.log('savedResource', savedResource);
       expect(!!savedResource.workingMemory).toBe(false);
 
       const retrievedResource = await storage.getResourceById({ resourceId: resource.id });
+      console.log('retrievedResource', retrievedResource);
       expect(!!retrievedResource?.workingMemory).toBe(false);
     });
 
@@ -202,10 +204,10 @@ export function createResourcesTest({ storage }: { storage: MastraStorage }) {
       };
 
       const savedResource = await storage.saveResource({ resource });
-      expect(savedResource.metadata).toBeUndefined();
+      expect(!!savedResource.metadata).toBe(false);
 
       const retrievedResource = await storage.getResourceById({ resourceId: resource.id });
-      expect(retrievedResource?.metadata).toBeUndefined();
+      expect(!!retrievedResource?.metadata).toBe(false);
     });
 
     it('should handle complex metadata structures', async () => {

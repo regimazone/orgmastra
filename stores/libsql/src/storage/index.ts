@@ -1,9 +1,9 @@
 import { createClient } from '@libsql/client';
-import type { Client, InValue } from '@libsql/client';
+import type { Client } from '@libsql/client';
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
-import type { MetricResult, TestInfo, ScoreRowData } from '@mastra/core/eval';
+import type { ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
-import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_RESOURCES } from '@mastra/core/storage';
+import { MastraStorage } from '@mastra/core/storage';
 import type {
   EvalRow,
   PaginationArgs,
@@ -20,9 +20,8 @@ import type {
 } from '@mastra/core/storage';
 
 import type { Trace } from '@mastra/core/telemetry';
-import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { WorkflowRunState } from '@mastra/core/workflows';
-import { LegacyEvalsLibSQL } from './domains/evals';
+import { LegacyEvalsLibSQL } from './domains/legacy-evals';
 import { MemoryLibSQL } from './domains/memory';
 import { StoreOperationsLibSQL } from './domains/operations';
 import { ScoresLibSQL } from './domains/scores';
@@ -205,25 +204,6 @@ export class LibSQLStore extends MastraStorage {
     return this.stores.memory.deleteThread({ threadId });
   }
 
-  private parseRow(row: any): MastraMessageV2 {
-    let content = row.content;
-    try {
-      content = JSON.parse(row.content);
-    } catch {
-      // use content as is if it's not JSON
-    }
-    const result = {
-      id: row.id,
-      content,
-      role: row.role,
-      createdAt: new Date(row.createdAt as string),
-      threadId: row.thread_id,
-      resourceId: row.resourceId,
-    } as MastraMessageV2;
-    if (row.type && row.type !== `v2`) result.type = row.type;
-    return result;
-  }
-
   /**
    * @deprecated use getMessagesPaginated instead for paginated results.
    */
@@ -263,124 +243,7 @@ export class LibSQLStore extends MastraStorage {
       content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
     })[];
   }): Promise<MastraMessageV2[]> {
-    if (messages.length === 0) {
-      return [];
-    }
-
-    const messageIds = messages.map(m => m.id);
-    const placeholders = messageIds.map(() => '?').join(',');
-
-    const selectSql = `SELECT * FROM ${TABLE_MESSAGES} WHERE id IN (${placeholders})`;
-    const existingResult = await this.client.execute({ sql: selectSql, args: messageIds });
-    const existingMessages: MastraMessageV2[] = existingResult.rows.map(row => this.parseRow(row));
-
-    if (existingMessages.length === 0) {
-      return [];
-    }
-
-    const batchStatements = [];
-    const threadIdsToUpdate = new Set<string>();
-    const columnMapping: Record<string, string> = {
-      threadId: 'thread_id',
-    };
-
-    for (const existingMessage of existingMessages) {
-      const updatePayload = messages.find(m => m.id === existingMessage.id);
-      if (!updatePayload) continue;
-
-      const { id, ...fieldsToUpdate } = updatePayload;
-      if (Object.keys(fieldsToUpdate).length === 0) continue;
-
-      threadIdsToUpdate.add(existingMessage.threadId!);
-      if (updatePayload.threadId && updatePayload.threadId !== existingMessage.threadId) {
-        threadIdsToUpdate.add(updatePayload.threadId);
-      }
-
-      const setClauses = [];
-      const args: InValue[] = [];
-      const updatableFields = { ...fieldsToUpdate };
-
-      // Special handling for the 'content' field to merge instead of overwrite
-      if (updatableFields.content) {
-        const newContent = {
-          ...existingMessage.content,
-          ...updatableFields.content,
-          // Deep merge metadata if it exists on both
-          ...(existingMessage.content?.metadata && updatableFields.content.metadata
-            ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
-            : {}),
-        };
-        setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);
-        args.push(JSON.stringify(newContent));
-        delete updatableFields.content;
-      }
-
-      for (const key in updatableFields) {
-        if (Object.prototype.hasOwnProperty.call(updatableFields, key)) {
-          const dbKey = columnMapping[key] || key;
-          setClauses.push(`${parseSqlIdentifier(dbKey, 'column name')} = ?`);
-          let value = updatableFields[key as keyof typeof updatableFields];
-
-          if (typeof value === 'object' && value !== null) {
-            value = JSON.stringify(value);
-          }
-          args.push(value as InValue);
-        }
-      }
-
-      if (setClauses.length === 0) continue;
-
-      args.push(id);
-
-      const sql = `UPDATE ${TABLE_MESSAGES} SET ${setClauses.join(', ')} WHERE id = ?`;
-      batchStatements.push({ sql, args });
-    }
-
-    if (batchStatements.length === 0) {
-      return existingMessages;
-    }
-
-    const now = new Date().toISOString();
-    for (const threadId of threadIdsToUpdate) {
-      if (threadId) {
-        batchStatements.push({
-          sql: `UPDATE ${TABLE_THREADS} SET updatedAt = ? WHERE id = ?`,
-          args: [now, threadId],
-        });
-      }
-    }
-
-    await this.client.batch(batchStatements, 'write');
-
-    const updatedResult = await this.client.execute({ sql: selectSql, args: messageIds });
-    return updatedResult.rows.map(row => this.parseRow(row));
-  }
-
-  private transformEvalRow(row: Record<string, any>): EvalRow {
-    const resultValue = JSON.parse(row.result as string);
-    const testInfoValue = row.test_info ? JSON.parse(row.test_info as string) : undefined;
-
-    if (!resultValue || typeof resultValue !== 'object' || !('score' in resultValue)) {
-      throw new Error(`Invalid MetricResult format: ${JSON.stringify(resultValue)}`);
-    }
-
-    return {
-      input: row.input as string,
-      output: row.output as string,
-      result: resultValue as MetricResult,
-      agentName: row.agent_name as string,
-      metricName: row.metric_name as string,
-      instructions: row.instructions as string,
-      testInfo: testInfoValue as TestInfo,
-      globalRunId: row.global_run_id as string,
-      runId: row.run_id as string,
-      createdAt: row.created_at as string,
-    };
+    return this.stores.memory.updateMessages({ messages });
   }
 
   /** @deprecated use getEvals instead */
@@ -515,34 +378,11 @@ export class LibSQLStore extends MastraStorage {
   }
 
   async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
-    const result = await this.load<StorageResourceType>({
-      tableName: TABLE_RESOURCES,
-      keys: { id: resourceId },
-    });
-
-    if (!result) {
-      return null;
-    }
-
-    return {
-      ...result,
-      // Ensure workingMemory is always returned as a string, even if auto-parsed as JSON
-      workingMemory:
-        typeof result.workingMemory === 'object' ? JSON.stringify(result.workingMemory) : result.workingMemory,
-      metadata: typeof result.metadata === 'string' ? JSON.parse(result.metadata) : result.metadata,
-    };
+    return this.stores.memory.getResourceById({ resourceId });
   }
 
   async saveResource({ resource }: { resource: StorageResourceType }): Promise<StorageResourceType> {
-    await this.insert({
-      tableName: TABLE_RESOURCES,
-      record: {
-        ...resource,
-        metadata: JSON.stringify(resource.metadata),
-      },
-    });
-
-    return resource;
+    return this.stores.memory.saveResource({ resource });
   }
 
   async updateResource({
@@ -554,54 +394,7 @@ export class LibSQLStore extends MastraStorage {
     workingMemory?: string;
     metadata?: Record<string, unknown>;
   }): Promise<StorageResourceType> {
-    const existingResource = await this.getResourceById({ resourceId });
-
-    if (!existingResource) {
-      // Create new resource if it doesn't exist
-      const newResource: StorageResourceType = {
-        id: resourceId,
-        workingMemory,
-        metadata: metadata || {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      return this.saveResource({ resource: newResource });
-    }
-
-    const updatedResource = {
-      ...existingResource,
-      workingMemory: workingMemory !== undefined ? workingMemory : existingResource.workingMemory,
-      metadata: {
-        ...existingResource.metadata,
-        ...metadata,
-      },
-      updatedAt: new Date(),
-    };
-
-    const updates: string[] = [];
-    const values: InValue[] = [];
-
-    if (workingMemory !== undefined) {
-      updates.push('workingMemory = ?');
-      values.push(workingMemory);
-    }
-
-    if (metadata) {
-      updates.push('metadata = ?');
-      values.push(JSON.stringify(updatedResource.metadata));
-    }
-
-    updates.push('updatedAt = ?');
-    values.push(updatedResource.updatedAt.toISOString());
-
-    values.push(resourceId);
-
-    await this.client.execute({
-      sql: `UPDATE ${TABLE_RESOURCES} SET ${updates.join(', ')} WHERE id = ?`,
-      args: values,
-    });
-
-    return updatedResource;
+    return this.stores.memory.updateResource({ resourceId, workingMemory, metadata });
   }
 }
 
