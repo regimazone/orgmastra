@@ -24,7 +24,7 @@ interface NewAgentNetworkConfig {
   defaultAgent?: DynamicArgument<Agent>;
 }
 
-const RESOURCE_TYPES = z.enum(['agent', 'workflow', 'none', 'tool', 'none']);
+const RESOURCE_TYPES = z.enum(['agent', 'workflow', 'none', 'tool']);
 
 export class NewAgentNetwork extends MastraBase {
   id: string;
