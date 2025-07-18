@@ -1540,7 +1540,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-result',
         payload: {
           id: entry.id,
-          ...execResults,
+          endedAt,
+          status: 'success',
+          output: prevOutput,
         },
       });
 
@@ -1658,7 +1660,9 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         type: 'step-result',
         payload: {
           id: entry.id,
-          ...execResults,
+          endedAt,
+          status: 'success',
+          output: prevOutput,
         },
       });
 
