@@ -55,7 +55,7 @@ Internal. For test use only. May change without notice.
 
         const parts: Array<
           AIV4.TextUIPart | AIV4.ReasoningUIPart | AIV4.ToolInvocationUIPart | AIV4.FileUIPart | AIV4.StepStartUIPart
-        > = [];
+        > = [{ type: 'step-start' as const }]; // always start with a step-start part
         let textContent = '';
         let reasoningTextContent = undefined;
 
