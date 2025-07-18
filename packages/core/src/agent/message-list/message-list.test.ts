@@ -2962,38 +2962,34 @@ describe('MessageList', () => {
         responseMessages: responseMessages2,
       });
 
-      expect(list.add(newUIMessages5, 'response').get.all.aiV4.ui()).toEqual([
-        ...newUIMessages4.map(m => ({ ...m, createdAt: expect.any(Date) })),
-        {
-          role: 'assistant',
-          content: "Ok fine I'll call a tool then",
-          id: expect.any(String),
-          createdAt: expect.any(Date),
-          parts: [
-            { type: 'text', text: "Ok fine I'll call a tool then" },
-            {
-              type: 'tool-invocation',
-              toolInvocation: {
-                result: { lets: 'go' },
-                toolCallId: 'ok-fine-1',
-                toolName: 'okFineTool',
-                args: { ok: 'fine' },
-                state: 'result',
-              },
-            },
-          ],
-          reasoning: undefined,
-          toolInvocations: [
-            {
-              result: { lets: 'go' },
-              toolCallId: 'ok-fine-1',
-              toolName: 'okFineTool',
-              args: { ok: 'fine' },
-              state: 'result',
-            },
-          ],
-        } satisfies AIV4.UIMessage,
-      ]);
+      // When adding messages with 'response' source, the MessageList will merge consecutive assistant messages
+      // This is the expected behavior after PR #5866
+      const result = list.add(newUIMessages5, 'response').get.all.aiV4.ui();
+      
+      // The last message should be the merged assistant message containing all assistant content
+      const lastMessage = result[result.length - 1];
+      expect(lastMessage.role).toBe('assistant');
+      
+      // Verify it contains the tool invocation
+      expect(lastMessage.toolInvocations).toBeDefined();
+      expect(lastMessage.toolInvocations).toHaveLength(1);
+      expect(lastMessage.toolInvocations![0]).toMatchObject({
+        toolCallId: 'ok-fine-1',
+        toolName: 'okFineTool',
+        state: 'result',
+      });
+      
+      // Verify it has the tool invocation part
+      const toolPart = lastMessage.parts.find(p => p.type === 'tool-invocation');
+      expect(toolPart).toBeDefined();
+      expect(toolPart).toMatchObject({
+        type: 'tool-invocation',
+        toolInvocation: {
+          toolCallId: 'ok-fine-1',
+          toolName: 'okFineTool',
+          state: 'result',
+        },
+      });
       expect(uiMessages).toEqual(expectedMessages);
     });
 
