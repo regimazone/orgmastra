@@ -3,13 +3,7 @@ import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MetricResult, TestInfo, ScoreRowData } from '@mastra/core/eval';
 import type { StorageThreadType, MastraMessageV1 } from '@mastra/core/memory';
-import {
-  MastraStorage,
-  TABLE_MESSAGES,
-  TABLE_THREADS,
-  TABLE_RESOURCES,
-  TABLE_EVALS,
-} from '@mastra/core/storage';
+import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_RESOURCES, TABLE_EVALS } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
   StorageColumn,
@@ -62,15 +56,12 @@ export class UpstashStore extends MastraStorage {
     };
   }
 
-  public get supports(): {
-    selectByIncludeResourceScope: boolean;
-    resourceWorkingMemory: boolean;
-    hasColumn: boolean;
-  } {
+  public get supports() {
     return {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
       hasColumn: false,
+      createTable: false,
     };
   }
 
@@ -396,13 +387,11 @@ export class UpstashStore extends MastraStorage {
     }
   }
 
-  public async getThreadsByResourceIdPaginated(
-    args: {
-      resourceId: string;
-      page: number;
-      perPage: number;
-    },
-  ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
+  public async getThreadsByResourceIdPaginated(args: {
+    resourceId: string;
+    page: number;
+    perPage: number;
+  }): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
     const { resourceId, page = 0, perPage = 100 } = args;
 
     try {
@@ -858,7 +847,11 @@ export class UpstashStore extends MastraStorage {
 
       messages.push(...includedMessages);
 
-      const allMessageIds = await this.redis.zrange(threadMessagesKey, args?.selectBy?.last ? -args.selectBy.last : 0, -1);
+      const allMessageIds = await this.redis.zrange(
+        threadMessagesKey,
+        args?.selectBy?.last ? -args.selectBy.last : 0,
+        -1,
+      );
       if (allMessageIds.length === 0) {
         return {
           messages: [],
@@ -954,23 +947,21 @@ export class UpstashStore extends MastraStorage {
     return this.stores.workflows.loadWorkflowSnapshot(params);
   }
 
-  async getWorkflowRuns(
-    {
-      workflowName,
-      fromDate,
-      toDate,
-      limit,
-      offset,
-      resourceId,
-    }: {
-      workflowName?: string;
-      fromDate?: Date;
-      toDate?: Date;
-      limit?: number;
-      offset?: number;
-      resourceId?: string;
-    } = {},
-  ): Promise<WorkflowRuns> {
+  async getWorkflowRuns({
+    workflowName,
+    fromDate,
+    toDate,
+    limit,
+    offset,
+    resourceId,
+  }: {
+    workflowName?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+    resourceId?: string;
+  } = {}): Promise<WorkflowRuns> {
     return this.stores.workflows.getWorkflowRuns({ workflowName, fromDate, toDate, limit, offset, resourceId });
   }
 
@@ -1136,7 +1127,7 @@ export class UpstashStore extends MastraStorage {
     messages: (Partial<Omit<MastraMessageV2, 'createdAt'>> & {
       id: string;
       content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    })[]
+    })[];
   }): Promise<MastraMessageV2[]> {
     const { messages } = args;
 
@@ -1200,11 +1191,11 @@ export class UpstashStore extends MastraStorage {
             // Deep merge metadata if it exists on both
             ...(existingContent?.metadata && fieldsToUpdate.content.metadata
               ? {
-                metadata: {
-                  ...existingContent.metadata,
-                  ...fieldsToUpdate.content.metadata,
-                },
-              }
+                  metadata: {
+                    ...existingContent.metadata,
+                    ...fieldsToUpdate.content.metadata,
+                  },
+                }
               : {}),
           };
           updatedMessage.content = newContent;
@@ -1235,7 +1226,10 @@ export class UpstashStore extends MastraStorage {
 
             // Add to new thread's sorted set
             const newThreadMessagesKey = this.getThreadMessagesKey(updatePayload.threadId);
-            const score = (updatedMessage as any)._index !== undefined ? (updatedMessage as any)._index : new Date(updatedMessage.createdAt).getTime();
+            const score =
+              (updatedMessage as any)._index !== undefined
+                ? (updatedMessage as any)._index
+                : new Date(updatedMessage.createdAt).getTime();
             pipeline.zadd(newThreadMessagesKey, { score, member: id });
           } else {
             // No thread change, just update the existing key
@@ -1404,7 +1398,11 @@ export class UpstashStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return this.stores.scores.getScoresByEntityId({ entityId: _entityId, entityType: _entityType, pagination: _pagination });
+    return this.stores.scores.getScoresByEntityId({
+      entityId: _entityId,
+      entityType: _entityType,
+      pagination: _pagination,
+    });
   }
 
   async getScoresByScorerId({

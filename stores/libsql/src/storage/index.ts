@@ -3,13 +3,7 @@ import type { Client, InValue } from '@libsql/client';
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
 import type { MetricResult, TestInfo, ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
-import {
-  MastraStorage,
-  TABLE_MESSAGES,
-  TABLE_THREADS,
-  TABLE_RESOURCES,
-
-} from '@mastra/core/storage';
+import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_RESOURCES } from '@mastra/core/storage';
 import type {
   EvalRow,
   PaginationArgs,
@@ -35,29 +29,27 @@ import { ScoresLibSQL } from './domains/scores';
 import { TracesLibSQL } from './domains/traces';
 import { WorkflowsLibSQL } from './domains/workflows';
 
-
 export type LibSQLConfig =
   | {
-    url: string;
-    authToken?: string;
-    /**
-     * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
-     * @default 5
-     */
-    maxRetries?: number;
-    /**
-     * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
-     * The backoff time will double with each retry (exponential backoff).
-     * @default 100
-     */
-    initialBackoffMs?: number;
-  }
+      url: string;
+      authToken?: string;
+      /**
+       * Maximum number of retries for write operations if an SQLITE_BUSY error occurs.
+       * @default 5
+       */
+      maxRetries?: number;
+      /**
+       * Initial backoff time in milliseconds for retrying write operations on SQLITE_BUSY.
+       * The backoff time will double with each retry (exponential backoff).
+       * @default 100
+       */
+      initialBackoffMs?: number;
+    }
   | {
-    client: Client;
-    maxRetries?: number;
-    initialBackoffMs?: number;
-  };
-
+      client: Client;
+      maxRetries?: number;
+      initialBackoffMs?: number;
+    };
 
 export class LibSQLStore extends MastraStorage {
   private client: Client;
@@ -122,6 +114,7 @@ export class LibSQLStore extends MastraStorage {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
       hasColumn: true,
+      createTable: true,
     };
   }
 
@@ -184,13 +177,11 @@ export class LibSQLStore extends MastraStorage {
     return this.stores.memory.getThreadsByResourceId(args);
   }
 
-  public async getThreadsByResourceIdPaginated(
-    args: {
-      resourceId: string;
-      page: number;
-      perPage: number;
-    },
-  ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
+  public async getThreadsByResourceIdPaginated(args: {
+    resourceId: string;
+    page: number;
+    perPage: number;
+  }): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
     return this.stores.memory.getThreadsByResourceIdPaginated(args);
   }
 
@@ -258,10 +249,9 @@ export class LibSQLStore extends MastraStorage {
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
   async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
-  async saveMessages(args:
-    | { messages: MastraMessageV1[]; format?: undefined | 'v1' }
-    | { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[] | MastraMessageV1[]> {
-
+  async saveMessages(
+    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
+  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
     return this.stores.memory.saveMessages(args);
   }
 
@@ -318,11 +308,11 @@ export class LibSQLStore extends MastraStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-              metadata: {
-                ...existingMessage.content.metadata,
-                ...updatableFields.content.metadata,
-              },
-            }
+                metadata: {
+                  ...existingMessage.content.metadata,
+                  ...updatableFields.content.metadata,
+                },
+              }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);
@@ -462,7 +452,7 @@ export class LibSQLStore extends MastraStorage {
     return this.stores.traces.getTraces(args);
   }
 
-  async getTracesPaginated(args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[]; }> {
+  async getTracesPaginated(args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[] }> {
     return this.stores.traces.getTracesPaginated(args);
   }
 

@@ -2,9 +2,7 @@ import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
-import {
-  MastraStorage,
-} from '@mastra/core/storage';
+import { MastraStorage } from '@mastra/core/storage';
 import type {
   EvalRow,
   PaginationInfo,
@@ -34,7 +32,7 @@ import { WorkflowsPG } from './domains/workflows';
 export type PostgresConfig = {
   schemaName?: string;
 } & (
-    | {
+  | {
       host: string;
       port: number;
       database: string;
@@ -42,10 +40,10 @@ export type PostgresConfig = {
       password: string;
       ssl?: boolean | ISSLConfig;
     }
-    | {
+  | {
       connectionString: string;
     }
-  );
+);
 
 export class PostgresStore extends MastraStorage {
   public db: pgPromise.IDatabase<{}>;
@@ -85,13 +83,13 @@ export class PostgresStore extends MastraStorage {
         `connectionString` in config
           ? { connectionString: config.connectionString }
           : {
-            host: config.host,
-            port: config.port,
-            database: config.database,
-            user: config.user,
-            password: config.password,
-            ssl: config.ssl,
-          },
+              host: config.host,
+              port: config.port,
+              database: config.database,
+              user: config.user,
+              password: config.password,
+              ssl: config.ssl,
+            },
       );
 
       this.client = this.db;
@@ -111,7 +109,6 @@ export class PostgresStore extends MastraStorage {
         legacyEvals,
         memory,
       };
-
     } catch (e) {
       throw new MastraError(
         {
@@ -129,6 +126,7 @@ export class PostgresStore extends MastraStorage {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
       hasColumn: true,
+      createTable: true,
     };
   }
 
@@ -218,13 +216,11 @@ export class PostgresStore extends MastraStorage {
     return this.stores.memory.getThreadsByResourceId(args);
   }
 
-  public async getThreadsByResourceIdPaginated(
-    args: {
-      resourceId: string;
-      page: number;
-      perPage: number;
-    },
-  ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
+  public async getThreadsByResourceIdPaginated(args: {
+    resourceId: string;
+    page: number;
+    perPage: number;
+  }): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
     return this.stores.memory.getThreadsByResourceIdPaginated(args);
   }
 
@@ -271,12 +267,11 @@ export class PostgresStore extends MastraStorage {
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
   async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
-  async saveMessages(args:
-    | { messages: MastraMessageV1[]; format?: undefined | 'v1' }
-    | { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+  async saveMessages(
+    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
+  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
     return this.stores.memory.saveMessages(args);
   }
-
 
   async updateMessages({
     messages,
@@ -398,7 +393,6 @@ export class PostgresStore extends MastraStorage {
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     return this.stores.scores.getScoresByRunId({ runId: _runId, pagination: _pagination });
-
   }
 
   async getScoresByEntityId({
@@ -410,6 +404,10 @@ export class PostgresStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return this.stores.scores.getScoresByEntityId({ entityId: _entityId, entityType: _entityType, pagination: _pagination });
+    return this.stores.scores.getScoresByEntityId({
+      entityId: _entityId,
+      entityType: _entityType,
+      pagination: _pagination,
+    });
   }
 }

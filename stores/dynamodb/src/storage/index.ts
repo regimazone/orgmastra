@@ -6,15 +6,7 @@ import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { ScoreRowData } from '@mastra/core/eval';
 import type { StorageThreadType, MastraMessageV2, MastraMessageV1 } from '@mastra/core/memory';
 
-import {
-  MastraStorage,
-  TABLE_THREADS,
-  TABLE_MESSAGES,
-  TABLE_WORKFLOW_SNAPSHOT,
-  TABLE_EVALS,
-  TABLE_SCORERS,
-  TABLE_TRACES,
-} from '@mastra/core/storage';
+import { MastraStorage, TABLE_TRACES } from '@mastra/core/storage';
 import type {
   EvalRow,
   StorageGetMessagesArg,
@@ -26,11 +18,15 @@ import type {
   StorageColumn,
   TABLE_RESOURCES,
   StoragePagination,
+  StorageDomains,
+  PaginationArgs,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { Service } from 'electrodb';
 import { getElectroDbService } from '../entities';
+import { LegacyEvalsDynamoDB } from './domains/legacy-evals';
+import { StoreOperationsDynamoDB } from './domains/operations';
 
 export interface DynamoDBStoreConfig {
   region?: string;
@@ -65,6 +61,7 @@ export class DynamoDBStore extends MastraStorage {
   private client: DynamoDBDocumentClient;
   private service: MastraService;
   protected hasInitialized: Promise<boolean> | null = null;
+  stores: StorageDomains;
 
   constructor({ name, config }: { name: string; config: DynamoDBStoreConfig }) {
     super({ name });
@@ -90,6 +87,17 @@ export class DynamoDBStore extends MastraStorage {
       this.tableName = config.tableName;
       this.client = DynamoDBDocumentClient.from(dynamoClient);
       this.service = getElectroDbService(this.client, this.tableName) as MastraService;
+
+      const operations = new StoreOperationsDynamoDB({
+        service: this.service,
+        tableName: this.tableName,
+        client: this.client,
+      });
+
+      this.stores = {
+        operations,
+        legacyEvals: new LegacyEvalsDynamoDB({ service: this.service, tableName: this.tableName }),
+      } as any;
     } catch (error) {
       throw new MastraError(
         {
@@ -105,42 +113,13 @@ export class DynamoDBStore extends MastraStorage {
     // so we don't need to create multiple tables
   }
 
-  /**
-   * This method is modified for DynamoDB with ElectroDB single-table design.
-   * It assumes the table is created and managed externally via CDK/CloudFormation.
-   *
-   * This implementation only validates that the required table exists and is accessible.
-   * No table creation is attempted - we simply check if we can access the table.
-   */
-  async createTable({ tableName }: { tableName: TABLE_NAMES; schema: Record<string, any> }): Promise<void> {
-    this.logger.debug('Validating access to externally managed table', { tableName, physicalTable: this.tableName });
-
-    // For single-table design, we just need to verify the table exists and is accessible
-    try {
-      const tableExists = await this.validateTableExists();
-
-      if (!tableExists) {
-        this.logger.error(
-          `Table ${this.tableName} does not exist or is not accessible. It should be created via CDK/CloudFormation.`,
-        );
-        throw new Error(
-          `Table ${this.tableName} does not exist or is not accessible. Ensure it's created via CDK/CloudFormation before using this store.`,
-        );
-      }
-
-      this.logger.debug(`Table ${this.tableName} exists and is accessible`);
-    } catch (error) {
-      this.logger.error('Error validating table access', { tableName: this.tableName, error });
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_VALIDATE_TABLE_ACCESS_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName: this.tableName },
-        },
-        error,
-      );
-    }
+  get supports() {
+    return {
+      selectByIncludeResourceScope: true,
+      resourceWorkingMemory: true,
+      hasColumn: false,
+      createTable: false,
+    };
   }
 
   /**
@@ -235,27 +214,8 @@ export class DynamoDBStore extends MastraStorage {
       });
   }
 
-  /**
-   * Pre-processes a record to ensure Date objects are converted to ISO strings
-   * This is necessary because ElectroDB validation happens before setters are applied
-   */
-  private preprocessRecord(record: Record<string, any>): Record<string, any> {
-    const processed = { ...record };
-
-    // Convert Date objects to ISO strings for date fields
-    // This prevents ElectroDB validation errors that occur when Date objects are passed
-    // to string-typed attributes, even when the attribute has a setter that converts dates
-    if (processed.createdAt instanceof Date) {
-      processed.createdAt = processed.createdAt.toISOString();
-    }
-    if (processed.updatedAt instanceof Date) {
-      processed.updatedAt = processed.updatedAt.toISOString();
-    }
-    if (processed.created_at instanceof Date) {
-      processed.created_at = processed.created_at.toISOString();
-    }
-
-    return processed;
+  async createTable({ tableName, schema }: { tableName: TABLE_NAMES; schema: Record<string, any> }): Promise<void> {
+    return this.stores.operations.createTable({ tableName, schema });
   }
 
   async alterTable(_args: {
@@ -263,148 +223,21 @@ export class DynamoDBStore extends MastraStorage {
     schema: Record<string, StorageColumn>;
     ifNotExists: string[];
   }): Promise<void> {
-    // Nothing to do here, DynamoDB has a flexible schema and handles new attributes automatically upon insertion/update.
+    return this.stores.operations.alterTable(_args);
   }
 
-  /**
-   * Clear all items from a logical "table" (entity type)
-   */
   async clearTable({ tableName }: { tableName: SUPPORTED_TABLE_NAMES }): Promise<void> {
-    this.logger.debug('DynamoDB clearTable called', { tableName });
-
-    const entityName = this.getEntityNameForTable(tableName);
-    if (!entityName || !this.service.entities[entityName]) {
-      throw new MastraError({
-        id: 'STORAGE_DYNAMODB_STORE_CLEAR_TABLE_INVALID_ARGS',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.USER,
-        text: 'No entity defined for tableName',
-        details: { tableName },
-      });
-    }
-
-    try {
-      // Scan requires no key, just uses the entity handler
-      const result = await this.service.entities[entityName].scan.go({ pages: 'all' }); // Get all pages
-
-      if (!result.data.length) {
-        this.logger.debug(`No records found to clear for ${tableName}`);
-        return;
-      }
-
-      this.logger.debug(`Found ${result.data.length} records to delete for ${tableName}`);
-
-      // ElectroDB batch delete expects the key components for each item
-      const keysToDelete = result.data.map((item: any) => {
-        const key: { entity: string; [key: string]: any } = { entity: entityName };
-
-        // Construct the key based on the specific entity's primary key structure
-        switch (entityName) {
-          case 'thread':
-            if (!item.id) throw new Error(`Missing required key 'id' for entity 'thread'`);
-            key.id = item.id;
-            break;
-          case 'message':
-            if (!item.id) throw new Error(`Missing required key 'id' for entity 'message'`);
-            key.id = item.id;
-            break;
-          case 'workflowSnapshot':
-            if (!item.workflow_name)
-              throw new Error(`Missing required key 'workflow_name' for entity 'workflowSnapshot'`);
-            if (!item.run_id) throw new Error(`Missing required key 'run_id' for entity 'workflowSnapshot'`);
-            key.workflow_name = item.workflow_name;
-            key.run_id = item.run_id;
-            break;
-          case 'eval':
-            // Assuming 'eval' uses 'run_id' or another unique identifier as part of its PK
-            // Adjust based on the actual primary key defined in getElectroDbService
-            if (!item.run_id) throw new Error(`Missing required key 'run_id' for entity 'eval'`);
-            // Add other key components if necessary for 'eval' PK
-            key.run_id = item.run_id;
-            // Example: if global_run_id is also part of PK:
-            // if (!item.global_run_id) throw new Error(`Missing required key 'global_run_id' for entity 'eval'`);
-            // key.global_run_id = item.global_run_id;
-            break;
-          case 'trace':
-            // Assuming 'trace' uses 'id' as its PK
-            // Adjust based on the actual primary key defined in getElectroDbService
-            if (!item.id) throw new Error(`Missing required key 'id' for entity 'trace'`);
-            key.id = item.id;
-            break;
-          default:
-            // Handle unknown entity types - log a warning or throw an error
-            this.logger.warn(`Unknown entity type encountered during clearTable: ${entityName}`);
-            // Optionally throw an error if strict handling is required
-            throw new Error(`Cannot construct delete key for unknown entity type: ${entityName}`);
-        }
-
-        return key;
-      });
-
-      const batchSize = 25;
-      for (let i = 0; i < keysToDelete.length; i += batchSize) {
-        const batchKeys = keysToDelete.slice(i, i + batchSize);
-        // Pass the array of key objects to delete
-        await this.service.entities[entityName].delete(batchKeys).go();
-      }
-
-      this.logger.debug(`Successfully cleared all records for ${tableName}`);
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_CLEAR_TABLE_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.clearTable({ tableName });
   }
 
-  /**
-   * Insert a record into the specified "table" (entity)
-   */
-  async insert({
-    tableName,
-    record,
-  }: {
-    tableName: SUPPORTED_TABLE_NAMES;
-    record: Record<string, any>;
-  }): Promise<void> {
-    this.logger.debug('DynamoDB insert called', { tableName });
-
-    const entityName = this.getEntityNameForTable(tableName);
-    if (!entityName || !this.service.entities[entityName]) {
-      throw new MastraError({
-        id: 'STORAGE_DYNAMODB_STORE_INSERT_INVALID_ARGS',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.USER,
-        text: 'No entity defined for tableName',
-        details: { tableName },
-      });
-    }
-
-    try {
-      // Add the entity type to the record and preprocess before creating
-      const dataToSave = { entity: entityName, ...this.preprocessRecord(record) };
-      await this.service.entities[entityName].create(dataToSave).go();
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+  async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
+    return this.stores.operations.dropTable({ tableName });
   }
 
-  /**
-   * Insert multiple records as a batch
-   */
+  async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
+    return this.stores.operations.insert({ tableName, record });
+  }
+
   async batchInsert({
     tableName,
     records,
@@ -412,61 +245,9 @@ export class DynamoDBStore extends MastraStorage {
     tableName: SUPPORTED_TABLE_NAMES;
     records: Record<string, any>[];
   }): Promise<void> {
-    this.logger.debug('DynamoDB batchInsert called', { tableName, count: records.length });
-
-    const entityName = this.getEntityNameForTable(tableName);
-    if (!entityName || !this.service.entities[entityName]) {
-      throw new MastraError({
-        id: 'STORAGE_DYNAMODB_STORE_BATCH_INSERT_INVALID_ARGS',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.USER,
-        text: 'No entity defined for tableName',
-        details: { tableName },
-      });
-    }
-
-    // Add entity type and preprocess each record
-    const recordsToSave = records.map(rec => ({ entity: entityName, ...this.preprocessRecord(rec) }));
-
-    // ElectroDB has batch limits of 25 items, so we need to chunk
-    const batchSize = 25;
-    const batches = [];
-    for (let i = 0; i < recordsToSave.length; i += batchSize) {
-      const batch = recordsToSave.slice(i, i + batchSize);
-      batches.push(batch);
-    }
-
-    try {
-      // Process each batch
-      for (const batch of batches) {
-        // Create each item individually within the batch
-        for (const recordData of batch) {
-          if (!recordData.entity) {
-            this.logger.error('Missing entity property in record data for batchInsert', { recordData, tableName });
-            throw new Error(`Internal error: Missing entity property during batchInsert for ${tableName}`);
-          }
-          // Log the object just before the create call
-          this.logger.debug('Attempting to create record in batchInsert:', { entityName, recordData });
-          await this.service.entities[entityName].create(recordData).go();
-        }
-        // Original batch call: await this.service.entities[entityName].create(batch).go();
-      }
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_BATCH_INSERT_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.batchInsert({ tableName, records });
   }
 
-  /**
-   * Load a record by its keys
-   */
   async load<R>({
     tableName,
     keys,
@@ -474,51 +255,7 @@ export class DynamoDBStore extends MastraStorage {
     tableName: SUPPORTED_TABLE_NAMES;
     keys: Record<string, string>;
   }): Promise<R | null> {
-    this.logger.debug('DynamoDB load called', { tableName, keys });
-
-    const entityName = this.getEntityNameForTable(tableName);
-    if (!entityName || !this.service.entities[entityName]) {
-      throw new MastraError({
-        id: 'STORAGE_DYNAMODB_STORE_LOAD_INVALID_ARGS',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.USER,
-        text: 'No entity defined for tableName',
-        details: { tableName },
-      });
-    }
-
-    try {
-      // Add the entity type to the key object for the .get call
-      const keyObject = { entity: entityName, ...keys };
-      const result = await this.service.entities[entityName].get(keyObject).go();
-
-      if (!result.data) {
-        return null;
-      }
-
-      // Add parsing logic if necessary (e.g., for metadata)
-      let data = result.data;
-      if (data.metadata && typeof data.metadata === 'string') {
-        try {
-          // data.metadata = JSON.parse(data.metadata); // REMOVED by AI
-        } catch {
-          /* ignore parse error */
-        }
-      }
-      // Add similar parsing for other JSON fields if needed based on entity type
-
-      return data as R;
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_LOAD_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { tableName },
-        },
-        error,
-      );
-    }
+    return this.stores.operations.load({ tableName, keys });
   }
 
   // Thread operations
@@ -973,7 +710,7 @@ export class DynamoDBStore extends MastraStorage {
         resourceId,
       };
       // Use upsert instead of create to handle both create and update cases
-      await this.service.entities.workflowSnapshot.upsert(data).go();
+      await this.service.entities.workflow_snapshot.upsert(data).go();
     } catch (error) {
       throw new MastraError(
         {
@@ -998,7 +735,7 @@ export class DynamoDBStore extends MastraStorage {
 
     try {
       // Provide *all* composite key components for the primary index ('entity', 'workflow_name', 'run_id')
-      const result = await this.service.entities.workflowSnapshot
+      const result = await this.service.entities.workflow_snapshot
         .get({
           entity: 'workflow_snapshot', // Add entity type
           workflow_name: workflowName,
@@ -1046,7 +783,7 @@ export class DynamoDBStore extends MastraStorage {
       if (args?.workflowName) {
         // Query by workflow name using the primary index
         // Provide *all* composite key components for the PK ('entity', 'workflow_name')
-        query = this.service.entities.workflowSnapshot.query.primary({
+        query = this.service.entities.workflow_snapshot.query.primary({
           entity: 'workflow_snapshot', // Add entity type
           workflow_name: args.workflowName,
         });
@@ -1054,7 +791,7 @@ export class DynamoDBStore extends MastraStorage {
         // If no workflow name, we need to scan
         // This is not ideal for production with large datasets
         this.logger.warn('Performing a scan operation on workflow snapshots - consider using a more specific query');
-        query = this.service.entities.workflowSnapshot.scan; // Scan still uses the service entity
+        query = this.service.entities.workflow_snapshot.scan; // Scan still uses the service entity
       }
 
       const allMatchingSnapshots: WorkflowSnapshotDBItem[] = [];
@@ -1128,17 +865,22 @@ export class DynamoDBStore extends MastraStorage {
     const { runId, workflowName } = args;
     this.logger.debug('Getting workflow run by ID', { runId, workflowName });
 
+    console.log('workflowName', workflowName);
+    console.log('runId', runId);
+
     try {
       // If we have a workflowName, we can do a direct get using the primary key
       if (workflowName) {
         this.logger.debug('WorkflowName provided, using direct GET operation.');
-        const result = await this.service.entities.workflowSnapshot
+        const result = await this.service.entities.workflow_snapshot
           .get({
             entity: 'workflow_snapshot', // Entity type for PK
             workflow_name: workflowName,
             run_id: runId,
           })
           .go();
+
+        console.log('result', result);
 
         if (!result.data) {
           return null;
@@ -1167,7 +909,7 @@ export class DynamoDBStore extends MastraStorage {
       // 2. Provisioned in the actual DynamoDB table (e.g., via CDK/CloudFormation).
       // The query key object includes 'entity' as it's good practice with ElectroDB and single-table design,
       // aligning with how other GSIs are queried in this file.
-      const result = await this.service.entities.workflowSnapshot.query
+      const result = await this.service.entities.workflow_snapshot.query
         .gsi2({ entity: 'workflow_snapshot', run_id: runId }) // Replace 'byRunId' with your actual GSI name
         .go();
 
@@ -1215,103 +957,18 @@ export class DynamoDBStore extends MastraStorage {
     };
   }
 
-  // Helper methods for entity/table mapping
-  private getEntityNameForTable(tableName: SUPPORTED_TABLE_NAMES): string | null {
-    const mapping: Record<SUPPORTED_TABLE_NAMES, string> = {
-      [TABLE_THREADS]: 'thread',
-      [TABLE_MESSAGES]: 'message',
-      [TABLE_WORKFLOW_SNAPSHOT]: 'workflowSnapshot',
-      [TABLE_EVALS]: 'eval',
-      [TABLE_SCORERS]: 'scorer',
-      [TABLE_TRACES]: 'trace',
-    };
-    return mapping[tableName] || null;
-  }
-
   // Eval operations
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
-    this.logger.debug('Getting evals for agent', { agentName, type });
+    return this.stores.legacyEvals.getEvalsByAgentName(agentName, type);
+  }
 
-    try {
-      // Query evals by agent name using the GSI
-      // Provide *all* composite key components for the 'byAgent' index ('entity', 'agent_name')
-      const query = this.service.entities.eval.query.byAgent({ entity: 'eval', agent_name: agentName });
-
-      // Fetch potentially all items in descending order, using the correct 'order' option
-      const results = await query.go({ order: 'desc', limit: 100 }); // Use order: 'desc'
-
-      if (!results.data.length) {
-        return [];
-      }
-
-      // Filter by type if specified
-      let filteredData = results.data;
-      if (type) {
-        filteredData = filteredData.filter((evalRecord: Record<string, any>) => {
-          try {
-            // Need to handle potential parse errors for test_info
-            const testInfo =
-              evalRecord.test_info && typeof evalRecord.test_info === 'string'
-                ? JSON.parse(evalRecord.test_info)
-                : undefined;
-
-            if (type === 'test' && !testInfo) {
-              return false;
-            }
-            if (type === 'live' && testInfo) {
-              return false;
-            }
-          } catch (e) {
-            this.logger.warn('Failed to parse test_info during filtering', { record: evalRecord, error: e });
-            // Decide how to handle parse errors - exclude or include? Including for now.
-          }
-          return true;
-        });
-      }
-
-      // Format the results - ElectroDB transforms most attributes, but we need to map/parse
-      return filteredData.map((evalRecord: Record<string, any>) => {
-        try {
-          return {
-            input: evalRecord.input,
-            output: evalRecord.output,
-            // Safely parse result and test_info
-            result:
-              evalRecord.result && typeof evalRecord.result === 'string' ? JSON.parse(evalRecord.result) : undefined,
-            agentName: evalRecord.agent_name,
-            createdAt: evalRecord.created_at, // Keep as string from DDB?
-            metricName: evalRecord.metric_name,
-            instructions: evalRecord.instructions,
-            runId: evalRecord.run_id,
-            globalRunId: evalRecord.global_run_id,
-            testInfo:
-              evalRecord.test_info && typeof evalRecord.test_info === 'string'
-                ? JSON.parse(evalRecord.test_info)
-                : undefined,
-          } as EvalRow;
-        } catch (parseError) {
-          this.logger.error('Failed to parse eval record', { record: evalRecord, error: parseError });
-          // Return a partial record or null/undefined on error?
-          // Returning partial for now, might need adjustment based on requirements.
-          return {
-            agentName: evalRecord.agent_name,
-            createdAt: evalRecord.created_at,
-            runId: evalRecord.run_id,
-            globalRunId: evalRecord.global_run_id,
-          } as Partial<EvalRow> as EvalRow; // Cast needed for return type
-        }
-      });
-    } catch (error) {
-      throw new MastraError(
-        {
-          id: 'STORAGE_DYNAMODB_STORE_GET_EVALS_BY_AGENT_NAME_FAILED',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.THIRD_PARTY,
-          details: { agentName },
-        },
-        error,
-      );
-    }
+  async getEvals(
+    options: {
+      agentName?: string;
+      type?: 'test' | 'live';
+    } & PaginationArgs,
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
+    return this.stores.legacyEvals.getEvals(options);
   }
 
   async getTracesPaginated(_args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[] }> {

@@ -13,7 +13,7 @@ export function getElectroDbService(client: DynamoDBDocumentClient, tableName: s
       message: messageEntity,
       eval: evalEntity,
       trace: traceEntity,
-      workflowSnapshot: workflowSnapshotEntity,
+      workflow_snapshot: workflowSnapshotEntity,
     },
     {
       client,

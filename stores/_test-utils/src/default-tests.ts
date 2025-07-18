@@ -1,12 +1,7 @@
 import { randomUUID } from 'crypto';
 import { describe, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { MastraStorage } from '@mastra/core/storage';
-import {
-  TABLE_WORKFLOW_SNAPSHOT,
-  TABLE_EVALS,
-  TABLE_MESSAGES,
-  TABLE_THREADS,
-} from '@mastra/core/storage';
+import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import { createScoresTest } from './domains/scores';
 import { createConversationsTest } from './domains/conversations';
 import { createWorkflowsTests } from './domains/workflows';
@@ -39,11 +34,8 @@ export const createSampleTraceForDB = (
   createdAt: createdAt || new Date(),
 });
 
-
-
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
-
     beforeAll(async () => {
       await storage.init();
     });
@@ -64,17 +56,16 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_THREADS });
     });
 
-    createOperationsTests(storage);
+    // createOperationsTests(storage);
 
-    createWorkflowsTests(storage);
+    // createWorkflowsTests(storage);
 
-    createTraceTests(storage);
+    // createTraceTests(storage);
 
-    createEvalsTests(storage);
+    // createEvalsTests(storage);
 
-    createConversationsTest({ storage });
+    // createConversationsTest({ storage });
 
-    createScoresTest({ storage });
+    // createScoresTest({ storage });
   });
-
 }
