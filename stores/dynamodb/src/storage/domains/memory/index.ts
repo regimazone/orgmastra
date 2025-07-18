@@ -1,4 +1,5 @@
-import { MessageList, type MastraMessageContentV2 } from '@mastra/core/agent';
+import { MessageList } from '@mastra/core/agent';
+import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { StorageThreadType, MastraMessageV1, MastraMessageV2 } from '@mastra/core/memory';
 import { MemoryStorage, resolveMessageLimit } from '@mastra/core/storage';
@@ -647,14 +648,109 @@ export class MemoryStorageDynamoDB extends MemoryStorage {
     return includeMessages;
   }
 
-  async updateMessages(_args: {
+  async updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
       {
         id: string;
         content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
       }[];
   }): Promise<MastraMessageV2[]> {
-    this.logger.error('updateMessages is not yet implemented in DynamoDBStore');
-    throw new Error('Method not implemented');
+    const { messages } = args;
+    this.logger.debug('Updating messages', { count: messages.length });
+
+    if (!messages.length) {
+      return [];
+    }
+
+    const updatedMessages: MastraMessageV2[] = [];
+    const affectedThreadIds = new Set<string>();
+
+    try {
+      for (const updateData of messages) {
+        const { id, ...updates } = updateData;
+
+        // Get the existing message
+        const existingMessage = await this.service.entities.message.get({ entity: 'message', id }).go();
+        if (!existingMessage.data) {
+          this.logger.warn('Message not found for update', { id });
+          continue;
+        }
+
+        const existingMsg = this.parseMessageData(existingMessage.data) as MastraMessageV2;
+        const originalThreadId = existingMsg.threadId;
+        affectedThreadIds.add(originalThreadId!);
+
+        // Prepare the update payload
+        const updatePayload: any = {
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Handle basic field updates
+        if ('role' in updates && updates.role !== undefined) updatePayload.role = updates.role;
+        if ('type' in updates && updates.type !== undefined) updatePayload.type = updates.type;
+        if ('resourceId' in updates && updates.resourceId !== undefined) updatePayload.resourceId = updates.resourceId;
+        if ('threadId' in updates && updates.threadId !== undefined && updates.threadId !== null) {
+          updatePayload.threadId = updates.threadId;
+          affectedThreadIds.add(updates.threadId as string);
+        }
+
+        // Handle content updates
+        if (updates.content) {
+          const existingContent = existingMsg.content;
+          let newContent = { ...existingContent };
+
+          // Deep merge metadata if provided
+          if (updates.content.metadata !== undefined) {
+            newContent.metadata = {
+              ...(existingContent.metadata || {}),
+              ...(updates.content.metadata || {}),
+            };
+          }
+
+          // Update content string if provided
+          if (updates.content.content !== undefined) {
+            newContent.content = updates.content.content;
+          }
+
+          // Update parts if provided (only if it exists in the content type)
+          if ('parts' in updates.content && updates.content.parts !== undefined) {
+            (newContent as any).parts = updates.content.parts;
+          }
+
+          updatePayload.content = JSON.stringify(newContent);
+        }
+
+        // Update the message
+        await this.service.entities.message.update({ entity: 'message', id }).set(updatePayload).go();
+
+        // Get the updated message
+        const updatedMessage = await this.service.entities.message.get({ entity: 'message', id }).go();
+        if (updatedMessage.data) {
+          updatedMessages.push(this.parseMessageData(updatedMessage.data) as MastraMessageV2);
+        }
+      }
+
+      // Update timestamps for all affected threads
+      for (const threadId of affectedThreadIds) {
+        await this.service.entities.thread
+          .update({ entity: 'thread', id: threadId })
+          .set({
+            updatedAt: new Date().toISOString(),
+          })
+          .go();
+      }
+
+      return updatedMessages;
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_DYNAMODB_STORE_UPDATE_MESSAGES_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { count: messages.length },
+        },
+        error,
+      );
+    }
   }
 }
