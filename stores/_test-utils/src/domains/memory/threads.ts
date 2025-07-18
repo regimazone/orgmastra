@@ -1,7 +1,7 @@
 import type { MastraStorage } from '@mastra/core/storage';
 import { createSampleMessageV1, createSampleMessageV2, createSampleThread, createSampleThreadWithParams } from './data';
 import { describe, expect, it } from 'vitest';
-import { MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
+import type { MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import { randomUUID } from 'crypto';
 
 export function createThreadsTest({ storage }: { storage: MastraStorage }) {
@@ -15,6 +15,9 @@ export function createThreadsTest({ storage }: { storage: MastraStorage }) {
 
       // Retrieve thread
       const retrievedThread = await storage.getThreadById({ threadId: thread.id });
+
+      console.log('retrievedThread', retrievedThread);
+
       expect(retrievedThread?.title).toEqual(thread.title);
     });
 

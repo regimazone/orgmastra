@@ -17,6 +17,7 @@ import {
   MastraStorage,
   TABLE_EVALS,
   TABLE_MESSAGES,
+  TABLE_SCHEMAS,
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_WORKFLOW_SNAPSHOT,
@@ -136,7 +137,19 @@ export class MongoDBStore extends MastraStorage {
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
     try {
       const collection = await this.getCollection(tableName);
-      await collection.insertOne(record);
+
+      const schema = TABLE_SCHEMAS[tableName];
+
+      const recordToInsert = Object.fromEntries(
+        Object.entries(schema).map(([key, value]) => {
+          if (value.type === 'jsonb' && record[key] && typeof record[key] === 'string') {
+            return [key, safelyParseJSON(record[key])];
+          }
+          return [key, record[key]];
+        }),
+      );
+
+      await collection.insertOne(recordToInsert);
     } catch (error) {
       if (error instanceof Error) {
         const matstraError = new MastraError(
@@ -203,7 +216,7 @@ export class MongoDBStore extends MastraStorage {
 
       return {
         ...result,
-        metadata: typeof result.metadata === 'string' ? JSON.parse(result.metadata) : result.metadata,
+        metadata: typeof result.metadata === 'string' ? safelyParseJSON(result.metadata) : result.metadata,
       };
     } catch (error) {
       throw new MastraError(
@@ -228,7 +241,7 @@ export class MongoDBStore extends MastraStorage {
 
       return results.map(result => ({
         ...result,
-        metadata: typeof result.metadata === 'string' ? JSON.parse(result.metadata) : result.metadata,
+        metadata: typeof result.metadata === 'string' ? safelyParseJSON(result.metadata) : result.metadata,
       }));
     } catch (error) {
       throw new MastraError(
@@ -251,7 +264,7 @@ export class MongoDBStore extends MastraStorage {
         {
           $set: {
             ...thread,
-            metadata: JSON.stringify(thread.metadata),
+            metadata: thread.metadata,
           },
         },
         { upsert: true },
@@ -306,7 +319,7 @@ export class MongoDBStore extends MastraStorage {
         {
           $set: {
             title,
-            metadata: JSON.stringify(updatedThread.metadata),
+            metadata: updatedThread.metadata,
           },
         },
       );
@@ -626,7 +639,7 @@ export class MongoDBStore extends MastraStorage {
         let parsedSnapshot: WorkflowRunState | string = row.snapshot;
         if (typeof parsedSnapshot === 'string') {
           try {
-            parsedSnapshot = JSON.parse(row.snapshot as string) as WorkflowRunState;
+            parsedSnapshot = typeof row.snapshot === 'string' ? safelyParseJSON(row.snapshot as string) : row.snapshot;
           } catch (e) {
             // If parsing fails, return the raw snapshot string
             console.warn(`Failed to parse snapshot for workflow ${row.workflow_name}: ${e}`);
@@ -720,7 +733,7 @@ export class MongoDBStore extends MastraStorage {
         { workflow_name: workflowName, run_id: runId },
         {
           $set: {
-            snapshot: JSON.stringify(snapshot),
+            snapshot: snapshot,
             updatedAt: now,
           },
           $setOnInsert: {
@@ -762,7 +775,7 @@ export class MongoDBStore extends MastraStorage {
         return null;
       }
 
-      return JSON.parse(result[0].snapshot);
+      return typeof result[0].snapshot === 'string' ? safelyParseJSON(result[0].snapshot) : result[0].snapshot;
     } catch (error) {
       throw new MastraError(
         {
@@ -817,7 +830,7 @@ export class MongoDBStore extends MastraStorage {
     let parsedSnapshot: WorkflowRunState | string = row.snapshot as string;
     if (typeof parsedSnapshot === 'string') {
       try {
-        parsedSnapshot = JSON.parse(row.snapshot as string) as WorkflowRunState;
+        parsedSnapshot = typeof row.snapshot === 'string' ? safelyParseJSON(row.snapshot as string) : row.snapshot;
       } catch (e) {
         // If parsing fails, return the raw snapshot string
         console.warn(`Failed to parse snapshot for workflow ${row.workflow_name}: ${e}`);
@@ -835,12 +848,8 @@ export class MongoDBStore extends MastraStorage {
   }
 
   private parseRow(row: any): MastraMessageV2 {
-    let content = row.content;
-    try {
-      content = JSON.parse(row.content);
-    } catch {
-      // use content as is if it's not JSON
-    }
+    const content = safelyParseJSON(row.content);
+
     return {
       id: row.id,
       content,
@@ -856,12 +865,12 @@ export class MongoDBStore extends MastraStorage {
     let testInfoValue = null;
     if (row.test_info) {
       try {
-        testInfoValue = typeof row.test_info === 'string' ? JSON.parse(row.test_info) : row.test_info;
+        testInfoValue = typeof row.test_info === 'string' ? safelyParseJSON(row.test_info) : row.test_info;
       } catch (e) {
         console.warn('Failed to parse test_info:', e);
       }
     }
-    const resultValue = JSON.parse(row.result as string);
+    const resultValue = typeof row.result === 'string' ? safelyParseJSON(row.result as string) : row.result;
     if (!resultValue || typeof resultValue !== 'object' || !('score' in resultValue)) {
       throw new MastraError({
         id: 'STORAGE_MONGODB_STORE_INVALID_METRIC_FORMAT',
