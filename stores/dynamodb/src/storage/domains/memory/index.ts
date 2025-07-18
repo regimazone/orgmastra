@@ -3,7 +3,7 @@ import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { StorageThreadType, MastraMessageV1, MastraMessageV2 } from '@mastra/core/memory';
 import { MemoryStorage, resolveMessageLimit } from '@mastra/core/storage';
-import type { PaginationInfo, StorageGetMessagesArg } from '@mastra/core/storage';
+import type { PaginationInfo, StorageGetMessagesArg, StorageResourceType } from '@mastra/core/storage';
 import type { Service } from 'electrodb';
 
 export class MemoryStorageDynamoDB extends MemoryStorage {
@@ -748,6 +748,144 @@ export class MemoryStorageDynamoDB extends MemoryStorage {
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
           details: { count: messages.length },
+        },
+        error,
+      );
+    }
+  }
+
+  async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
+    this.logger.debug('Getting resource by ID', { resourceId });
+    try {
+      const result = await this.service.entities.resource.get({ entity: 'resource', id: resourceId }).go();
+
+      if (!result.data) {
+        return null;
+      }
+
+      // ElectroDB handles the transformation with attribute getters
+      const data = result.data;
+      return {
+        ...data,
+        // Convert date strings back to Date objects for consistency
+        createdAt: typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt,
+        updatedAt: typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt,
+        // Ensure workingMemory is always returned as a string, regardless of automatic parsing
+        workingMemory: typeof data.workingMemory === 'object' ? JSON.stringify(data.workingMemory) : data.workingMemory,
+        // metadata is already transformed by the entity's getter
+      } as StorageResourceType;
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_DYNAMODB_STORE_GET_RESOURCE_BY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { resourceId },
+        },
+        error,
+      );
+    }
+  }
+
+  async saveResource({ resource }: { resource: StorageResourceType }): Promise<StorageResourceType> {
+    this.logger.debug('Saving resource', { resourceId: resource.id });
+
+    const now = new Date();
+
+    const resourceData = {
+      entity: 'resource',
+      id: resource.id,
+      workingMemory: resource.workingMemory,
+      metadata: resource.metadata ? JSON.stringify(resource.metadata) : undefined,
+      createdAt: resource.createdAt?.toISOString() || now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+
+    try {
+      await this.service.entities.resource.upsert(resourceData).go();
+
+      return {
+        id: resource.id,
+        workingMemory: resource.workingMemory,
+        metadata: resource.metadata,
+        createdAt: resource.createdAt || now,
+        updatedAt: now,
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_DYNAMODB_STORE_SAVE_RESOURCE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { resourceId: resource.id },
+        },
+        error,
+      );
+    }
+  }
+
+  async updateResource({
+    resourceId,
+    workingMemory,
+    metadata,
+  }: {
+    resourceId: string;
+    workingMemory?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<StorageResourceType> {
+    this.logger.debug('Updating resource', { resourceId });
+
+    try {
+      // First, get the existing resource to merge with updates
+      const existingResource = await this.getResourceById({ resourceId });
+
+      if (!existingResource) {
+        // Create new resource if it doesn't exist
+        const newResource: StorageResourceType = {
+          id: resourceId,
+          workingMemory,
+          metadata: metadata || {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        return this.saveResource({ resource: newResource });
+      }
+
+      const now = new Date();
+
+      // Prepare the update
+      const updateData: any = {
+        updatedAt: now.toISOString(),
+      };
+
+      if (workingMemory !== undefined) {
+        updateData.workingMemory = workingMemory;
+      }
+
+      if (metadata) {
+        // Merge with existing metadata instead of overwriting
+        const existingMetadata = existingResource.metadata || {};
+        const mergedMetadata = { ...existingMetadata, ...metadata };
+        updateData.metadata = JSON.stringify(mergedMetadata);
+      }
+
+      // Update the resource using the primary key
+      await this.service.entities.resource.update({ entity: 'resource', id: resourceId }).set(updateData).go();
+
+      // Return the updated resource object
+      return {
+        ...existingResource,
+        workingMemory: workingMemory !== undefined ? workingMemory : existingResource.workingMemory,
+        metadata: metadata ? { ...existingResource.metadata, ...metadata } : existingResource.metadata,
+        updatedAt: now,
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_DYNAMODB_STORE_UPDATE_RESOURCE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { resourceId },
         },
         error,
       );

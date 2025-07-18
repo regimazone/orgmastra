@@ -3,12 +3,12 @@ import { describe, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { MastraStorage } from '@mastra/core/storage';
 import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
 import { createScoresTest } from './domains/scores';
-import { createConversationsTest } from './domains/conversations';
+import { createMemoryTest } from './domains/memory';
 import { createWorkflowsTests } from './domains/workflows';
 import { createTraceTests } from './domains/traces';
 import { createEvalsTests } from './domains/evals';
 import { createOperationsTests } from './domains/operations';
-export * from './domains/conversations/data';
+export * from './domains/memory/data';
 export * from './domains/workflows/data';
 export * from './domains/evals/data';
 
@@ -56,16 +56,16 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_THREADS });
     });
 
-    // createOperationsTests(storage);
+    createOperationsTests({ storage });
 
-    // createWorkflowsTests(storage);
+    createWorkflowsTests({ storage });
 
-    // createTraceTests(storage);
+    createTraceTests({ storage });
 
-    // createEvalsTests(storage);
+    createEvalsTests({ storage });
 
-    createConversationsTest({ storage });
+    createMemoryTest({ storage });
 
-    // createScoresTest({ storage });
+    createScoresTest({ storage });
   });
 }

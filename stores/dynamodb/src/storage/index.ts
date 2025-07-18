@@ -15,20 +15,21 @@ import type {
   StorageGetTracesArg,
   PaginationInfo,
   StorageColumn,
-  TABLE_RESOURCES,
   StoragePagination,
   StorageDomains,
   PaginationArgs,
+  StorageResourceType,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { Service } from 'electrodb';
 import { getElectroDbService } from '../entities';
 import { LegacyEvalsDynamoDB } from './domains/legacy-evals';
+import { MemoryStorageDynamoDB } from './domains/memory';
 import { StoreOperationsDynamoDB } from './domains/operations';
+import { ScoresStorageDynamoDB } from './domains/score';
 import { TracesStorageDynamoDB } from './domains/traces';
 import { WorkflowStorageDynamoDB } from './domains/workflows';
-import { MemoryStorageDynamoDB } from './domains/memory';
 
 export interface DynamoDBStoreConfig {
   region?: string;
@@ -39,8 +40,6 @@ export interface DynamoDBStoreConfig {
     secretAccessKey: string;
   };
 }
-
-type SUPPORTED_TABLE_NAMES = Exclude<TABLE_NAMES, typeof TABLE_RESOURCES>;
 
 // Define a type for our service that allows string indexing
 type MastraService = Service<Record<string, any>> & {
@@ -91,13 +90,16 @@ export class DynamoDBStore extends MastraStorage {
 
       const memory = new MemoryStorageDynamoDB({ service: this.service });
 
+      const scores = new ScoresStorageDynamoDB({ service: this.service });
+
       this.stores = {
         operations,
         legacyEvals: new LegacyEvalsDynamoDB({ service: this.service, tableName: this.tableName }),
         traces,
         workflows,
         memory,
-      } as any;
+        scores,
+      };
     } catch (error) {
       throw new MastraError(
         {
@@ -226,7 +228,7 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.operations.alterTable(_args);
   }
 
-  async clearTable({ tableName }: { tableName: SUPPORTED_TABLE_NAMES }): Promise<void> {
+  async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
     return this.stores.operations.clearTable({ tableName });
   }
 
@@ -238,23 +240,11 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.operations.insert({ tableName, record });
   }
 
-  async batchInsert({
-    tableName,
-    records,
-  }: {
-    tableName: SUPPORTED_TABLE_NAMES;
-    records: Record<string, any>[];
-  }): Promise<void> {
+  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
     return this.stores.operations.batchInsert({ tableName, records });
   }
 
-  async load<R>({
-    tableName,
-    keys,
-  }: {
-    tableName: SUPPORTED_TABLE_NAMES;
-    keys: Record<string, string>;
-  }): Promise<R | null> {
+  async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
     return this.stores.operations.load({ tableName, keys });
   }
 
@@ -389,6 +379,26 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.workflows.getWorkflowRunById(args);
   }
 
+  async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
+    return this.stores.memory.getResourceById({ resourceId });
+  }
+
+  async saveResource({ resource }: { resource: StorageResourceType }): Promise<StorageResourceType> {
+    return this.stores.memory.saveResource({ resource });
+  }
+
+  async updateResource({
+    resourceId,
+    workingMemory,
+    metadata,
+  }: {
+    resourceId: string;
+    workingMemory?: string;
+    metadata?: Record<string, any>;
+  }): Promise<StorageResourceType> {
+    return this.stores.memory.updateResource({ resourceId, workingMemory, metadata });
+  }
+
   // Eval operations
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     return this.stores.legacyEvals.getEvalsByAgentName(agentName, type);
@@ -427,17 +437,11 @@ export class DynamoDBStore extends MastraStorage {
    * SCORERS - Not implemented
    */
   async getScoreById({ id: _id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoreById({ id: _id });
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.saveScore(_score);
   }
 
   async getScoresByRunId({
@@ -447,10 +451,7 @@ export class DynamoDBStore extends MastraStorage {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByRunId({ runId: _runId, pagination: _pagination });
   }
 
   async getScoresByEntityId({
@@ -462,10 +463,11 @@ export class DynamoDBStore extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByEntityId({
+      entityId: _entityId,
+      entityType: _entityType,
+      pagination: _pagination,
+    });
   }
 
   async getScoresByScorerId({
@@ -475,9 +477,6 @@ export class DynamoDBStore extends MastraStorage {
     scorerId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new Error(
-      `Scores functionality is not implemented in this storage adapter (${this.constructor.name}). ` +
-        `To use scores functionality, implement the required methods in this storage adapter.`,
-    );
+    return this.stores.scores.getScoresByScorerId({ scorerId: _scorerId, pagination: _pagination });
   }
 }

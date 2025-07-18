@@ -195,6 +195,14 @@ describe('DynamoDBStore', () => {
           { AttributeName: 'gsi1sk', AttributeType: 'S' },
           { AttributeName: 'gsi2pk', AttributeType: 'S' },
           { AttributeName: 'gsi2sk', AttributeType: 'S' },
+          { AttributeName: 'gsi3pk', AttributeType: 'S' },
+          { AttributeName: 'gsi3sk', AttributeType: 'S' },
+          { AttributeName: 'gsi4pk', AttributeType: 'S' },
+          { AttributeName: 'gsi4sk', AttributeType: 'S' },
+          { AttributeName: 'gsi5pk', AttributeType: 'S' },
+          { AttributeName: 'gsi5sk', AttributeType: 'S' },
+          { AttributeName: 'gsi6pk', AttributeType: 'S' },
+          { AttributeName: 'gsi6sk', AttributeType: 'S' },
         ],
         KeySchema: [
           { AttributeName: 'pk', KeyType: 'HASH' },
@@ -214,6 +222,38 @@ describe('DynamoDBStore', () => {
             KeySchema: [
               { AttributeName: 'gsi2pk', KeyType: 'HASH' },
               { AttributeName: 'gsi2sk', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'gsi3',
+            KeySchema: [
+              { AttributeName: 'gsi3pk', KeyType: 'HASH' },
+              { AttributeName: 'gsi3sk', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'gsi4',
+            KeySchema: [
+              { AttributeName: 'gsi4pk', KeyType: 'HASH' },
+              { AttributeName: 'gsi4sk', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'gsi5',
+            KeySchema: [
+              { AttributeName: 'gsi5pk', KeyType: 'HASH' },
+              { AttributeName: 'gsi5sk', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'gsi6',
+            KeySchema: [
+              { AttributeName: 'gsi6pk', KeyType: 'HASH' },
+              { AttributeName: 'gsi6sk', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },

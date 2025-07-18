@@ -1,9 +1,9 @@
 import type { MastraStorage, StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { TABLE_THREADS } from '@mastra/core/storage';
-import { createSampleThread } from '../conversations/data';
+import { createSampleThread } from '../memory/data';
 
-export function createOperationsTests(storage: MastraStorage) {
+export function createOperationsTests({ storage }: { storage: MastraStorage }) {
   describe('Date Handling', () => {
     beforeEach(async () => {
       await storage.clearTable({ tableName: TABLE_THREADS });
