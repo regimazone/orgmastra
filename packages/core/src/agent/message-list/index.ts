@@ -388,6 +388,10 @@ export class MessageList {
     if (shouldAppendToLastAssistantMessage && appendNetworkMessage) {
       latestMessage.createdAt = messageV3.createdAt || latestMessage.createdAt;
 
+      // Used for mapping indexes for messageV3 parts to corresponding indexes in latestMessage
+      const toolResultAnchorMap = new Map<number, number>();
+      const partsToAdd = new Map<number, MastraMessageContentV3['parts'][number]>();
+
       for (const [index, part] of messageV3.content.parts.entries()) {
         // If the incoming part is a tool-invocation result, find the corresponding call in the latest message
         if (AIV5.isToolUIPart(part)) {
@@ -398,10 +402,11 @@ export class MessageList {
           const existingCallToolInvocation = !!existingCallPart && AIV5.isToolUIPart(existingCallPart);
 
           if (existingCallToolInvocation) {
-            if (existingCallPart.state === 'input-available' && part.state === 'output-available') {
-              // Update the existing tool-call part with the result
-              const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
-              if (existingIndex !== -1) {
+            const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
+
+            if (existingIndex !== -1) {
+              if (part.state === 'output-available') {
+                // Update the existing tool-call part with the result
                 // Create a new tool part with output-available state, preserving the original type and properties
                 const updatedPart = {
                   type: existingCallPart.type,
@@ -412,33 +417,39 @@ export class MessageList {
                 };
                 latestMessage.content.parts[existingIndex] = updatedPart;
               }
-              // Otherwise we do nothing, as we're not updating the tool call
+
+              // Map the index of the tool call in messageV3 to the index of the tool call in latestMessage
+              toolResultAnchorMap.set(index, existingIndex);
             }
+
+            // Otherwise we do nothing, as we're not updating the tool call
           } else {
-            this.pushNewMessage({
-              latestMessage,
-              index,
-              part,
-            });
+            partsToAdd.set(index, part);
           }
         } else {
-          this.pushNewMessage({
-            latestMessage,
-            index,
-            part,
-          });
+          partsToAdd.set(index, part);
         }
       }
+
+      this.addPartsToLatestMessage({
+        latestMessage,
+        messageV3,
+        anchorMap: toolResultAnchorMap,
+        partsToAdd,
+      });
       if (latestMessage.createdAt.getTime() < messageV3.createdAt.getTime()) {
         latestMessage.createdAt = messageV3.createdAt;
       }
 
-      // If latest message gets appended to, it should be added to the new response messages set to ensure it gets saved
-      this.newResponseMessages.add(latestMessage);
+      // If latest message gets appended to, it should be added to the proper source
+      this.pushMessageToSource(latestMessage, messageSource);
     }
     // Else the last message and this message are not both assistant messages OR an existing message has been updated and should be replaced. add a new message to the array or update an existing one.
     else {
-      const existingIndex = (shouldReplace && this.messages.findIndex(m => m.id === id)) || -1;
+      let existingIndex = -1;
+      if (shouldReplace) {
+        existingIndex = this.messages.findIndex(m => m.id === id);
+      }
       const existingMessage = existingIndex !== -1 && this.messages[existingIndex];
 
       if (shouldReplace && existingMessage) {
@@ -447,17 +458,7 @@ export class MessageList {
         this.messages.push(messageV3);
       }
 
-      if (messageSource === `memory`) {
-        this.memoryMessages.add(messageV3);
-      } else if (messageSource === `response`) {
-        this.newResponseMessages.add(messageV3);
-      } else if (messageSource === `user`) {
-        this.newUserMessages.add(messageV3);
-      } else if (messageSource === `context`) {
-        this.userContextMessages.add(messageV3);
-      } else {
-        throw new Error(`Missing message source for message ${messageV3}`);
-      }
+      this.pushMessageToSource(messageV3, messageSource);
     }
 
     // make sure messages are always stored in order of when they were created!
@@ -466,29 +467,125 @@ export class MessageList {
     return this;
   }
 
-  private pushNewMessage({
+  private pushMessageToSource(messageV3: MastraMessageV3, messageSource: MessageSource) {
+    if (messageSource === `memory`) {
+      this.memoryMessages.add(messageV3);
+    } else if (messageSource === `response`) {
+      this.newResponseMessages.add(messageV3);
+    } else if (messageSource === `user`) {
+      this.newUserMessages.add(messageV3);
+    } else if (messageSource === `context`) {
+      this.userContextMessages.add(messageV3);
+    } else {
+      throw new Error(`Missing message source for message ${messageV3}`);
+    }
+  }
+
+  /**
+   * Pushes a new message part to the latest message.
+   * @param latestMessage - The latest message to push the part to.
+   * @param newMessage - The new message to push the part from.
+   * @param part - The part to push.
+   * @param insertAt - The index at which to insert the part. Optional.
+   */
+  private pushNewMessagePart({
     latestMessage,
-    index,
+    newMessage,
     part,
+    insertAt, // optional
   }: {
     latestMessage: MastraMessageV3;
-    index: number;
+    newMessage: MastraMessageV3;
     part: MastraMessageContentV3['parts'][number];
+    insertAt?: number;
   }) {
-    const indexCheck =
-      // if there is no part at the index, or
-      !latestMessage.content.parts[index] ||
-      // or there is and the parts are not identical
-      MessageList.cacheKeyFromAIV5Parts([latestMessage.content.parts[index]]) !==
-        MessageList.cacheKeyFromAIV5Parts([part]);
-
-    // Get the cache key for the part
     const partKey = MessageList.cacheKeyFromAIV5Parts([part]);
-    // Check if the part already exists in the message
-    const alreadyExists = latestMessage.content.parts.some(p => MessageList.cacheKeyFromAIV5Parts([p]) === partKey);
-    // If the part isn't already present, or is a step-start and the parts are not identical, push it to the message
-    if (!alreadyExists || (part.type === 'step-start' && indexCheck)) {
-      latestMessage.content.parts.push(part);
+    const latestPartCount = latestMessage.content.parts.filter(
+      p => MessageList.cacheKeyFromAIV5Parts([p]) === partKey,
+    ).length;
+    const newPartCount = newMessage.content.parts.filter(
+      p => MessageList.cacheKeyFromAIV5Parts([p]) === partKey,
+    ).length;
+    // If the number of parts in the latest message is less than the number of parts in the new message, insert the part
+    if (latestPartCount < newPartCount) {
+      if (typeof insertAt === 'number') {
+        latestMessage.content.parts.splice(insertAt, 0, part);
+      } else {
+        latestMessage.content.parts.push(part);
+      }
+    }
+  }
+
+  /**
+   * Upserts parts of messageV3 into latestMessage based on the anchorMap.
+   * This is used when appending a message to the last assistant message to ensure that parts are inserted in the correct order.
+   * @param latestMessage - The latest message to upsert parts into.
+   * @param messageV3 - The message to upsert parts from.
+   * @param anchorMap - The anchor map to use for upserting parts.
+   */
+  private addPartsToLatestMessage({
+    latestMessage,
+    messageV3,
+    anchorMap,
+    partsToAdd,
+  }: {
+    latestMessage: MastraMessageV3;
+    messageV3: MastraMessageV3;
+    anchorMap: Map<number, number>;
+    partsToAdd: Map<number, MastraMessageContentV3['parts'][number]>;
+  }) {
+    // Walk through messageV3, inserting any part not present at the canonical position
+    for (let i = 0; i < messageV3.content.parts.length; ++i) {
+      const part = messageV3.content.parts[i];
+      if (!part) continue;
+      const key = MessageList.cacheKeyFromAIV5Parts([part]);
+      const partToAdd = partsToAdd.get(i);
+      if (!key || !partToAdd) continue;
+      if (anchorMap.size > 0) {
+        if (anchorMap.has(i)) continue; // skip anchors
+        // Find left anchor in messageV2
+        const leftAnchorV2 = [...anchorMap.keys()].filter(idx => idx < i).pop() ?? -1;
+        // Find right anchor in messageV2
+        const rightAnchorV2 = [...anchorMap.keys()].find(idx => idx > i) ?? -1;
+
+        // Map to latestMessage
+        const leftAnchorLatest = leftAnchorV2 !== -1 ? anchorMap.get(leftAnchorV2)! : 0;
+
+        // Compute offset from anchor
+        const offset = leftAnchorV2 === -1 ? i : i - leftAnchorV2;
+
+        // Insert at proportional position
+        const insertAt = leftAnchorLatest + offset;
+
+        const rightAnchorLatest =
+          rightAnchorV2 !== -1 ? anchorMap.get(rightAnchorV2)! : latestMessage.content.parts.length;
+
+        if (
+          insertAt >= 0 &&
+          insertAt <= rightAnchorLatest &&
+          !latestMessage.content.parts
+            .slice(insertAt, rightAnchorLatest)
+            .some(p => MessageList.cacheKeyFromAIV5Parts([p]) === MessageList.cacheKeyFromAIV5Parts([part]))
+        ) {
+          this.pushNewMessagePart({
+            latestMessage,
+            newMessage: messageV3,
+            part,
+            insertAt,
+          });
+          for (const [v2Idx, latestIdx] of anchorMap.entries()) {
+            if (latestIdx >= insertAt) {
+              anchorMap.set(v2Idx, latestIdx + 1);
+            }
+          }
+        }
+      } else {
+        this.pushNewMessagePart({
+          latestMessage,
+          newMessage: messageV3,
+          part,
+        });
+      }
     }
   }
 
