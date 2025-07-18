@@ -176,6 +176,7 @@ export class Mastra<
     /*
     Telemetry
     */
+
     this.#telemetry = Telemetry.init(config?.telemetry);
 
     /*
