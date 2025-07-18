@@ -1,7 +1,13 @@
 import { randomUUID } from 'crypto';
 import { describe, beforeAll, beforeEach, afterAll } from 'vitest';
 import type { MastraStorage } from '@mastra/core/storage';
-import { TABLE_WORKFLOW_SNAPSHOT, TABLE_EVALS, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
+import {
+  TABLE_WORKFLOW_SNAPSHOT,
+  TABLE_EVALS,
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_RESOURCES,
+} from '@mastra/core/storage';
 import { createScoresTest } from './domains/scores';
 import { createMemoryTest } from './domains/memory';
 import { createWorkflowsTests } from './domains/workflows';
@@ -46,6 +52,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_EVALS });
       await storage.clearTable({ tableName: TABLE_MESSAGES });
       await storage.clearTable({ tableName: TABLE_THREADS });
+      await storage.clearTable({ tableName: TABLE_RESOURCES });
     });
 
     afterAll(async () => {
@@ -54,6 +61,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_EVALS });
       await storage.clearTable({ tableName: TABLE_MESSAGES });
       await storage.clearTable({ tableName: TABLE_THREADS });
+      await storage.clearTable({ tableName: TABLE_RESOURCES });
     });
 
     createOperationsTests({ storage });

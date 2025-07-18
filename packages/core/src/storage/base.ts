@@ -46,11 +46,14 @@ export type StorageDomains = {
 };
 
 export function ensureDate(date: Date | string | undefined): Date | undefined {
-  return ensureDate(date);
+  if (!date) return undefined;
+  return date instanceof Date ? date : new Date(date);
 }
 
 export function serializeDate(date: Date | string | undefined): string | undefined {
-  return serializeDate(date);
+  if (!date) return undefined;
+  const dateObj = ensureDate(date);
+  return dateObj?.toISOString();
 }
 
 export function resolveMessageLimit({
@@ -104,14 +107,11 @@ export abstract class MastraStorage extends MastraBase {
   }
 
   protected ensureDate(date: Date | string | undefined): Date | undefined {
-    if (!date) return undefined;
-    return date instanceof Date ? date : new Date(date);
+    return ensureDate(date);
   }
 
   protected serializeDate(date: Date | string | undefined): string | undefined {
-    if (!date) return undefined;
-    const dateObj = this.ensureDate(date);
-    return dateObj?.toISOString();
+    return serializeDate(date);
   }
 
   /**

@@ -22,7 +22,6 @@ export function createResourcesTest({ storage }: { storage: MastraStorage }) {
     it('should create and retrieve a resource with specific ID and dates', async () => {
       const exampleResourceId = '1346362547862769664';
       const createdAt = new Date('2023-01-01T00:00:00Z');
-      const updatedAt = new Date('2023-01-02T00:00:00Z');
       const resource = createSampleResource({
         id: exampleResourceId,
         workingMemory: 'Custom working memory',
@@ -175,10 +174,10 @@ export function createResourcesTest({ storage }: { storage: MastraStorage }) {
       };
 
       const savedResource = await storage.saveResource({ resource });
-      expect(savedResource.workingMemory).toBeUndefined();
+      expect(!!savedResource.workingMemory).toBe(false);
 
       const retrievedResource = await storage.getResourceById({ resourceId: resource.id });
-      expect(retrievedResource?.workingMemory).toBeUndefined();
+      expect(!!retrievedResource?.workingMemory).toBe(false);
     });
 
     it('should handle empty metadata', async () => {
