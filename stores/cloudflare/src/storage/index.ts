@@ -1844,10 +1844,10 @@ export class CloudflareStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in CloudflareStore');
     throw new Error('Method not implemented');

@@ -31,7 +31,7 @@ import type { ISSLConfig } from 'pg-promise/typescript/pg-subset';
 export type PostgresConfig = {
   schemaName?: string;
 } & (
-    | {
+  | {
       host: string;
       port: number;
       database: string;
@@ -39,10 +39,10 @@ export type PostgresConfig = {
       password: string;
       ssl?: boolean | ISSLConfig;
     }
-    | {
+  | {
       connectionString: string;
     }
-  );
+);
 
 export class PostgresStore extends MastraStorage {
   public db: pgPromise.IDatabase<{}>;
@@ -81,13 +81,13 @@ export class PostgresStore extends MastraStorage {
         `connectionString` in config
           ? { connectionString: config.connectionString }
           : {
-            host: config.host,
-            port: config.port,
-            database: config.database,
-            user: config.user,
-            password: config.password,
-            ssl: config.ssl,
-          },
+              host: config.host,
+              port: config.port,
+              database: config.database,
+              user: config.user,
+              password: config.password,
+              ssl: config.ssl,
+            },
       );
     } catch (e) {
       throw new MastraError(
@@ -379,7 +379,7 @@ export class PostgresStore extends MastraStorage {
               this.logger.error(`Failed to create schema "${this.schema}"`, { error });
               throw new Error(
                 `Unable to create schema "${this.schema}". This requires CREATE privilege on the database. ` +
-                `Either create the schema manually or grant CREATE privilege to the user.`,
+                  `Either create the schema manually or grant CREATE privilege to the user.`,
               );
             }
           }
@@ -428,8 +428,9 @@ export class PostgresStore extends MastraStorage {
         CREATE TABLE IF NOT EXISTS ${this.getTableName(tableName)} (
           ${columns}
         );
-        ${tableName === TABLE_WORKFLOW_SNAPSHOT
-          ? `
+        ${
+          tableName === TABLE_WORKFLOW_SNAPSHOT
+            ? `
         DO $$ BEGIN
           IF NOT EXISTS (
             SELECT 1 FROM pg_constraint WHERE conname = 'mastra_workflow_snapshot_workflow_name_run_id_key'
@@ -440,7 +441,7 @@ export class PostgresStore extends MastraStorage {
           END IF;
         END $$;
         `
-          : ''
+            : ''
         }
       `;
 
@@ -982,9 +983,9 @@ export class PostgresStore extends MastraStorage {
 
       return format === 'v2'
         ? sortedMessages.map(
-          m =>
-            ({ ...m, content: m.content || { format: 2, parts: [{ type: 'text', text: '' }] } }) as MastraMessageV2,
-        )
+            m =>
+              ({ ...m, content: m.content || { format: 2, parts: [{ type: 'text', text: '' }] } }) as MastraMessageV2,
+          )
         : sortedMessages;
     } catch (error) {
       const mastraError = new MastraError(
@@ -1647,11 +1648,11 @@ export class PostgresStore extends MastraStorage {
             // Deep merge metadata if it exists on both
             ...(existingMessage.content?.metadata && updatableFields.content.metadata
               ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
+                  metadata: {
+                    ...existingMessage.content.metadata,
+                    ...updatableFields.content.metadata,
+                  },
+                }
               : {}),
           };
           setClauses.push(`content = $${paramIndex++}`);

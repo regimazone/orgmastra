@@ -616,8 +616,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_THREADS_BY_RESOURCE_ID_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Error getting threads by resourceId ${resourceId}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Error getting threads by resourceId ${resourceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { resourceId },
         },
         error,
@@ -677,8 +678,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_THREADS_BY_RESOURCE_ID_PAGINATED_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Error getting threads by resourceId ${resourceId}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Error getting threads by resourceId ${resourceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { resourceId },
         },
         error,
@@ -1024,8 +1026,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_MESSAGES_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Failed to retrieve messages for thread ${threadId}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Failed to retrieve messages for thread ${threadId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { threadId },
         },
         error,
@@ -1103,8 +1106,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_MESSAGES_PAGINATED_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Failed to retrieve messages for thread ${threadId}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Failed to retrieve messages for thread ${threadId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { threadId },
         },
         error,
@@ -1142,18 +1146,18 @@ export class D1Store extends MastraStorage {
 
     const persisting = currentSnapshot
       ? {
-        ...currentSnapshot,
-        snapshot: JSON.stringify(snapshot),
-        updatedAt: now,
-      }
+          ...currentSnapshot,
+          snapshot: JSON.stringify(snapshot),
+          updatedAt: now,
+        }
       : {
-        workflow_name: workflowName,
-        run_id: runId,
-        resourceId,
-        snapshot: snapshot as Record<string, any>,
-        createdAt: now,
-        updatedAt: now,
-      };
+          workflow_name: workflowName,
+          run_id: runId,
+          resourceId,
+          snapshot: snapshot as Record<string, any>,
+          createdAt: now,
+          updatedAt: now,
+        };
 
     // Process record for SQL insertion
     const processedRecord = await this.processRecord(persisting);
@@ -1415,16 +1419,16 @@ export class D1Store extends MastraStorage {
 
       return isArrayOfRecords(results)
         ? results.map(
-          (trace: Record<string, any>) =>
-            ({
-              ...trace,
-              attributes: this.deserializeValue(trace.attributes, 'jsonb'),
-              status: this.deserializeValue(trace.status, 'jsonb'),
-              events: this.deserializeValue(trace.events, 'jsonb'),
-              links: this.deserializeValue(trace.links, 'jsonb'),
-              other: this.deserializeValue(trace.other, 'jsonb'),
-            }) as Trace,
-        )
+            (trace: Record<string, any>) =>
+              ({
+                ...trace,
+                attributes: this.deserializeValue(trace.attributes, 'jsonb'),
+                status: this.deserializeValue(trace.status, 'jsonb'),
+                events: this.deserializeValue(trace.events, 'jsonb'),
+                links: this.deserializeValue(trace.links, 'jsonb'),
+                other: this.deserializeValue(trace.other, 'jsonb'),
+              }) as Trace,
+          )
         : [];
     } catch (error) {
       const mastraError = new MastraError(
@@ -1505,16 +1509,16 @@ export class D1Store extends MastraStorage {
 
       const traces = isArrayOfRecords(results)
         ? results.map(
-          (trace: Record<string, any>) =>
-            ({
-              ...trace,
-              attributes: this.deserializeValue(trace.attributes, 'jsonb'),
-              status: this.deserializeValue(trace.status, 'jsonb'),
-              events: this.deserializeValue(trace.events, 'jsonb'),
-              links: this.deserializeValue(trace.links, 'jsonb'),
-              other: this.deserializeValue(trace.other, 'jsonb'),
-            }) as Trace,
-        )
+            (trace: Record<string, any>) =>
+              ({
+                ...trace,
+                attributes: this.deserializeValue(trace.attributes, 'jsonb'),
+                status: this.deserializeValue(trace.status, 'jsonb'),
+                events: this.deserializeValue(trace.events, 'jsonb'),
+                links: this.deserializeValue(trace.links, 'jsonb'),
+                other: this.deserializeValue(trace.other, 'jsonb'),
+              }) as Trace,
+          )
         : [];
 
       return {
@@ -1566,23 +1570,23 @@ export class D1Store extends MastraStorage {
 
       return isArrayOfRecords(results)
         ? results.map((row: Record<string, any>) => {
-          // Convert snake_case to camelCase for the response
-          const result = this.deserializeValue(row.result);
-          const testInfo = row.test_info ? this.deserializeValue(row.test_info) : undefined;
+            // Convert snake_case to camelCase for the response
+            const result = this.deserializeValue(row.result);
+            const testInfo = row.test_info ? this.deserializeValue(row.test_info) : undefined;
 
-          return {
-            input: row.input || '',
-            output: row.output || '',
-            result,
-            agentName: row.agent_name || '',
-            metricName: row.metric_name || '',
-            instructions: row.instructions || '',
-            runId: row.run_id || '',
-            globalRunId: row.global_run_id || '',
-            createdAt: row.created_at || '',
-            testInfo,
-          };
-        })
+            return {
+              input: row.input || '',
+              output: row.output || '',
+              result,
+              agentName: row.agent_name || '',
+              metricName: row.metric_name || '',
+              instructions: row.instructions || '',
+              runId: row.run_id || '',
+              globalRunId: row.global_run_id || '',
+              createdAt: row.created_at || '',
+              testInfo,
+            };
+          })
         : [];
     } catch (error) {
       const mastraError = new MastraError(
@@ -1590,8 +1594,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_EVALS_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Failed to retrieve evals for agent ${agentName}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Failed to retrieve evals for agent ${agentName}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { agentName },
         },
         error,
@@ -1715,8 +1720,9 @@ export class D1Store extends MastraStorage {
           id: 'CLOUDFLARE_D1_STORAGE_GET_EVALS_ERROR',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.THIRD_PARTY,
-          text: `Failed to retrieve evals for agent ${agentName}: ${error instanceof Error ? error.message : String(error)
-            }`,
+          text: `Failed to retrieve evals for agent ${agentName}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           details: { agentName: agentName ?? '', type: type ?? '' },
         },
         error,
@@ -1879,13 +1885,13 @@ export class D1Store extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: {
-        metadata?: MastraMessageContentV2['metadata'];
-        content?: MastraMessageContentV2['content'];
-      };
-    }[];
+      {
+        id: string;
+        content?: {
+          metadata?: MastraMessageContentV2['metadata'];
+          content?: MastraMessageContentV2['content'];
+        };
+      }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in CloudflareD1Store');
     throw new Error('Method not implemented');

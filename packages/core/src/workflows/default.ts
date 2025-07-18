@@ -243,14 +243,14 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           e instanceof MastraError
             ? e
             : new MastraError(
-              {
-                id: 'WORKFLOW_ENGINE_STEP_EXECUTION_FAILED',
-                domain: ErrorDomain.MASTRA_WORKFLOW,
-                category: ErrorCategory.USER,
-                details: { workflowId, runId },
-              },
-              e,
-            );
+                {
+                  id: 'WORKFLOW_ENGINE_STEP_EXECUTION_FAILED',
+                  domain: ErrorDomain.MASTRA_WORKFLOW,
+                  category: ErrorCategory.USER,
+                  details: { workflowId, runId },
+                },
+                e,
+              );
 
         this.logger?.trackException(error);
         this.logger?.error(`Error executing step: ${error?.stack}`);
@@ -385,8 +385,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         },
 
         // TODO: this function shouldn't have suspend probably?
-        suspend: async (_suspendPayload: any): Promise<any> => { },
-        bail: () => { },
+        suspend: async (_suspendPayload: any): Promise<any> => {},
+        bail: () => {},
         abort: () => {
           abortController?.abort();
         },
@@ -458,8 +458,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         },
 
         // TODO: this function shouldn't have suspend probably?
-        suspend: async (_suspendPayload: any): Promise<any> => { },
-        bail: () => { },
+        suspend: async (_suspendPayload: any): Promise<any> => {},
+        bail: () => {},
         abort: () => {
           abortController?.abort();
         },
@@ -664,14 +664,14 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           e instanceof MastraError
             ? e
             : new MastraError(
-              {
-                id: 'WORKFLOW_STEP_INVOKE_FAILED',
-                domain: ErrorDomain.MASTRA_WORKFLOW,
-                category: ErrorCategory.USER,
-                details: { workflowId, runId, stepId: step.id },
-              },
-              e,
-            );
+                {
+                  id: 'WORKFLOW_STEP_INVOKE_FAILED',
+                  domain: ErrorDomain.MASTRA_WORKFLOW,
+                  category: ErrorCategory.USER,
+                  details: { workflowId, runId, stepId: step.id },
+                },
+                e,
+              );
         this.logger.trackException(error);
         this.logger.error(`Error executing step ${step.id}: ` + error?.stack);
         execResults = {
@@ -888,8 +888,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
               },
 
               // TODO: this function shouldn't have suspend probably?
-              suspend: async (_suspendPayload: any): Promise<any> => { },
-              bail: () => { },
+              suspend: async (_suspendPayload: any): Promise<any> => {},
+              bail: () => {},
               abort: () => {
                 abortController?.abort();
               },
@@ -903,14 +903,14 @@ export class DefaultExecutionEngine extends ExecutionEngine {
               e instanceof MastraError
                 ? e
                 : new MastraError(
-                  {
-                    id: 'WORKFLOW_CONDITION_EVALUATION_FAILED',
-                    domain: ErrorDomain.MASTRA_WORKFLOW,
-                    category: ErrorCategory.USER,
-                    details: { workflowId, runId },
-                  },
-                  e,
-                );
+                    {
+                      id: 'WORKFLOW_CONDITION_EVALUATION_FAILED',
+                      domain: ErrorDomain.MASTRA_WORKFLOW,
+                      category: ErrorCategory.USER,
+                      details: { workflowId, runId },
+                    },
+                    e,
+                  );
             this.logger.trackException(error);
             this.logger.error('Error evaluating condition: ' + error?.stack);
             return null;
@@ -1047,8 +1047,8 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           const result = stepResults[step.id];
           return result?.status === 'success' ? result.output : null;
         },
-        suspend: async (_suspendPayload: any): Promise<any> => { },
-        bail: () => { },
+        suspend: async (_suspendPayload: any): Promise<any> => {},
+        bail: () => {},
         abort: () => {
           abortController?.abort();
         },

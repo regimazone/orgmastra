@@ -293,7 +293,7 @@ export class DynamoDBStore extends MastraStorage {
 
       // ElectroDB batch delete expects the key components for each item
       const keysToDelete = result.data.map((item: any) => {
-        const key: { entity: string;[key: string]: any } = { entity: entityName };
+        const key: { entity: string; [key: string]: any } = { entity: entityName };
 
         // Construct the key based on the specific entity's primary key structure
         switch (entityName) {
@@ -1373,10 +1373,10 @@ export class DynamoDBStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in DynamoDBStore');
     throw new Error('Method not implemented');

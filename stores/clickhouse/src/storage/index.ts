@@ -1157,18 +1157,18 @@ export class ClickhouseStore extends MastraStorage {
       const now = new Date();
       const persisting = currentSnapshot
         ? {
-          ...currentSnapshot,
-          snapshot: JSON.stringify(snapshot),
-          updatedAt: now.toISOString(),
-        }
+            ...currentSnapshot,
+            snapshot: JSON.stringify(snapshot),
+            updatedAt: now.toISOString(),
+          }
         : {
-          workflow_name: workflowName,
-          run_id: runId,
-          resourceId,
-          snapshot: JSON.stringify(snapshot),
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        };
+            workflow_name: workflowName,
+            run_id: runId,
+            resourceId,
+            snapshot: JSON.stringify(snapshot),
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          };
 
       await this.db.insert({
         table: TABLE_WORKFLOW_SNAPSHOT,
@@ -1456,10 +1456,10 @@ export class ClickhouseStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in ClickhouseStore');
     throw new Error('Method not implemented');

@@ -499,9 +499,9 @@ export class MongoDBStore extends MastraStorage {
       attributes?: Record<string, string>;
       filters?: Record<string, any>;
     } = {
-        page: 0,
-        perPage: 100,
-      },
+      page: 0,
+      perPage: 100,
+    },
   ): Promise<any[]> {
     const limit = perPage;
     const offset = page * perPage;
@@ -937,10 +937,10 @@ export class MongoDBStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     this.logger.error('updateMessages is not yet implemented in MongoDBStore');
     throw new Error('Method not implemented');
