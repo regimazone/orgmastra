@@ -142,3 +142,13 @@ export type StorageResourceType = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type StorageMessageType = {
+  id: string;
+  thread_id: string;
+  content: string;
+  role: string;
+  type: string;
+  createdAt: Date;
+  resourceId: string | null;
+}
