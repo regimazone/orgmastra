@@ -28,8 +28,6 @@ export function createWorkflowsTests(storage: MastraStorage) {
 
             const { runs, total } = await storage.getWorkflowRuns();
 
-            console.log('runs', runs);
-
             const wfRun2 = runs.find(r => r.workflowName === workflowName2);
             const wfRun1 = runs.find(r => r.workflowName === workflowName1);
             expect(wfRun2).toBeDefined();

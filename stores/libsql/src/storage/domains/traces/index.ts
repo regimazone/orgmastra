@@ -4,7 +4,7 @@ import { TABLE_TRACES, TracesStorage } from '@mastra/core/storage';
 import type { StorageGetTracesArg, StorageGetTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import { parseSqlIdentifier } from '@mastra/core/utils';
-import type { StoreOperationsLibSQL } from './operations';
+import type { StoreOperationsLibSQL } from '../operations';
 
 function safelyParseJSON(jsonString: string): any {
     try {

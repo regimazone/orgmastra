@@ -17,8 +17,6 @@ export function createOperationsTests(storage: MastraStorage) {
             await storage.saveThread({ thread });
             const retrievedThread = await storage.getThreadById({ threadId: thread.id });
 
-            console.log({ retrievedThread });
-
             expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
             expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
             expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());

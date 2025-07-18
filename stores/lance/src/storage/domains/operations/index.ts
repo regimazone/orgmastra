@@ -231,7 +231,6 @@ export class StoreOperationsLance extends StoreOperations {
                 });
 
             if (columnsToAdd.length > 0) {
-                console.log({ columnsToAdd });
                 await table.addColumns(columnsToAdd);
                 this.logger?.info?.(`Added columns [${columnsToAdd.map(c => c.name).join(', ')}] to table ${tableName}`);
             }
@@ -328,8 +327,6 @@ export class StoreOperationsLance extends StoreOperations {
                     processedRecord[key] = JSON.stringify(processedRecord[key]);
                 }
             }
-
-            console.log({ processedRecord });
             console.log(await table.schema())
 
             await table.mergeInsert(primaryId).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute([processedRecord]);

@@ -46,14 +46,24 @@ export type StorageDomains = {
 }
 
 export function ensureDate(date: Date | string | undefined): Date | undefined {
-  if (!date) return undefined;
-  return date instanceof Date ? date : new Date(date);
+  return ensureDate(date);
 }
 
 export function serializeDate(date: Date | string | undefined): string | undefined {
-  if (!date) return undefined;
-  const dateObj = ensureDate(date);
-  return dateObj?.toISOString();
+  return serializeDate(date);
+}
+
+export function resolveMessageLimit({
+  last,
+  defaultLimit,
+}: {
+  last: number | false | undefined;
+  defaultLimit: number;
+}): number {
+  // TODO: Figure out consistent default limit for all stores as some stores use 40 and some use no limit (Number.MAX_SAFE_INTEGER)
+  if (typeof last === 'number') return Math.max(0, last);
+  if (last === false) return 0;
+  return defaultLimit;
 }
 export abstract class MastraStorage extends MastraBase {
   /** @deprecated import from { TABLE_WORKFLOW_SNAPSHOT } '@mastra/core/storage' instead */
@@ -116,10 +126,7 @@ export abstract class MastraStorage extends MastraBase {
     last: number | false | undefined;
     defaultLimit: number;
   }): number {
-    // TODO: Figure out consistent default limit for all stores as some stores use 40 and some use no limit (Number.MAX_SAFE_INTEGER)
-    if (typeof last === 'number') return Math.max(0, last);
-    if (last === false) return 0;
-    return defaultLimit;
+    return resolveMessageLimit({ last, defaultLimit });
   }
 
   protected getSqlType(type: StorageColumn['type']): string {

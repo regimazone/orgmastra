@@ -168,7 +168,6 @@ export function createEvalsTests(storage: MastraStorage) {
 
             // Test getting only live evals
             const liveEvals = await storage.getEvalsByAgentName(agentName, 'live');
-            console.log(`[test] liveEvals:`, liveEvals);
             expect(liveEvals).toHaveLength(1);
             expect(liveEvals?.[0]?.runId).toBe(liveEval.run_id);
 
