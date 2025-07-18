@@ -7,6 +7,9 @@ import type {
   WorkflowRuns,
   WorkflowRun,
   LegacyWorkflowRuns,
+  StorageGetMessagesArg,
+  PaginationInfo,
+  MastraMessageV2,
 } from '@mastra/core';
 import type { AgentGenerateOptions, AgentStreamOptions, ToolsInput } from '@mastra/core/agent';
 import type { BaseLogMessage, LogLevel } from '@mastra/core/logger';
@@ -252,10 +255,16 @@ export interface GetMemoryThreadMessagesParams {
   format?: 'aiv4' | 'aiv5';
 }
 
+export type GetMemoryThreadMessagesPaginatedParams = Omit<StorageGetMessagesArg, 'threadConfig' | 'threadId'>;
+
 export interface GetMemoryThreadMessagesResponse {
   messages: CoreMessage[];
   uiMessages: UIMessage[];
 }
+
+export type GetMemoryThreadMessagesPaginatedResponse = PaginationInfo & {
+  messages: MastraMessageV1[] | MastraMessageV2[];
+};
 
 export interface GetLogsParams {
   transportId: string;
@@ -408,7 +417,17 @@ export interface LoopStreamVNextNetworkParams {
 export interface LoopVNextNetworkResponse {
   status: 'success';
   result: {
-    text: string;
+    task: string;
+    resourceId: string;
+    resourceType: 'agent' | 'workflow' | 'none' | 'tool';
+    result: string;
+    iteration: number;
+    isOneOff: boolean;
+    prompt: string;
+    threadId?: string | undefined;
+    threadResourceId?: string | undefined;
+    isComplete?: boolean | undefined;
+    completionReason?: string | undefined;
   };
   steps: WorkflowResult<any, any>['steps'];
 }
