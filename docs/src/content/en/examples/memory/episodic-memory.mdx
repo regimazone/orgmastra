@@ -14,8 +14,7 @@ export const memory = new Memory({
   options: {
     episodicMemory: {
       enabled: true,
-      maxEpisodesInContext: 5,
-      includeCategories: true,
+      lastEpisodes: 5,
     },
   },
   storage: new LibSQLStore({

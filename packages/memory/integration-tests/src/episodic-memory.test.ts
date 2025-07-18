@@ -34,8 +34,7 @@ describe('Episodic Memory Integration Tests', () => {
       options: {
         episodicMemory: {
           enabled: true,
-          maxEpisodesInContext: 5,
-          includeCategories: true,
+          lastEpisodes: 5,
         },
         workingMemory: {
           enabled: true,

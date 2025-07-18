@@ -1311,13 +1311,12 @@ ${
     resourceId: string;
     config: NonNullable<MemoryConfig['episodicMemory']>;
   }): Promise<string | null> {
-    const maxEpisodes = config.maxEpisodesInContext || 5;
-    const includeCategories = config.includeCategories !== false;
+    const lastEpisodes = config.lastEpisodes || 5;
 
     // Get recent episodes for context
     const episodes = await this.listEpisodes({
       resourceId,
-      limit: maxEpisodes,
+      limit: lastEpisodes,
     });
 
     if (episodes.length === 0) {
@@ -1342,15 +1341,15 @@ Available tools:
 
     const episodesList = episodes
       .map(ep => {
-        const cats = includeCategories && ep.categories.length > 0 ? ` [${ep.categories.join(', ')}]` : '';
+        const cats = ep.categories.length > 0 ? ` [${ep.categories.join(', ')}]` : '';
         const causal = ep.causalContext ? ` (because: ${ep.causalContext})` : '';
         return `- ${ep.title}${cats}: ${ep.shortSummary}${causal}`;
       })
       .join('\n');
 
-    const categories = includeCategories ? await this.getEpisodeCategories({ resourceId }) : [];
+    const categories = await this.getEpisodeCategories({ resourceId });
     const categoryInfo =
-      includeCategories && categories.length > 0 ? `\nAvailable categories: ${categories.join(', ')}` : '';
+      categories.length > 0 ? `\nAvailable categories: ${categories.join(', ')}` : '';
 
     return `EPISODIC_MEMORY_SYSTEM_INSTRUCTION:
 You have access to the user's episodic memory. Recent episodes:

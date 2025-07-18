@@ -53,8 +53,7 @@ const memory = new Memory({
   options: {
     episodicMemory: {
       enabled: true,
-      maxEpisodesInContext: 5,
-      includeCategories: true,
+      lastEpisodes: 5,
     },
   },
   storage: myStorage,
@@ -64,8 +63,7 @@ const memory = new Memory({
 ### Configuration Options
 
 - **enabled**: Whether episodic memory is active
-- **maxEpisodesInContext**: Maximum episodes to include in system context (default: 5)
-- **includeCategories**: Whether to show categories in system message (default: true)
+- **lastEpisodes**: Number of recent episodes to include in system context (default: 5)
 
 ## Agent Integration
 
@@ -150,29 +148,12 @@ Other storage adapters will need to be updated to support episodic memory featur
 
 ## Best Practices
 
-### Categories
+Agents are equipped with episodic memory tools that include built-in guidance for:
+- Selecting appropriate categories for different types of memories
+- Scoring significance based on the importance of information
+- Creating meaningful relationships between episodes
 
-Use consistent, meaningful categories:
-- **Life Events**: `life-event`, `milestone`, `achievement`
-- **Personal**: `family`, `relationship`, `personal`
-- **Professional**: `work`, `career`, `education`
-- **Health**: `health`, `medical`, `fitness`
-- **Interests**: `hobbies`, `preferences`, `goals`
-
-### Significance Scoring
-
-- **1.0**: Critical information (allergies, medical conditions)
-- **0.8-0.9**: Major life events (job changes, moves)
-- **0.6-0.7**: Important preferences or recurring activities
-- **0.4-0.5**: Notable but less critical information
-- **0.2-0.3**: Minor details worth remembering
-
-### Linking Episodes
-
-Create relationships to build a knowledge graph:
-- Link cause and effect relationships
-- Group related events with sequences
-- Connect similar experiences across time
+The agent tools automatically handle these decisions based on context and content.
 
 ## Integration with Other Memory Features
 

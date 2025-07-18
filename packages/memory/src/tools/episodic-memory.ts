@@ -7,7 +7,24 @@ import { z } from 'zod';
  */
 export const createEpisodeTool = (config?: MemoryConfig): CoreTool => {
   return {
-    description: 'Create a new memory episode to remember important information from this conversation',
+    description: `Create a new memory episode to remember important information from this conversation.
+
+Category Guidelines:
+- Life Events: "life-event", "milestone", "achievement"
+- Personal: "family", "relationship", "personal"
+- Professional: "work", "career", "education"
+- Health: "health", "medical", "fitness", "important"
+- Interests: "hobbies", "preferences", "goals"
+- Other: "travel", "financial", "story"
+
+Significance Scoring:
+- 1.0: Critical information (allergies, medical conditions)
+- 0.8-0.9: Major life events (job changes, moves)
+- 0.6-0.7: Important preferences or recurring activities
+- 0.4-0.5: Notable but less critical information
+- 0.2-0.3: Minor details worth remembering
+
+Create episodes when users share significant life events, stories, preferences, or important facts.`,
     parameters: z.object({
       title: z.string().describe('A concise, descriptive title for this episode'),
       shortSummary: z
@@ -19,7 +36,7 @@ export const createEpisodeTool = (config?: MemoryConfig): CoreTool => {
       categories: z
         .array(z.string())
         .describe(
-          'Categories to organize this episode (e.g., "life-event", "family", "work", "health", "travel", "preference", "story")',
+          'Categories to organize this episode. Use consistent categories like: life-event, family, work, health, travel, preference, story, hobby, relationship, achievement, milestone, medical, fitness, career, education, financial',
         ),
       causalContext: z.string().optional().describe('Why this happened or what led to this event/situation'),
       spatialContext: z.string().optional().describe('Where this occurred - location, place, or environment'),
@@ -30,7 +47,7 @@ export const createEpisodeTool = (config?: MemoryConfig): CoreTool => {
         .min(0)
         .max(1)
         .optional()
-        .describe('How significant/important this episode is (0-1, where 1 is most significant)'),
+        .describe('How significant/important this episode is. Use: 1.0 for critical info (allergies), 0.8-0.9 for major life events, 0.6-0.7 for important preferences, 0.4-0.5 for notable info, 0.2-0.3 for minor details'),
       messageIds: z
         .array(z.string())
         .optional()
@@ -247,7 +264,16 @@ export const getEpisodeCategoresTool = (config?: MemoryConfig): CoreTool => {
  */
 export const linkEpisodesTool = (config?: MemoryConfig): CoreTool => {
   return {
-    description: 'Link two memory episodes together with a relationship',
+    description: `Link two memory episodes together with a relationship.
+
+Relationship Types:
+- "caused-by": One event led to another (e.g., "moved to SF" caused-by "got job at TechCorp")
+- "leads-to": Expected future consequence (e.g., "started training" leads-to "run marathon")
+- "part-of": Component of a larger event (e.g., "visited Louvre" part-of "Paris vacation")
+- "similar-to": Related but distinct events (e.g., two different promotions)
+- "related-to": General relationship (default for other connections)
+
+Use relationships to build a knowledge graph of the user's experiences and connect cause-effect chains.`,
     parameters: z.object({
       episodeId1: z.string().describe('The ID of the first episode'),
       episodeId2: z.string().describe('The ID of the second episode'),

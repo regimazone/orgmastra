@@ -60,8 +60,7 @@ const memory = new Memory({
     // Episodic memory configuration
     episodicMemory: {
       enabled: true,
-      maxEpisodesInContext: 5,
-      includeCategories: true,
+      lastEpisodes: 5,
     },
 
     // Thread configuration
@@ -298,12 +297,12 @@ Mastra supports many embedding models through the [Vercel AI SDK](https://sdk.ve
     },
     {
       name: "episodicMemory",
-      type: "{ enabled: boolean; maxEpisodesInContext?: number; includeCategories?: boolean }",
+      type: "{ enabled: boolean; lastEpisodes?: number }",
       description:
-        "Configuration for episodic memory feature that enables long-term memory storage. When enabled, agents can create and recall significant events, facts, and experiences that persist across all conversations. maxEpisodesInContext controls how many episodes are included in the system message (default: 5). includeCategories determines whether to show episode categories in the system message (default: true).",
+        "Configuration for episodic memory feature that enables long-term memory storage. When enabled, agents can create and recall significant events, facts, and experiences that persist across all conversations. lastEpisodes controls how many episodes are included in the system message (default: 5).",
       isOptional: true,
       defaultValue:
-        "{ enabled: false, maxEpisodesInContext: 5, includeCategories: true }",
+        "{ enabled: false, lastEpisodes: 5 }",
     },
     {
       name: "threads",

@@ -81,8 +81,7 @@ export type MemoryConfig = {
   workingMemory?: WorkingMemory;
   episodicMemory?: {
     enabled: boolean;
-    maxEpisodesInContext?: number;
-    includeCategories?: boolean;
+    lastEpisodes?: number;
   };
   threads?: {
     generateTitle?:
