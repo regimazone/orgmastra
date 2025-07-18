@@ -3014,7 +3014,6 @@ describe('MessageList', () => {
       ]);
     });
 
-
     describe('system messages', () => {
       it('should add and retrieve a single system message', () => {
         const list = new MessageList({ threadId, resourceId });
