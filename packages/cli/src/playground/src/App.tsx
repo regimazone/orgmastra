@@ -34,6 +34,10 @@ import { NavigateTo } from './lib/react-router';
 import { Link } from './lib/framework';
 import Scorers from './pages/scorers';
 import Scorer from './pages/scorers/scorer';
+import Datasets from './pages/datasets';
+import Dataset from './pages/datasets/dataset';
+import AgentVersionsPage from './pages/agents/agent/versions';
+import AgentNewTracesPage from './pages/agents/agent/new-traces';
 
 const LinkComponentWrapper = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
@@ -56,6 +60,16 @@ function App() {
           <BrowserRouter>
             <LinkComponentWrapper>
               <Routes>
+                <Route
+                  element={
+                    <Layout>
+                      <Outlet />
+                    </Layout>
+                  }
+                >
+                  <Route path="/datasets" element={<Datasets />} />
+                  <Route path="/datasets/:datasetId" element={<Dataset />} />
+                </Route>
                 <Route
                   element={
                     <Layout>
@@ -123,6 +137,8 @@ function App() {
                     <Route path="chat/:threadId" element={<Agent />} />
                     <Route path="evals" element={<AgentEvalsPage />} />
                     <Route path="traces" element={<AgentTracesPage />} />
+                    <Route path="versions" element={<AgentVersionsPage />} />
+                    <Route path="new-traces" element={<AgentNewTracesPage />} />
                   </Route>
                   <Route path="/tools" element={<Tools />} />
                   <Route path="/tools/:agentId/:toolId" element={<AgentTool />} />

@@ -47,6 +47,8 @@ const AgentTool = () => {
     ? resolveSerializedZodOutput(jsonSchemaToZod(parse(tool?.inputSchema)))
     : z.object({});
 
+  console.log('-->>', tool?.inputSchema, zodInputSchema);
+
   const shouldShowEmpty = !agent || !tool;
 
   return (

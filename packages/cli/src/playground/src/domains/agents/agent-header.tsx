@@ -18,15 +18,19 @@ export function AgentHeader({ agentName, agentId }: { agentName: string; agentId
         <Button as={Link} to={`/agents/${agentId}/chat`}>
           Chat
         </Button>
-
         <DividerIcon />
-
         <Button as={Link} to={`/agents/${agentId}/traces`}>
           Traces
         </Button>
         <Button as={Link} to={`/agents/${agentId}/evals`}>
           Evals
         </Button>
+        <Button as={Link} to={`/agents/${agentId}/versions`}>
+          Versions
+        </Button>
+        <Button as={Link} to={`/agents/${agentId}/new-traces`}>
+          New traces
+        </Button>{' '}
       </HeaderGroup>
     </Header>
   );
