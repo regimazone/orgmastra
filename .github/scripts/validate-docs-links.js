@@ -4,150 +4,139 @@ import { URL } from 'url';
 const require = createRequire(import.meta.url);
 const cheerio = require('cheerio');
 
-const CONCURRENCY_LIMIT = 10;
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const RESET = '\x1b[0m';
 
 const baseUrl = process.env.MASTRA_DEPLOYMENT_URL || 'https://mastra.ai';
 const basePaths = ['/docs', '/examples', '/guides', '/reference', '/showcase'];
+const linksToSkip = ['http://localhost', 'https://localhost'];
 
-const toVisit = basePaths.map(path => `${baseUrl}${path}`);
-const toSkip = ['http://localhost', 'https://localhost'];
-
-const visited = new Set();
-const checkedLinks = new Set();
-const skipRepeatedElements = ['header', 'aside.nextra-sidebar', 'footer'];
-
-let totalLinks = 0;
-let okCount = 0;
-let brokenCount = 0;
-let pagesFetched = 0;
-const checkedLinksStatuses = [];
-
+const sidebarLinksByPath = {};
 const start = Date.now();
 
-const checkLink = async ({ url: linkUrl, text }) => {
-  if (checkedLinks.has(linkUrl)) return true;
-  checkedLinks.add(linkUrl);
+let pagesFetched = 0;
+let totalLinksChecked = 0;
+let okCount = 0;
+let brokenCount = 0;
+let skippedCount = 0;
+const statusCodes = {};
+
+const fetchHtml = async url => {
+  const res = await fetch(url);
+  return await res.text();
+};
+
+const checkLink = async ({ text, url }) => {
+  if (linksToSkip.some(skip => url.startsWith(skip))) {
+    skippedCount++;
+    return;
+  }
 
   try {
-    const res = await fetch(linkUrl, {
+    const res = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0',
       },
     });
 
     const status = res.status;
-    checkedLinksStatuses.push(status);
+    statusCodes[status] = (statusCodes[status] || 0) + 1;
+    totalLinksChecked++;
 
     if (status === 404) {
-      console.log(`${RED}├───BROKEN───${RESET} [${text}](${linkUrl}) [${status}]`);
       brokenCount++;
-      return false;
+      console.log(`${RED}├───BROKEN───${RESET} [${text}](${url}) [${status}]`);
     } else {
-      console.log(`${GREEN}├───OK───${RESET} [${text}](${linkUrl}) [${status}]`);
       okCount++;
-      return true;
+      console.log(`${GREEN}├───OK───────${RESET} [${text}](${url}) [${status}]`);
     }
   } catch {
-    return true;
+    skippedCount++;
+    console.log(`${RED}├───ERROR────${RESET} [${text}](${url}) [${status}]`);
   }
 };
 
-while (toVisit.length > 0) {
-  const current = toVisit.shift();
-  if (visited.has(current)) continue;
-
+for (const basePath of basePaths) {
+  const basePage = `${baseUrl}${basePath}`;
   try {
-    const res = await fetch(current);
-    const html = await res.text();
-    pagesFetched++;
-
+    const html = await fetchHtml(basePage);
     const $ = cheerio.load(html);
+    const links = [];
 
-    $('a[href]').each((_, el) => {
+    $('aside.nextra-sidebar a[href]').each((_, el) => {
       const href = $(el).attr('href');
       if (!href || href.startsWith('mailto:') || href.includes('#')) return;
-      const absolute = new URL(href, current).toString();
-      const normalized = absolute.split('#')[0];
-      if (basePaths.some(path => normalized.startsWith(`${baseUrl}${path}`)) && !visited.has(normalized)) {
-        toVisit.push(normalized);
+      const absolute = new URL(href, basePage).toString();
+      if (absolute.startsWith(`${baseUrl}${basePath}`)) {
+        links.push(absolute);
       }
     });
 
-    const allLinks = $('a[href]');
-    const linksToCheck = [];
-
-    allLinks.each((_, el) => {
-      const href = $(el).attr('href');
-      const text = $(el).text().trim().replace(/\s+/g, ' ');
-      if (!href || href.startsWith('mailto:') || href.includes('#')) return;
-
-      const absoluteUrl = new URL(href, current).toString();
-      if (toSkip.some(prefix => absoluteUrl.startsWith(prefix))) return;
-
-      const isInsideIgnoredRepeatedElement = skipRepeatedElements.some(selector => $(el).closest(selector).length > 0);
-      if (isInsideIgnoredRepeatedElement && current !== baseUrl) return;
-
-      linksToCheck.push({ url: absoluteUrl, text });
-    });
-
-    const newLinks = linksToCheck.filter(link => !checkedLinks.has(link.url));
-    totalLinks += newLinks.length;
-    visited.add(current);
-
-    if (newLinks.length > 0) {
-      console.log(`\n${current}`);
-    }
-
-    let pageHasBrokenLinks = false;
-    for (let i = 0; i < newLinks.length; i += CONCURRENCY_LIMIT) {
-      const chunk = newLinks.slice(i, i + CONCURRENCY_LIMIT);
-      const results = await Promise.all(chunk.map(checkLink));
-      if (results.includes(false)) {
-        pageHasBrokenLinks = true;
-      }
-    }
-
-    if (!pageHasBrokenLinks && newLinks.length > 0) {
-      console.log(`${newLinks.length} LINKS FOUND`);
-    }
+    sidebarLinksByPath[basePath] = links;
+    for (const link of links) console.log(`- ${link}`);
+    console.log(`SIDEBAR LINKS (${basePage}): ${links.length}\n`);
   } catch (err) {
-    console.error(`Failed to fetch ${current}:`, err.message);
+    console.error(`${RED}Failed to fetch ${basePage}:${RESET} ${err.message}`);
   }
 }
 
-const statusCounts = {};
-for (const code of checkedLinksStatuses) {
-  statusCounts[code] = (statusCounts[code] || 0) + 1;
-}
+for (const [basePath, pageUrls] of Object.entries(sidebarLinksByPath)) {
+  for (const pageUrl of pageUrls.filter(url => url !== `${baseUrl}${basePath}`)) {
+    try {
+      const html = await fetchHtml(pageUrl);
+      const $ = cheerio.load(html);
+      pagesFetched++;
 
-const totalFromStatus = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
-const skippedOrUntracked = totalLinks - totalFromStatus;
+      const toc = $('nav.nextra-toc');
+      const article = toc.nextAll('article').first();
+      const main = article.find('main').first();
+
+      const mainLinks = [];
+
+      main.find('a[href]').each((_, el) => {
+        if ($(el).closest('.nextra-breadcrumb').length > 0) return;
+
+        const text = $(el).text().trim().replace(/\s+/g, ' ');
+        const href = $(el).attr('href');
+
+        if (!href || href.startsWith('mailto:') || href.startsWith('#')) {
+          skippedCount++;
+          return;
+        }
+
+        const absolute = new URL(href, pageUrl).toString();
+        mainLinks.push({ text, url: absolute });
+      });
+
+      console.log(`\n- ${pageUrl}`);
+      for (const link of mainLinks) {
+        await checkLink(link);
+      }
+
+      console.log(`Links checked: ${mainLinks.length}`);
+    } catch (err) {
+      console.error(`${RED}├───FAILED───${RESET} ${pageUrl}:${RESET} ${err.message}`);
+    }
+  }
+}
 
 const elapsed = Math.floor((Date.now() - start) / 1000);
 const minutes = Math.floor(elapsed / 60);
 const seconds = elapsed % 60;
 
-console.log(' ');
 console.log('\n' + '='.repeat(40));
 console.log(`Pages fetched: ${pagesFetched}`);
-console.log(`Total links checked: ${totalLinks}`);
+console.log(`Total links checked: ${totalLinksChecked}`);
 console.log(`Ok: ${okCount}`);
 console.log(`Broken: ${brokenCount}`);
-if (skippedOrUntracked !== 0) {
-  console.log(`Skipped/untracked: ${skippedOrUntracked}`);
-}
+console.log(`Skipped/untracked: ${skippedCount}`);
 console.log('Status codes:');
-Object.entries(statusCounts)
-  .sort((a, b) => Number(a[0]) - Number(b[0]))
-  .forEach(([code, count]) => {
-    console.log(`- ${code}: ${count}`);
-  });
+for (const code of Object.keys(statusCodes).sort((a, b) => a - b)) {
+  console.log(`- ${code}: ${statusCodes[code]}`);
+}
 console.log(`Time elapsed: ${minutes} minutes, ${seconds} seconds`);
 console.log('='.repeat(40));
 
