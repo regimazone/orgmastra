@@ -150,3 +150,5 @@ Object.entries(statusCounts)
     console.log(`- ${code}: ${count}`);
   });
 console.log('='.repeat(40));
+
+process.exit(brokenCount > 0 ? 1 : 0);
