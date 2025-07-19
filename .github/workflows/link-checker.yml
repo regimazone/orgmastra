@@ -58,8 +58,11 @@ jobs:
           node-version: lts/*
 
       - name: Install dependencies for docs
-        run: npm ci cheerio
+        run: npm ci
         working-directory: docs
+
+      - name: Install cheerio
+        run: npm install cheerio
 
       - name: Set deployment URL as env var
         run: echo "MASTRA_DEPLOYMENT_URL=${{ github.event.deployment_status.target_url }}" >> $GITHUB_ENV
