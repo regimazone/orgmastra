@@ -44,7 +44,7 @@ jobs:
         run: node .github/scripts/validate-redirects.js
 
   validate-docs-links:
-    name: Validate internal documentation links
+    name: Validate docs links
     if: ${{ github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Preview – mastra-docs' }}
     runs-on: ubuntu-latest
 
