@@ -58,7 +58,7 @@ jobs:
           node-version: lts/*
 
       - name: Install dependencies for docs
-        run: npm ci
+        run: npm ci cheerio
         working-directory: docs
 
       - name: Set deployment URL as env var
