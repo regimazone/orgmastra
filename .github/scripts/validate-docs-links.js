@@ -4,16 +4,15 @@ import { URL } from 'url';
 const require = createRequire(import.meta.url);
 const cheerio = require('cheerio');
 
-const CONCURRENCY_LIMIT = 5;
+const CONCURRENCY_LIMIT = 10;
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const RESET = '\x1b[0m';
 
-const baseUrl = process.env.MASTRA_DEPLOYMENT_URL
-  ? `${process.env.MASTRA_DEPLOYMENT_URL}/docs`
-  : 'https://mastra.ai/docs';
+const baseUrl = process.env.MASTRA_DEPLOYMENT_URL || 'https://mastra.ai';
+const basePaths = ['/docs', '/examples', '/guides', '/reference', '/showcase'];
 
-const toVisit = [baseUrl];
+const toVisit = basePaths.map(path => `${baseUrl}${path}`);
 const toSkip = ['http://localhost', 'https://localhost'];
 
 const visited = new Set();
@@ -26,13 +25,11 @@ let brokenCount = 0;
 let pagesFetched = 0;
 const checkedLinksStatuses = [];
 
-const delay = ms => new Promise(res => setTimeout(res, ms));
+const start = Date.now();
 
 const checkLink = async ({ url: linkUrl, text }) => {
   if (checkedLinks.has(linkUrl)) return true;
   checkedLinks.add(linkUrl);
-
-  await delay(200);
 
   try {
     const res = await fetch(linkUrl, {
@@ -77,7 +74,7 @@ while (toVisit.length > 0) {
       if (!href || href.startsWith('mailto:') || href.includes('#')) return;
       const absolute = new URL(href, current).toString();
       const normalized = absolute.split('#')[0];
-      if (normalized.startsWith(baseUrl) && !visited.has(normalized)) {
+      if (basePaths.some(path => normalized.startsWith(`${baseUrl}${path}`)) && !visited.has(normalized)) {
         toVisit.push(normalized);
       }
     });
@@ -132,6 +129,11 @@ for (const code of checkedLinksStatuses) {
 const totalFromStatus = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
 const skippedOrUntracked = totalLinks - totalFromStatus;
 
+const elapsed = Math.floor((Date.now() - start) / 1000);
+const minutes = Math.floor(elapsed / 60);
+const seconds = elapsed % 60;
+
+console.log(' ');
 console.log('\n' + '='.repeat(40));
 console.log(`Pages fetched: ${pagesFetched}`);
 console.log(`Total links checked: ${totalLinks}`);
@@ -146,6 +148,7 @@ Object.entries(statusCounts)
   .forEach(([code, count]) => {
     console.log(`- ${code}: ${count}`);
   });
+console.log(`Time elapsed: ${minutes} minutes, ${seconds} seconds`);
 console.log('='.repeat(40));
 
 process.exit(brokenCount > 0 ? 1 : 0);
