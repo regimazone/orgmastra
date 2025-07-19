@@ -127,6 +127,12 @@ const elapsed = Math.floor((Date.now() - start) / 1000);
 const minutes = Math.floor(elapsed / 60);
 const seconds = elapsed % 60;
 
+console.log(
+  brokenCount > 0
+    ? `\n${RED}Completed with broken links${RESET}`
+    : `\n${GREEN}Completed successfully (no broken links)${RESET}`,
+);
+
 console.log('\n' + '='.repeat(40));
 console.log(`Pages fetched: ${pagesFetched}`);
 console.log(`Total links checked: ${totalLinksChecked}`);
