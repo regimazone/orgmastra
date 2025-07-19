@@ -17,7 +17,7 @@ const toSkip = ['http://localhost', 'https://localhost'];
 
 const visited = new Set();
 const checkedLinks = new Set();
-const skipRepeatedElements = ['aside.nextra-sidebar', 'footer'];
+const skipRepeatedElements = ['header', 'aside.nextra-sidebar', 'footer'];
 
 let totalLinks = 0;
 let okCount = 0;
