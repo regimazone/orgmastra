@@ -15,4 +15,5 @@ export * from './tts/index.warning';
 export * from './utils';
 export * from './vector/index.warning';
 export * from './workflows/index.warning';
+export * from './sandbox';
 export * from './hooks';
