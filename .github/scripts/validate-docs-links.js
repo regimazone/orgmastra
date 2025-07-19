@@ -55,7 +55,7 @@ const checkLink = async ({ text, url }) => {
     }
   } catch {
     skippedCount++;
-    console.log(`${RED}├───ERROR────${RESET} [${text}](${url}) [${status}]`);
+    console.log(`${RED}├───ERROR────${RESET} [${text}](${url})`);
   }
 };
 
@@ -75,9 +75,25 @@ for (const basePath of basePaths) {
       }
     });
 
+    if (links.length === 0) {
+      console.log(`No sidebar links found for ${basePage}, falling back to main content.`);
+      const toc = $('nav.nextra-toc');
+      const article = toc.nextAll('article').first();
+      const main = article.find('main').first();
+
+      main.find('a[href]').each((_, el) => {
+        const href = $(el).attr('href');
+        if (!href || href.startsWith('mailto:') || href.includes('#')) return;
+
+        const absolute = new URL(href, basePage).toString();
+        links.push(absolute);
+      });
+    }
+
     sidebarLinksByPath[basePath] = links;
+
     for (const link of links) console.log(`- ${link}`);
-    console.log(`SIDEBAR LINKS (${basePage}): ${links.length}\n`);
+    console.log(`LINKS (${basePage}): ${links.length}\n`);
   } catch (err) {
     console.error(`${RED}Failed to fetch ${basePage}:${RESET} ${err.message}`);
   }
@@ -85,6 +101,11 @@ for (const basePath of basePaths) {
 
 for (const [basePath, pageUrls] of Object.entries(sidebarLinksByPath)) {
   for (const pageUrl of pageUrls.filter(url => url !== `${baseUrl}${basePath}`)) {
+    if (!pageUrl.startsWith(baseUrl)) {
+      await checkLink({ text: pageUrl, url: pageUrl });
+      continue;
+    }
+
     try {
       const html = await fetchHtml(pageUrl);
       const $ = cheerio.load(html);
@@ -93,7 +114,6 @@ for (const [basePath, pageUrls] of Object.entries(sidebarLinksByPath)) {
       const toc = $('nav.nextra-toc');
       const article = toc.nextAll('article').first();
       const main = article.find('main').first();
-
       const mainLinks = [];
 
       main.find('a[href]').each((_, el) => {
