@@ -1,88 +1,112 @@
 import type { SandboxConfig } from '@mastra/core';
 
 /**
- * Vercel sandbox configuration
+ * Vercel sandbox configuration for Mastra integration
  */
 export interface VercelSandboxConfig extends SandboxConfig {
-  /** Vercel API token */
-  apiToken: string;
-  /** Vercel team ID (optional) */
-  teamId?: string;
-  /** Vercel project ID (optional, for project-specific sandboxes) */
-  projectId?: string;
-  /** Function runtime (nodejs or edge) */
-  runtime?: 'nodejs' | 'edge';
-  /** Function region */
-  region?: string;
-  /** Function memory limit in MB */
-  functionMemory?: number;
-  /** Maximum function duration in seconds */
-  maxDuration?: number;
+  /** Vercel credentials - can be API token or full credentials object */
+  credentials?: VercelCredentials | string;
 }
 
 /**
- * Vercel function deployment configuration
+ * Vercel credentials object
  */
-export interface VercelFunctionConfig {
-  /** Function name */
-  name: string;
-  /** Function source code */
-  source: string;
-  /** Function runtime */
-  runtime: 'nodejs' | 'edge';
+export interface VercelCredentials {
+  /** API token */
+  token: string;
+  /** Team ID (optional) */
+  teamId?: string;
+}
+
+/**
+ * Vercel sandbox creation parameters matching their API
+ */
+export interface VercelSandboxCreateParams {
+  /** Source code configuration */
+  source?: VercelSandboxSource;
+  /** Ports to expose */
+  ports?: number[];
+  /** Timeout in seconds */
+  timeout?: number;
+  /** Resource allocation */
+  resources?: {
+    vcpus: number;
+  };
+  /** Runtime environment */
+  runtime?: 'node22' | 'python3.13';
+}
+
+/**
+ * Vercel sandbox source configuration
+ */
+export type VercelSandboxSource = 
+  | {
+      type: 'git';
+      url: string;
+      depth?: number;
+      revision?: string;
+    }
+  | {
+      type: 'git';
+      url: string;
+      username: string;
+      password: string;
+      depth?: number;
+      revision?: string;
+    }
+  | {
+      type: 'tarball';
+      url: string;
+    };
+
+/**
+ * Vercel command execution parameters
+ */
+export interface VercelCommandParams {
+  /** Command to execute */
+  cmd: string;
+  /** Command arguments */
+  args?: string[];
+  /** Working directory */
+  cwd?: string;
   /** Environment variables */
   env?: Record<string, string>;
-  /** Function configuration */
-  config?: {
-    runtime?: string;
-    memory?: number;
-    maxDuration?: number;
-    regions?: string[];
-  };
+  /** Execute with sudo privileges */
+  sudo?: boolean;
+  /** Run in detached mode */
+  detached?: boolean;
 }
 
 /**
- * Vercel deployment information
+ * Vercel file operation for reading files
  */
-export interface VercelDeploymentInfo {
-  /** Deployment ID */
-  id: string;
-  /** Deployment URL */
-  url: string;
-  /** Deployment state */
-  state: 'BUILDING' | 'ERROR' | 'INITIALIZING' | 'QUEUED' | 'READY' | 'CANCELED';
+export interface VercelFileRead {
+  /** File path in sandbox */
+  path: string;
+  /** Working directory context */
+  cwd?: string;
+}
+
+/**
+ * Vercel file operation for writing files
+ */
+export interface VercelFileWrite {
+  /** File path in sandbox */
+  path: string;
+  /** File content as Buffer */
+  content: Buffer;
+}
+
+/**
+ * Internal mapping of Mastra sandbox IDs to Vercel sandbox instances
+ */
+export interface VercelSandboxMapping {
+  /** Mastra sandbox ID */
+  mastraId: string;
+  /** Vercel sandbox ID */
+  vercelId: string;
   /** Creation timestamp */
-  createdAt: number;
-  /** Ready timestamp */
-  readyAt?: number;
-  /** Project ID */
-  projectId?: string;
-  /** Team ID */
-  teamId?: string;
-}
-
-/**
- * Vercel edge config for storing sandbox state
- */
-export interface VercelEdgeConfig {
-  /** Edge config ID */
-  id: string;
-  /** Edge config name */
-  name: string;
-  /** Edge config items */
-  items: Record<string, any>;
-}
-
-/**
- * Vercel function execution environment
- */
-export interface VercelExecutionEnvironment {
-  /** Vercel region */
-  region: string;
-  /** Function URL */
-  url: string;
-  /** Function ID */
-  functionId: string;
-  /** Deployment ID */
-  deploymentId: string;
+  createdAt: Date;
+  /** Last access timestamp */
+  lastAccessedAt?: Date;
 }

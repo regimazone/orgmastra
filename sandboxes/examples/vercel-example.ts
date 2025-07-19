@@ -4,11 +4,10 @@ async function main() {
   // Initialize Vercel sandbox
   const sandbox = new VercelSandbox({
     name: 'my-vercel-sandbox',
-    apiToken: process.env.VERCEL_TOKEN!,
-    teamId: process.env.VERCEL_TEAM_ID, // optional
-    runtime: 'nodejs',
-    region: 'iad1', // Washington D.C.
-    maxDuration: 30, // 30 seconds
+    credentials: {
+      token: process.env.VERCEL_TOKEN!,
+      teamId: process.env.VERCEL_TEAM_ID, // optional
+    },
   });
 
   try {
@@ -16,14 +15,13 @@ async function main() {
     console.log('Creating sandbox...');
     const sandboxInfo = await sandbox.create({
       name: 'test-execution-env',
-      environment: {
-        env: {
-          NODE_ENV: 'production',
-          DEBUG: 'true',
-        },
-        timeout: 10000, // 10 seconds
-        memoryLimit: 1024, // 1GB
+      env: {
+        NODE_ENV: 'production',
+        DEBUG: 'true',
       },
+      timeout: 10000, // 10 seconds
+      memoryLimit: 1024, // 1GB
+      runtime: 'node22', // Specify Node.js 22 runtime
     });
 
     console.log('Sandbox created:', sandboxInfo);
@@ -72,15 +70,13 @@ async function main() {
 
     // Upload a file to the sandbox
     console.log('Uploading file...');
-    await sandbox.uploadFile(sandboxInfo.id, {
+    await sandbox.uploadFiles(sandboxInfo.id, [{
       localPath: './package.json',
       sandboxPath: '/tmp/package.json',
-    });
+    }]);
 
-    // List files in the sandbox
-    console.log('Listing files...');
-    const files = await sandbox.listFiles(sandboxInfo.id, '/tmp');
-    console.log('Files:', files);
+    // Note: Vercel Sandbox API doesn't have a listFiles method
+    // Files are managed through the sandbox's file system directly
 
     // Get resource usage
     console.log('Getting resource usage...');
