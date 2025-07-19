@@ -1,6 +1,5 @@
 import { createRequire } from 'module';
 import { URL } from 'url';
-import { stdout } from 'process';
 
 const require = createRequire(import.meta.url);
 const cheerio = require('cheerio');
@@ -10,14 +9,15 @@ const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const RESET = '\x1b[0m';
 
-const baseUrl = `${process.env.MASTRA_DEPLOYMENT_URL}/docs` || 'https://mastra.ai/docs'; //'localhost:3000/docs';
+const baseUrl = process.env.MASTRA_DEPLOYMENT_URL
+  ? `${process.env.MASTRA_DEPLOYMENT_URL}/docs`
+  : 'https://mastra.ai/docs';
+
 const toVisit = [baseUrl];
 const toSkip = ['http://localhost', 'https://localhost'];
 
 const visited = new Set();
 const checkedLinks = new Set();
-
-// The links in these elements are only checked if the current URL is the baseUrl
 const skipRepeatedElements = ['aside.nextra-sidebar', 'footer'];
 
 let totalLinks = 0;
@@ -31,8 +31,6 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 const checkLink = async ({ url: linkUrl, text }) => {
   if (checkedLinks.has(linkUrl)) return true;
   checkedLinks.add(linkUrl);
-
-  stdout.write(` → CHECKING: ${linkUrl}\r`);
 
   await delay(200);
 
@@ -50,7 +48,7 @@ const checkLink = async ({ url: linkUrl, text }) => {
     checkedLinksStatuses.push(status);
 
     if (status === 404) {
-      console.log(`${RED}├───BROKEN───${RESET} [${text}](${linkUrl}) [${status}]\n`);
+      console.log(`${RED}├───BROKEN───${RESET} [${text}](${linkUrl}) [${status}]`);
       brokenCount++;
       return false;
     } else {
@@ -73,7 +71,6 @@ while (toVisit.length > 0) {
     pagesFetched++;
 
     const $ = cheerio.load(html);
-    console.log(current);
 
     $('a[href]').each((_, el) => {
       const href = $(el).attr('href');
@@ -97,7 +94,6 @@ while (toVisit.length > 0) {
       if (toSkip.some(prefix => absoluteUrl.startsWith(prefix))) return;
 
       const isInsideIgnoredRepeatedElement = skipRepeatedElements.some(selector => $(el).closest(selector).length > 0);
-
       if (isInsideIgnoredRepeatedElement && current !== baseUrl) return;
 
       linksToCheck.push({ url: absoluteUrl, text });
@@ -106,6 +102,10 @@ while (toVisit.length > 0) {
     const newLinks = linksToCheck.filter(link => !checkedLinks.has(link.url));
     totalLinks += newLinks.length;
     visited.add(current);
+
+    if (newLinks.length > 0) {
+      console.log(`\n${current}`);
+    }
 
     let pageHasBrokenLinks = false;
     for (let i = 0; i < newLinks.length; i += CONCURRENCY_LIMIT) {
@@ -116,11 +116,8 @@ while (toVisit.length > 0) {
       }
     }
 
-    stdout.clearLine(0);
-    stdout.cursorTo(0);
-    stdout.write('');
-    if (!pageHasBrokenLinks) {
-      console.log(`${newLinks.length} LINKS FOUND\n`);
+    if (!pageHasBrokenLinks && newLinks.length > 0) {
+      console.log(`${newLinks.length} LINKS FOUND`);
     }
   } catch (err) {
     console.error(`Failed to fetch ${current}:`, err.message);
