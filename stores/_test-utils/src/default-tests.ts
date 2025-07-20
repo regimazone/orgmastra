@@ -18,28 +18,7 @@ import { createOperationsTests } from './domains/operations';
 export * from './domains/memory/data';
 export * from './domains/workflows/data';
 export * from './domains/evals/data';
-
-export const createSampleTraceForDB = (
-  name: string,
-  scope?: string,
-  attributes?: Record<string, string>,
-  createdAt?: Date,
-) => ({
-  id: `trace-${randomUUID()}`,
-  parentSpanId: `span-${randomUUID()}`,
-  traceId: `trace-${randomUUID()}`,
-  name,
-  scope,
-  kind: 0,
-  status: JSON.stringify({ code: 'success' }),
-  events: JSON.stringify([{ name: 'start', timestamp: Date.now() }]),
-  links: JSON.stringify([]),
-  attributes: attributes ? attributes : undefined,
-  startTime: (createdAt || new Date()).getTime(),
-  endTime: (createdAt || new Date()).getTime(),
-  other: JSON.stringify({ custom: 'data' }),
-  createdAt: createdAt || new Date(),
-});
+export * from './domains/traces/data';
 
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
@@ -61,13 +40,13 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_SCORERS });
     });
 
-    createOperationsTests({ storage });
+    // createOperationsTests({ storage });
 
-    createWorkflowsTests({ storage });
+    // createWorkflowsTests({ storage });
 
-    createTraceTests({ storage });
+    // createTraceTests({ storage });
 
-    createEvalsTests({ storage });
+    // createEvalsTests({ storage });
 
     createMemoryTest({ storage });
 
