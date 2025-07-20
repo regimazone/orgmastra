@@ -1,82 +1,23 @@
 import type { MastraStorage, StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { TABLE_THREADS } from '@mastra/core/storage';
-import { createSampleThread } from '../memory/data';
 
 export function createOperationsTests({ storage }: { storage: MastraStorage }) {
-  describe('Date Handling', () => {
-    beforeEach(async () => {
-      await storage.clearTable({ tableName: TABLE_THREADS });
-    });
-
-    it('should handle Date objects in thread operations', async () => {
-      const now = new Date();
-      const thread = createSampleThread({ date: now });
-
-      await storage.saveThread({ thread });
-      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
-
-      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
-      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
-    });
-
-    it('should handle ISO string dates in thread operations', async () => {
-      const now = new Date();
-      const thread = createSampleThread({ date: now });
-
-      await storage.saveThread({ thread });
-      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
-      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
-      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
-    });
-
-    it('should handle mixed date formats in thread operations', async () => {
-      const now = new Date();
-      const thread = createSampleThread({ date: now });
-
-      await storage.saveThread({ thread });
-      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
-      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
-      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
-      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
-    });
-
-    it('should handle date serialization in getThreadsByResourceId', async () => {
-      const now = new Date();
-      const thread1 = createSampleThread({ date: now });
-      const thread2 = { ...createSampleThread({ date: now }), resourceId: thread1.resourceId };
-      const threads = [thread1, thread2];
-
-      await Promise.all(threads.map(thread => storage.saveThread({ thread })));
-
-      const retrievedThreads = await storage.getThreadsByResourceId({ resourceId: threads[0]?.resourceId! });
-      expect(retrievedThreads).toHaveLength(2);
-      retrievedThreads.forEach(thread => {
-        expect(thread.createdAt).toBeInstanceOf(Date);
-        expect(thread.updatedAt).toBeInstanceOf(Date);
-        expect(thread.createdAt.toISOString()).toBe(now.toISOString());
-        expect(thread.updatedAt.toISOString()).toBe(now.toISOString());
-      });
-    });
-  });
-
   if (storage.supports.createTable) {
     describe('Table Operations', () => {
       const testTableName = 'test_table';
       const testTableName2 = 'test_table2';
 
       beforeAll(async () => {
+        const start = Date.now();
+        console.log(`Clearing test tables: ${testTableName}, ${testTableName2}`);
         try {
           await storage.clearTable({ tableName: testTableName as TABLE_NAMES });
           await storage.clearTable({ tableName: testTableName2 as TABLE_NAMES });
         } catch {
           /* ignore */
         }
+        const end = Date.now();
+        console.log(`Cleared test tables in ${end - start}ms`);
       });
 
       it('should create a new table with schema', async () => {
@@ -157,8 +98,6 @@ export function createOperationsTests({ storage }: { storage: MastraStorage }) {
           keys: { id: 1 },
         });
 
-        console.log('row', row);
-
         expect(row?.age).toBe(42);
       });
 
@@ -238,6 +177,7 @@ export function createOperationsTests({ storage }: { storage: MastraStorage }) {
           tableName: tempTable as TABLE_NAMES,
           schema: {
             id: { type: 'integer', primaryKey: true, nullable: false },
+            createdAt: { type: 'timestamp', nullable: false },
           },
         });
 

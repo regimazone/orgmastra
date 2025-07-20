@@ -1,6 +1,6 @@
-import type { MastraStorage } from '@mastra/core/storage';
+import { TABLE_THREADS, type MastraStorage } from '@mastra/core/storage';
 import { createSampleMessageV1, createSampleMessageV2, createSampleThread, createSampleThreadWithParams } from './data';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import { randomUUID } from 'crypto';
 
@@ -282,6 +282,67 @@ export function createThreadsTest({ storage }: { storage: MastraStorage }) {
       // Verify final state
       const finalThread = await storage.getThreadById({ threadId: thread.id });
       expect(finalThread).toBeDefined();
+    });
+  });
+
+  describe('Date Handling', () => {
+    beforeEach(async () => {
+      await storage.clearTable({ tableName: TABLE_THREADS });
+    });
+
+    it('should handle Date objects in thread operations', async () => {
+      const now = new Date();
+      const thread = createSampleThread({ date: now });
+
+      await storage.saveThread({ thread });
+      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
+
+      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
+      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
+    });
+
+    it('should handle ISO string dates in thread operations', async () => {
+      const now = new Date();
+      const thread = createSampleThread({ date: now });
+
+      await storage.saveThread({ thread });
+      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
+      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
+      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
+    });
+
+    it('should handle mixed date formats in thread operations', async () => {
+      const now = new Date();
+      const thread = createSampleThread({ date: now });
+
+      await storage.saveThread({ thread });
+      const retrievedThread = await storage.getThreadById({ threadId: thread.id });
+      expect(retrievedThread?.createdAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.updatedAt).toBeInstanceOf(Date);
+      expect(retrievedThread?.createdAt.toISOString()).toBe(now.toISOString());
+      expect(retrievedThread?.updatedAt.toISOString()).toBe(now.toISOString());
+    });
+
+    it('should handle date serialization in getThreadsByResourceId', async () => {
+      const now = new Date();
+      const thread1 = createSampleThread({ date: now });
+      const thread2 = { ...createSampleThread({ date: now }), resourceId: thread1.resourceId };
+      const threads = [thread1, thread2];
+
+      await Promise.all(threads.map(thread => storage.saveThread({ thread })));
+
+      const retrievedThreads = await storage.getThreadsByResourceId({ resourceId: threads[0]?.resourceId! });
+      expect(retrievedThreads).toHaveLength(2);
+      retrievedThreads.forEach(thread => {
+        expect(thread.createdAt).toBeInstanceOf(Date);
+        expect(thread.updatedAt).toBeInstanceOf(Date);
+        expect(thread.createdAt.toISOString()).toBe(now.toISOString());
+        expect(thread.updatedAt.toISOString()).toBe(now.toISOString());
+      });
     });
   });
 }

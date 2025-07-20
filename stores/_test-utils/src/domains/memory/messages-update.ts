@@ -1,15 +1,13 @@
-import { MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
+import type { MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createSampleMessageV2, createSampleThread } from './data';
-import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS } from '@mastra/core/storage';
+import { MastraStorage } from '@mastra/core/storage';
 import { randomUUID } from 'crypto';
 
 export function createMessagesUpdateTest({ storage }: { storage: MastraStorage }) {
   describe('updateMessages', () => {
     let thread: StorageThreadType;
     beforeEach(async () => {
-      await storage.clearTable({ tableName: TABLE_MESSAGES });
-      await storage.clearTable({ tableName: TABLE_THREADS });
       const threadData = createSampleThread();
       thread = await storage.saveThread({ thread: threadData as StorageThreadType });
     });

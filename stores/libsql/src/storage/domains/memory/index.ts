@@ -12,6 +12,7 @@ import {
 } from '@mastra/core/storage';
 import type { PaginationArgs, PaginationInfo, StorageGetMessagesArg, StorageResourceType } from '@mastra/core/storage';
 import type { StoreOperationsLibSQL } from '../operations';
+import { parseSqlIdentifier } from '@mastra/core';
 
 export class MemoryLibSQL extends MemoryStorage {
   private client: Client;
@@ -385,11 +386,11 @@ export class MemoryLibSQL extends MemoryStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-                metadata: {
-                  ...existingMessage.content.metadata,
-                  ...updatableFields.content.metadata,
-                },
-              }
+              metadata: {
+                ...existingMessage.content.metadata,
+                ...updatableFields.content.metadata,
+              },
+            }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);

@@ -1,18 +1,10 @@
 import type { Client, InValue } from '@libsql/client';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import { TABLE_TRACES, TracesStorage } from '@mastra/core/storage';
+import { TABLE_TRACES, TracesStorage, safelyParseJSON } from '@mastra/core/storage';
 import type { StorageGetTracesArg, StorageGetTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { StoreOperationsLibSQL } from '../operations';
-
-function safelyParseJSON(jsonString: string): any {
-    try {
-        return JSON.parse(jsonString);
-    } catch {
-        return {};
-    }
-}
 
 export class TracesLibSQL extends TracesStorage {
     private client: Client;

@@ -174,11 +174,9 @@ export function createResourcesTest({ storage }: { storage: MastraStorage }) {
       };
 
       const savedResource = await storage.saveResource({ resource });
-      console.log('savedResource', savedResource);
       expect(!!savedResource.workingMemory).toBe(false);
 
       const retrievedResource = await storage.getResourceById({ resourceId: resource.id });
-      console.log('retrievedResource', retrievedResource);
       expect(!!retrievedResource?.workingMemory).toBe(false);
     });
 

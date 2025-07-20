@@ -1,13 +1,12 @@
-import type { MetricResult } from '@mastra/core/eval';
 import type { MastraStorage } from '@mastra/core/storage';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { createSampleEval } from './data';
 import { TABLE_EVALS } from '@mastra/core/storage';
 import { randomUUID } from 'crypto';
 
 export function createEvalsTests({ storage }: { storage: MastraStorage }) {
   describe('getEvals with pagination', () => {
-    beforeEach(async () => {
+    beforeAll(async () => {
       await storage.clearTable({ tableName: TABLE_EVALS });
     });
 

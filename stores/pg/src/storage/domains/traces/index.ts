@@ -1,19 +1,11 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { PaginationInfo, StorageGetTracesArg, StorageGetTracesPaginatedArg } from '@mastra/core/storage';
-import { TABLE_TRACES, TracesStorage } from '@mastra/core/storage';
+import { TABLE_TRACES, TracesStorage, safelyParseJSON } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import { parseFieldKey } from '@mastra/core/utils';
 import type { IDatabase } from 'pg-promise';
 import type { StoreOperationsPG } from '../operations';
 import { getSchemaName, getTableName } from '../utils';
-
-function safelyParseJSON(jsonString: string): any {
-  try {
-    return JSON.parse(jsonString);
-  } catch {
-    return {};
-  }
-}
 
 export class TracesPG extends TracesStorage {
   public client: IDatabase<{}>;

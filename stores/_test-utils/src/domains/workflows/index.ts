@@ -138,8 +138,6 @@ export function createWorkflowsTests({ storage }: { storage: MastraStorage }) {
       // Get first page
       const page1 = await storage.getWorkflowRuns({ limit: 2, offset: 0 });
 
-      console.log(page1);
-
       expect(page1.runs).toHaveLength(2);
       expect(page1.total).toBe(3); // Total count of all records
 
@@ -235,8 +233,6 @@ export function createWorkflowsTests({ storage }: { storage: MastraStorage }) {
         resourceId,
         workflowName,
       });
-
-      console.log(runs);
 
       expect(Array.isArray(runs)).toBe(true);
       expect(runs.length).toBeGreaterThanOrEqual(2);

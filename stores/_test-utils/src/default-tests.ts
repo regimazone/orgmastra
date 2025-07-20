@@ -7,6 +7,7 @@ import {
   TABLE_MESSAGES,
   TABLE_THREADS,
   TABLE_RESOURCES,
+  TABLE_SCORERS,
 } from '@mastra/core/storage';
 import { createScoresTest } from './domains/scores';
 import { createMemoryTest } from './domains/memory';
@@ -43,16 +44,11 @@ export const createSampleTraceForDB = (
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
     beforeAll(async () => {
+      const start = Date.now();
+      console.log('Initializing storage...');
       await storage.init();
-    });
-
-    beforeEach(async () => {
-      // Clear tables before each test
-      await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
-      await storage.clearTable({ tableName: TABLE_EVALS });
-      await storage.clearTable({ tableName: TABLE_MESSAGES });
-      await storage.clearTable({ tableName: TABLE_THREADS });
-      await storage.clearTable({ tableName: TABLE_RESOURCES });
+      const end = Date.now();
+      console.log(`Storage initialized in ${end - start}ms`);
     });
 
     afterAll(async () => {
@@ -62,6 +58,7 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_MESSAGES });
       await storage.clearTable({ tableName: TABLE_THREADS });
       await storage.clearTable({ tableName: TABLE_RESOURCES });
+      await storage.clearTable({ tableName: TABLE_SCORERS });
     });
 
     createOperationsTests({ storage });
