@@ -1,23 +1,25 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { MessageList } from '@mastra/core/agent';
+import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MetricResult, TestInfo } from '@mastra/core/eval';
-import type { StorageThreadType, MastraMessageV1, MastraMessageV2 } from '@mastra/core/memory';
+import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import {
   MastraStorage,
+  TABLE_EVALS,
   TABLE_MESSAGES,
   TABLE_THREADS,
-  TABLE_WORKFLOW_SNAPSHOT,
-  TABLE_EVALS,
   TABLE_TRACES,
+  TABLE_WORKFLOW_SNAPSHOT,
 } from '@mastra/core/storage';
 import type {
-  TABLE_NAMES,
+  EvalRow,
+  PaginationInfo,
   StorageColumn,
   StorageGetMessagesArg,
-  EvalRow,
-  WorkflowRuns,
+  TABLE_NAMES,
   WorkflowRun,
-  PaginationInfo,
+  WorkflowRuns,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -39,6 +41,13 @@ export interface D1Config {
   tablePrefix?: string;
 }
 
+export interface D1ClientConfig {
+  /** Optional prefix for table names */
+  tablePrefix?: string;
+  /** D1 Client */
+  client: D1Client;
+}
+
 /**
  * Configuration for D1 using the Workers Binding API
  */
@@ -52,16 +61,19 @@ export interface D1WorkersConfig {
 /**
  * Combined configuration type supporting both REST API and Workers Binding API
  */
-export type D1StoreConfig = D1Config | D1WorkersConfig;
+export type D1StoreConfig = D1Config | D1WorkersConfig | D1ClientConfig;
 
 function isArrayOfRecords(value: any): value is Record<string, any>[] {
   return value && Array.isArray(value) && value.length > 0;
 }
 
+export type D1QueryResult = Awaited<ReturnType<Cloudflare['d1']['database']['query']>>['result'];
+export interface D1Client {
+  query(args: { sql: string; params: string[] }): Promise<{ result: D1QueryResult }>;
+}
+
 export class D1Store extends MastraStorage {
-  private client?: Cloudflare;
-  private accountId?: string;
-  private databaseId?: string;
+  private client?: D1Client;
   private binding?: D1Database; // D1Database binding
   private tablePrefix: string;
 
@@ -70,31 +82,56 @@ export class D1Store extends MastraStorage {
    * @param config Configuration for D1 access (either REST API or Workers Binding API)
    */
   constructor(config: D1StoreConfig) {
-    super({ name: 'D1' });
+    try {
+      super({ name: 'D1' });
 
-    if (config.tablePrefix && !/^[a-zA-Z0-9_]*$/.test(config.tablePrefix)) {
-      throw new Error('Invalid tablePrefix: only letters, numbers, and underscores are allowed.');
-    }
-
-    this.tablePrefix = config.tablePrefix || '';
-
-    // Determine which API to use based on provided config
-    if ('binding' in config) {
-      if (!config.binding) {
-        throw new Error('D1 binding is required when using Workers Binding API');
+      if (config.tablePrefix && !/^[a-zA-Z0-9_]*$/.test(config.tablePrefix)) {
+        throw new Error('Invalid tablePrefix: only letters, numbers, and underscores are allowed.');
       }
-      this.binding = config.binding;
-      this.logger.info('Using D1 Workers Binding API');
-    } else {
-      if (!config.accountId || !config.databaseId || !config.apiToken) {
-        throw new Error('accountId, databaseId, and apiToken are required when using REST API');
+
+      this.tablePrefix = config.tablePrefix || '';
+
+      // Determine which API to use based on provided config
+      if ('binding' in config) {
+        if (!config.binding) {
+          throw new Error('D1 binding is required when using Workers Binding API');
+        }
+        this.binding = config.binding;
+        this.logger.info('Using D1 Workers Binding API');
+      } else if ('client' in config) {
+        if (!config.client) {
+          throw new Error('D1 client is required when using D1ClientConfig');
+        }
+        this.client = config.client;
+        this.logger.info('Using D1 Client');
+      } else {
+        if (!config.accountId || !config.databaseId || !config.apiToken) {
+          throw new Error('accountId, databaseId, and apiToken are required when using REST API');
+        }
+        const cfClient = new Cloudflare({
+          apiToken: config.apiToken,
+        });
+        this.client = {
+          query: ({ sql, params }) => {
+            return cfClient.d1.database.query(config.databaseId, {
+              account_id: config.accountId,
+              sql,
+              params,
+            });
+          },
+        };
+        this.logger.info('Using D1 REST API');
       }
-      this.accountId = config.accountId;
-      this.databaseId = config.databaseId;
-      this.client = new Cloudflare({
-        apiToken: config.apiToken,
-      });
-      this.logger.info('Using D1 REST API');
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_INITIALIZATION_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.SYSTEM,
+          text: 'Error initializing D1Store',
+        },
+        error,
+      );
     }
   }
 
@@ -173,14 +210,13 @@ export class D1Store extends MastraStorage {
     first = false,
   }: SqlQueryOptions): Promise<Record<string, any>[] | Record<string, any> | null> {
     // Ensure required properties are defined
-    if (!this.client || !this.accountId || !this.databaseId) {
+    if (!this.client) {
       throw new Error('Missing required REST API configuration');
     }
 
     try {
-      const response = await this.client.d1.database.query(this.databaseId, {
-        account_id: this.accountId,
-        sql: sql,
+      const response = await this.client.query({
+        sql,
         params: this.formatSqlParams(params),
       });
 
@@ -219,7 +255,7 @@ export class D1Store extends MastraStorage {
       if (this.binding) {
         // Use Workers Binding API
         return this.executeWorkersBindingQuery({ sql, params, first });
-      } else if (this.client && this.accountId && this.databaseId) {
+      } else if (this.client) {
         // Use REST API
         return this.executeRestQuery({ sql, params, first });
       } else {
@@ -334,18 +370,28 @@ export class D1Store extends MastraStorage {
       tableConstraints.push('UNIQUE (workflow_name, run_id)');
     }
 
-    const query = createSqlBuilder().createTable(fullTableName, columnDefinitions, tableConstraints);
-
-    const { sql, params } = query.build();
-
     try {
+      const query = createSqlBuilder().createTable(fullTableName, columnDefinitions, tableConstraints);
+      const { sql, params } = query.build();
+
       await this.executeQuery({ sql, params });
       this.logger.debug(`Created table ${fullTableName}`);
     } catch (error) {
       this.logger.error(`Error creating table ${fullTableName}:`, {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to create table ${fullTableName}: ${error}`);
+      // throw new Error(`Failed to create table ${fullTableName}: ${error}`);
+
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_CREATE_TABLE_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to create table ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -387,10 +433,16 @@ export class D1Store extends MastraStorage {
         }
       }
     } catch (error) {
-      this.logger.error(`Error altering table ${fullTableName}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(`Failed to alter table ${fullTableName}: ${error}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_ALTER_TABLE_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to alter table ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -404,10 +456,16 @@ export class D1Store extends MastraStorage {
       await this.executeQuery({ sql, params });
       this.logger.debug(`Cleared table ${fullTableName}`);
     } catch (error) {
-      this.logger.error(`Error clearing table ${fullTableName}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(`Failed to clear table ${fullTableName}: ${error}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_CLEAR_TABLE_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to clear table ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -437,9 +495,16 @@ export class D1Store extends MastraStorage {
     try {
       await this.executeQuery({ sql, params });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error inserting into ${fullTableName}:`, { message });
-      throw new Error(`Failed to insert into ${fullTableName}: ${error}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_INSERT_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to insert into ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -476,10 +541,16 @@ export class D1Store extends MastraStorage {
 
       return processedResult as R;
     } catch (error) {
-      this.logger.error(`Error loading from ${fullTableName}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return null;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_LOAD_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to load from ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -502,9 +573,18 @@ export class D1Store extends MastraStorage {
             : thread.metadata || {},
       };
     } catch (error) {
-      this.logger.error(`Error processing thread ${threadId}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_THREAD_BY_ID_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Error processing thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { threadId },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
       return null;
     }
   }
@@ -531,9 +611,20 @@ export class D1Store extends MastraStorage {
             : thread.metadata || {},
       }));
     } catch (error) {
-      this.logger.error(`Error getting threads by resourceId ${resourceId}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_THREADS_BY_RESOURCE_ID_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Error getting threads by resourceId ${resourceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { resourceId },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
       return [];
     }
   }
@@ -556,28 +647,54 @@ export class D1Store extends MastraStorage {
           : row.metadata || {},
     });
 
-    const countQuery = createSqlBuilder().count().from(fullTableName).where('resourceId = ?', resourceId);
-    const countResult = (await this.executeQuery(countQuery.build())) as { count: number }[];
-    const total = Number(countResult?.[0]?.count ?? 0);
+    try {
+      const countQuery = createSqlBuilder().count().from(fullTableName).where('resourceId = ?', resourceId);
+      const countResult = (await this.executeQuery(countQuery.build())) as {
+        count: number;
+      }[];
+      const total = Number(countResult?.[0]?.count ?? 0);
 
-    const selectQuery = createSqlBuilder()
-      .select('*')
-      .from(fullTableName)
-      .where('resourceId = ?', resourceId)
-      .orderBy('createdAt', 'DESC')
-      .limit(perPage)
-      .offset(page * perPage);
+      const selectQuery = createSqlBuilder()
+        .select('*')
+        .from(fullTableName)
+        .where('resourceId = ?', resourceId)
+        .orderBy('createdAt', 'DESC')
+        .limit(perPage)
+        .offset(page * perPage);
 
-    const results = (await this.executeQuery(selectQuery.build())) as Record<string, any>[];
-    const threads = results.map(mapRowToStorageThreadType);
+      const results = (await this.executeQuery(selectQuery.build())) as Record<string, any>[];
+      const threads = results.map(mapRowToStorageThreadType);
 
-    return {
-      threads,
-      total,
-      page,
-      perPage,
-      hasMore: page * perPage + threads.length < total,
-    };
+      return {
+        threads,
+        total,
+        page,
+        perPage,
+        hasMore: page * perPage + threads.length < total,
+      };
+    } catch (error) {
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_THREADS_BY_RESOURCE_ID_PAGINATED_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Error getting threads by resourceId ${resourceId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { resourceId },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
+      return {
+        threads: [],
+        total: 0,
+        page,
+        perPage,
+        hasMore: false,
+      };
+    }
   }
 
   async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
@@ -617,9 +734,16 @@ export class D1Store extends MastraStorage {
       await this.executeQuery({ sql, params });
       return thread;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error saving thread to ${fullTableName}:`, { message });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_SAVE_THREAD_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to save thread to ${fullTableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { threadId: thread.id },
+        },
+        error,
+      );
     }
   }
 
@@ -633,24 +757,24 @@ export class D1Store extends MastraStorage {
     metadata: Record<string, unknown>;
   }): Promise<StorageThreadType> {
     const thread = await this.getThreadById({ threadId: id });
-    if (!thread) {
-      throw new Error(`Thread ${id} not found`);
-    }
-    const fullTableName = this.getTableName(TABLE_THREADS);
-
-    const mergedMetadata = {
-      ...(typeof thread.metadata === 'string' ? JSON.parse(thread.metadata) : thread.metadata),
-      ...(metadata as Record<string, any>),
-    };
-
-    const columns = ['title', 'metadata', 'updatedAt'];
-    const values = [title, JSON.stringify(mergedMetadata), new Date().toISOString()];
-
-    const query = createSqlBuilder().update(fullTableName, columns, values).where('id = ?', id);
-
-    const { sql, params } = query.build();
-
     try {
+      if (!thread) {
+        throw new Error(`Thread ${id} not found`);
+      }
+      const fullTableName = this.getTableName(TABLE_THREADS);
+
+      const mergedMetadata = {
+        ...(typeof thread.metadata === 'string' ? JSON.parse(thread.metadata) : thread.metadata),
+        ...(metadata as Record<string, any>),
+      };
+
+      const columns = ['title', 'metadata', 'updatedAt'];
+      const values = [title, JSON.stringify(mergedMetadata), new Date().toISOString()];
+
+      const query = createSqlBuilder().update(fullTableName, columns, values).where('id = ?', id);
+
+      const { sql, params } = query.build();
+
       await this.executeQuery({ sql, params });
 
       return {
@@ -663,9 +787,16 @@ export class D1Store extends MastraStorage {
         updatedAt: new Date(),
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error('Error updating thread:', { message });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_UPDATE_THREAD_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to update thread ${id}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { threadId: id },
+        },
+        error,
+      );
     }
   }
 
@@ -686,10 +817,16 @@ export class D1Store extends MastraStorage {
       const { sql: messagesSql, params: messagesParams } = deleteMessagesQuery.build();
       await this.executeQuery({ sql: messagesSql, params: messagesParams });
     } catch (error) {
-      this.logger.error(`Error deleting thread ${threadId}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(`Failed to delete thread ${threadId}: ${error}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_DELETE_THREAD_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to delete thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { threadId },
+        },
+        error,
+      );
     }
   }
 
@@ -709,9 +846,15 @@ export class D1Store extends MastraStorage {
       // Validate all messages before insert
       for (const [i, message] of messages.entries()) {
         if (!message.id) throw new Error(`Message at index ${i} missing id`);
-        if (!message.threadId) throw new Error(`Message at index ${i} missing threadId`);
-        if (!message.content) throw new Error(`Message at index ${i} missing content`);
-        if (!message.role) throw new Error(`Message at index ${i} missing role`);
+        if (!message.threadId) {
+          throw new Error(`Message at index ${i} missing threadId`);
+        }
+        if (!message.content) {
+          throw new Error(`Message at index ${i} missing content`);
+        }
+        if (!message.role) {
+          throw new Error(`Message at index ${i} missing role`);
+        }
         const thread = await this.getThreadById({ threadId: message.threadId });
         if (!thread) {
           throw new Error(`Thread ${message.threadId} not found`);
@@ -734,7 +877,7 @@ export class D1Store extends MastraStorage {
 
       // Insert messages and update thread's updatedAt in parallel
       await Promise.all([
-        this.batchInsert({
+        this.batchUpsert({
           tableName: TABLE_MESSAGES,
           records: messagesToInsert,
         }),
@@ -750,8 +893,15 @@ export class D1Store extends MastraStorage {
       if (format === `v2`) return list.get.all.v2();
       return list.get.all.v1();
     } catch (error) {
-      this.logger.error('Error saving messages:', { message: error instanceof Error ? error.message : String(error) });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_SAVE_MESSAGES_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to save messages: ${error instanceof Error ? error.message : String(error)}`,
+        },
+        error,
+      );
     }
   }
 
@@ -814,7 +964,10 @@ export class D1Store extends MastraStorage {
     format,
   }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]> {
     const fullTableName = this.getTableName(TABLE_MESSAGES);
-    const limit = typeof selectBy?.last === 'number' ? selectBy.last : 40;
+    const limit = this.resolveMessageLimit({
+      last: selectBy?.last,
+      defaultLimit: 40,
+    });
     const include = selectBy?.include || [];
     const messages: any[] = [];
 
@@ -868,11 +1021,21 @@ export class D1Store extends MastraStorage {
       if (format === `v2`) return list.get.all.v2();
       return list.get.all.v1();
     } catch (error) {
-      this.logger.error('Error retrieving messages for thread', {
-        threadId,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return [];
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_MESSAGES_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve messages for thread ${threadId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { threadId },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
+      throw mastraError;
     }
   }
 
@@ -889,51 +1052,77 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_MESSAGES);
     const messages: any[] = [];
 
-    if (selectBy?.include?.length) {
-      const includeResult = await this._getIncludedMessages(threadId, selectBy);
-      if (Array.isArray(includeResult)) messages.push(...includeResult);
+    try {
+      if (selectBy?.include?.length) {
+        const includeResult = await this._getIncludedMessages(threadId, selectBy);
+        if (Array.isArray(includeResult)) messages.push(...includeResult);
+      }
+
+      const countQuery = createSqlBuilder().count().from(fullTableName).where('thread_id = ?', threadId);
+
+      if (fromDate) {
+        countQuery.andWhere('createdAt >= ?', this.serializeDate(fromDate));
+      }
+      if (toDate) {
+        countQuery.andWhere('createdAt <= ?', this.serializeDate(toDate));
+      }
+
+      const countResult = (await this.executeQuery(countQuery.build())) as {
+        count: number;
+      }[];
+      const total = Number(countResult[0]?.count ?? 0);
+
+      const query = createSqlBuilder()
+        .select(['id', 'content', 'role', 'type', 'createdAt', 'thread_id AS threadId'])
+        .from(fullTableName)
+        .where('thread_id = ?', threadId);
+
+      if (fromDate) {
+        query.andWhere('createdAt >= ?', this.serializeDate(fromDate));
+      }
+      if (toDate) {
+        query.andWhere('createdAt <= ?', this.serializeDate(toDate));
+      }
+
+      query
+        .orderBy('createdAt', 'DESC')
+        .limit(perPage)
+        .offset(page * perPage);
+
+      const results = (await this.executeQuery(query.build())) as any[];
+      const list = new MessageList().add(results as MastraMessageV1[] | MastraMessageV2[], 'memory');
+      messages.push(...(format === `v2` ? list.get.all.v2() : list.get.all.v1()));
+
+      return {
+        messages,
+        total,
+        page,
+        perPage,
+        hasMore: page * perPage + messages.length < total,
+      };
+    } catch (error) {
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_MESSAGES_PAGINATED_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve messages for thread ${threadId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { threadId },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
+      return {
+        messages: [],
+        total: 0,
+        page,
+        perPage,
+        hasMore: false,
+      };
     }
-
-    const countQuery = createSqlBuilder().count().from(fullTableName).where('thread_id = ?', threadId);
-
-    if (fromDate) {
-      countQuery.andWhere('createdAt >= ?', this.serializeDate(fromDate));
-    }
-    if (toDate) {
-      countQuery.andWhere('createdAt <= ?', this.serializeDate(toDate));
-    }
-
-    const countResult = (await this.executeQuery(countQuery.build())) as { count: number }[];
-    const total = Number(countResult[0]?.count ?? 0);
-
-    const query = createSqlBuilder()
-      .select(['id', 'content', 'role', 'type', 'createdAt', 'thread_id AS threadId'])
-      .from(fullTableName)
-      .where('thread_id = ?', threadId);
-
-    if (fromDate) {
-      query.andWhere('createdAt >= ?', this.serializeDate(fromDate));
-    }
-    if (toDate) {
-      query.andWhere('createdAt <= ?', this.serializeDate(toDate));
-    }
-
-    query
-      .orderBy('createdAt', 'DESC')
-      .limit(perPage)
-      .offset(page * perPage);
-
-    const results = (await this.executeQuery(query.build())) as any[];
-    const list = new MessageList().add(results as MastraMessageV1[] | MastraMessageV2[], 'memory');
-    messages.push(...(format === `v2` ? list.get.all.v2() : list.get.all.v1()));
-
-    return {
-      messages,
-      total,
-      page,
-      perPage,
-      hasMore: page * perPage + messages.length < total,
-    };
   }
 
   async persistWorkflowSnapshot({
@@ -989,10 +1178,16 @@ export class D1Store extends MastraStorage {
     try {
       await this.executeQuery({ sql, params });
     } catch (error) {
-      this.logger.error('Error persisting workflow snapshot:', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_PERSIST_WORKFLOW_SNAPSHOT_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to persist workflow snapshot: ${error instanceof Error ? error.message : String(error)}`,
+          details: { workflowName, runId },
+        },
+        error,
+      );
     }
   }
 
@@ -1001,15 +1196,28 @@ export class D1Store extends MastraStorage {
 
     this.logger.debug('Loading workflow snapshot', { workflowName, runId });
 
-    const d = await this.load<{ snapshot: unknown }>({
-      tableName: TABLE_WORKFLOW_SNAPSHOT,
-      keys: {
-        workflow_name: workflowName,
-        run_id: runId,
-      },
-    });
+    try {
+      const d = await this.load<{ snapshot: unknown }>({
+        tableName: TABLE_WORKFLOW_SNAPSHOT,
+        keys: {
+          workflow_name: workflowName,
+          run_id: runId,
+        },
+      });
 
-    return d ? (d.snapshot as WorkflowRunState) : null;
+      return d ? (d.snapshot as WorkflowRunState) : null;
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_LOAD_WORKFLOW_SNAPSHOT_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to load workflow snapshot: ${error instanceof Error ? error.message : String(error)}`,
+          details: { workflowName, runId },
+        },
+        error,
+      );
+    }
   }
 
   /**
@@ -1061,10 +1269,92 @@ export class D1Store extends MastraStorage {
 
       this.logger.debug(`Successfully batch inserted ${records.length} records into ${tableName}`);
     } catch (error) {
-      this.logger.error(`Error batch inserting into ${tableName}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(`Failed to batch insert into ${tableName}: ${error}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_BATCH_INSERT_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to batch insert into ${tableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
+    }
+  }
+
+  /**
+   * Upsert multiple records in a batch operation
+   * @param tableName The table to insert into
+   * @param records The records to insert
+   */
+  private async batchUpsert({
+    tableName,
+    records,
+  }: {
+    tableName: TABLE_NAMES;
+    records: Record<string, any>[];
+  }): Promise<void> {
+    if (records.length === 0) return;
+
+    const fullTableName = this.getTableName(tableName);
+
+    try {
+      // Process records in batches for better performance
+      const batchSize = 50; // Adjust based on performance testing
+
+      for (let i = 0; i < records.length; i += batchSize) {
+        const batch = records.slice(i, i + batchSize);
+
+        const recordsToInsert = batch;
+
+        // For bulk insert, we need to determine the columns from the first record
+        if (recordsToInsert.length > 0) {
+          const firstRecord = recordsToInsert[0];
+          // Ensure firstRecord is not undefined before calling Object.keys
+          const columns = Object.keys(firstRecord || {});
+
+          // Create a bulk insert statement
+          for (const record of recordsToInsert) {
+            // Use type-safe approach to extract values
+            const values = columns.map(col => {
+              if (!record) return null;
+              // Safely access the record properties
+              const value = typeof col === 'string' ? record[col as keyof typeof record] : null;
+              return this.serializeValue(value);
+            });
+
+            const recordToUpsert = columns.reduce(
+              (acc, col) => {
+                if (col !== 'createdAt') acc[col] = `excluded.${col}`;
+                return acc;
+              },
+              {} as Record<string, any>,
+            );
+
+            const query = createSqlBuilder().insert(fullTableName, columns, values, ['id'], recordToUpsert);
+
+            const { sql, params } = query.build();
+            await this.executeQuery({ sql, params });
+          }
+        }
+
+        this.logger.debug(
+          `Processed batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(records.length / batchSize)}`,
+        );
+      }
+
+      this.logger.debug(`Successfully batch upserted ${records.length} records into ${tableName}`);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_BATCH_UPSERT_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to batch upsert into ${tableName}: ${error instanceof Error ? error.message : String(error)}`,
+          details: { tableName },
+        },
+        error,
+      );
     }
   }
 
@@ -1138,7 +1428,21 @@ export class D1Store extends MastraStorage {
           )
         : [];
     } catch (error) {
-      this.logger.error('Error getting traces:', { message: error instanceof Error ? error.message : String(error) });
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_TRACES_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve traces: ${error instanceof Error ? error.message : String(error)}`,
+          details: {
+            name: name ?? '',
+            scope: scope ?? '',
+          },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
       return [];
     }
   }
@@ -1188,7 +1492,9 @@ export class D1Store extends MastraStorage {
         countQuery.andWhere('createdAt <= ?', toDateStr);
       }
 
-      const countResult = (await this.executeQuery(countQuery.build())) as { count: number }[];
+      const countResult = (await this.executeQuery(countQuery.build())) as {
+        count: number;
+      }[];
       const total = Number(countResult?.[0]?.count ?? 0);
 
       dataQuery
@@ -1220,7 +1526,18 @@ export class D1Store extends MastraStorage {
         hasMore: page * perPage + traces.length < total,
       };
     } catch (error) {
-      this.logger.error('Error getting traces:', { message: error instanceof Error ? error.message : String(error) });
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_TRACES_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve traces: ${error instanceof Error ? error.message : String(error)}`,
+          details: { name: name ?? '', scope: scope ?? '' },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
       return { traces: [], total: 0, page, perPage, hasMore: false };
     }
   }
@@ -1269,9 +1586,20 @@ export class D1Store extends MastraStorage {
           })
         : [];
     } catch (error) {
-      this.logger.error(`Error getting evals for agent ${agentName}:`, {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const mastraError = new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_EVALS_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve evals for agent ${agentName}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { agentName },
+        },
+        error,
+      );
+      this.logger?.error(mastraError.toString());
+      this.logger?.trackException(mastraError);
       return [];
     }
   }
@@ -1318,63 +1646,85 @@ export class D1Store extends MastraStorage {
     }
     const { sql: countSql, params: countParams } = countQueryBuilder.build();
 
-    const countResult = (await this.executeQuery({ sql: countSql, params: countParams, first: true })) as {
-      count: number;
-    } | null;
-    const total = Number(countResult?.count || 0);
+    try {
+      const countResult = (await this.executeQuery({
+        sql: countSql,
+        params: countParams,
+        first: true,
+      })) as {
+        count: number;
+      } | null;
+      const total = Number(countResult?.count || 0);
 
-    const currentOffset = page * perPage;
+      const currentOffset = page * perPage;
 
-    if (total === 0) {
-      return {
-        evals: [],
-        total: 0,
-        page,
-        perPage,
-        hasMore: false,
-      };
-    }
-
-    const dataQueryBuilder = createSqlBuilder().select('*').from(fullTableName);
-    if (conditions.length > 0) {
-      dataQueryBuilder.where(conditions.join(' AND '), ...queryParams);
-    }
-    dataQueryBuilder.orderBy('createdAt', 'DESC').limit(perPage).offset(currentOffset);
-
-    const { sql: dataSql, params: dataParams } = dataQueryBuilder.build();
-    const rows = await this.executeQuery({ sql: dataSql, params: dataParams });
-
-    const evals = (isArrayOfRecords(rows) ? rows : []).map((row: Record<string, any>) => {
-      const result = this.deserializeValue(row.result);
-      const testInfo = row.test_info ? this.deserializeValue(row.test_info) : undefined;
-
-      if (!result || typeof result !== 'object' || !('score' in result)) {
-        throw new Error(`Invalid MetricResult format: ${JSON.stringify(result)}`);
+      if (total === 0) {
+        return {
+          evals: [],
+          total: 0,
+          page,
+          perPage,
+          hasMore: false,
+        };
       }
 
+      const dataQueryBuilder = createSqlBuilder().select('*').from(fullTableName);
+      if (conditions.length > 0) {
+        dataQueryBuilder.where(conditions.join(' AND '), ...queryParams);
+      }
+      dataQueryBuilder.orderBy('createdAt', 'DESC').limit(perPage).offset(currentOffset);
+
+      const { sql: dataSql, params: dataParams } = dataQueryBuilder.build();
+      const rows = await this.executeQuery({
+        sql: dataSql,
+        params: dataParams,
+      });
+
+      const evals = (isArrayOfRecords(rows) ? rows : []).map((row: Record<string, any>) => {
+        const result = this.deserializeValue(row.result);
+        const testInfo = row.test_info ? this.deserializeValue(row.test_info) : undefined;
+
+        if (!result || typeof result !== 'object' || !('score' in result)) {
+          throw new Error(`Invalid MetricResult format: ${JSON.stringify(result)}`);
+        }
+
+        return {
+          input: row.input as string,
+          output: row.output as string,
+          result: result as MetricResult,
+          agentName: row.agent_name as string,
+          metricName: row.metric_name as string,
+          instructions: row.instructions as string,
+          testInfo: testInfo as TestInfo,
+          globalRunId: row.global_run_id as string,
+          runId: row.run_id as string,
+          createdAt: row.createdAt as string,
+        } as EvalRow;
+      });
+
+      const hasMore = currentOffset + evals.length < total;
+
       return {
-        input: row.input as string,
-        output: row.output as string,
-        result: result as MetricResult,
-        agentName: row.agent_name as string,
-        metricName: row.metric_name as string,
-        instructions: row.instructions as string,
-        testInfo: testInfo as TestInfo,
-        globalRunId: row.global_run_id as string,
-        runId: row.run_id as string,
-        createdAt: row.createdAt as string,
-      } as EvalRow;
-    });
-
-    const hasMore = currentOffset + evals.length < total;
-
-    return {
-      evals,
-      total,
-      page,
-      perPage,
-      hasMore,
-    };
+        evals,
+        total,
+        page,
+        perPage,
+        hasMore,
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_EVALS_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve evals for agent ${agentName}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          details: { agentName: agentName ?? '', type: type ?? '' },
+        },
+        error,
+      );
+    }
   }
 
   private parseWorkflowRun(row: any): WorkflowRun {
@@ -1455,7 +1805,11 @@ export class D1Store extends MastraStorage {
 
       if (limit !== undefined && offset !== undefined) {
         const { sql: countSql, params: countParams } = countBuilder.build();
-        const countResult = await this.executeQuery({ sql: countSql, params: countParams, first: true });
+        const countResult = await this.executeQuery({
+          sql: countSql,
+          params: countParams,
+          first: true,
+        });
         total = Number((countResult as Record<string, any>)?.count ?? 0);
       }
 
@@ -1463,10 +1817,19 @@ export class D1Store extends MastraStorage {
       const runs = (isArrayOfRecords(results) ? results : []).map((row: any) => this.parseWorkflowRun(row));
       return { runs, total: total || runs.length };
     } catch (error) {
-      this.logger.error('Error getting workflow runs:', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_WORKFLOW_RUNS_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve workflow runs: ${error instanceof Error ? error.message : String(error)}`,
+          details: {
+            workflowName: workflowName ?? '',
+            resourceId: resourceId ?? '',
+          },
+        },
+        error,
+      );
     }
   }
 
@@ -1495,10 +1858,16 @@ export class D1Store extends MastraStorage {
       if (!result) return null;
       return this.parseWorkflowRun(result);
     } catch (error) {
-      this.logger.error('Error getting workflow run by ID:', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_WORKFLOW_RUN_BY_ID_ERROR',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          text: `Failed to retrieve workflow run by ID: ${error instanceof Error ? error.message : String(error)}`,
+          details: { runId, workflowName: workflowName ?? '' },
+        },
+        error,
+      );
     }
   }
 
@@ -1509,5 +1878,19 @@ export class D1Store extends MastraStorage {
   async close(): Promise<void> {
     this.logger.debug('Closing D1 connection');
     // No explicit cleanup needed for D1
+  }
+
+  async updateMessages(_args: {
+    messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
+      {
+        id: string;
+        content?: {
+          metadata?: MastraMessageContentV2['metadata'];
+          content?: MastraMessageContentV2['content'];
+        };
+      }[];
+  }): Promise<MastraMessageV2[]> {
+    this.logger.error('updateMessages is not yet implemented in CloudflareD1Store');
+    throw new Error('Method not implemented');
   }
 }

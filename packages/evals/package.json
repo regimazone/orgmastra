@@ -1,6 +1,6 @@
 {
   "name": "@mastra/evals",
-  "version": "0.10.4-alpha.0",
+  "version": "0.10.5",
   "description": "",
   "type": "module",
   "files": [
@@ -60,7 +60,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "dependencies": {
     "compromise": "^14.14.4",
     "difflib": "^0.2.4",
@@ -68,7 +68,7 @@
     "keyword-extractor": "^0.0.28",
     "sentiment": "^5.0.2",
     "string-similarity": "^4.0.4",
-    "zod": "^3.25.57"
+    "zod": "^3.25.67"
   },
   "peerDependencies": {
     "@mastra/core": "^0.10.1-alpha.0",
@@ -84,10 +84,10 @@
     "@types/sentiment": "^5.0.4",
     "@types/string-similarity": "^4.0.2",
     "ai": "^4.3.16",
-    "dotenv": "^16.5.0",
-    "eslint": "^9.28.0",
+    "dotenv": "^17.0.0",
+    "eslint": "^9.30.1",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.4"
   }
 }

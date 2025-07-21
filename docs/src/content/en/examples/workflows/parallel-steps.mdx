@@ -315,10 +315,10 @@ const synthesizeStep = createStep({
 
     const prompt = `Indoor activities:
       ${indoorActivities?.activities}
- 
+
       Outdoor activities:
       ${outdoorActivities?.activities}
- 
+
       There is a chance of rain so be prepared to do indoor activities if needed.`;
 
     const agent = mastra?.getAgent("synthesizeAgent");
@@ -407,10 +407,17 @@ Here, we'll get the weather workflow from the mastra instance, then create a run
 import { mastra } from "./";
 
 const workflow = mastra.getWorkflow("activityPlanningWorkflow");
-const run = workflow.createRun();
+const run = await workflow.createRunAsync();
 
 // Execute the workflow with a specific city
 // This will run through all steps and generate activity recommendations
 const result = await run.start({ inputData: { city: "Ibiza" } });
 console.dir(result, { depth: null });
 ```
+
+## Workflows (Legacy)
+
+The following links provide example documentation for legacy workflows:
+
+- [Parallel Execution with Steps](/examples/workflows_legacy/parallel-steps)
+

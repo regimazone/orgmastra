@@ -12,6 +12,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { telemetry } from './telemetry-config.mjs';
+
 class CompositeExporter {
   constructor(exporters) {
     this.exporters = exporters;
@@ -126,11 +127,15 @@ const sdk = new NodeSDK({
   instrumentations: [getNodeAutoInstrumentations()],
 });
 
-sdk.start();
+if (telemetry.enabled !== false) {
+  sdk.start();
 
-// gracefully shut down the SDK on process exit
-process.on('SIGTERM', () => {
-  sdk.shutdown().catch(() => {
-    // do nothing
+  // gracefully shut down the SDK on process exit
+  process.on('SIGTERM', () => {
+    sdk.shutdown().catch(() => {
+      // do nothing
+    });
   });
-});
+}
+
+

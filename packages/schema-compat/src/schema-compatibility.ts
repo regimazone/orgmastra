@@ -1,6 +1,6 @@
 import type { Schema, LanguageModelV1 } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
-import { z, ZodOptional, ZodObject, ZodArray, ZodUnion, ZodString, ZodNumber, ZodDate, ZodDefault } from 'zod';
+import { z, ZodOptional, ZodObject, ZodArray, ZodUnion, ZodString, ZodNumber, ZodDate, ZodDefault, ZodNull } from 'zod';
 import type { ZodTypeAny } from 'zod';
 import type { Targets } from 'zod-to-json-schema';
 import { convertZodSchemaToAISDKSchema } from './utils';
@@ -29,6 +29,7 @@ export const ALL_ARRAY_CHECKS = ['min', 'max', 'length'] as const;
 
 export const isOptional = (v: ZodTypeAny): v is ZodOptional<any> => v instanceof ZodOptional;
 export const isObj = (v: ZodTypeAny): v is ZodObject<any, any, any> => v instanceof ZodObject;
+export const isNull = (v: ZodTypeAny): v is ZodNull => v instanceof ZodNull;
 export const isArr = (v: ZodTypeAny): v is ZodArray<any, any> => v instanceof ZodArray;
 export const isUnion = (v: ZodTypeAny): v is ZodUnion<[ZodTypeAny, ...ZodTypeAny[]]> => v instanceof ZodUnion;
 export const isString = (v: ZodTypeAny): v is ZodString => v instanceof ZodString;
@@ -232,7 +233,10 @@ export abstract class SchemaCompatLayer {
    * @param value - The Zod object to process
    * @returns The processed Zod object
    */
-  public defaultZodObjectHandler(value: ZodObject<any, any, any>): ZodObject<any, any, any> {
+  public defaultZodObjectHandler(
+    value: ZodObject<any, any, any>,
+    options: { passthrough?: boolean } = { passthrough: true },
+  ): ZodObject<any, any, any> {
     const processedShape = Object.entries(value.shape).reduce<Record<string, ZodTypeAny>>((acc, [key, propValue]) => {
       acc[key] = this.processZodType(propValue as ZodTypeAny);
       return acc;
@@ -250,6 +254,11 @@ export abstract class SchemaCompatLayer {
     if (value.description) {
       result = result.describe(value.description);
     }
+
+    if (options.passthrough && value._def.unknownKeys === 'passthrough') {
+      result = result.passthrough();
+    }
+
     return result;
   }
 
@@ -291,8 +300,8 @@ export abstract class SchemaCompatLayer {
     value: z.ZodTypeAny,
     throwOnTypes: readonly UnsupportedZodType[] = UNSUPPORTED_ZOD_TYPES,
   ): ShapeValue<T> {
-    if (throwOnTypes.includes(value._def.typeName as UnsupportedZodType)) {
-      throw new Error(`${this.model.modelId} does not support zod type: ${value._def.typeName}`);
+    if (throwOnTypes.includes(value._def?.typeName as UnsupportedZodType)) {
+      throw new Error(`${this.model.modelId} does not support zod type: ${value._def?.typeName}`);
     }
     return value as ShapeValue<T>;
   }

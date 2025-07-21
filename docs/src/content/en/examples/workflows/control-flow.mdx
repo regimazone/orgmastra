@@ -132,10 +132,20 @@ Here, we'll get the increment workflow from the mastra instance, then create a r
 import { mastra } from "./";
 
 const workflow = mastra.getWorkflow("incrementWorkflow");
-const run = workflow.createRun();
+const run = await workflow.createRunAsync();
 
 // Start the workflow with initial value 0
 // This will increment until reaching 10
 const result = await run.start({ inputData: { value: 0 } });
 console.dir(result, { depth: null });
 ```
+
+## Workflows (Legacy)
+
+The following links provide example documentation for legacy workflows:
+
+- [Workflow (Legacy) with Sequential Steps](/examples/workflows_legacy/sequential-steps)
+- [Parallel Execution with Steps](/examples/workflows_legacy/parallel-steps)
+- [Branching Paths](/examples/workflows_legacy/branching-paths)
+- [Workflow (Legacy) with Conditional Branching (experimental)](/examples/workflows_legacy/conditional-branching)
+- [Data Mapping with Workflow Variables (Legacy)](/examples/workflows_legacy/workflow-variables)

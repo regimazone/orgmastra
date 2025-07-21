@@ -11,6 +11,7 @@ import {
   waitUntilTableExists,
   waitUntilTableNotExists,
 } from '@aws-sdk/client-dynamodb';
+import { createSampleMessageV2, createSampleThread } from '@internal/storage-test-utils';
 import type { MastraMessageV1, StorageThreadType, WorkflowRun, WorkflowRunState } from '@mastra/core';
 import type { MastraMessageV2 } from '@mastra/core/agent';
 import { TABLE_EVALS, TABLE_THREADS, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
@@ -480,6 +481,123 @@ describe('DynamoDBStore Integration Tests', () => {
         expect(updatedThread).toBeDefined();
         expect(updatedThread!.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime());
       });
+
+      test('saveThread upsert: should create new thread when thread does not exist', async () => {
+        const threadId = `upsert-new-${randomUUID()}`;
+        const now = new Date();
+        const thread: StorageThreadType = {
+          id: threadId,
+          resourceId: 'resource-upsert-new',
+          title: 'New Thread via Upsert',
+          createdAt: now,
+          updatedAt: now,
+          metadata: { operation: 'create', test: true },
+        };
+
+        // Save the thread (should create new)
+        await expect(store.saveThread({ thread })).resolves.not.toThrow();
+
+        // Verify the thread was created
+        const retrieved = await store.getThreadById({ threadId });
+        expect(retrieved).toBeDefined();
+        expect(retrieved?.id).toBe(threadId);
+        expect(retrieved?.title).toBe('New Thread via Upsert');
+        expect(retrieved?.resourceId).toBe('resource-upsert-new');
+        expect(retrieved?.metadata).toEqual({ operation: 'create', test: true });
+      });
+
+      test('saveThread upsert: should update existing thread when thread already exists', async () => {
+        const threadId = `upsert-update-${randomUUID()}`;
+        const initialCreatedAt = new Date();
+
+        // Create initial thread
+        const initialThread: StorageThreadType = {
+          id: threadId,
+          resourceId: 'resource-upsert-initial',
+          title: 'Initial Thread Title',
+          createdAt: initialCreatedAt,
+          updatedAt: initialCreatedAt,
+          metadata: { operation: 'initial', version: 1 },
+        };
+        await store.saveThread({ thread: initialThread });
+
+        // Wait a small amount to ensure different timestamp
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Update the thread with same ID but different data
+        const updatedThread: StorageThreadType = {
+          id: threadId,
+          resourceId: 'resource-upsert-updated',
+          title: 'Updated Thread Title',
+          createdAt: initialCreatedAt, // Keep original creation time
+          updatedAt: new Date(), // New update time
+          metadata: { operation: 'update', version: 2 },
+        };
+        await expect(store.saveThread({ thread: updatedThread })).resolves.not.toThrow();
+
+        // Verify the thread was updated
+        const retrieved = await store.getThreadById({ threadId });
+        expect(retrieved).toBeDefined();
+        expect(retrieved?.id).toBe(threadId);
+        expect(retrieved?.title).toBe('Updated Thread Title');
+        expect(retrieved?.resourceId).toBe('resource-upsert-updated');
+        expect(retrieved?.metadata).toEqual({ operation: 'update', version: 2 });
+
+        // updatedAt should be newer than the initial creation time
+        expect(retrieved?.updatedAt.getTime()).toBeGreaterThan(initialCreatedAt.getTime());
+        // createdAt should remain exactly equal to the initial creation time
+        expect(retrieved?.createdAt.getTime()).toBe(initialCreatedAt.getTime());
+      });
+
+      test('saveThread upsert: should handle complex metadata updates', async () => {
+        const threadId = `upsert-metadata-${randomUUID()}`;
+        const initialMetadata = {
+          user: 'initial-user',
+          tags: ['initial', 'test'],
+          count: 1,
+        };
+
+        // Create initial thread with complex metadata
+        const initialThread: StorageThreadType = {
+          id: threadId,
+          resourceId: 'resource-metadata-test',
+          title: 'Metadata Test Thread',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: initialMetadata,
+        };
+        await store.saveThread({ thread: initialThread });
+
+        // Wait a small amount to ensure different timestamp
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Update with completely different metadata structure
+        const updatedMetadata = {
+          user: 'updated-user',
+          settings: { theme: 'light', language: 'ja', notifications: true },
+          tags: ['updated', 'upsert', 'complex'],
+          count: 5,
+          newField: { nested: { deeply: 'value' } },
+        };
+
+        const updatedThread: StorageThreadType = {
+          id: threadId,
+          resourceId: 'resource-metadata-test',
+          title: 'Updated Metadata Thread',
+          createdAt: initialThread.createdAt,
+          updatedAt: new Date(),
+          metadata: updatedMetadata,
+        };
+        await expect(store.saveThread({ thread: updatedThread })).resolves.not.toThrow();
+
+        // Verify the metadata was completely replaced
+        const retrieved = await store.getThreadById({ threadId });
+        expect(retrieved).toBeDefined();
+        expect(retrieved?.metadata).toEqual(updatedMetadata);
+        expect(retrieved?.metadata?.user).toBe('updated-user');
+        expect(retrieved?.metadata?.tags).toEqual(['updated', 'upsert', 'complex']);
+        expect(retrieved?.title).toBe('Updated Metadata Thread');
+      });
     });
 
     describe('Batch Operations', () => {
@@ -554,6 +672,82 @@ describe('DynamoDBStore Integration Tests', () => {
         // Add order check for the > 25 test as well
         expect(retrieved[0]?.content).toBe('Large Message 0');
         expect(retrieved[29]?.content).toBe('Large Message 29');
+      });
+
+      test('should upsert messages: duplicate id+threadId results in update, not duplicate row', async () => {
+        const thread = await createSampleThread();
+        await store.saveThread({ thread });
+        const baseMessage = createSampleMessageV2({
+          threadId: thread.id,
+          createdAt: new Date(),
+          content: { content: 'Original' },
+          resourceId: thread.resourceId,
+        });
+
+        // Insert the message for the first time
+        await store.saveMessages({ messages: [baseMessage], format: 'v2' });
+
+        // // Insert again with the same id and threadId but different content
+        const updatedMessage = {
+          ...createSampleMessageV2({
+            threadId: thread.id,
+            createdAt: new Date(),
+            content: { content: 'Updated' },
+            resourceId: thread.resourceId,
+          }),
+          id: baseMessage.id,
+        };
+
+        await store.saveMessages({ messages: [updatedMessage], format: 'v2' });
+
+        // Retrieve messages for the thread
+        const retrievedMessages = await store.getMessages({ threadId: thread.id, format: 'v2' });
+
+        // Only one message should exist for that id+threadId
+        expect(retrievedMessages.filter(m => m.id === baseMessage.id)).toHaveLength(1);
+
+        // The content should be the updated one
+        expect(retrievedMessages.find(m => m.id === baseMessage.id)?.content.content).toBe('Updated');
+      });
+
+      test('should upsert messages: duplicate id and different threadid', async () => {
+        const thread1 = await createSampleThread();
+        const thread2 = await createSampleThread();
+        await store.saveThread({ thread: thread1 });
+        await store.saveThread({ thread: thread2 });
+
+        const message = createSampleMessageV2({
+          threadId: thread1.id,
+          createdAt: new Date(),
+          content: { content: 'Thread1 Content' },
+          resourceId: thread1.resourceId,
+        });
+
+        // Insert message into thread1
+        await store.saveMessages({ messages: [message], format: 'v2' });
+
+        // Attempt to insert a message with the same id but different threadId
+        const conflictingMessage = {
+          ...createSampleMessageV2({
+            threadId: thread2.id, // different thread
+            content: { content: 'Thread2 Content' },
+            resourceId: thread2.resourceId,
+          }),
+          id: message.id,
+        };
+
+        // Save should save the message to the new thread
+        await store.saveMessages({ messages: [conflictingMessage], format: 'v2' });
+
+        // Retrieve messages for both threads
+        const thread1Messages = await store.getMessages({ threadId: thread1.id, format: 'v2' });
+        const thread2Messages = await store.getMessages({ threadId: thread2.id, format: 'v2' });
+
+        // Thread 1 should NOT have the message with that id
+        expect(thread1Messages.find(m => m.id === message.id)).toBeUndefined();
+
+        // Thread 2 should have the message with that id
+        expect(thread2Messages.find(m => m.id === message.id)?.content.content).toBe('Thread2 Content');
       });
     });
 
@@ -1286,4 +1480,4 @@ describe('DynamoDBStore Integration Tests', () => {
       ).toBeNull();
     });
   }); // End Generic Storage Methods describe
-}); // End Main Describe
+});

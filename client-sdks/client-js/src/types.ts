@@ -7,6 +7,9 @@ import type {
   WorkflowRuns,
   WorkflowRun,
   LegacyWorkflowRuns,
+  StorageGetMessagesArg,
+  PaginationInfo,
+  MastraMessageV2,
 } from '@mastra/core';
 import type { AgentGenerateOptions, AgentStreamOptions, ToolsInput } from '@mastra/core/agent';
 import type { BaseLogMessage, LogLevel } from '@mastra/core/logger';
@@ -34,6 +37,7 @@ export interface ClientOptions {
   /** Custom headers to include with requests */
   headers?: Record<string, string>;
   /** Abort signal for request */
+  abortSignal?: AbortSignal;
 }
 
 export interface RequestOptions {
@@ -41,7 +45,6 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   body?: any;
   stream?: boolean;
-  signal?: AbortSignal;
 }
 
 type WithoutMethods<T> = {
@@ -71,7 +74,9 @@ export type GenerateParams<T extends JSONSchema7 | ZodSchema | undefined = undef
   experimental_output?: T;
   runtimeContext?: RuntimeContext | Record<string, any>;
   clientTools?: ToolsInput;
-} & WithoutMethods<Omit<AgentGenerateOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools'>>;
+} & WithoutMethods<
+  Omit<AgentGenerateOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools' | 'abortSignal'>
+>;
 
 export type StreamParams<T extends JSONSchema7 | ZodSchema | undefined = undefined> = {
   messages: string | string[] | CoreMessage[] | AiMessageType[];
@@ -79,7 +84,9 @@ export type StreamParams<T extends JSONSchema7 | ZodSchema | undefined = undefin
   experimental_output?: T;
   runtimeContext?: RuntimeContext | Record<string, any>;
   clientTools?: ToolsInput;
-} & WithoutMethods<Omit<AgentStreamOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools'>>;
+} & WithoutMethods<
+  Omit<AgentStreamOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools' | 'abortSignal'>
+>;
 
 export interface GetEvalsByAgentIdResponse extends GetAgentResponse {
   evals: any[];
@@ -140,6 +147,17 @@ export interface GetWorkflowResponse {
       suspendSchema: string;
     };
   };
+  allSteps: {
+    [key: string]: {
+      id: string;
+      description: string;
+      inputSchema: string;
+      outputSchema: string;
+      resumeSchema: string;
+      suspendSchema: string;
+      isWorkflow: boolean;
+    };
+  };
   stepGraph: Workflow['serializedStepGraph'];
   inputSchema: string;
   outputSchema: string;
@@ -183,6 +201,11 @@ export interface SaveMessageToMemoryParams {
   agentId: string;
 }
 
+export interface SaveNetworkMessageToMemoryParams {
+  messages: MastraMessageV1[];
+  networkId: string;
+}
+
 export type SaveMessageToMemoryResponse = MastraMessageV1[];
 
 export interface CreateMemoryThreadParams {
@@ -193,11 +216,24 @@ export interface CreateMemoryThreadParams {
   agentId: string;
 }
 
+export interface CreateNetworkMemoryThreadParams {
+  title?: string;
+  metadata?: Record<string, any>;
+  resourceId: string;
+  threadId?: string;
+  networkId: string;
+}
+
 export type CreateMemoryThreadResponse = StorageThreadType;
 
 export interface GetMemoryThreadParams {
   resourceId: string;
   agentId: string;
+}
+
+export interface GetNetworkMemoryThreadParams {
+  resourceId: string;
+  networkId: string;
 }
 
 export type GetMemoryThreadResponse = StorageThreadType[];
@@ -215,10 +251,16 @@ export interface GetMemoryThreadMessagesParams {
   limit?: number;
 }
 
+export type GetMemoryThreadMessagesPaginatedParams = Omit<StorageGetMessagesArg, 'threadConfig' | 'threadId'>;
+
 export interface GetMemoryThreadMessagesResponse {
   messages: CoreMessage[];
   uiMessages: AiMessageType[];
 }
+
+export type GetMemoryThreadMessagesPaginatedResponse = PaginationInfo & {
+  messages: MastraMessageV1[] | MastraMessageV2[];
+};
 
 export interface GetLogsParams {
   transportId: string;
@@ -306,6 +348,7 @@ export interface GetTelemetryParams {
 }
 
 export interface GetNetworkResponse {
+  id: string;
   name: string;
   instructions: string;
   agents: Array<{
@@ -318,6 +361,71 @@ export interface GetNetworkResponse {
     modelId: string;
   };
   state?: Record<string, any>;
+}
+
+export interface GetVNextNetworkResponse {
+  id: string;
+  name: string;
+  instructions: string;
+  agents: Array<{
+    name: string;
+    provider: string;
+    modelId: string;
+  }>;
+  routingModel: {
+    provider: string;
+    modelId: string;
+  };
+  workflows: Array<{
+    name: string;
+    description: string;
+    inputSchema: string | undefined;
+    outputSchema: string | undefined;
+  }>;
+  tools: Array<{
+    id: string;
+    description: string;
+  }>;
+}
+
+export interface GenerateVNextNetworkResponse {
+  task: string;
+  result: string;
+  resourceId: string;
+  resourceType: 'none' | 'tool' | 'agent' | 'workflow';
+}
+
+export interface GenerateOrStreamVNextNetworkParams {
+  message: string;
+  threadId?: string;
+  resourceId?: string;
+  runtimeContext?: RuntimeContext | Record<string, any>;
+}
+
+export interface LoopStreamVNextNetworkParams {
+  message: string;
+  threadId?: string;
+  resourceId?: string;
+  maxIterations?: number;
+  runtimeContext?: RuntimeContext | Record<string, any>;
+}
+
+export interface LoopVNextNetworkResponse {
+  status: 'success';
+  result: {
+    task: string;
+    resourceId: string;
+    resourceType: 'agent' | 'workflow' | 'none' | 'tool';
+    result: string;
+    iteration: number;
+    isOneOff: boolean;
+    prompt: string;
+    threadId?: string | undefined;
+    threadResourceId?: string | undefined;
+    isComplete?: boolean | undefined;
+    completionReason?: string | undefined;
+  };
+  steps: WorkflowResult<any, any>['steps'];
 }
 
 export interface McpServerListResponse {

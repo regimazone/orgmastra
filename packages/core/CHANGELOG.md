@@ -1,5 +1,365 @@
 # @mastra/core
 
+## 0.11.0-alpha.1
+
+## 0.11.0-alpha.0
+
+### Patch Changes
+
+- 7827943: Handle streaming large data
+- bf1e7e7: Configure agent memory using runtimeContext
+- cbddd18: Remove erroneous reassignment of `Mastra.prototype.#vectors`
+
+## 0.10.15
+
+### Patch Changes
+
+- 0b56518: Ensure removed runtimeContext values are not saved in snapshot
+- db5cc15: Create thread if it does not exist yet in agent network stream, generate and loopStream
+- 2ba5b76: Allow passing jsonSchema into workingMemory schema
+- 5237998: Fix foreach output
+- c3a30de: added new experimental vnext working memory
+- 37c1acd: Format semantic recall messages grouped by dates and labeled by if they're from a different thread or not, to improve longmemeval scores
+- 1aa60b1: Pipe runtimeContext to vNext network agent stream and generate steps, wire up runtimeContext for vNext Networks in cliet SDK & playground
+- 89ec9d4: remove cohere-ai client dependency and just make a fetch call
+- cf3a184: Add warning log when memory is not configured but threadId/resourceId are passed to agent
+- d6bfd60: Simplify Message-List Merge Logic and Updates
+- 626b0f4: [Cloud-126] Working Memory Playground - Added working memory to playground to allow users to view/edit working memory
+- c22a91f: Fix nested workflow resume in loop workflow breaking
+- f7403ab: Only change workflow status to success after all steps are successful
+- 6c89d7f: Save runtimeContext in snapshot
+- Updated dependencies [4da943f]
+  - @mastra/schema-compat@0.10.5
+
+## 0.10.15-alpha.1
+
+### Patch Changes
+
+- 0b56518: Ensure removed runtimeContext values are not saved in snapshot
+- 2ba5b76: Allow passing jsonSchema into workingMemory schema
+- c3a30de: added new experimental vnext working memory
+- cf3a184: Add warning log when memory is not configured but threadId/resourceId are passed to agent
+- d6bfd60: Simplify Message-List Merge Logic and Updates
+- Updated dependencies [4da943f]
+  - @mastra/schema-compat@0.10.5-alpha.0
+
+## 0.10.15-alpha.0
+
+### Patch Changes
+
+- db5cc15: Create thread if it does not exist yet in agent network stream, generate and loopStream
+- 5237998: Fix foreach output
+- 37c1acd: Format semantic recall messages grouped by dates and labeled by if they're from a different thread or not, to improve longmemeval scores
+- 1aa60b1: Pipe runtimeContext to vNext network agent stream and generate steps, wire up runtimeContext for vNext Networks in cliet SDK & playground
+- 89ec9d4: remove cohere-ai client dependency and just make a fetch call
+- 626b0f4: [Cloud-126] Working Memory Playground - Added working memory to playground to allow users to view/edit working memory
+- c22a91f: Fix nested workflow resume in loop workflow breaking
+- f7403ab: Only change workflow status to success after all steps are successful
+- 6c89d7f: Save runtimeContext in snapshot
+
+## 0.10.14
+
+### Patch Changes
+
+- Update @mastra/deployer
+
+## 0.10.12
+
+### Patch Changes
+
+- b4a9811: Remove async-await of stream inside llm base class
+- 4d5583d: [Cloud-195] added retrieved memory messages to agent traces
+
+## 0.10.12-alpha.1
+
+### Patch Changes
+
+- 4d5583d: [Cloud-195] added retrieved memory messages to agent traces
+
+## 0.10.12-alpha.0
+
+### Patch Changes
+
+- b4a9811: Remove async-await of stream inside llm base class
+
+## 0.10.11
+
+### Patch Changes
+
+- 2873c7f: dependencies updates:
+  - Updated dependency [`dotenv@^16.6.1` ↗︎](https://www.npmjs.com/package/dotenv/v/16.6.1) (from `^16.5.0`, in `dependencies`)
+- 1c1c6a1: dependencies updates:
+  - Updated dependency [`hono@^4.8.4` ↗︎](https://www.npmjs.com/package/hono/v/4.8.4) (from `^4.8.3`, in `dependencies`)
+- f8ce2cc: Add stepId to workflow executeStep error log
+- 8c846b6: Fixed a problem where per-resource working memory wasn't being queried properly
+- c7bbf1e: Implement workflow retry delay
+- 8722d53: Fix multi modal remaining steps
+- 565cc0c: fix redirection when clicking on the playground breadcrumbs
+- b790fd1: Ability to pass a function to .sleep()/.sleepUntil()
+- 132027f: Check if workflow and step is suspended before resuming
+- 0c85311: Fix Google models ZodNull tool schema handling
+- d7ed04d: make workflow execute use createRunAsync
+- cb16baf: Fix MCP tool output schema type and return value
+- f36e4f1: Allow passing custom instructions to generateTitle to override default instructions.
+- 7f6e403: [MASTRA-3765] Save Message parts - Add ability for user to save messages on step finish for stream and agent
+- Updated dependencies [0c85311]
+  - @mastra/schema-compat@0.10.4
+
+## 0.10.11-alpha.4
+
+## 0.10.11-alpha.3
+
+### Patch Changes
+
+- c7bbf1e: Implement workflow retry delay
+- 8722d53: Fix multi modal remaining steps
+- 132027f: Check if workflow and step is suspended before resuming
+- 0c85311: Fix Google models ZodNull tool schema handling
+- cb16baf: Fix MCP tool output schema type and return value
+- Updated dependencies [0c85311]
+  - @mastra/schema-compat@0.10.4-alpha.0
+
+## 0.10.11-alpha.2
+
+### Patch Changes
+
+- 2873c7f: dependencies updates:
+  - Updated dependency [`dotenv@^16.6.1` ↗︎](https://www.npmjs.com/package/dotenv/v/16.6.1) (from `^16.5.0`, in `dependencies`)
+- 1c1c6a1: dependencies updates:
+  - Updated dependency [`hono@^4.8.4` ↗︎](https://www.npmjs.com/package/hono/v/4.8.4) (from `^4.8.3`, in `dependencies`)
+- 565cc0c: fix redirection when clicking on the playground breadcrumbs
+
+## 0.10.11-alpha.1
+
+### Patch Changes
+
+- 7f6e403: [MASTRA-3765] Save Message parts - Add ability for user to save messages on step finish for stream and agent
+
+## 0.10.11-alpha.0
+
+### Patch Changes
+
+- f8ce2cc: Add stepId to workflow executeStep error log
+- 8c846b6: Fixed a problem where per-resource working memory wasn't being queried properly
+- b790fd1: Ability to pass a function to .sleep()/.sleepUntil()
+- d7ed04d: make workflow execute use createRunAsync
+- f36e4f1: Allow passing custom instructions to generateTitle to override default instructions.
+
+## 0.10.10
+
+### Patch Changes
+
+- 4d3fbdf: Return tool error message rather than throw when a tool error happens for agent and tool playground page.
+
+## 0.10.10-alpha.1
+
+## 0.10.10-alpha.0
+
+### Patch Changes
+
+- 4d3fbdf: Return tool error message rather than throw when a tool error happens for agent and tool playground page.
+
+## 0.10.9
+
+### Patch Changes
+
+- 9dda1ac: dependencies updates:
+  - Updated dependency [`hono@^4.8.3` ↗︎](https://www.npmjs.com/package/hono/v/4.8.3) (from `^4.7.11`, in `dependencies`)
+- c984582: Improve error messages for invalid message content in MessageList
+- 7e801dd: [MASTRA-4118] fixes issue with agent network loopStream where subsequent messages aren't present in playground on refresh
+- a606c75: show right suspend schema for nested workflow on playground
+- 7aa70a4: Use the right step id for nested workflow steps in watch-v2
+- 764f86a: Introduces the runCount property in the execution parameters for the steps execute function
+- 1760a1c: Use workflow stream in playground instead of watch
+- 038e5ae: Add cancel workflow run
+- 7dda16a: Agent Network: Prompting improvements for better decisions
+- 5ebfcdd: Fix MessageList toUIMessage to filter out tool invocations with state="call" or "partial-call"
+- b2d0c91: Made title generation a blocking operation to prevent issues where the process might close before the title is generated
+- 4e809ad: Visualizations for .sleep()/.sleepUntil()/.waitForEvent()
+- 57929df: [MASTRA-4143[ change message-list and agent network display
+- b7852ed: [MASTRA-4139] make private functions protected in memory
+- 6320a61: Allow passing model to generateTitle to override default model selection.
+
+## 0.10.9-alpha.0
+
+### Patch Changes
+
+- 9dda1ac: dependencies updates:
+  - Updated dependency [`hono@^4.8.3` ↗︎](https://www.npmjs.com/package/hono/v/4.8.3) (from `^4.7.11`, in `dependencies`)
+- c984582: Improve error messages for invalid message content in MessageList
+- 7e801dd: [MASTRA-4118] fixes issue with agent network loopStream where subsequent messages aren't present in playground on refresh
+- a606c75: show right suspend schema for nested workflow on playground
+- 7aa70a4: Use the right step id for nested workflow steps in watch-v2
+- 764f86a: Introduces the runCount property in the execution parameters for the steps execute function
+- 1760a1c: Use workflow stream in playground instead of watch
+- 038e5ae: Add cancel workflow run
+- 7dda16a: Agent Network: Prompting improvements for better decisions
+- 5ebfcdd: Fix MessageList toUIMessage to filter out tool invocations with state="call" or "partial-call"
+- b2d0c91: Made title generation a blocking operation to prevent issues where the process might close before the title is generated
+- 4e809ad: Visualizations for .sleep()/.sleepUntil()/.waitForEvent()
+- 57929df: [MASTRA-4143[ change message-list and agent network display
+- b7852ed: [MASTRA-4139] make private functions protected in memory
+- 6320a61: Allow passing model to generateTitle to override default model selection.
+
+## 0.10.8
+
+### Patch Changes
+
+- b8f16b2: Fixes generateTitle overwriting working memory when both get used in the same LLM response cycle.
+- 3e04487: Fix provider tools to check for output schema before attaching to tool
+- a344ac7: Fix tool streaming in agent network
+- dc4ca0a: Fixed a regression where intentionally serialized JSON message content was being parsed back into an object by MessageList
+
+## 0.10.8-alpha.1
+
+### Patch Changes
+
+- b8f16b2: Fixes generateTitle overwriting working memory when both get used in the same LLM response cycle.
+- 3e04487: Fix provider tools to check for output schema before attaching to tool
+- dc4ca0a: Fixed a regression where intentionally serialized JSON message content was being parsed back into an object by MessageList
+
+## 0.10.8-alpha.0
+
+### Patch Changes
+
+- a344ac7: Fix tool streaming in agent network
+
+## 0.10.7
+
+### Patch Changes
+
+- 15e9d26: Added per-resource working memory for LibSQL, Upstash, and PG
+- d1baedb: fix bad merge with mastra error
+- d8f2d19: Add updateMessages API to storage classes (only support for PG and LibSQL for now) and to memory class. Additionally allow for metadata to be saved in the content field of a message.
+- 4d21bf2: throw mastra errors for MCP
+- 07d6d88: Bump MCP SDK version and add tool output schema support to MCPServer and MCPClient
+- 9d52b17: Fix inngest workflows streaming and add step metadata
+- 2097952: [MASTRA-4021] Fix PG getMessages and update messageLimit for all storage adapters
+- 792c4c0: feat: pass runId to onFinish
+- 5d74aab: Return isComplete of true in routing step when no resource is selected
+- a8b194f: Fix double tool call for working memory
+- 4fb0cc2: Type safe variable mapping
+- d2a7a31: Fix memory message context for when LLM providers throw an error if the first message is a tool call.
+- 502fe05: createRun() -> createRunAsync()
+- 144eb0b: [MASTRA-3669] Metadata Filter Types
+- 8ba1b51: Add custom routes by default to jsonapi
+- 4efcfa0: Added bail() method and more ergonomic suspend function return value
+- 0e17048: Throw mastra errors in storage packages
+- Updated dependencies [98bbe5a]
+- Updated dependencies [a853c43]
+  - @mastra/schema-compat@0.10.3
+
+## 0.10.7-alpha.5
+
+### Patch Changes
+
+- Updated dependencies [a853c43]
+  - @mastra/schema-compat@0.10.3-alpha.1
+
+## 0.10.7-alpha.4
+
+### Patch Changes
+
+- a8b194f: Fix double tool call for working memory
+
+## 0.10.7-alpha.3
+
+### Patch Changes
+
+- 792c4c0: feat: pass runId to onFinish
+- 502fe05: createRun() -> createRunAsync()
+- 4efcfa0: Added bail() method and more ergonomic suspend function return value
+
+## 0.10.7-alpha.2
+
+### Patch Changes
+
+- 15e9d26: Added per-resource working memory for LibSQL, Upstash, and PG
+- 07d6d88: Bump MCP SDK version and add tool output schema support to MCPServer and MCPClient
+- 5d74aab: Return isComplete of true in routing step when no resource is selected
+- 144eb0b: [MASTRA-3669] Metadata Filter Types
+- Updated dependencies [98bbe5a]
+  - @mastra/schema-compat@0.10.3-alpha.0
+
+## 0.10.7-alpha.1
+
+### Patch Changes
+
+- d1baedb: fix bad merge with mastra error
+- 4d21bf2: throw mastra errors for MCP
+- 2097952: [MASTRA-4021] Fix PG getMessages and update messageLimit for all storage adapters
+- 4fb0cc2: Type safe variable mapping
+- d2a7a31: Fix memory message context for when LLM providers throw an error if the first message is a tool call.
+- 0e17048: Throw mastra errors in storage packages
+
+## 0.10.7-alpha.0
+
+### Patch Changes
+
+- d8f2d19: Add updateMessages API to storage classes (only support for PG and LibSQL for now) and to memory class. Additionally allow for metadata to be saved in the content field of a message.
+- 9d52b17: Fix inngest workflows streaming and add step metadata
+- 8ba1b51: Add custom routes by default to jsonapi
+
+## 0.10.6
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`@opentelemetry/exporter-trace-otlp-grpc@^0.201.1` ↗︎](https://www.npmjs.com/package/@opentelemetry/exporter-trace-otlp-grpc/v/0.201.1) (from `^0.201.0`, in `dependencies`)
+  - Updated dependency [`@opentelemetry/exporter-trace-otlp-http@^0.201.1` ↗︎](https://www.npmjs.com/package/@opentelemetry/exporter-trace-otlp-http/v/0.201.1) (from `^0.201.0`, in `dependencies`)
+  - Updated dependency [`@opentelemetry/otlp-exporter-base@^0.201.1` ↗︎](https://www.npmjs.com/package/@opentelemetry/otlp-exporter-base/v/0.201.1) (from `^0.201.0`, in `dependencies`)
+  - Updated dependency [`@opentelemetry/otlp-transformer@^0.201.1` ↗︎](https://www.npmjs.com/package/@opentelemetry/otlp-transformer/v/0.201.1) (from `^0.201.0`, in `dependencies`)
+  - Updated dependency [`@opentelemetry/sdk-node@^0.201.1` ↗︎](https://www.npmjs.com/package/@opentelemetry/sdk-node/v/0.201.1) (from `^0.201.0`, in `dependencies`)
+  - Updated dependency [`@opentelemetry/semantic-conventions@^1.34.0` ↗︎](https://www.npmjs.com/package/@opentelemetry/semantic-conventions/v/1.34.0) (from `^1.33.0`, in `dependencies`)
+  - Updated dependency [`ai@^4.3.16` ↗︎](https://www.npmjs.com/package/ai/v/4.3.16) (from `^4.2.2`, in `dependencies`)
+  - Updated dependency [`cohere-ai@^7.17.1` ↗︎](https://www.npmjs.com/package/cohere-ai/v/7.17.1) (from `^7.16.0`, in `dependencies`)
+  - Updated dependency [`hono@^4.7.11` ↗︎](https://www.npmjs.com/package/hono/v/4.7.11) (from `^4.5.1`, in `dependencies`)
+  - Updated dependency [`hono-openapi@^0.4.8` ↗︎](https://www.npmjs.com/package/hono-openapi/v/0.4.8) (from `^0.4.6`, in `dependencies`)
+  - Updated dependency [`json-schema-to-zod@^2.6.1` ↗︎](https://www.npmjs.com/package/json-schema-to-zod/v/2.6.1) (from `^2.6.0`, in `dependencies`)
+  - Updated dependency [`pino@^9.7.0` ↗︎](https://www.npmjs.com/package/pino/v/9.7.0) (from `^9.6.0`, in `dependencies`)
+  - Updated dependency [`xstate@^5.19.4` ↗︎](https://www.npmjs.com/package/xstate/v/5.19.4) (from `^5.19.2`, in `dependencies`)
+- 12a95fc: Allow passing thread metadata to agent.generate and agent.stream. This will update or create the thread with the metadata passed in. Also simplifies the arguments for those two functions into a new memory property.
+- 4b0f8a6: Allow passing a string, ui message, core message, or mastra message to agent.genTitle and agent.generateTitleFromUserMessage to restore previously changed public behaviour
+- 51264a5: Fix fetchMemory return type and value
+- 8e6f677: Dynamic default llm options
+- d70c420: fix(core, memory): fix fetchMemory regression
+- ee9af57: Add api for polling run execution result and get run by id
+- 36f1c36: MCP Client and Server streamable http fixes
+- 2a16996: Working Memory Schema and Template
+- 10d352e: fix: bug in `workflow.parallel` return types causing type errors on c…
+- 9589624: Throw Mastra Errors when building and bundling mastra application
+- 53d3c37: Get workflows from an agent if not found from Mastra instance #5083
+- 751c894: pass resourceId
+- 577ce3a: deno support - use globalThis
+- 9260b3a: changeset
+
+## 0.10.6-alpha.5
+
+### Patch Changes
+
+- 12a95fc: Allow passing thread metadata to agent.generate and agent.stream. This will update or create the thread with the metadata passed in. Also simplifies the arguments for those two functions into a new memory property.
+- 51264a5: Fix fetchMemory return type and value
+- 8e6f677: Dynamic default llm options
+
+## 0.10.6-alpha.4
+
+### Patch Changes
+
+- 9589624: Throw Mastra Errors when building and bundling mastra application
+
+## 0.10.6-alpha.3
+
+### Patch Changes
+
+- d70c420: fix(core, memory): fix fetchMemory regression
+- 2a16996: Working Memory Schema and Template
+
+## 0.10.6-alpha.2
+
+### Patch Changes
+
+- 4b0f8a6: Allow passing a string, ui message, core message, or mastra message to agent.genTitle and agent.generateTitleFromUserMessage to restore previously changed public behaviour
+
 ## 0.10.6-alpha.1
 
 ### Patch Changes

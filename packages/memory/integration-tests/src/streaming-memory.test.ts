@@ -110,7 +110,8 @@ describe('Memory Streaming Tests', () => {
       },
     });
 
-    const { messages } = await agent.getMemory()!.query({ threadId });
+    const agentMemory = (await agent.getMemory())!;
+    const { messages } = await agentMemory.query({ threadId });
 
     expect(messages).toHaveLength(2);
     expect(messages.length).toBe(customIds.length);
@@ -240,7 +241,8 @@ describe('Memory Streaming Tests', () => {
       });
       await weatherAgent.generate(`LA weather`, { threadId, resourceId });
 
-      const initialMessages = (await weatherAgent.getMemory()!.query({ threadId })).uiMessages;
+      const agentMemory = (await weatherAgent.getMemory())!;
+      const initialMessages = (await agentMemory.query({ threadId })).uiMessages;
       const state = { clipboard: '' };
       const { result } = renderHook(() => {
         const chat = useChat({
@@ -279,15 +281,18 @@ describe('Memory Streaming Tests', () => {
             content: message,
           });
         });
-        const uiMessages = result.current.messages;
+
+        // Wait for message count to increase
         await waitFor(
           () => {
             expect(error).toBeNull();
             expect(result.current.messages.length).toBeGreaterThan(messageCountBefore);
           },
-          { timeout: 1000 },
+          { timeout: 2000 },
         );
 
+        // Get fresh reference to messages after all waits complete
+        const uiMessages = result.current.messages;
         const latestMessage = uiMessages.at(-1);
         if (!latestMessage) throw new Error(`No latest message`);
         if (

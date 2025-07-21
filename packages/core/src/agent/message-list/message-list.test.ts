@@ -116,7 +116,6 @@ describe('MessageList', () => {
             },
           ],
           parts: [
-            { type: 'step-start' },
             {
               type: 'tool-invocation',
               toolInvocation: {
@@ -156,7 +155,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, checking the weather.' },
               {
                 type: 'tool-invocation',
@@ -228,7 +226,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I can do that.' },
               {
                 type: 'tool-invocation',
@@ -300,7 +297,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: msg2.content[0].text },
               {
                 type: 'tool-invocation',
@@ -312,6 +308,10 @@ describe('MessageList', () => {
                   result: msg3.content[0].result,
                 },
               },
+              {
+                type: 'text',
+                text: msg4.content,
+              },
             ],
             toolInvocations: [
               {
@@ -320,24 +320,6 @@ describe('MessageList', () => {
                 toolCallId: msg2.content[1].toolCallId,
                 args: msg2.content[1].args,
                 result: msg3.content[0].result,
-              },
-            ],
-          },
-          threadId,
-          resourceId,
-        },
-        {
-          id: expect.any(String),
-          role: 'assistant',
-          createdAt: msg4.createdAt,
-          content: {
-            format: 2,
-            experimental_attachments: [],
-            parts: [
-              { type: 'step-start' },
-              {
-                type: 'text',
-                text: msg4.content,
               },
             ],
           },
@@ -365,11 +347,21 @@ describe('MessageList', () => {
         messages,
         responseMessages: [{ ...msg2, id: randomUUID() }],
       });
-      expect(new MessageList().add(messages, 'response').get.all.ui()).toEqual(
-        messages.map(m => ({ ...m, createdAt: expect.any(Date) })),
-      );
+      // Filter out tool invocations with state="call" from expected UI messages
+      const expectedUIMessages = messages.map(m => {
+        if (m.role === 'assistant' && m.parts && m.toolInvocations) {
+          return {
+            ...m,
+            parts: m.parts.filter(p => !(p.type === 'tool-invocation' && p.toolInvocation.state === 'call')),
+            toolInvocations: m.toolInvocations.filter(t => t.state === 'result'),
+            createdAt: expect.any(Date),
+          };
+        }
+        return { ...m, createdAt: expect.any(Date) };
+      });
+      expect(new MessageList().add(messages, 'response').get.all.ui()).toEqual(expectedUIMessages);
       list.add(messages, 'response');
-      expect(list.get.all.ui()).toEqual(messages.map(m => ({ ...m, createdAt: expect.any(Date) })));
+      expect(list.get.all.ui()).toEqual(expectedUIMessages);
 
       // msg3
       messages = appendResponseMessages({ messages, responseMessages: [{ id: randomUUID(), ...msg3 }] });
@@ -408,7 +400,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -478,7 +469,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -558,7 +548,7 @@ describe('MessageList', () => {
 
       const messageSequence = [msg1, msg2, msg3, msg4, msg5];
 
-      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'memory');
+      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'response');
 
       expect(list.get.all.v2()).toEqual([
         {
@@ -566,9 +556,9 @@ describe('MessageList', () => {
           role: 'assistant',
           createdAt: expect.any(Date),
           content: {
+            content: 'Final response.',
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 1: Call tool A' },
               {
                 type: 'tool-invocation',
@@ -580,28 +570,6 @@ describe('MessageList', () => {
                   result: 'Result A',
                 },
               },
-            ],
-            toolInvocations: [
-              {
-                state: 'result',
-                toolName: 'tool-a',
-                toolCallId: 'call-a-1',
-                args: {},
-                result: 'Result A',
-              },
-            ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: expect.any(String),
-          role: 'assistant',
-          createdAt: expect.any(Date),
-          content: {
-            format: 2,
-            parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Step 2: Call tool B' },
               {
                 type: 'tool-invocation',
@@ -613,8 +581,17 @@ describe('MessageList', () => {
                   result: 'Result B',
                 },
               },
+              { type: 'step-start' },
+              { type: 'text', text: 'Final response.' },
             ],
             toolInvocations: [
+              {
+                state: 'result',
+                toolName: 'tool-a',
+                toolCallId: 'call-a-1',
+                args: {},
+                result: 'Result A',
+              },
               {
                 state: 'result',
                 toolName: 'tool-b',
@@ -623,18 +600,6 @@ describe('MessageList', () => {
                 result: 'Result B',
               },
             ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: expect.any(String),
-          role: 'assistant',
-          createdAt: expect.any(Date),
-          content: {
-            format: 2,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'Final response.' }],
-            content: 'Final response.',
           },
           threadId,
           resourceId,
@@ -674,7 +639,7 @@ describe('MessageList', () => {
 
       const messageSequence = [userMsg, assistantMsgPart1, toolResultMsg, assistantMsgPart2];
 
-      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'memory');
+      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'response');
 
       expect(list.get.all.v2()).toEqual([
         {
@@ -696,7 +661,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -713,6 +677,12 @@ describe('MessageList', () => {
                   result: '{"data": "gathered"}', // Result from the tool message
                 },
               },
+              {
+                type: 'reasoning',
+                reasoning: '',
+                details: [{ type: 'text', text: 'Data gathered, now processing.', signature: 'sig-process' }],
+              },
+              { type: 'text', text: 'Task completed successfully with gathered data.' },
             ],
             toolInvocations: [
               {
@@ -722,25 +692,6 @@ describe('MessageList', () => {
                 args: { query: 'required data' },
                 result: '{"data": "gathered"}', // Result from the tool message
               },
-            ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: expect.any(String), // Should be the ID of the first assistant message in the sequence
-          role: 'assistant',
-          createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
-          content: {
-            format: 2,
-            parts: [
-              { type: 'step-start' },
-              {
-                type: 'reasoning',
-                reasoning: '',
-                details: [{ type: 'text', text: 'Data gathered, now processing.', signature: 'sig-process' }],
-              },
-              { type: 'text', text: 'Task completed successfully with gathered data.' },
             ],
           },
           threadId,
@@ -959,7 +910,7 @@ describe('MessageList', () => {
 
       const messageSequence = [userMsgV1, assistantMsgV1, toolResultMsgV1, assistantMsgUIV2];
 
-      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'memory');
+      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'response');
 
       expect(list.get.all.v2()).toEqual([
         {
@@ -981,7 +932,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Searching...' },
               {
                 type: 'tool-invocation',
@@ -993,6 +943,7 @@ describe('MessageList', () => {
                   result: 'Found relevant data.', // Result from the tool message
                 },
               },
+              { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
             toolInvocations: [
               {
@@ -1003,21 +954,6 @@ describe('MessageList', () => {
                 result: 'Found relevant data.', // Result from the tool message
               },
             ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: assistantMsgUIV2.id, // Should retain the original assistant message ID
-          role: 'assistant',
-          createdAt: expect.any(Date),
-          content: {
-            format: 2,
-            parts: [
-              { type: 'step-start' },
-              { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
-            ],
-            experimental_attachments: [],
           },
           threadId,
           resourceId,
@@ -1058,7 +994,7 @@ describe('MessageList', () => {
 
       const messageSequence = [userMsg, assistantMsgWithToolCall, toolResultMsg, assistantMsgWithFinalText];
 
-      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'memory');
+      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'response');
 
       expect(list.get.all.v2()).toEqual([
         {
@@ -1080,7 +1016,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will perform the task.' },
               {
                 type: 'tool-invocation',
@@ -1092,6 +1027,8 @@ describe('MessageList', () => {
                   result: 'Task completed successfully.',
                 },
               },
+              { type: 'step-start' },
+              { type: 'text', text: 'The task is now complete.' },
             ],
             toolInvocations: [
               {
@@ -1102,17 +1039,6 @@ describe('MessageList', () => {
                 result: 'Task completed successfully.',
               },
             ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: expect.any(String), // Should be the ID of the first assistant message in the sequence
-          role: 'assistant',
-          createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
-          content: {
-            format: 2,
-            parts: [{ type: 'step-start' }, { type: 'text', text: 'The task is now complete.' }],
             content: 'The task is now complete.',
           },
           threadId,
@@ -1179,7 +1105,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -1247,7 +1172,7 @@ describe('MessageList', () => {
         assistantMsgWithFinalText,
       ];
 
-      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'memory');
+      const list = new MessageList({ threadId, resourceId }).add(messageSequence, 'response');
 
       expect(list.get.all.v2()).toEqual([
         {
@@ -1268,9 +1193,8 @@ describe('MessageList', () => {
           createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
           content: {
             format: 2,
-            // content: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy.",
+            content: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy.",
             parts: [
-              { type: 'step-start' },
               { type: 'text', text: 'Okay, I will check the weather for both cities.' },
               {
                 type: 'tool-invocation',
@@ -1293,6 +1217,8 @@ describe('MessageList', () => {
                   result: '15°C, cloudy',
                 },
               },
+              { type: 'step-start' },
+              { type: 'text', text: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy." },
             ],
             toolInvocations: [
               {
@@ -1309,21 +1235,6 @@ describe('MessageList', () => {
                 args: { city: 'Paris' },
                 result: '15°C, cloudy',
               },
-            ],
-          },
-          threadId,
-          resourceId,
-        } satisfies MastraMessageV2,
-        {
-          id: expect.any(String), // Should be the ID of the first assistant message in the sequence
-          role: 'assistant',
-          createdAt: expect.any(Date), // Should be the timestamp of the last message in the sequence
-          content: {
-            format: 2,
-            content: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy.",
-            parts: [
-              { type: 'step-start' },
-              { type: 'text', text: "The weather in London is 20°C and sunny, and in Paris it's 15°C and cloudy." },
             ],
           },
           threadId,
@@ -1352,7 +1263,6 @@ describe('MessageList', () => {
           content: {
             format: 2,
             parts: [
-              { type: 'step-start' },
               {
                 type: 'reasoning',
                 reasoning: '',
@@ -1518,11 +1428,11 @@ describe('MessageList', () => {
         createdAt: `createdAt` in m && m.createdAt ? new Date(m.createdAt) : new Date(),
       })) as MastraMessageV1[];
 
-      const list = new MessageList({ threadId: '68' }).add(history, 'memory');
+      const list = new MessageList({ threadId: '68' }).add(history, 'response');
 
       const uiMessages = list.get.all.ui();
 
-      expect(uiMessages.length).toBe(10);
+      expect(uiMessages.length).toBe(9);
       const expectedMessages = [
         {
           id: 'c59c844b-0f1a-409a-995e-3382a3ee1eaa',
@@ -1537,7 +1447,7 @@ describe('MessageList', () => {
           role: 'assistant',
           content: 'Hello! How can I assist you today?',
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello! How can I assist you today?' }],
+          parts: [{ type: 'text', text: 'Hello! How can I assist you today?' }],
           reasoning: undefined,
           toolInvocations: undefined,
         },
@@ -1552,10 +1462,9 @@ describe('MessageList', () => {
         {
           id: '6a903ed0-1cf4-463d-8ea0-c13bd0896405',
           role: 'assistant',
-          content: '',
+          content: "Got it! You're in LA. What would you like to talk about or do today?",
           createdAt: expect.any(Date),
           parts: [
-            { type: 'step-start' },
             {
               type: 'tool-invocation',
               toolInvocation: {
@@ -1565,6 +1474,10 @@ describe('MessageList', () => {
                 args: { memory: '<user><location>LA</location></user>' },
                 result: { success: true },
               },
+            },
+            {
+              type: 'text',
+              text: "Got it! You're in LA. What would you like to talk about or do today?",
             },
           ],
           reasoning: undefined,
@@ -1579,22 +1492,6 @@ describe('MessageList', () => {
           ],
         },
         {
-          id: 'd1fc1d8e-2aca-47a8-8239-0bb761d63fd6',
-          role: 'assistant',
-          content: "Got it! You're in LA. What would you like to talk about or do today?",
-          createdAt: expect.any(Date),
-          parts: [
-            { type: 'step-start' },
-            {
-              type: 'text',
-              text: "Got it! You're in LA. What would you like to talk about or do today?",
-            },
-          ],
-          reasoning: undefined,
-          toolInvocations: undefined,
-        },
-
-        {
           id: '1b271c02-7762-4416-91e9-146a25ce9c73',
           role: 'user',
           content: 'Hello',
@@ -1607,7 +1504,7 @@ describe('MessageList', () => {
           role: 'assistant',
           content: 'Hello again! How can I help you today?',
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello again! How can I help you today?' }],
+          parts: [{ type: 'text', text: 'Hello again! How can I help you today?' }],
           reasoning: undefined,
           toolInvocations: undefined,
         },
@@ -1624,7 +1521,7 @@ describe('MessageList', () => {
           role: 'assistant',
           content: "Hi there! What's on your mind?",
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: "Hi there! What's on your mind?" }],
+          parts: [{ type: 'text', text: "Hi there! What's on your mind?" }],
           reasoning: undefined,
           toolInvocations: undefined,
         },
@@ -1661,7 +1558,7 @@ describe('MessageList', () => {
           id: newId,
           content: 'As a large language model...',
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'As a large language model...' }],
+          parts: [{ type: 'text', text: 'As a large language model...' }],
           reasoning: undefined,
           toolInvocations: undefined,
         } satisfies UIMessage,
@@ -1799,6 +1696,300 @@ describe('MessageList', () => {
         expect(list.get.all.ui().length).toBe(2); // user and assistant
       });
     });
+    it('handles upgrading from tool-invocation (call) to [step-start, tool-invocation (result)]', () => {
+      const latestMessage = {
+        id: 'msg-toolcall',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'call', toolCallId: 'call-xyz', toolName: 'foo', args: {} },
+            },
+          ],
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const messageV2 = {
+        ...latestMessage,
+        content: {
+          ...latestMessage.content,
+          parts: [
+            { type: 'step-start' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'call-xyz', toolName: 'foo', args: {}, result: 123 },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(latestMessage, 'memory');
+      list.add(messageV2, 'response');
+
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'call-xyz', toolName: 'foo', args: {}, result: 123 },
+        },
+      ]);
+    });
+    it('merges tool-invocation upgrade and prepends missing step-start/text', () => {
+      const latestMessage = {
+        id: 'msg-1',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'call', toolCallId: 'call-1', toolName: 'foo', args: {} },
+            },
+          ],
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const messageV2 = {
+        ...latestMessage,
+        content: {
+          ...latestMessage.content,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Let me do this.' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'call-1', toolName: 'foo', args: {}, result: 42 },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(latestMessage, 'memory');
+      list.add(messageV2, 'response');
+
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'Let me do this.' },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'call-1', toolName: 'foo', args: {}, result: 42 },
+        },
+      ]);
+    });
+    it('inserts step-start and upgrades tool-invocation', () => {
+      const latestMessage = {
+        id: 'msg-2',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'text', text: 'Doing it.' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'call', toolCallId: 'call-2', toolName: 'bar', args: {} },
+            },
+          ],
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const messageV2 = {
+        ...latestMessage,
+        content: {
+          ...latestMessage.content,
+          parts: [
+            { type: 'step-start' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'call-2', toolName: 'bar', args: {}, result: 100 },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(latestMessage, 'memory');
+      list.add(messageV2, 'response');
+
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'Doing it.' },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'call-2', toolName: 'bar', args: {}, result: 100 },
+        },
+      ]);
+    });
+    it('upgrades only matching tool-invocation and preserves order', () => {
+      const latestMessage = {
+        id: 'msg-3',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'tool-invocation', toolInvocation: { state: 'call', toolCallId: 'A', toolName: 'foo', args: {} } },
+            { type: 'tool-invocation', toolInvocation: { state: 'call', toolCallId: 'B', toolName: 'bar', args: {} } },
+          ],
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const messageV2 = {
+        ...latestMessage,
+        content: {
+          ...latestMessage.content,
+          parts: [
+            { type: 'step-start' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'B', toolName: 'bar', args: {}, result: 7 },
+            },
+            { type: 'tool-invocation', toolInvocation: { state: 'call', toolCallId: 'A', toolName: 'foo', args: {} } },
+          ],
+        },
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(latestMessage, 'memory');
+      list.add(messageV2, 'response');
+
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'tool-invocation', toolInvocation: { state: 'call', toolCallId: 'A', toolName: 'foo', args: {} } },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'B', toolName: 'bar', args: {}, result: 7 },
+        },
+      ]);
+    });
+    it('drops text not present in new canonical message', () => {
+      const latestMessage = {
+        id: 'msg-4',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Old reasoning' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'call', toolCallId: 'call-4', toolName: 'baz', args: {} },
+            },
+          ],
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const messageV2 = {
+        ...latestMessage,
+        content: {
+          ...latestMessage.content,
+          parts: [
+            { type: 'step-start' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'call-4', toolName: 'baz', args: {}, result: 5 },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(latestMessage, 'memory');
+      list.add(messageV2, 'response');
+
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'Old reasoning' },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'call-4', toolName: 'baz', args: {}, result: 5 },
+        },
+      ]);
+    });
+    it('merges incremental streaming updates step by step', () => {
+      const base = {
+        id: 'msg-5',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: { format: 2, parts: [], toolInvocations: [] },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      // Step 1: Only text
+      let list = new MessageList({ threadId, resourceId });
+      let msg1 = {
+        ...base,
+        content: { ...base.content, parts: [{ type: 'step-start' }, { type: 'text', text: 'First...' }] },
+      } satisfies MastraMessageV2;
+      list.add(msg1, 'memory');
+      expect(list.get.all.v2()[0].content.parts).toEqual([{ type: 'step-start' }, { type: 'text', text: 'First...' }]);
+
+      // Step 2: Add tool-invocation (call)
+      let msg2 = {
+        ...base,
+        content: {
+          ...base.content,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'First...' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'call', toolCallId: 'call-5', toolName: 'foo', args: {} },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+      list.add(msg2, 'memory');
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'First...' },
+        { type: 'tool-invocation', toolInvocation: { state: 'call', toolCallId: 'call-5', toolName: 'foo', args: {} } },
+      ]);
+
+      // Step 3: Upgrade tool-invocation to result
+      let msg3 = {
+        ...base,
+        content: {
+          ...base.content,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'First...' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: { state: 'result', toolCallId: 'call-5', toolName: 'foo', args: {}, result: 123 },
+            },
+          ],
+        },
+      } satisfies MastraMessageV2;
+      list.add(msg3, 'response');
+      expect(list.get.all.v2()[0].content.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'First...' },
+        {
+          type: 'tool-invocation',
+          toolInvocation: { state: 'result', toolCallId: 'call-5', toolName: 'foo', args: {}, result: 123 },
+        },
+      ]);
+    });
   });
 
   describe('core message sanitization', () => {
@@ -1854,6 +2045,403 @@ describe('MessageList', () => {
       expect(finalToolMsg?.content).toEqual([
         { type: 'tool-result', toolCallId: 'valid-1', toolName: 'tool-a', result: 'Result for valid-1' },
       ]);
+    });
+  });
+
+  describe('JSON content parsing regression', () => {
+    it('should handle the exact bug scenario: user calls JSON.stringify but content stays as string', () => {
+      const list = new MessageList({ threadId: 'test', resourceId: 'test' });
+
+      const inputData = {
+        linkedinUrl: 'https://www.linkedin.com/in/ex/',
+        enrichmentType: 'people',
+      };
+
+      const messageWithStringContent = {
+        role: 'user' as const,
+        content: JSON.stringify(inputData),
+      };
+
+      // This should work fine and the content should remain as a string
+      expect(() => list.add(messageWithStringContent, 'user')).not.toThrow();
+
+      // Verify the content remains as a JSON string (not parsed back to object)
+      const messages = list.get.all.v2();
+      expect(messages.length).toBe(1);
+      expect(messages[0].content.content).toBe(JSON.stringify(inputData)); // Should stay as string
+      expect(typeof messages[0].content.content).toBe('string'); // Should be a string, not an object
+    });
+
+    it('should not parse regular JSON string content back to objects', () => {
+      const list = new MessageList({ threadId: 'test', resourceId: 'test' });
+
+      // User sends a JSON string as content (valid use case)
+      const messageWithJSONString = {
+        role: 'user' as const,
+        content: '{"data": "value", "number": 42}',
+      };
+
+      // This should work and the content should remain as a string
+      expect(() => list.add(messageWithJSONString, 'user')).not.toThrow();
+
+      // The content should stay as a string, not be parsed to an object
+      const messages = list.get.all.v2();
+      expect(messages[0].content.content).toBe('{"data": "value", "number": 42}'); // Should stay as string
+      expect(typeof messages[0].content.content).toBe('string'); // Should be a string, not an object
+      expect(messages[0].content.parts).toEqual([
+        {
+          type: 'step-start',
+        },
+        {
+          type: 'text',
+          text: '{"data": "value", "number": 42}',
+        },
+      ]);
+    });
+  });
+
+  describe('toUIMessage filtering', () => {
+    it('should filter out tool invocations with state="call" when converting to UIMessage', () => {
+      const messageWithCallState: MastraMessageV2 = {
+        id: 'msg-1',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Let me check that for you.' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'call',
+                toolCallId: 'call-1',
+                toolName: 'getLuckyNumber',
+                args: {},
+              },
+            },
+          ],
+          toolInvocations: [
+            {
+              state: 'call',
+              toolCallId: 'call-1',
+              toolName: 'getLuckyNumber',
+              args: {},
+            },
+          ],
+        },
+        threadId: 'test-thread',
+        resourceId: 'test-resource',
+      };
+
+      const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
+      list.add(messageWithCallState, 'response');
+
+      const uiMessages = list.get.all.ui();
+      expect(uiMessages.length).toBe(1);
+
+      const uiMessage = uiMessages[0];
+      expect(uiMessage.role).toBe('assistant');
+      expect(uiMessage.parts).toEqual([
+        {
+          type: 'step-start',
+        },
+        {
+          type: 'text',
+          text: 'Let me check that for you.',
+        },
+      ]);
+
+      // Check that the tool invocation with state="call" is filtered out from parts
+      const toolInvocationParts = uiMessage.parts.filter(p => p.type === 'tool-invocation');
+      expect(toolInvocationParts.length).toBe(0);
+
+      // Check that text and step-start parts are preserved
+      expect(uiMessage.parts).toEqual([{ type: 'step-start' }, { type: 'text', text: 'Let me check that for you.' }]);
+
+      // Check that toolInvocations array is also filtered
+      expect(uiMessage.toolInvocations).toEqual([]);
+    });
+
+    it('should preserve tool invocations with state="result" when converting to UIMessage', () => {
+      const messageWithResultState: MastraMessageV2 = {
+        id: 'msg-2',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Your lucky number is:' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'result',
+                toolCallId: 'call-2',
+                toolName: 'getLuckyNumber',
+                args: {},
+                result: 42,
+              },
+            },
+          ],
+          toolInvocations: [
+            {
+              state: 'result',
+              toolCallId: 'call-2',
+              toolName: 'getLuckyNumber',
+              args: {},
+              result: 42,
+            },
+          ],
+        },
+        threadId: 'test-thread',
+        resourceId: 'test-resource',
+      };
+
+      const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
+      list.add(messageWithResultState, 'response');
+
+      const uiMessages = list.get.all.ui();
+      expect(uiMessages.length).toBe(1);
+
+      const uiMessage = uiMessages[0];
+      expect(uiMessage.role).toBe('assistant');
+      expect(uiMessage.parts).toEqual([
+        {
+          type: 'step-start',
+        },
+        {
+          type: 'text',
+          text: 'Your lucky number is:',
+        },
+        {
+          type: 'tool-invocation',
+          toolInvocation: {
+            state: 'result',
+            toolCallId: 'call-2',
+            toolName: 'getLuckyNumber',
+            args: {},
+            result: 42,
+          },
+        },
+      ]);
+
+      // Check that the tool invocation with state="result" is preserved
+      const toolInvocationParts = uiMessage.parts.filter(p => p.type === 'tool-invocation');
+      expect(toolInvocationParts.length).toBe(1);
+      expect(toolInvocationParts[0]).toEqual({
+        type: 'tool-invocation',
+        toolInvocation: {
+          state: 'result',
+          toolCallId: 'call-2',
+          toolName: 'getLuckyNumber',
+          args: {},
+          result: 42,
+        },
+      });
+
+      // Check that toolInvocations array also has the result
+      expect(uiMessage.toolInvocations).toEqual([
+        {
+          state: 'result',
+          toolCallId: 'call-2',
+          toolName: 'getLuckyNumber',
+          args: {},
+          result: 42,
+        },
+      ]);
+    });
+
+    it('should filter out partial-call states and preserve only results', () => {
+      const messageWithMixedStates: MastraMessageV2 = {
+        id: 'msg-3',
+        role: 'assistant',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'partial-call',
+                toolCallId: 'call-3',
+                toolName: 'searchTool',
+                args: { query: 'weather' },
+              },
+            },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'result',
+                toolCallId: 'call-4',
+                toolName: 'calculateTool',
+                args: { x: 10, y: 20 },
+                result: 30,
+              },
+            },
+          ],
+          toolInvocations: [
+            {
+              state: 'partial-call',
+              toolCallId: 'call-3',
+              toolName: 'searchTool',
+              args: { query: 'weather' },
+            },
+            {
+              state: 'result',
+              toolCallId: 'call-4',
+              toolName: 'calculateTool',
+              args: { x: 10, y: 20 },
+              result: 30,
+            },
+          ],
+        },
+        threadId: 'test-thread',
+        resourceId: 'test-resource',
+      };
+
+      const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
+      list.add(messageWithMixedStates, 'response');
+
+      const uiMessages = list.get.all.ui();
+      const uiMessage = uiMessages[0];
+
+      // Only the result state should be preserved
+      const toolInvocationParts = uiMessage.parts.filter(p => p.type === 'tool-invocation');
+      expect(toolInvocationParts.length).toBe(1);
+      expect(toolInvocationParts[0].toolInvocation.state).toBe('result');
+      expect(toolInvocationParts[0].toolInvocation.toolCallId).toBe('call-4');
+
+      // toolInvocations array should also only have the result
+      expect(uiMessage.toolInvocations).toHaveLength(1);
+      expect(uiMessage.toolInvocations[0].state).toBe('result');
+      expect(uiMessage.toolInvocations[0].toolCallId).toBe('call-4');
+    });
+
+    it('should handle clientTool scenario - filter call states when querying from memory', () => {
+      // Simulate the scenario from GitHub issue #5016
+      // Test that tool invocations with "call" state are filtered when converting to UI messages
+
+      const list = new MessageList({ threadId: 'test-thread', resourceId: 'test-resource' });
+
+      // Assistant message with tool invocation in "call" state (as saved in DB)
+      const assistantCallMessage: MastraMessageV2 = {
+        id: 'msg-assistant-1',
+        role: 'assistant',
+        createdAt: new Date('2024-01-01T10:00:00'),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Let me get your lucky number.' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'call',
+                toolCallId: 'call-lucky-1',
+                toolName: 'getLuckyNumber',
+                args: {},
+              },
+            },
+          ],
+          toolInvocations: [
+            {
+              state: 'call',
+              toolCallId: 'call-lucky-1',
+              toolName: 'getLuckyNumber',
+              args: {},
+            },
+          ],
+        },
+        threadId: 'test-thread',
+        resourceId: 'test-resource',
+      };
+
+      // Add message as if loaded from memory/database
+      list.add(assistantCallMessage, 'memory');
+
+      // When converting to UI messages (what the client sees)
+      const uiMessages = list.get.all.ui();
+      expect(uiMessages.length).toBe(1);
+
+      const uiMessage = uiMessages[0];
+      expect(uiMessage.role).toBe('assistant');
+      expect(uiMessage.parts).toEqual([
+        {
+          type: 'step-start',
+        },
+        {
+          type: 'text',
+          text: 'Let me get your lucky number.',
+        },
+      ]);
+
+      // Tool invocations with "call" state should be filtered out from parts
+      const toolInvocationParts = uiMessage.parts.filter(p => p.type === 'tool-invocation');
+      expect(toolInvocationParts.length).toBe(0); // Should be filtered out
+
+      // Only text and step-start parts should remain
+      expect(uiMessage.parts).toEqual([
+        { type: 'step-start' },
+        { type: 'text', text: 'Let me get your lucky number.' },
+      ]);
+
+      // toolInvocations array should be empty (filtered)
+      expect(uiMessage.toolInvocations).toEqual([]);
+
+      // Now test with a result state - should be preserved
+      const assistantResultMessage: MastraMessageV2 = {
+        id: 'msg-assistant-2',
+        role: 'assistant',
+        createdAt: new Date('2024-01-01T10:00:01'),
+        content: {
+          format: 2,
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'Your lucky number is:' },
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'result',
+                toolCallId: 'call-lucky-2',
+                toolName: 'getLuckyNumber',
+                args: {},
+                result: 42,
+              },
+            },
+          ],
+          toolInvocations: [
+            {
+              state: 'result',
+              toolCallId: 'call-lucky-2',
+              toolName: 'getLuckyNumber',
+              args: {},
+              result: 42,
+            },
+          ],
+        },
+        threadId: 'test-thread',
+        resourceId: 'test-resource',
+      };
+
+      list.add(assistantResultMessage, 'memory');
+
+      const uiMessages2 = list.get.all.ui();
+      expect(uiMessages2.length).toBe(2);
+
+      const uiMessageWithResult = uiMessages2[1];
+
+      // Tool invocations with "result" state should be preserved
+      const resultToolParts = uiMessageWithResult.parts.filter(p => p.type === 'tool-invocation');
+      expect(resultToolParts.length).toBe(1);
+      expect(resultToolParts[0].toolInvocation.state).toBe('result');
+      expect(resultToolParts[0].toolInvocation.result).toBe(42);
+
+      // toolInvocations array should have the result
+      expect(uiMessageWithResult.toolInvocations).toHaveLength(1);
+      expect(uiMessageWithResult.toolInvocations[0].state).toBe('result');
+      expect(uiMessageWithResult.toolInvocations[0].result).toBe(42);
     });
   });
 });

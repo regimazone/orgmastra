@@ -345,10 +345,18 @@ Here, we'll get the activity planning workflow from the mastra instance, then cr
 import { mastra } from "./";
 
 const workflow = mastra.getWorkflow("activityPlanningWorkflow");
-const run = workflow.createRun();
+const run = await workflow.createRunAsync();
 
 // Start the workflow with a city
 // This will fetch weather and plan activities based on conditions
 const result = await run.start({ inputData: { city: "New York" } });
 console.dir(result, { depth: null });
 ```
+
+## Workflows (Legacy)
+
+The following links provide example documentation for legacy workflows:
+
+- [Branching Paths](/examples/workflows_legacy/branching-paths)
+- [Workflow (Legacy) with Conditional Branching (experimental)](/examples/workflows_legacy/conditional-branching)
+

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { convertToCoreMessages } from 'ai';
-import type { CoreMessage, CoreSystemMessage, IDGenerator, Message, ToolInvocation, UIMessage } from 'ai';
+import type { CoreMessage, CoreSystemMessage, IDGenerator, Message, ToolCallPart, ToolInvocation, UIMessage } from 'ai';
+import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type { MastraMessageV1 } from '../../memory';
 import { isCoreMessage, isUiMessage } from '../../utils';
 import { convertToV1Messages } from './prompt/convert-to-mastra-v1';
@@ -15,6 +16,7 @@ export type MastraMessageContentV2 = {
   toolInvocations?: UIMessage['toolInvocations'];
   reasoning?: UIMessage['reasoning'];
   annotations?: UIMessage['annotations'];
+  metadata?: Record<string, unknown>;
 };
 
 export type MastraMessageV2 = {
@@ -26,6 +28,16 @@ export type MastraMessageV2 = {
   resourceId?: string;
   type?: string;
 };
+
+function isToolCallMessage(message: CoreMessage): boolean {
+  if (message.role === 'tool') {
+    return true;
+  }
+  if (message.role === 'assistant' && Array.isArray(message.content)) {
+    return message.content.some((part): part is ToolCallPart => part.type === 'tool-call');
+  }
+  return false;
+}
 
 export type MessageInput = UIMessage | Message | MastraMessageV1 | CoreMessage | MastraMessageV2;
 type MessageSource = 'memory' | 'response' | 'user' | 'system' | 'context';
@@ -48,19 +60,24 @@ export class MessageList {
   private userContextMessages = new Set<MastraMessageV2>();
 
   private generateMessageId?: IDGenerator;
+  private _agentNetworkAppend = false;
 
   constructor({
     threadId,
     resourceId,
     generateMessageId,
+    // @ts-ignore Flag for agent network messages
+    _agentNetworkAppend,
   }: { threadId?: string; resourceId?: string; generateMessageId?: IDGenerator } = {}) {
     if (threadId) {
       this.memoryInfo = { threadId, resourceId };
       this.generateMessageId = generateMessageId;
     }
+    this._agentNetworkAppend = _agentNetworkAppend || false;
   }
 
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
+    if (!messages) return this;
     for (const message of Array.isArray(messages) ? messages : [messages]) {
       this.addOne(
         typeof message === `string`
@@ -94,7 +111,15 @@ export class MessageList {
     ui: () => this.messages.map(MessageList.toUIMessage),
     core: () => this.convertToCoreMessages(this.all.ui()),
     prompt: () => {
-      return [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...this.all.core()];
+      const coreMessages = this.all.core();
+
+      // Some LLM providers will throw an error if the first message is a tool call.
+      while (coreMessages[0] && isToolCallMessage(coreMessages[0])) {
+        coreMessages.shift();
+      }
+
+      const messages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...coreMessages];
+      return messages;
     },
   };
   private remembered = {
@@ -118,6 +143,13 @@ export class MessageList {
     this.newResponseMessages.clear();
     return messages;
   }
+  public getEarliestUnsavedMessageTimestamp(): number | undefined {
+    const unsavedMessages = this.messages.filter(m => this.newUserMessages.has(m) || this.newResponseMessages.has(m));
+    if (unsavedMessages.length === 0) return undefined;
+    // Find the earliest createdAt among unsaved messages
+    return Math.min(...unsavedMessages.map(m => new Date(m.createdAt).getTime()));
+  }
+
   public getSystemMessages(tag?: string): CoreMessage[] {
     if (tag) {
       return this.taggedSystemMessages[tag] || [];
@@ -208,6 +240,12 @@ export class MessageList {
             contentType: part.mimeType,
             url: part.data,
           });
+        } else if (
+          part.type === 'tool-invocation' &&
+          (part.toolInvocation.state === 'call' || part.toolInvocation.state === 'partial-call')
+        ) {
+          // Filter out tool invocations with call or partial-call states
+          continue;
         } else {
           parts.push(part);
         }
@@ -236,7 +274,8 @@ export class MessageList {
         createdAt: m.createdAt,
         parts,
         reasoning: undefined,
-        toolInvocations: `toolInvocations` in m.content ? m.content.toolInvocations : undefined,
+        toolInvocations:
+          `toolInvocations` in m.content ? m.content.toolInvocations?.filter(t => t.state === 'result') : undefined,
       };
     }
 
@@ -269,15 +308,39 @@ export class MessageList {
     };
   }
   private addOne(message: MessageInput, messageSource: MessageSource) {
+    if (
+      (!(`content` in message) ||
+        (!message.content &&
+          // allow empty strings
+          typeof message.content !== 'string')) &&
+      (!(`parts` in message) || !message.parts)
+    ) {
+      throw new MastraError({
+        id: 'INVALID_MESSAGE_CONTENT',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: `Message with role "${message.role}" must have either a 'content' property (string or array) or a 'parts' property (array) that is not empty, null, or undefined. Received message: ${JSON.stringify(message, null, 2)}`,
+        details: {
+          role: message.role as string,
+          messageSource,
+          hasContent: 'content' in message,
+          hasParts: 'parts' in message,
+        },
+      });
+    }
+
     if (message.role === `system` && MessageList.isVercelCoreMessage(message)) return this.addSystem(message);
     if (message.role === `system`) {
-      throw new Error(
-        `A non-CoreMessage system message was added - this is not supported as we didn't expect this could happen. Please open a Github issue and let us know what you did to get here. This is the non-CoreMessage system message we received:
-
-messageSource: ${messageSource}
-
-${JSON.stringify(message, null, 2)}`,
-      );
+      throw new MastraError({
+        id: 'INVALID_SYSTEM_MESSAGE_FORMAT',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: `Invalid system message format. System messages must be CoreMessage format with 'role' and 'content' properties. The content should be a string or valid content array.`,
+        details: {
+          messageSource,
+          receivedMessage: JSON.stringify(message, null, 2),
+        },
+      });
     }
 
     const messageV2 = this.inputToMastraMessageV2(message, messageSource);
@@ -285,25 +348,6 @@ ${JSON.stringify(message, null, 2)}`,
     const { exists, shouldReplace, id } = this.shouldReplaceMessage(messageV2);
 
     const latestMessage = this.messages.at(-1);
-
-    const singleToolResult =
-      messageV2.role === `assistant` &&
-      messageV2.content.parts.length === 1 &&
-      messageV2.content.parts[0]?.type === `tool-invocation` &&
-      messageV2.content.parts[0].toolInvocation.state === `result` &&
-      messageV2.content.parts[0];
-
-    if (
-      singleToolResult &&
-      (latestMessage?.role !== `assistant` ||
-        !latestMessage.content.parts.some(
-          p =>
-            p.type === `tool-invocation` && p.toolInvocation.toolCallId === singleToolResult.toolInvocation.toolCallId,
-        ))
-    ) {
-      // remove any tool results that aren't updating a tool call
-      return;
-    }
 
     if (messageSource === `memory`) {
       for (const existingMessage of this.messages) {
@@ -314,68 +358,74 @@ ${JSON.stringify(message, null, 2)}`,
       }
     }
     // If the last message is an assistant message and the new message is also an assistant message, merge them together and update tool calls with results
-    const latestMessagePartType = latestMessage?.content?.parts?.filter(p => p.type !== `step-start`)?.at?.(-1)?.type;
-    const newMessageFirstPartType = messageV2.content.parts.filter(p => p.type !== `step-start`).at(0)?.type;
     const shouldAppendToLastAssistantMessage =
       latestMessage?.role === 'assistant' &&
       messageV2.role === 'assistant' &&
-      latestMessage.threadId === messageV2.threadId;
-    const shouldAppendToLastAssistantMessageParts =
-      shouldAppendToLastAssistantMessage &&
-      newMessageFirstPartType &&
-      ((newMessageFirstPartType === `tool-invocation` && latestMessagePartType !== `text`) ||
-        newMessageFirstPartType === latestMessagePartType);
-
-    if (
-      // backwards compat check!
-      // this condition can technically be removed and it will make it so all new assistant parts will be added to the last assistant message parts instead of creating new db entries.
-      // however, for any downstream code that isn't based around using message parts yet, this may cause tool invocations to show up in the wrong order in their UI, because they use the message.toolInvocations and message.content properties which do not indicate how each is ordered in relation to each other.
-      // this code check then causes any tool invocation to be created as a new message and not update the previous assistant message parts.
-      // without this condition we will see something like
-      // parts: [{type:"step-start"}, {type: "text", text: "let me check the weather"}, {type: "tool-invocation", toolInvocation: x}, {type: "text", text: "the weather in x is y"}]
-      // with this condition we will see
-      // message1.parts: [{type:"step-start"}, {type: "text", text: "let me check the weather"}]
-      // message2.parts: [{type: "tool-invocation", toolInvocation: x}]
-      // message3.parts: [{type: "text", text: "the weather in x is y"}]
-      shouldAppendToLastAssistantMessageParts
-    ) {
+      latestMessage.threadId === messageV2.threadId &&
+      // If the message is from memory, don't append to the last assistant message
+      messageSource !== 'memory';
+    // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
+    const appendNetworkMessage =
+      (this._agentNetworkAppend && latestMessage && !this.memoryMessages.has(latestMessage)) ||
+      !this._agentNetworkAppend;
+    if (shouldAppendToLastAssistantMessage && appendNetworkMessage) {
       latestMessage.createdAt = messageV2.createdAt || latestMessage.createdAt;
+
+      // Used for mapping indexes for messageV2 parts to corresponding indexes in latestMessage
+      const toolResultAnchorMap = new Map<number, number>();
+      const partsToAdd = new Map<number, MastraMessageContentV2['parts'][number]>();
 
       for (const [index, part] of messageV2.content.parts.entries()) {
         // If the incoming part is a tool-invocation result, find the corresponding call in the latest message
-        if (part.type === 'tool-invocation' && part.toolInvocation.state === 'result') {
+        if (part.type === 'tool-invocation') {
           const existingCallPart = [...latestMessage.content.parts]
             .reverse()
             .find(p => p.type === 'tool-invocation' && p.toolInvocation.toolCallId === part.toolInvocation.toolCallId);
 
-          if (existingCallPart && existingCallPart.type === 'tool-invocation') {
-            // Update the existing tool-call part with the result
-            existingCallPart.toolInvocation = {
-              ...existingCallPart.toolInvocation,
-              state: 'result',
-              result: part.toolInvocation.result,
-            };
-            if (!latestMessage.content.toolInvocations) {
-              latestMessage.content.toolInvocations = [];
-            }
-            if (
-              !latestMessage.content.toolInvocations.some(
+          const existingCallToolInvocation = !!existingCallPart && existingCallPart.type === 'tool-invocation';
+
+          if (existingCallToolInvocation) {
+            if (part.toolInvocation.state === 'result') {
+              // Update the existing tool-call part with the result
+              existingCallPart.toolInvocation = {
+                ...existingCallPart.toolInvocation,
+                step: part.toolInvocation.step,
+                state: 'result',
+                result: part.toolInvocation.result,
+                args: {
+                  ...existingCallPart.toolInvocation.args,
+                  ...part.toolInvocation.args,
+                },
+              };
+              if (!latestMessage.content.toolInvocations) {
+                latestMessage.content.toolInvocations = [];
+              }
+              const toolInvocationIndex = latestMessage.content.toolInvocations.findIndex(
                 t => t.toolCallId === existingCallPart.toolInvocation.toolCallId,
-              )
-            ) {
-              latestMessage.content.toolInvocations.push(existingCallPart.toolInvocation);
+              );
+              if (toolInvocationIndex === -1) {
+                latestMessage.content.toolInvocations.push(existingCallPart.toolInvocation);
+              } else {
+                latestMessage.content.toolInvocations[toolInvocationIndex] = existingCallPart.toolInvocation;
+              }
             }
+            // Map the index of the tool call in messageV2 to the index of the tool call in latestMessage
+            const existingIndex = latestMessage.content.parts.findIndex(p => p === existingCallPart);
+            toolResultAnchorMap.set(index, existingIndex);
+            // Otherwise we do nothing, as we're not updating the tool call
+          } else {
+            partsToAdd.set(index, part);
           }
-        } else if (
-          // if there's no part at this index yet in the existing message we're merging into
-          !latestMessage.content.parts[index] ||
-          // or there is and the parts are not identical
-          MessageList.cacheKeyFromParts([latestMessage.content.parts[index]]) !== MessageList.cacheKeyFromParts([part])
-        ) {
-          // For all other part types that aren't already present, simply push them to the latest message's parts
-          latestMessage.content.parts.push(part);
+        } else {
+          partsToAdd.set(index, part);
         }
       }
+      this.addPartsToLatestMessage({
+        latestMessage,
+        messageV2,
+        anchorMap: toolResultAnchorMap,
+        partsToAdd,
+      });
       if (latestMessage.createdAt.getTime() < messageV2.createdAt.getTime()) {
         latestMessage.createdAt = messageV2.createdAt;
       }
@@ -390,23 +440,16 @@ ${JSON.stringify(message, null, 2)}`,
         // Match what AI SDK does - content string is always the latest text part.
         latestMessage.content.content = messageV2.content.content;
       }
-      // This code would combine attachment only messages onto the prev message,
-      // but for anyone using CoreMessage or MastraMessageV1 still they would lose the ordering in multi-step interactions
-      // } else if (couldMoveAttachmentsToPreviousMessage && messageV2.content.experimental_attachments?.length) {
-      //   latestMessage.content.experimental_attachments ||= [];
-      //   latestMessage.content.experimental_attachments.push(...messageV2.content.experimental_attachments);
-      //   if (latestMessage.createdAt.getTime() < messageV2.createdAt.getTime()) {
-      //     latestMessage.createdAt = messageV2.createdAt;
-      //   }
+
+      // If latest message gets appended to, it should be added to the proper source
+      this.pushMessageToSource(latestMessage, messageSource);
     }
     // Else the last message and this message are not both assistant messages OR an existing message has been updated and should be replaced. add a new message to the array or update an existing one.
     else {
-      if (messageV2.role === 'assistant' && messageV2.content.parts[0]?.type !== `step-start`) {
-        // Add step-start part for new assistant messages
-        messageV2.content.parts.unshift({ type: 'step-start' });
+      let existingIndex = -1;
+      if (shouldReplace) {
+        existingIndex = this.messages.findIndex(m => m.id === id);
       }
-
-      const existingIndex = (shouldReplace && this.messages.findIndex(m => m.id === id)) || -1;
       const existingMessage = existingIndex !== -1 && this.messages[existingIndex];
 
       if (shouldReplace && existingMessage) {
@@ -415,23 +458,133 @@ ${JSON.stringify(message, null, 2)}`,
         this.messages.push(messageV2);
       }
 
-      if (messageSource === `memory`) {
-        this.memoryMessages.add(messageV2);
-      } else if (messageSource === `response`) {
-        this.newResponseMessages.add(messageV2);
-      } else if (messageSource === `user`) {
-        this.newUserMessages.add(messageV2);
-      } else if (messageSource === `context`) {
-        this.userContextMessages.add(messageV2);
-      } else {
-        throw new Error(`Missing message source for message ${messageV2}`);
-      }
+      this.pushMessageToSource(messageV2, messageSource);
     }
 
     // make sure messages are always stored in order of when they were created!
     this.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     return this;
+  }
+
+  private pushMessageToSource(messageV2: MastraMessageV2, messageSource: MessageSource) {
+    if (messageSource === `memory`) {
+      this.memoryMessages.add(messageV2);
+    } else if (messageSource === `response`) {
+      this.newResponseMessages.add(messageV2);
+    } else if (messageSource === `user`) {
+      this.newUserMessages.add(messageV2);
+    } else if (messageSource === `context`) {
+      this.userContextMessages.add(messageV2);
+    } else {
+      throw new Error(`Missing message source for message ${messageV2}`);
+    }
+  }
+
+  /**
+   * Pushes a new message part to the latest message.
+   * @param latestMessage - The latest message to push the part to.
+   * @param newMessage - The new message to push the part from.
+   * @param part - The part to push.
+   * @param insertAt - The index at which to insert the part. Optional.
+   */
+  private pushNewMessagePart({
+    latestMessage,
+    newMessage,
+    part,
+    insertAt, // optional
+  }: {
+    latestMessage: MastraMessageV2;
+    newMessage: MastraMessageV2;
+    part: MastraMessageContentV2['parts'][number];
+    insertAt?: number;
+  }) {
+    const partKey = MessageList.cacheKeyFromParts([part]);
+    const latestPartCount = latestMessage.content.parts.filter(
+      p => MessageList.cacheKeyFromParts([p]) === partKey,
+    ).length;
+    const newPartCount = newMessage.content.parts.filter(p => MessageList.cacheKeyFromParts([p]) === partKey).length;
+    // If the number of parts in the latest message is less than the number of parts in the new message, insert the part
+    if (latestPartCount < newPartCount) {
+      if (typeof insertAt === 'number') {
+        latestMessage.content.parts.splice(insertAt, 0, part);
+      } else {
+        latestMessage.content.parts.push(part);
+      }
+    }
+  }
+
+  /**
+   * Upserts parts of messageV2 into latestMessage based on the anchorMap.
+   * This is used when appending a message to the last assistant message to ensure that parts are inserted in the correct order.
+   * @param latestMessage - The latest message to upsert parts into.
+   * @param messageV2 - The message to upsert parts from.
+   * @param anchorMap - The anchor map to use for upserting parts.
+   */
+  private addPartsToLatestMessage({
+    latestMessage,
+    messageV2,
+    anchorMap,
+    partsToAdd,
+  }: {
+    latestMessage: MastraMessageV2;
+    messageV2: MastraMessageV2;
+    anchorMap: Map<number, number>;
+    partsToAdd: Map<number, MastraMessageContentV2['parts'][number]>;
+  }) {
+    // Walk through messageV2, inserting any part not present at the canonical position
+    for (let i = 0; i < messageV2.content.parts.length; ++i) {
+      const part = messageV2.content.parts[i];
+      if (!part) continue;
+      const key = MessageList.cacheKeyFromParts([part]);
+      const partToAdd = partsToAdd.get(i);
+      if (!key || !partToAdd) continue;
+      if (anchorMap.size > 0) {
+        if (anchorMap.has(i)) continue; // skip anchors
+        // Find left anchor in messageV2
+        const leftAnchorV2 = [...anchorMap.keys()].filter(idx => idx < i).pop() ?? -1;
+        // Find right anchor in messageV2
+        const rightAnchorV2 = [...anchorMap.keys()].find(idx => idx > i) ?? -1;
+
+        // Map to latestMessage
+        const leftAnchorLatest = leftAnchorV2 !== -1 ? anchorMap.get(leftAnchorV2)! : 0;
+
+        // Compute offset from anchor
+        const offset = leftAnchorV2 === -1 ? i : i - leftAnchorV2;
+
+        // Insert at proportional position
+        const insertAt = leftAnchorLatest + offset;
+
+        const rightAnchorLatest =
+          rightAnchorV2 !== -1 ? anchorMap.get(rightAnchorV2)! : latestMessage.content.parts.length;
+
+        if (
+          insertAt >= 0 &&
+          insertAt <= rightAnchorLatest &&
+          !latestMessage.content.parts
+            .slice(insertAt, rightAnchorLatest)
+            .some(p => MessageList.cacheKeyFromParts([p]) === MessageList.cacheKeyFromParts([part]))
+        ) {
+          this.pushNewMessagePart({
+            latestMessage,
+            newMessage: messageV2,
+            part,
+            insertAt,
+          });
+          for (const [v2Idx, latestIdx] of anchorMap.entries()) {
+            if (latestIdx >= insertAt) {
+              anchorMap.set(v2Idx, latestIdx + 1);
+            }
+          }
+        }
+      } else {
+        this.pushNewMessagePart({
+          latestMessage,
+          newMessage: messageV2,
+          part,
+        });
+      }
+    }
   }
 
   private inputToMastraMessageV2(message: MessageInput, messageSource: MessageSource): MastraMessageV2 {
@@ -709,7 +862,7 @@ ${JSON.stringify(message, null, 2)}`,
       if (part.type === `text`) {
         // TODO: we may need to hash this with something like xxhash instead of using length
         // for 99.999% of cases this will be fine though because we're comparing messages that have the same ID already.
-        key += part.text.length;
+        key += `${part.text.length}${part.text}`;
       }
       if (part.type === `tool-invocation`) {
         key += part.toolInvocation.toolCallId;

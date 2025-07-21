@@ -1,14 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import { google } from '@ai-sdk/google';
 import { openai } from '@ai-sdk/openai';
 import { Mastra } from '@mastra/core';
+import type { CoreMessage } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
+import { MockStore } from '@mastra/core/storage';
 import { fastembed } from '@mastra/fastembed';
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { weatherTool } from './mastra/tools/weather';
+import { memoryProcessorAgent, weatherAgent } from './mastra/agents/weather';
+import { weatherTool, weatherToolCity } from './mastra/tools/weather';
 
 describe('Agent Memory Tests', () => {
   const dbFile = 'file:mastra-agent.db';
@@ -32,8 +36,10 @@ describe('Agent Memory Tests', () => {
         url: dbFile,
       }),
     });
-    await expect(mastra.getAgent('agent').getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
-    await expect(agent.getMemory()!.query({ threadId: '1' })).resolves.not.toThrow();
+    const agentMemory = (await mastra.getAgent('agent').getMemory())!;
+    await expect(agentMemory.query({ threadId: '1' })).resolves.not.toThrow();
+    const agentMemory2 = (await agent.getMemory())!;
+    await expect(agentMemory2.query({ threadId: '1' })).resolves.not.toThrow();
   });
 
   describe('Agent memory message persistence', () => {
@@ -76,7 +82,8 @@ describe('Agent Memory Tests', () => {
       );
 
       // Fetch messages from memory
-      const { messages, uiMessages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages, uiMessages } = await agentMemory.query({ threadId });
       const userMessages = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content);
       const userUiMessages = uiMessages.filter((m: any) => m.role === 'user').map((m: any) => m.content);
 
@@ -103,7 +110,8 @@ describe('Agent Memory Tests', () => {
       });
 
       // Fetch messages from memory
-      const { messages, uiMessages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages, uiMessages } = await agentMemory.query({ threadId });
       const userMessages = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content);
       const userUiMessages = uiMessages.filter((m: any) => m.role === 'user').map((m: any) => m.content);
       const assistantMessages = messages.filter((m: any) => m.role === 'assistant').map((m: any) => m.content);
@@ -144,7 +152,8 @@ describe('Agent Memory Tests', () => {
       });
 
       // Fetch messages from memory
-      const { messages } = await agent.getMemory()!.query({ threadId });
+      const agentMemory = (await agent.getMemory())!;
+      const { messages } = await agentMemory.query({ threadId });
 
       // Assert that the context messages are NOT saved
       const savedContextMessages = messages.filter(
@@ -276,5 +285,148 @@ describe('Agent Memory Tests', () => {
       expect(existingThread).toBeDefined();
       expect(existingThread?.metadata).toMatchObject(metadata);
     });
+  });
+});
+
+describe('Agent with message processors', () => {
+  it('should apply processors to filter tool messages from context', async () => {
+    const threadId = randomUUID();
+    const resourceId = 'processor-filter-tool-message';
+
+    // First, ask a question that will trigger a tool call
+    const firstResponse = await memoryProcessorAgent.generate('What is the weather in London?', {
+      threadId,
+      resourceId,
+    });
+
+    // The response should contain the weather.
+    expect(firstResponse.text).toContain('65');
+
+    // Check that tool calls were saved to memory
+    const agentMemory = (await memoryProcessorAgent.getMemory())!;
+    const { messages: messagesFromMemory } = await agentMemory.query({ threadId });
+    const toolMessages = messagesFromMemory.filter(
+      m => m.role === 'tool' || (m.role === 'assistant' && typeof m.content !== 'string'),
+    );
+
+    expect(toolMessages.length).toBeGreaterThan(0);
+
+    // Now, ask a follow-up question. The processor should prevent the tool call history
+    // from being sent to the model.
+    const secondResponse = await memoryProcessorAgent.generate('What was the tool you just used?', {
+      threadId,
+      resourceId,
+    });
+
+    const secondResponseRequestMessages: CoreMessage[] = JSON.parse(secondResponse.request.body as string).messages;
+
+    expect(secondResponseRequestMessages.length).toBe(4);
+    // Filter out tool messages and tool results, should be the same as above.
+    expect(
+      secondResponseRequestMessages.filter(m => m.role !== 'tool' || (m as any)?.tool_calls?.[0]?.type !== 'function')
+        .length,
+    ).toBe(4);
+  }, 30_000);
+});
+
+describe('Agent.fetchMemory', () => {
+  it('should return messages from memory', async () => {
+    const threadId = randomUUID();
+    const resourceId = 'fetch-memory-test';
+
+    const response = await weatherAgent.generate('Just a simple greeting to populate memory.', {
+      threadId,
+      resourceId,
+    });
+
+    const { messages } = await weatherAgent.fetchMemory({ threadId, resourceId });
+
+    expect(messages).toBeDefined();
+    if (!messages) return;
+
+    expect(messages.length).toBe(2); // user message + assistant response
+
+    const userMessage = messages.find(m => m.role === 'user');
+    expect(userMessage).toBeDefined();
+    if (!userMessage) return;
+    expect(userMessage.content[0]).toEqual({ type: 'text', text: 'Just a simple greeting to populate memory.' });
+
+    const assistantMessage = messages.find(m => m.role === 'assistant');
+    expect(assistantMessage).toBeDefined();
+    if (!assistantMessage) return;
+    expect(assistantMessage.content).toEqual([{ type: 'text', text: response.text }]);
+  }, 30_000);
+
+  it('should apply processors when fetching memory', async () => {
+    const threadId = randomUUID();
+    const resourceId = 'fetch-memory-processor-test';
+
+    await memoryProcessorAgent.generate('What is the weather in London?', { threadId, resourceId });
+
+    const { messages } = await memoryProcessorAgent.fetchMemory({ threadId, resourceId });
+
+    expect(messages).toBeDefined();
+    if (!messages) return;
+
+    const hasToolRelatedMessage = messages.some(
+      m => m.role === 'tool' || (Array.isArray(m.content) && m.content.some(c => c.type === 'tool-call')),
+    );
+    expect(hasToolRelatedMessage).toBe(false);
+
+    const userMessage = messages.find(m => m.role === 'user');
+    expect(userMessage).toBeDefined();
+    if (!userMessage) return;
+    expect(userMessage.content[0]).toEqual({ type: 'text', text: 'What is the weather in London?' });
+  }, 30_000);
+
+  it('should return nothing if thread does not exist', async () => {
+    const threadId = randomUUID();
+    const resourceId = 'fetch-memory-no-thread';
+
+    const result = await weatherAgent.fetchMemory({ threadId, resourceId });
+
+    expect(result.messages).toEqual([]);
+    expect(result.threadId).toBe(threadId);
+  });
+});
+
+describe('Agent memory test gemini', () => {
+  const memory = new Memory({
+    storage: new MockStore(),
+    options: {
+      threads: {
+        generateTitle: false,
+      },
+      lastMessages: 2,
+    },
+  });
+
+  const agent = new Agent({
+    name: 'gemini-agent',
+    instructions:
+      'You are a weather agent. When asked about weather in any city, use the get_weather tool with the city name.',
+    model: google.chat('gemini-2.5-flash-preview-05-20'),
+    memory,
+    tools: { get_weather: weatherToolCity },
+  });
+
+  const resource = 'weatherAgent-memory-test';
+  const thread = new Date().getTime().toString();
+
+  it('should not throw error when using gemini', async () => {
+    // generate two messages in the db
+    await agent.generate(`What's the weather in Tokyo?`, {
+      memory: { resource, thread },
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Will throw if the messages sent to the agent aren't cleaned up because a tool call message will be the first message sent to the agent
+    // Which some providers like gemini will not allow.
+    await expect(
+      agent.generate(`What's the weather in London?`, {
+        memory: { resource, thread },
+      }),
+    ).resolves.not.toThrow();
   });
 });

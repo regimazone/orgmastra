@@ -56,18 +56,41 @@ export class DevBundler extends Bundler {
     const toolsInputOptions = await this.getToolsInputOptions(toolsPaths);
 
     const outputDir = join(outputDirectory, this.outputDir);
-    await writeTelemetryConfig(entryFile, outputDir);
-    await this.writeInstrumentationFile(outputDir);
+    await writeTelemetryConfig({
+      entryFile,
+      outputDir,
+      options: {},
+      logger: this.logger,
+    });
+
+    const mastraFolder = dirname(entryFile);
+    const fileService = new FileService();
+    const customInstrumentation = fileService.getFirstExistingFileOrUndefined([
+      join(mastraFolder, 'instrumentation.js'),
+      join(mastraFolder, 'instrumentation.ts'),
+      join(mastraFolder, 'instrumentation.mjs'),
+    ]);
+
+    await this.writeInstrumentationFile(outputDir, customInstrumentation);
+
     await this.writePackageJson(outputDir, new Map(), {});
 
-    this.logger.info('Installing dependencies');
-    await this.installDependencies(outputDirectory);
-    this.logger.info('Done installing dependencies');
-
     const copyPublic = this.copyPublic.bind(this);
+
     const watcher = await createWatcher(
       {
         ...inputOptions,
+        logLevel: inputOptions.logLevel === 'silent' ? 'warn' : inputOptions.logLevel,
+        onwarn: warning => {
+          if (warning.code === 'CIRCULAR_DEPENDENCY') {
+            if (warning.ids?.[0]?.includes('node_modules')) {
+              return;
+            }
+
+            this.logger.warn(`Circular dependency found:
+\t${warning.message.replace('Circular dependency: ', '')}`);
+          }
+        },
         plugins: [
           // @ts-ignore - types are good
           // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -92,10 +115,22 @@ export class DevBundler extends Bundler {
           {
             name: 'tools-watcher',
             async buildEnd() {
-              const toolsInputPaths = Array.from(Object.keys(toolsInputOptions || {}))
+              const toolImports: string[] = [];
+              const toolsExports: string[] = [];
+              Array.from(Object.keys(toolsInputOptions || {}))
                 .filter(key => key.startsWith('tools/'))
-                .map(key => `./${key}.mjs`);
-              await writeFile(join(outputDir, 'tools.mjs'), `export const tools = ${JSON.stringify(toolsInputPaths)};`);
+                .forEach((key, index) => {
+                  const toolExport = `tool${index}`;
+                  toolImports.push(`import * as ${toolExport} from './${key}.mjs';`);
+                  toolsExports.push(toolExport);
+                });
+
+              await writeFile(
+                join(outputDir, 'tools.mjs'),
+                `${toolImports.join('\n')}
+        
+                export const tools = [${toolsExports.join(', ')}]`,
+              );
             },
           },
         ],

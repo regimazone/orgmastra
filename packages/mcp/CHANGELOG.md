@@ -1,5 +1,153 @@
 # @mastra/mcp
 
+## 0.10.6
+
+### Patch Changes
+
+- f5ec3a4: Fix tool calling args for mcp server to ensure validatedArgs are not undefined
+- ab3bbff: Add support for extra arguments in mcp
+- c0ba5e2: Handle json schema with $defs and $ref property for MCP tool schemas.
+- cb16baf: Fix MCP tool output schema type and return value
+- Updated dependencies [2873c7f]
+- Updated dependencies [1c1c6a1]
+- Updated dependencies [f8ce2cc]
+- Updated dependencies [8c846b6]
+- Updated dependencies [c7bbf1e]
+- Updated dependencies [8722d53]
+- Updated dependencies [565cc0c]
+- Updated dependencies [b790fd1]
+- Updated dependencies [132027f]
+- Updated dependencies [0c85311]
+- Updated dependencies [d7ed04d]
+- Updated dependencies [cb16baf]
+- Updated dependencies [f36e4f1]
+- Updated dependencies [7f6e403]
+  - @mastra/core@0.10.11
+
+## 0.10.6-alpha.1
+
+### Patch Changes
+
+- c0ba5e2: Handle json schema with $defs and $ref property for MCP tool schemas.
+- cb16baf: Fix MCP tool output schema type and return value
+- Updated dependencies [c7bbf1e]
+- Updated dependencies [8722d53]
+- Updated dependencies [132027f]
+- Updated dependencies [0c85311]
+- Updated dependencies [cb16baf]
+  - @mastra/core@0.10.11-alpha.3
+
+## 0.10.6-alpha.0
+
+### Patch Changes
+
+- f5ec3a4: Fix tool calling args for mcp server to ensure validatedArgs are not undefined
+- ab3bbff: Add support for extra arguments in mcp
+- Updated dependencies [2873c7f]
+- Updated dependencies [1c1c6a1]
+- Updated dependencies [565cc0c]
+  - @mastra/core@0.10.11-alpha.2
+
+## 0.10.5
+
+### Patch Changes
+
+- ee93d96: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.12.3` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.12.3) (from `^1.12.1`, in `dependencies`)
+- c00039d: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.13.0` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.13.0) (from `^1.12.3`, in `dependencies`)
+- 4d21bf2: throw mastra errors for MCP
+- 07d6d88: Bump MCP SDK version and add tool output schema support to MCPServer and MCPClient
+- dc93062: Add elicitation support to MCPServer and MCPClient. Also fixes connectivity issues between multiple MCPClient instances and an MCPServer.
+- Updated dependencies [15e9d26]
+- Updated dependencies [d1baedb]
+- Updated dependencies [d8f2d19]
+- Updated dependencies [4d21bf2]
+- Updated dependencies [07d6d88]
+- Updated dependencies [9d52b17]
+- Updated dependencies [2097952]
+- Updated dependencies [792c4c0]
+- Updated dependencies [5d74aab]
+- Updated dependencies [a8b194f]
+- Updated dependencies [4fb0cc2]
+- Updated dependencies [d2a7a31]
+- Updated dependencies [502fe05]
+- Updated dependencies [144eb0b]
+- Updated dependencies [8ba1b51]
+- Updated dependencies [4efcfa0]
+- Updated dependencies [0e17048]
+  - @mastra/core@0.10.7
+
+## 0.10.5-alpha.2
+
+### Patch Changes
+
+- dc93062: Add elicitation support to MCPServer and MCPClient. Also fixes connectivity issues between multiple MCPClient instances and an MCPServer.
+- Updated dependencies [a8b194f]
+  - @mastra/core@0.10.7-alpha.4
+
+## 0.10.5-alpha.1
+
+### Patch Changes
+
+- ee93d96: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.12.3` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.12.3) (from `^1.12.1`, in `dependencies`)
+- c00039d: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.13.0` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.13.0) (from `^1.12.3`, in `dependencies`)
+- 07d6d88: Bump MCP SDK version and add tool output schema support to MCPServer and MCPClient
+- Updated dependencies [15e9d26]
+- Updated dependencies [07d6d88]
+- Updated dependencies [5d74aab]
+- Updated dependencies [144eb0b]
+  - @mastra/core@0.10.7-alpha.2
+
+## 0.10.5-alpha.0
+
+### Patch Changes
+
+- 4d21bf2: throw mastra errors for MCP
+- Updated dependencies [d1baedb]
+- Updated dependencies [4d21bf2]
+- Updated dependencies [2097952]
+- Updated dependencies [4fb0cc2]
+- Updated dependencies [d2a7a31]
+- Updated dependencies [0e17048]
+  - @mastra/core@0.10.7-alpha.1
+
+## 0.10.4
+
+### Patch Changes
+
+- 63f6b7d: dependencies updates:
+  - Updated dependency [`@modelcontextprotocol/sdk@^1.12.1` ↗︎](https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.12.1) (from `^1.10.2`, in `dependencies`)
+  - Updated dependency [`hono@^4.7.11` ↗︎](https://www.npmjs.com/package/hono/v/4.7.11) (from `^4.7.4`, in `dependencies`)
+- 36f1c36: MCP Client and Server streamable http fixes
+- bd1674f: Change how connection promise works for client connection
+- 69f76f7: Fix Agents as tools when building mastra mcp server
+- Updated dependencies [63f6b7d]
+- Updated dependencies [12a95fc]
+- Updated dependencies [4b0f8a6]
+- Updated dependencies [51264a5]
+- Updated dependencies [8e6f677]
+- Updated dependencies [d70c420]
+- Updated dependencies [ee9af57]
+- Updated dependencies [36f1c36]
+- Updated dependencies [2a16996]
+- Updated dependencies [10d352e]
+- Updated dependencies [9589624]
+- Updated dependencies [53d3c37]
+- Updated dependencies [751c894]
+- Updated dependencies [577ce3a]
+- Updated dependencies [9260b3a]
+  - @mastra/core@0.10.6
+
+## 0.10.4-alpha.1
+
+### Patch Changes
+
+- bd1674f: Change how connection promise works for client connection
+- 69f76f7: Fix Agents as tools when building mastra mcp server
+
 ## 0.10.4-alpha.0
 
 ### Patch Changes
@@ -196,7 +344,6 @@
   Added a new `getResources()` method to the MCPClient class that allows clients to retrieve resources from connected MCP servers. Resources are data or content exposed by MCP servers that can be accessed by clients.
 
   The implementation includes:
-
   - Direct access to resources from all connected MCP servers, grouped by server name
   - Robust error handling that allows partial results when some servers fail
   - Comprehensive test coverage with real server implementation
@@ -275,7 +422,6 @@
   Added a new `getResources()` method to the MCPClient class that allows clients to retrieve resources from connected MCP servers. Resources are data or content exposed by MCP servers that can be accessed by clients.
 
   The implementation includes:
-
   - Direct access to resources from all connected MCP servers, grouped by server name
   - Robust error handling that allows partial results when some servers fail
   - Comprehensive test coverage with real server implementation

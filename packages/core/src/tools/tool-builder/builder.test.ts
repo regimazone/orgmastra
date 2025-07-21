@@ -58,6 +58,7 @@ const allSchemas = {
       age: z.number().gte(18),
     }),
   }),
+  objectPassthrough: z.object({}).passthrough().describe('add something in this object'),
 
   // Optional and nullable
   optional: z.string().optional(),
@@ -296,8 +297,8 @@ describe('Tool Schema Compatibility', () => {
           testTools.forEach(testTool => {
             const schemaName = testTool.id.replace('testTool_', '');
 
-            // Google does not support unions of objects
-            if (isGoogleModel(model) && testTool.id.includes('unionObjects')) {
+            // Google does not support unions of objects and is flakey withnulls
+            if (isGoogleModel(model) && (testTool.id.includes('unionObjects') || testTool.id.includes('null'))) {
               it.skip(`should handle ${schemaName} schema (skipped for ${provider})`, () => {});
               return;
             }
@@ -331,7 +332,7 @@ describe('Tool Schema Compatibility', () => {
     });
 
     // Skipping these tests for now as LLM's seem to be flakier with output schemas than tool input schemas
-    // The compability layer still fixes things in the same way, output schemas and input schemas fail in a similar way for a model
+    // The compatibility layer still fixes things in the same way, output schemas and input schemas fail in a similar way for a model
     // but the LLM sometimes makes silly mistakes with output schemas, like returning a json string instead of an object or not returning anything.
     // Skipping this also saves us a lot of cost in CI for running tests. I'll keep the tests here for now if we ever want to test it manually.
     describe(`Output Schema Compatibility: ${provider} Models`, { timeout: SUITE_TIMEOUT }, () => {

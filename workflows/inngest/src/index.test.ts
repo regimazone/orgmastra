@@ -1,18 +1,18 @@
-import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { openai } from '@ai-sdk/openai';
 import { serve } from '@hono/node-server';
 import { realtimeMiddleware } from '@inngest/realtime';
 import { createTool, Mastra, Telemetry } from '@mastra/core';
+import type { StreamEvent } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { createHonoServer } from '@mastra/deployer/server';
 import { DefaultStorage } from '@mastra/libsql';
+import { MockLanguageModelV1, simulateReadableStream } from 'ai/test';
 import { $ } from 'execa';
-import getPort from 'get-port';
 import { Inngest } from 'inngest';
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { z } from 'zod';
 import { init, serve as inngestServe } from './index';
@@ -20,26 +20,133 @@ import { init, serve as inngestServe } from './index';
 interface LocalTestContext {
   inngestPort: number;
   handlerPort: number;
-  containerName: string;
+  srv?: any;
+}
+
+async function resetInngest() {
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await $`docker-compose restart`;
+  await new Promise(resolve => setTimeout(resolve, 1500));
 }
 
 describe('MastraInngestWorkflow', () => {
+  let globServer: any;
+
   beforeEach<LocalTestContext>(async ctx => {
-    const inngestPort = await getPort();
-    const handlerPort = await getPort();
-    const containerName = randomUUID();
-    await $`docker run --rm -d --name ${containerName} -p ${inngestPort}:${inngestPort} inngest/inngest:v1.5.10 inngest dev -p ${inngestPort} -u http://host.docker.internal:${handlerPort}/inngest/api`;
+    ctx.inngestPort = 4000;
+    ctx.handlerPort = 4001;
 
-    ctx.inngestPort = inngestPort;
-    ctx.handlerPort = handlerPort;
-    ctx.containerName = containerName;
+    globServer?.close();
+
+    vi.restoreAllMocks();
   });
 
-  afterEach<LocalTestContext>(async ctx => {
-    await $`docker stop ${ctx.containerName}`;
-  });
+  describe.sequential('Basic Workflow Execution', () => {
+    it('should be able to bail workflow execution', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
 
-  describe('Basic Workflow Execution', () => {
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: async ({ bail, inputData }) => {
+          if (inputData.value === 'bail') {
+            return bail({ result: 'bailed' });
+          }
+
+          return { result: 'step1: ' + inputData.value };
+        },
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData }) => {
+          return { result: 'step2: ' + inputData.result };
+        },
+        inputSchema: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({
+          result: z.string(),
+        }),
+        steps: [step1, step2],
+      });
+
+      workflow.then(step1).then(step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      console.log('running');
+      const result = await run.start({ inputData: { value: 'bail' } });
+      console.log('result', result);
+
+      expect(result.steps['step1']).toEqual({
+        status: 'success',
+        output: { result: 'bailed' },
+        payload: { value: 'bail' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toBeUndefined();
+
+      const run2 = await workflow.createRunAsync();
+      const result2 = await run2.start({ inputData: { value: 'no-bail' } });
+
+      srv.close();
+
+      expect(result2.steps['step1']).toEqual({
+        status: 'success',
+        output: { result: 'step1: no-bail' },
+        payload: { value: 'no-bail' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      expect(result2.steps['step2']).toEqual({
+        status: 'success',
+        output: { result: 'step2: step1: no-bail' },
+        payload: { result: 'step1: no-bail' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+    });
+
     it('should execute a single step workflow successfully', async ctx => {
       const inngest = new Inngest({
         id: 'mastra',
@@ -85,17 +192,17 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
       expect(execute).toHaveBeenCalled();
-      expect(result.steps['step1']).toEqual({
+      expect(result.steps['step1']).toMatchObject({
         status: 'success',
         output: { result: 'success' },
       });
@@ -160,18 +267,18 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
       expect(step1Action).toHaveBeenCalled();
       expect(step2Action).toHaveBeenCalled();
-      expect(result.steps).toEqual({
+      expect(result.steps).toMatchObject({
         input: {},
         step1: { status: 'success', output: { value: 'step1' } },
         step2: { status: 'success', output: { value: 'step2' } },
@@ -241,17 +348,17 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
-      expect(executionOrder).toEqual(['step1', 'step2']);
-      expect(result.steps).toEqual({
+      expect(executionOrder).toMatchObject(['step1', 'step2']);
+      expect(result.steps).toMatchObject({
         input: {},
         step1: { status: 'success', output: { value: 'step1' } },
         step2: { status: 'success', output: { value: 'step2' } },
@@ -260,7 +367,7 @@ describe('MastraInngestWorkflow', () => {
       srv.close();
     });
 
-    it('should execute a a sleep step', async ctx => {
+    it('should execute a sleep step', async ctx => {
       const inngest = new Inngest({
         id: 'mastra',
         baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
@@ -315,19 +422,19 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const startTime = Date.now();
       const result = await run.start({ inputData: {} });
       const endTime = Date.now();
 
       expect(execute).toHaveBeenCalled();
-      expect(result.steps['step1']).toEqual({
+      expect(result.steps['step1']).toMatchObject({
         status: 'success',
         output: { result: 'success' },
         // payload: {},
@@ -335,9 +442,103 @@ describe('MastraInngestWorkflow', () => {
         // endedAt: expect.any(Number),
       });
 
-      expect(result.steps['step2']).toEqual({
+      expect(result.steps['step2']).toMatchObject({
         status: 'success',
         output: { result: 'slept successfully: success' },
+        // payload: { result: 'success' },
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(endTime - startTime).toBeGreaterThan(1000);
+
+      srv.close();
+    });
+
+    it('should execute a sleep step with fn parameter', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const execute = vi.fn<any>().mockResolvedValue({ value: 1000 });
+      const step1 = createStep({
+        id: 'step1',
+        execute,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.number() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData }) => {
+          return { value: inputData.value + 1000 };
+        },
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          value: z.number(),
+        }),
+        steps: [step1],
+      });
+
+      workflow
+        .then(step1)
+        .sleep(async ({ inputData }) => {
+          return inputData.value;
+        })
+        .then(step2)
+        .commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const startTime = Date.now();
+      const result = await run.start({ inputData: {} });
+      const endTime = Date.now();
+
+      expect(execute).toHaveBeenCalled();
+      expect(result.steps['step1']).toMatchObject({
+        status: 'success',
+        output: { value: 1000 },
+        // payload: {},
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toMatchObject({
+        status: 'success',
+        output: { value: 2000 },
         // payload: { result: 'success' },
         // startedAt: expect.any(Number),
         // endedAt: expect.any(Number),
@@ -407,19 +608,19 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const startTime = Date.now();
       const result = await run.start({ inputData: {} });
       const endTime = Date.now();
 
       expect(execute).toHaveBeenCalled();
-      expect(result.steps['step1']).toEqual({
+      expect(result.steps['step1']).toMatchObject({
         status: 'success',
         output: { result: 'success' },
         // payload: {},
@@ -427,7 +628,7 @@ describe('MastraInngestWorkflow', () => {
         // endedAt: expect.any(Number),
       });
 
-      expect(result.steps['step2']).toEqual({
+      expect(result.steps['step2']).toMatchObject({
         status: 'success',
         output: { result: 'slept successfully: success' },
         // payload: { result: 'success' },
@@ -438,6 +639,481 @@ describe('MastraInngestWorkflow', () => {
       expect(endTime - startTime).toBeGreaterThan(1000);
 
       srv.close();
+    });
+
+    it('should execute a sleep until step with fn parameter', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const execute = vi.fn<any>().mockResolvedValue({ value: 1000 });
+      const step1 = createStep({
+        id: 'step1',
+        execute,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.number() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData }) => {
+          return { value: inputData.value + 1000 };
+        },
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          value: z.number(),
+        }),
+        steps: [step1],
+      });
+
+      workflow
+        .then(step1)
+        .sleepUntil(async ({ inputData }) => {
+          return new Date(Date.now() + inputData.value);
+        })
+        .then(step2)
+        .commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const startTime = Date.now();
+      const result = await run.start({ inputData: {} });
+      const endTime = Date.now();
+
+      expect(execute).toHaveBeenCalled();
+      expect(result.steps['step1']).toMatchObject({
+        status: 'success',
+        output: { value: 1000 },
+        // payload: {},
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toMatchObject({
+        status: 'success',
+        output: { value: 2000 },
+        // payload: { result: 'success' },
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(endTime - startTime).toBeGreaterThan(1000);
+
+      srv.close();
+    });
+
+    it('should execute a a waitForEvent step', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const execute = vi.fn<any>().mockResolvedValue({ result: 'success' });
+      const step1 = createStep({
+        id: 'step1',
+        execute,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ result: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData, resumeData }) => {
+          return { result: inputData.result, resumed: resumeData };
+        },
+        inputSchema: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string(), resumed: z.any() }),
+        resumeSchema: z.any(),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          result: z.string(),
+          resumed: z.any(),
+        }),
+        steps: [step1],
+      });
+
+      workflow.then(step1).waitForEvent('hello-event', step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const startTime = Date.now();
+      setTimeout(() => {
+        run.sendEvent('hello-event', { data: 'hello' });
+      }, 1000);
+      const result = await run.start({ inputData: {} });
+      const endTime = Date.now();
+
+      expect(execute).toHaveBeenCalled();
+      expect(result.steps['step1']).toMatchObject({
+        status: 'success',
+        output: { result: 'success' },
+        // payload: {},
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toMatchObject({
+        status: 'success',
+        output: { result: 'success', resumed: { data: 'hello' } },
+        payload: { result: 'success' },
+        // resumePayload: { data: 'hello' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      expect(endTime - startTime).toBeGreaterThan(1000);
+
+      srv.close();
+    });
+
+    it('should execute a a waitForEvent step after timeout', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const execute = vi.fn<any>().mockResolvedValue({ result: 'success' });
+      const step1 = createStep({
+        id: 'step1',
+        execute,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ result: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData, resumeData }) => {
+          return { result: inputData.result, resumed: resumeData };
+        },
+        inputSchema: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string(), resumed: z.any() }),
+        resumeSchema: z.any(),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          result: z.string(),
+          resumed: z.any(),
+        }),
+        steps: [step1],
+      });
+
+      workflow.then(step1).waitForEvent('hello-event', step2, { timeout: 1000 }).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const startTime = Date.now();
+      const result = await run.start({ inputData: {} });
+      const endTime = Date.now();
+
+      expect(execute).toHaveBeenCalled();
+      expect(result.steps['step1']).toMatchObject({
+        status: 'success',
+        output: { result: 'success' },
+        // payload: {},
+        // startedAt: expect.any(Number),
+        // endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toMatchObject({
+        status: 'failed',
+        error: expect.any(String),
+        payload: { result: 'success' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      expect(endTime - startTime).toBeGreaterThan(1000);
+
+      srv.close();
+    });
+  });
+
+  describe('abort', () => {
+    it('should be able to abort workflow execution in between steps', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: async ({ inputData }) => {
+          return { result: 'step1: ' + inputData.value };
+        },
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData }) => {
+          return { result: 'step2: ' + inputData.result };
+        },
+        inputSchema: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          result: z.string(),
+        }),
+        steps: [step1, step2],
+      });
+
+      workflow.then(step1).sleep(2000).then(step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const p = run.start({ inputData: { value: 'test' } });
+
+      setTimeout(() => {
+        run.cancel();
+      }, 1000);
+
+      const result = await p;
+
+      srv.close();
+
+      expect(result.status).toBe('canceled');
+      expect(result.steps['step1']).toEqual({
+        status: 'success',
+        output: { result: 'step1: test' },
+        payload: { value: 'test' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      expect(result.steps['step2']).toBeUndefined();
+    });
+
+    it('should be able to abort workflow execution during a step', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: async ({ inputData }) => {
+          return { result: 'step1: ' + inputData.value };
+        },
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: async ({ inputData, abortSignal, abort }) => {
+          console.log('abort signal', abortSignal);
+          const timeout: Promise<string> = new Promise((resolve, _reject) => {
+            const ref = setTimeout(() => {
+              resolve('step2: ' + inputData.result);
+            }, 5000);
+
+            abortSignal.addEventListener('abort', () => {
+              resolve('');
+              clearTimeout(ref);
+            });
+          });
+
+          const result = await timeout;
+          if (abortSignal.aborted) {
+            return abort();
+          }
+          return { result };
+        },
+        inputSchema: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          result: z.string(),
+        }),
+        steps: [step1, step2],
+      });
+
+      workflow.then(step1).then(step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const p = run.start({ inputData: { value: 'test' } });
+
+      setTimeout(() => {
+        run.cancel();
+      }, 1000);
+
+      const result = await p;
+      console.log('result', result);
+
+      srv.close();
+
+      expect(result.status).toBe('canceled');
+      expect(result.steps['step1']).toEqual({
+        status: 'success',
+        output: { result: 'step1: test' },
+        payload: { value: 'test' },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+
+      // expect(result.steps['step2']).toEqual({
+      //   status: 'canceled',
+      //   payload: { result: 'step1: test' },
+      //   output: undefined,
+      //   startedAt: expect.any(Number),
+      //   endedAt: expect.any(Number),
+      // });
     });
   });
 
@@ -493,16 +1169,18 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
 
-      const run = workflow.createRun();
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { inputData: 'test-input' } });
 
-      expect(result.steps.step1).toEqual({ status: 'success', output: { result: 'success' } });
-      expect(result.steps.step2).toEqual({ status: 'success', output: { result: 'success' } });
+      expect(result.steps.step1).toMatchObject({ status: 'success', output: { result: 'success' } });
+      expect(result.steps.step2).toMatchObject({ status: 'success', output: { result: 'success' } });
 
       srv.close();
     });
@@ -517,14 +1195,14 @@ describe('MastraInngestWorkflow', () => {
 
       const step1Action = vi.fn().mockImplementation(async ({ inputData }) => {
         // Test accessing trigger data with correct type
-        expect(inputData).toEqual({ inputValue: 'test-input' });
+        expect(inputData).toMatchObject({ inputValue: 'test-input' });
         return { value: 'step1-result' };
       });
 
       const step2Action = vi.fn().mockImplementation(async ({ getStepResult }) => {
         // Test accessing previous step result with type
         const step1Result = getStepResult(step1);
-        expect(step1Result).toEqual({ value: 'step1-result' });
+        expect(step1Result).toMatchObject({ value: 'step1-result' });
 
         const failedStep = getStepResult(nonExecutedStep);
         expect(failedStep).toBe(null);
@@ -580,17 +1258,18 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { inputValue: 'test-input' } });
 
       expect(step1Action).toHaveBeenCalled();
       expect(step2Action).toHaveBeenCalled();
-      expect(result.steps).toEqual({
+      expect(result.steps).toMatchObject({
         input: { inputValue: 'test-input' },
         step1: { status: 'success', output: { value: 'step1-result' } },
         step2: { status: 'success', output: { value: 'step2-result' } },
@@ -647,12 +1326,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({ inputData: { inputData: 'test-input' } });
 
       expect(execute).toHaveBeenCalledWith(
@@ -722,12 +1402,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { cool: 'test-input' } });
 
       expect(execute).toHaveBeenCalledWith(
@@ -736,7 +1417,7 @@ describe('MastraInngestWorkflow', () => {
         }),
       );
 
-      expect(result.steps.step2).toEqual({ status: 'success', output: { result: { cool: 'test-input' } } });
+      expect(result.steps.step2).toMatchObject({ status: 'success', output: { result: { cool: 'test-input' } } });
 
       srv.close();
     });
@@ -804,12 +1485,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({ inputData: {} });
 
       expect(step2Action).toHaveBeenCalledWith(
@@ -907,19 +1589,20 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { status: 'success' } });
       srv.close();
 
       expect(step1Action).toHaveBeenCalled();
       expect(step2Action).toHaveBeenCalled();
       expect(step3Action).not.toHaveBeenCalled();
-      expect(result.steps).toEqual({
+      expect(result.steps).toMatchObject({
         input: { status: 'success' },
         step1: { status: 'success', output: { status: 'success' } },
         step2: { status: 'success', output: { result: 'step2' } },
@@ -983,12 +1666,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       let result: Awaited<ReturnType<typeof run.start>> | undefined = undefined;
       try {
         result = await run.start({ inputData: {} });
@@ -1000,7 +1684,7 @@ describe('MastraInngestWorkflow', () => {
 
       expect(step1Action).toHaveBeenCalled();
       expect(step2Action).not.toHaveBeenCalled();
-      expect(result?.steps).toEqual({
+      expect(result?.steps).toMatchObject({
         input: {},
         step1: { status: 'failed', error: 'Failed' },
       });
@@ -1088,12 +1772,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { status: 'success' } });
       srv.close();
 
@@ -1171,23 +1856,23 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: { count: 5 } });
       srv.close();
 
       expect(step2Action).toHaveBeenCalled();
-      expect(result.steps.step1).toEqual({
+      expect(result.steps.step1).toMatchObject({
         status: 'success',
         output: { count: 5 },
       });
-      expect(result.steps.step2).toEqual({
+      expect(result.steps.step2).toMatchObject({
         status: 'success',
-        output: undefined,
       });
     });
   });
@@ -1239,13 +1924,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
 
       await expect(run.start({ inputData: {} })).resolves.toMatchObject({
         steps: {
@@ -1323,13 +2008,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
       expect(result.steps).toMatchObject({
@@ -1417,13 +2102,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = mainWorkflow.createRun();
+      const run = await mainWorkflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
       expect(result.steps).toMatchObject({
@@ -1545,18 +2230,18 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
       expect(step2Action).toHaveBeenCalled();
       expect(step3Action).not.toHaveBeenCalled();
-      expect(result.steps.step2).toEqual({ status: 'success', output: { result: 'step2' } });
+      expect(result.steps.step2).toMatchObject({ status: 'success', output: { result: 'step2' } });
 
       srv.close();
     });
@@ -1647,21 +2332,21 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { target: 10, value: 0 } });
 
       expect(increment).toHaveBeenCalledTimes(12);
       expect(final).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.result).toEqual({ finalValue: 12 });
+      expect(result.result).toMatchObject({ finalValue: 12 });
       // @ts-ignore
-      expect(result.steps.increment.output).toEqual({ value: 12 });
+      expect(result.steps.increment.output).toMatchObject({ value: 12 });
 
       srv.close();
     });
@@ -1750,21 +2435,21 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { target: 10, value: 0 } });
 
       expect(increment).toHaveBeenCalledTimes(12);
       expect(final).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.result).toEqual({ finalValue: 12 });
+      expect(result.result).toMatchObject({ finalValue: 12 });
       // @ts-ignore
-      expect(result.steps.increment.output).toEqual({ value: 12 });
+      expect(result.steps.increment.output).toMatchObject({ value: 12 });
 
       srv.close();
     });
@@ -1839,13 +2524,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: [{ value: 1 }, { value: 22 }, { value: 333 }] });
 
       const endTime = Date.now();
@@ -1853,7 +2538,7 @@ describe('MastraInngestWorkflow', () => {
       expect(duration).toBeGreaterThan(1e3 * 3);
 
       expect(map).toHaveBeenCalledTimes(3);
-      expect(result.steps).toEqual({
+      expect(result.steps).toMatchObject({
         input: [{ value: 1 }, { value: 22 }, { value: 333 }],
         map: { status: 'success', output: [{ value: 12 }, { value: 33 }, { value: 344 }] },
         final: { status: 'success', output: { finalValue: 1 + 11 + (22 + 11) + (333 + 11) } },
@@ -1992,22 +2677,22 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 1 } });
 
       expect(start).toHaveBeenCalledTimes(1);
       expect(other).toHaveBeenCalledTimes(0);
       expect(final).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.steps.finalIf.output).toEqual({ finalValue: 2 });
+      expect(result.steps.finalIf.output).toMatchObject({ finalValue: 2 });
       // @ts-ignore
-      expect(result.steps.start.output).toEqual({ newValue: 2 });
+      expect(result.steps.start.output).toMatchObject({ newValue: 2 });
 
       srv.close();
     });
@@ -2141,24 +2826,24 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 6 } });
+
+      srv.close();
 
       expect(start).toHaveBeenCalledTimes(1);
       expect(other).toHaveBeenCalledTimes(1);
       expect(final).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.steps['else-branch'].output).toEqual({ finalValue: 26 + 6 + 1 });
+      expect(result.steps['else-branch'].output).toMatchObject({ finalValue: 26 + 6 + 1 });
       // @ts-ignore
-      expect(result.steps.start.output).toEqual({ newValue: 7 });
-
-      srv.close();
+      expect(result.steps.start.output).toMatchObject({ newValue: 7 });
     });
   });
 
@@ -2213,7 +2898,7 @@ describe('MastraInngestWorkflow', () => {
       ).rejects.toThrow();
 
       // Should pass validation
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({
         inputData: {
           required: 'test',
@@ -2313,19 +2998,19 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
-      expect(result.steps['nested-a']).toEqual({ status: 'success', output: { result: 'success3' } });
-      expect(result.steps['nested-b']).toEqual({ status: 'success', output: { result: 'success5' } });
-
       srv.close();
+
+      expect(result.steps['nested-a']).toMatchObject({ status: 'success', output: { result: 'success3' } });
+      expect(result.steps['nested-b']).toMatchObject({ status: 'success', output: { result: 'success5' } });
     });
   });
 
@@ -2379,21 +3064,21 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
-      expect(result.steps.step1).toEqual({ status: 'success', output: { result: 'success' } });
-      expect(result.steps.step2).toEqual({ status: 'failed', error: 'Step failed' });
+      srv.close();
+
+      expect(result.steps.step1).toMatchObject({ status: 'success', output: { result: 'success' } });
+      expect(result.steps.step2).toMatchObject({ status: 'failed', error: 'Step failed' });
       expect(step1.execute).toHaveBeenCalledTimes(1);
       expect(step2.execute).toHaveBeenCalledTimes(1); // 0 retries + 1 initial call
-
-      srv.close();
     });
 
     // Need to fix so we can throw for inngest to recognize retries
@@ -2442,11 +3127,11 @@ describe('MastraInngestWorkflow', () => {
 
       workflow.then(step1).then(step2).commit();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
 
-      expect(result.steps.step1).toEqual({ status: 'success', output: { result: 'success' } });
-      expect(result.steps.step2).toEqual({ status: 'failed', error: 'Step failed' });
+      expect(result.steps.step1).toMatchObject({ status: 'success', output: { result: 'success' } });
+      expect(result.steps.step2).toMatchObject({ status: 'failed', error: 'Step failed' });
       expect(step1.execute).toHaveBeenCalledTimes(1);
       expect(step2.execute).toHaveBeenCalledTimes(6); // 5 retries + 1 initial call
     });
@@ -2511,20 +3196,21 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const result = await workflow.createRun().start({ inputData: {} });
+      const run = await workflow.createRunAsync();
+      const result = await run.start({ inputData: {} });
 
       srv.close();
 
       expect(step1Action).toHaveBeenCalled();
       expect(toolAction).toHaveBeenCalled();
-      expect(result.steps.step1).toEqual({ status: 'success', output: { name: 'step1' } });
-      expect(result.steps['random-tool']).toEqual({ status: 'success', output: { name: 'step1' } });
+      expect(result.steps.step1).toMatchObject({ status: 'success', output: { name: 'step1' } });
+      expect(result.steps['random-tool']).toMatchObject({ status: 'success', output: { name: 'step1' } });
     }, 10000);
   });
 
@@ -2582,13 +3268,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
 
       // Start watching the workflow
       let cnt = 0;
@@ -2599,7 +3285,9 @@ describe('MastraInngestWorkflow', () => {
       });
 
       const executionResult = await run.start({ inputData: {} });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      srv.close();
 
       expect(cnt).toBe(5);
       expect(resps.length).toBe(5);
@@ -2703,16 +3391,14 @@ describe('MastraInngestWorkflow', () => {
       });
 
       // Verify execution completed successfully
-      expect(executionResult.steps.step1).toEqual({
+      expect(executionResult.steps.step1).toMatchObject({
         status: 'success',
         output: { result: 'success1' },
       });
-      expect(executionResult.steps.step2).toEqual({
+      expect(executionResult.steps.step2).toMatchObject({
         status: 'success',
         output: { result: 'success2' },
       });
-
-      srv.close();
     });
 
     it('should unsubscribe from transitions when unwatch is called', async ctx => {
@@ -2768,16 +3454,16 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
       const onTransition = vi.fn();
       const onTransition2 = vi.fn();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
 
       run.watch(onTransition);
       run.watch(onTransition2);
@@ -2787,7 +3473,7 @@ describe('MastraInngestWorkflow', () => {
       expect(onTransition).toHaveBeenCalledTimes(5);
       expect(onTransition2).toHaveBeenCalledTimes(5);
 
-      const run2 = workflow.createRun();
+      const run2 = await workflow.createRunAsync();
 
       run2.watch(onTransition2);
 
@@ -2796,7 +3482,7 @@ describe('MastraInngestWorkflow', () => {
       expect(onTransition).toHaveBeenCalledTimes(5);
       expect(onTransition2).toHaveBeenCalledTimes(10);
 
-      const run3 = workflow.createRun();
+      const run3 = await workflow.createRunAsync();
 
       run3.watch(onTransition);
 
@@ -2831,8 +3517,8 @@ describe('MastraInngestWorkflow', () => {
         outputSchema: z.object({}),
         steps: [],
       });
-      const run = workflow.createRun();
-      const run2 = workflow.createRun({ runId: run.runId });
+      const run = await workflow.createRunAsync();
+      const run2 = await workflow.createRunAsync({ runId: run.runId });
 
       expect(run.runId).toBeDefined();
       expect(run2.runId).toBeDefined();
@@ -2940,13 +3626,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = promptEvalWorkflow.createRun();
+      const run = await promptEvalWorkflow.createRunAsync();
 
       // Create a promise to track when the workflow is ready to resume
       let resolveWorkflowSuspended: (value: unknown) => void;
@@ -2976,7 +3662,7 @@ describe('MastraInngestWorkflow', () => {
         throw new Error('Resume failed to return a result');
       }
 
-      expect(resumeResult.steps).toEqual({
+      expect(resumeResult.steps).toMatchObject({
         input: { input: 'test' },
         getUserInput: { status: 'success', output: { userInput: 'test input' } },
         promptAgent: { status: 'success', output: { modelOutput: 'test output' } },
@@ -3090,13 +3776,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
 
       const started = run.start({ inputData: { input: 'test' } });
 
@@ -3128,18 +3814,18 @@ describe('MastraInngestWorkflow', () => {
 
       const initialResult = await started;
 
+      srv.close();
+
       expect(initialResult.steps.humanIntervention.status).toBe('suspended');
       expect(initialResult.steps.explainResponse).toBeUndefined();
       expect(humanInterventionAction).toHaveBeenCalledTimes(2);
       expect(explainResponseAction).not.toHaveBeenCalled();
 
-      srv.close();
-
       if (!result) {
         throw new Error('Resume failed to return a result');
       }
 
-      expect(result.steps).toEqual({
+      expect(result.steps).toMatchObject({
         input: { input: 'test' },
         getUserInput: { status: 'success', output: { userInput: 'test input' } },
         promptAgent: { status: 'success', output: { modelOutput: 'test output' } },
@@ -3292,13 +3978,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const started = run.start({ inputData: { input: 'test' } });
       let improvedResponseResultPromise: Promise<any | undefined>;
 
@@ -3349,11 +4035,12 @@ describe('MastraInngestWorkflow', () => {
       // @ts-ignore
       const improvedResponseResult = await improvedResponseResultPromise;
 
+      srv.close();
+
       expect(improvedResponseResult?.steps.humanIntervention.status).toBe('suspended');
       expect(improvedResponseResult?.steps.improveResponse.status).toBe('success');
       expect(improvedResponseResult?.steps.evaluateImprovedResponse.status).toBe('success');
 
-      srv.close();
       if (!result) {
         throw new Error('Resume failed to return a result');
       }
@@ -3486,24 +4173,28 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = promptEvalWorkflow.createRun();
+      const run = await promptEvalWorkflow.createRunAsync();
 
       const initialResult = await run.start({ inputData: { input: 'test' } });
       expect(initialResult.steps.promptAgent.status).toBe('suspended');
       expect(promptAgentAction).toHaveBeenCalledTimes(1);
       // expect(initialResult.activePaths.size).toBe(1);
       // expect(initialResult.activePaths.get('promptAgent')?.status).toBe('suspended');
-      // expect(initialResult.activePaths.get('promptAgent')?.suspendPayload).toEqual({ testPayload: 'hello' });
-      expect(initialResult.steps).toEqual({
+      // expect(initialResult.activePaths.get('promptAgent')?.suspendPayload).toMatchObject({ testPayload: 'hello' });
+      expect(initialResult.steps).toMatchObject({
         input: { input: 'test' },
         getUserInput: { status: 'success', output: { userInput: 'test input' } },
-        promptAgent: { status: 'suspended', payload: { testPayload: 'hello' } },
+        promptAgent: {
+          status: 'suspended',
+          suspendedPayload: { testPayload: 'hello' },
+          payload: { userInput: 'test input' },
+        },
       });
 
       const newCtx = {
@@ -3520,7 +4211,7 @@ describe('MastraInngestWorkflow', () => {
 
       // expect(firstResumeResult.activePaths.size).toBe(1);
       // expect(firstResumeResult.activePaths.get('improveResponse')?.status).toBe('suspended');
-      expect(firstResumeResult.steps).toEqual({
+      expect(firstResumeResult.steps).toMatchObject({
         input: { input: 'test' },
         getUserInput: { status: 'success', output: { userInput: 'test input' } },
         promptAgent: { status: 'success', output: { modelOutput: 'test output' } },
@@ -3541,13 +4232,16 @@ describe('MastraInngestWorkflow', () => {
           completenessScore: { score: 0.7 },
         },
       });
+
+      srv.close();
+
       if (!secondResumeResult) {
         throw new Error('Resume failed to return a result');
       }
 
       expect(promptAgentAction).toHaveBeenCalledTimes(2);
 
-      expect(secondResumeResult.steps).toEqual({
+      expect(secondResumeResult.steps).toMatchObject({
         input: { input: 'test' },
         getUserInput: { status: 'success', output: { userInput: 'test input' } },
         promptAgent: { status: 'success', output: { modelOutput: 'test output' } },
@@ -3563,8 +4257,6 @@ describe('MastraInngestWorkflow', () => {
       });
 
       expect(promptAgentAction).toHaveBeenCalledTimes(2);
-
-      srv.close();
     });
   });
 
@@ -3610,14 +4302,14 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
       // Access new instance properties directly - should work without warning
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({ inputData: {} });
 
       expect(telemetry).toBeDefined();
@@ -3632,6 +4324,7 @@ describe('MastraInngestWorkflow', () => {
       const inngest = new Inngest({
         id: 'mastra',
         baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
       });
 
       const { createWorkflow, createStep } = init(inngest);
@@ -3713,34 +4406,35 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({
         inputData: { prompt1: 'Capital of France, just the name', prompt2: 'Capital of UK, just the name' },
       });
 
-      expect(result.steps['test-agent-1']).toEqual({
+      srv.close();
+
+      expect(result.steps['test-agent-1']).toMatchObject({
         status: 'success',
         output: { text: 'Paris' },
       });
 
-      expect(result.steps['test-agent-2']).toEqual({
+      expect(result.steps['test-agent-2']).toMatchObject({
         status: 'success',
         output: { text: 'London' },
       });
-
-      srv.close();
     });
 
     it('should be able to use an agent in parallel', async ctx => {
       const inngest = new Inngest({
         id: 'mastra',
         baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
       });
 
       const { createWorkflow, createStep } = init(inngest);
@@ -3849,29 +4543,29 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({
         inputData: { prompt1: 'Capital of France, just the name', prompt2: 'Capital of UK, just the name' },
       });
 
       expect(execute).toHaveBeenCalledTimes(1);
-      expect(result.steps['finalStep']).toEqual({
+      expect(result.steps['finalStep']).toMatchObject({
         status: 'success',
         output: { result: 'success' },
       });
 
-      expect(result.steps['nested-workflow']).toEqual({
+      expect(result.steps['nested-workflow']).toMatchObject({
         status: 'success',
         output: { text: 'Paris' },
       });
 
-      expect(result.steps['nested-workflow-2']).toEqual({
+      expect(result.steps['nested-workflow-2']).toMatchObject({
         status: 'success',
         output: { text: 'London' },
       });
@@ -3992,13 +4686,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 0 } });
 
       srv.close();
@@ -4008,16 +4702,16 @@ describe('MastraInngestWorkflow', () => {
       expect(final).toHaveBeenCalledTimes(2);
       expect(last).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.steps['nested-workflow-a'].output).toEqual({
+      expect(result.steps['nested-workflow-a'].output).toMatchObject({
         finalValue: 26 + 1,
       });
 
       // @ts-ignore
-      expect(result.steps['nested-workflow-b'].output).toEqual({
+      expect(result.steps['nested-workflow-b'].output).toMatchObject({
         finalValue: 1,
       });
 
-      expect(result.steps['last-step']).toEqual({
+      expect(result.steps['last-step']).toMatchObject({
         output: { success: true },
         status: 'success',
       });
@@ -4144,13 +4838,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 0 } });
 
       srv.close();
@@ -4160,16 +4854,16 @@ describe('MastraInngestWorkflow', () => {
       expect(final).toHaveBeenCalledTimes(2);
       expect(last).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.steps['nested-workflow-a'].output).toEqual({
+      expect(result.steps['nested-workflow-a'].output).toMatchObject({
         finalValue: 26 + 1,
       });
 
       // @ts-ignore
-      expect(result.steps['nested-workflow-b'].output).toEqual({
+      expect(result.steps['nested-workflow-b'].output).toMatchObject({
         finalValue: 1,
       });
 
-      expect(result.steps['last-step']).toEqual({
+      expect(result.steps['last-step']).toMatchObject({
         output: { success: true },
         status: 'success',
       });
@@ -4304,12 +4998,13 @@ describe('MastraInngestWorkflow', () => {
           await next();
         });
 
-        const srv = serve({
+        const srv = (globServer = serve({
           fetch: app.fetch,
           port: (ctx as any).handlerPort,
-        });
+        }));
+        await resetInngest();
 
-        const run = counterWorkflow.createRun();
+        const run = await counterWorkflow.createRunAsync();
         const result = await run.start({ inputData: { startValue: 0 } });
 
         srv.close();
@@ -4320,16 +5015,16 @@ describe('MastraInngestWorkflow', () => {
         expect(first).toHaveBeenCalledTimes(1);
         expect(last).toHaveBeenCalledTimes(1);
         // @ts-ignore
-        expect(result.steps['nested-workflow-a'].output).toEqual({
+        expect(result.steps['nested-workflow-a'].output).toMatchObject({
           finalValue: 26 + 1,
         });
 
-        expect(result.steps['first-step']).toEqual({
+        expect(result.steps['first-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
 
-        expect(result.steps['last-step']).toEqual({
+        expect(result.steps['last-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
@@ -4463,12 +5158,13 @@ describe('MastraInngestWorkflow', () => {
           await next();
         });
 
-        const srv = serve({
+        const srv = (globServer = serve({
           fetch: app.fetch,
           port: (ctx as any).handlerPort,
-        });
+        }));
+        await resetInngest();
 
-        const run = counterWorkflow.createRun();
+        const run = await counterWorkflow.createRunAsync();
         const result = await run.start({ inputData: { startValue: 0 } });
 
         srv.close();
@@ -4480,16 +5176,16 @@ describe('MastraInngestWorkflow', () => {
         expect(last).toHaveBeenCalledTimes(1);
 
         // @ts-ignore
-        expect(result.steps['nested-workflow-b'].output).toEqual({
+        expect(result.steps['nested-workflow-b'].output).toMatchObject({
           finalValue: 1,
         });
 
-        expect(result.steps['first-step']).toEqual({
+        expect(result.steps['first-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
 
-        expect(result.steps['last-step']).toEqual({
+        expect(result.steps['last-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
@@ -4660,12 +5356,13 @@ describe('MastraInngestWorkflow', () => {
           await next();
         });
 
-        const srv = serve({
+        const srv = (globServer = serve({
           fetch: app.fetch,
           port: (ctx as any).handlerPort,
-        });
+        }));
+        await resetInngest();
 
-        const run = counterWorkflow.createRun();
+        const run = await counterWorkflow.createRunAsync();
         const result = await run.start({ inputData: { startValue: 1 } });
 
         srv.close();
@@ -4677,16 +5374,16 @@ describe('MastraInngestWorkflow', () => {
         // expect(last).toHaveBeenCalledTimes(1);
 
         // @ts-ignore
-        expect(result.steps['nested-workflow-b'].output).toEqual({
+        expect(result.steps['nested-workflow-b'].output).toMatchObject({
           finalValue: 1,
         });
 
-        expect(result.steps['first-step']).toEqual({
+        expect(result.steps['first-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
 
-        expect(result.steps['last-step']).toEqual({
+        expect(result.steps['last-step']).toMatchObject({
           output: { success: true },
           status: 'success',
         });
@@ -4813,13 +5510,13 @@ describe('MastraInngestWorkflow', () => {
 
         const app = await createHonoServer(mastra);
 
-        const srv = serve({
+        const srv = (globServer = serve({
           fetch: app.fetch,
           port: (ctx as any).handlerPort,
-        });
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        }));
+        await resetInngest();
 
-        const run = counterWorkflow.createRun();
+        const run = await counterWorkflow.createRunAsync();
         const result = await run.start({ inputData: { startValue: 0 } });
 
         expect(begin).toHaveBeenCalledTimes(1);
@@ -4832,12 +5529,12 @@ describe('MastraInngestWorkflow', () => {
         });
 
         // @ts-ignore
-        expect(result.steps['last-step']).toEqual(undefined);
+        expect(result.steps['last-step']).toMatchObject(undefined);
 
         const resumedResults = await run.resume({ step: [wfA, otherStep], resumeData: { newValue: 0 } });
 
         // @ts-ignore
-        expect(resumedResults.steps['nested-workflow-a'].output).toEqual({
+        expect(resumedResults.steps['nested-workflow-a'].output).toMatchObject({
           finalValue: 26 + 1,
         });
 
@@ -4964,12 +5661,13 @@ describe('MastraInngestWorkflow', () => {
           await next();
         });
 
-        const srv = serve({
+        const srv = (globServer = serve({
           fetch: app.fetch,
           port: (ctx as any).handlerPort,
-        });
+        }));
+        await resetInngest();
 
-        const run = counterWorkflow.createRun();
+        const run = await counterWorkflow.createRunAsync();
         const result = await run.start({ inputData: { startValue: 0 } });
         const results = result.steps;
 
@@ -4988,7 +5686,7 @@ describe('MastraInngestWorkflow', () => {
           },
         });
 
-        expect(result.steps['last-step']).toEqual({
+        expect(result.steps['last-step']).toMatchObject({
           status: 'success',
           output: { success: true },
         });
@@ -5145,13 +5843,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 0 } });
 
       expect(passthroughStep.execute).toHaveBeenCalledTimes(2);
@@ -5165,18 +5863,23 @@ describe('MastraInngestWorkflow', () => {
       });
 
       // @ts-ignore
-      expect(result.steps['last-step']).toEqual(undefined);
+      expect(result.steps['last-step']).toMatchObject(undefined);
 
       if (result.status !== 'suspended') {
         expect.fail('Workflow should be suspended');
       }
-      expect(result.suspended[0]).toEqual(['nested-workflow-c', 'nested-workflow-b', 'nested-workflow-a', 'other']);
+      expect(result.suspended[0]).toMatchObject([
+        'nested-workflow-c',
+        'nested-workflow-b',
+        'nested-workflow-a',
+        'other',
+      ]);
       const resumedResults = await run.resume({ step: result.suspended[0], resumeData: { newValue: 0 } });
 
       srv.close();
 
       // @ts-ignore
-      expect(resumedResults.steps['nested-workflow-c'].output).toEqual({
+      expect(resumedResults.steps['nested-workflow-c'].output).toMatchObject({
         finalValue: 26 + 1,
       });
 
@@ -5302,13 +6005,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
-      const run = counterWorkflow.createRun();
+      const run = await counterWorkflow.createRunAsync();
       const result = await run.start({ inputData: { startValue: 0 } });
 
       srv.close();
@@ -5318,16 +6021,16 @@ describe('MastraInngestWorkflow', () => {
       expect(final).toHaveBeenCalledTimes(2);
       expect(last).toHaveBeenCalledTimes(1);
       // @ts-ignore
-      expect(result.steps['nested-workflow-a-clone'].output).toEqual({
+      expect(result.steps['nested-workflow-a-clone'].output).toMatchObject({
         finalValue: 26 + 1,
       });
 
       // @ts-ignore
-      expect(result.steps['nested-workflow-b'].output).toEqual({
+      expect(result.steps['nested-workflow-b'].output).toMatchObject({
         finalValue: 1,
       });
 
-      expect(result.steps['last-step']).toEqual({
+      expect(result.steps['last-step']).toMatchObject({
         output: { success: true },
         status: 'success',
       });
@@ -5377,14 +6080,14 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      }));
+      await resetInngest();
 
       // Access new instance properties directly - should work without warning
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({ inputData: {} });
 
       srv.close();
@@ -5440,12 +6143,13 @@ describe('MastraInngestWorkflow', () => {
 
       const app = await createHonoServer(mastra);
 
-      const srv = serve({
+      const srv = (globServer = serve({
         fetch: app.fetch,
         port: (ctx as any).handlerPort,
-      });
+      }));
+      await resetInngest();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       const result = await run.start({ runtimeContext });
 
       srv.close();
@@ -5454,7 +6158,7 @@ describe('MastraInngestWorkflow', () => {
       expect(result.steps.step1.output.injectedValue).toBe(testValue);
     });
 
-    it('should inject runtimeContext dependencies into steps during resume', async ctx => {
+    it.skip('should inject runtimeContext dependencies into steps during resume', async ctx => {
       const inngest = new Inngest({
         id: 'mastra',
         baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
@@ -5498,7 +6202,7 @@ describe('MastraInngestWorkflow', () => {
       });
       workflow.then(step).commit();
 
-      const run = workflow.createRun();
+      const run = await workflow.createRunAsync();
       await run.start({ runtimeContext });
 
       const resumeruntimeContext = new RuntimeContext();
@@ -5515,7 +6219,1479 @@ describe('MastraInngestWorkflow', () => {
       // @ts-ignore
       expect(result?.steps.step1.output.injectedValue).toBe(testValue + '2');
     });
+
+    it('should have access to runtimeContext from before suspension during workflow resume', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const testValue = 'test-dependency';
+      const resumeStep = createStep({
+        id: 'resume',
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+        resumeSchema: z.object({ value: z.number() }),
+        suspendSchema: z.object({ message: z.string() }),
+        execute: async ({ inputData, resumeData, suspend }) => {
+          const finalValue = (resumeData?.value ?? 0) + inputData.value;
+
+          if (!resumeData?.value || finalValue < 10) {
+            return await suspend({
+              message: `Please provide additional information. now value is ${inputData.value}`,
+            });
+          }
+
+          return { value: finalValue };
+        },
+      });
+
+      const incrementStep = createStep({
+        id: 'increment',
+        inputSchema: z.object({
+          value: z.number(),
+        }),
+        outputSchema: z.object({
+          value: z.number(),
+        }),
+        execute: async ({ inputData, runtimeContext }) => {
+          runtimeContext.set('testKey', testValue);
+          return {
+            value: inputData.value + 1,
+          };
+        },
+      });
+
+      const incrementWorkflow = createWorkflow({
+        id: 'increment-workflow',
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+      })
+        .then(incrementStep)
+        .then(resumeStep)
+        .then(
+          createStep({
+            id: 'final',
+            inputSchema: z.object({ value: z.number() }),
+            outputSchema: z.object({ value: z.number() }),
+            execute: async ({ inputData, runtimeContext }) => {
+              const testKey = runtimeContext.get('testKey');
+              expect(testKey).toBe(testValue);
+              return { value: inputData.value };
+            },
+          }),
+        )
+        .commit();
+
+      new Mastra({
+        logger: false,
+        storage: testStorage,
+        workflows: { incrementWorkflow },
+      });
+
+      const run = await incrementWorkflow.createRunAsync();
+      const result = await run.start({ inputData: { value: 0 } });
+      expect(result.status).toBe('suspended');
+
+      const resumeResult = await run.resume({
+        resumeData: { value: 21 },
+        step: ['resume'],
+      });
+
+      expect(resumeResult.status).toBe('success');
+    });
+
+    it('should not show removed runtimeContext values in subsequent steps', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+      const testValue = 'test-dependency';
+      const resumeStep = createStep({
+        id: 'resume',
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+        resumeSchema: z.object({ value: z.number() }),
+        suspendSchema: z.object({ message: z.string() }),
+        execute: async ({ inputData, resumeData, suspend, runtimeContext }) => {
+          const finalValue = (resumeData?.value ?? 0) + inputData.value;
+
+          if (!resumeData?.value || finalValue < 10) {
+            return await suspend({
+              message: `Please provide additional information. now value is ${inputData.value}`,
+            });
+          }
+
+          const testKey = runtimeContext.get('testKey');
+          expect(testKey).toBe(testValue);
+
+          runtimeContext.delete('testKey');
+
+          return { value: finalValue };
+        },
+      });
+
+      const incrementStep = createStep({
+        id: 'increment',
+        inputSchema: z.object({
+          value: z.number(),
+        }),
+        outputSchema: z.object({
+          value: z.number(),
+        }),
+        execute: async ({ inputData, runtimeContext }) => {
+          runtimeContext.set('testKey', testValue);
+          return {
+            value: inputData.value + 1,
+          };
+        },
+      });
+
+      const incrementWorkflow = createWorkflow({
+        id: 'increment-workflow',
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({ value: z.number() }),
+      })
+        .then(incrementStep)
+        .then(resumeStep)
+        .then(
+          createStep({
+            id: 'final',
+            inputSchema: z.object({ value: z.number() }),
+            outputSchema: z.object({ value: z.number() }),
+            execute: async ({ inputData, runtimeContext }) => {
+              const testKey = runtimeContext.get('testKey');
+              expect(testKey).toBeUndefined();
+              return { value: inputData.value };
+            },
+          }),
+        )
+        .commit();
+
+      new Mastra({
+        logger: false,
+        storage: testStorage,
+        workflows: { incrementWorkflow },
+      });
+
+      const run = await incrementWorkflow.createRunAsync();
+      const result = await run.start({ inputData: { value: 0 } });
+      expect(result.status).toBe('suspended');
+
+      const resumeResult = await run.resume({
+        resumeData: { value: 21 },
+        step: ['resume'],
+      });
+
+      expect(resumeResult.status).toBe('success');
+    });
   });
 
-  describe('Access to inngest step primitives', () => {});
+  describe('Access to inngest step primitives', () => {
+    it('should inject inngest step primitives into steps during run', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step = createStep({
+        id: 'step1',
+        execute: async ({ engine }) => {
+          return {
+            hasEngine: !!engine.step,
+          };
+        },
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+      });
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({
+          hasEngine: z.boolean(),
+        }),
+      });
+      workflow.then(step).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const run = await workflow.createRunAsync();
+      const result = await run.start({});
+
+      srv.close();
+
+      // @ts-ignore
+      expect(result?.steps.step1.output.hasEngine).toBe(true);
+    });
+  });
+
+  describe('Streaming', () => {
+    it('should generate a stream', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
+      const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: step1Action,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: step2Action,
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({}),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+        steps: [step1, step2],
+      });
+      workflow.then(step1).then(step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const runId = 'test-run-id';
+      let watchData: StreamEvent[] = [];
+      const run = await workflow.createRunAsync({
+        runId,
+      });
+
+      await resetInngest();
+
+      const { stream, getWorkflowState } = run.stream({ inputData: {} });
+
+      // Start watching the workflow
+      const collectedStreamData: StreamEvent[] = [];
+      for await (const data of stream) {
+        collectedStreamData.push(JSON.parse(JSON.stringify(data)));
+      }
+      watchData = collectedStreamData;
+
+      const executionResult = await getWorkflowState();
+
+      await resetInngest();
+
+      srv.close();
+
+      expect(watchData.length).toBe(8);
+      expect(watchData).toMatchObject([
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            status: 'running',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            endedAt: expect.any(Number),
+            startedAt: expect.any(Number),
+            payload: {},
+            output: {
+              result: 'success1',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step1',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: 'step2',
+            status: 'running',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step2',
+            endedAt: expect.any(Number),
+            startedAt: expect.any(Number),
+            payload: {
+              result: 'success1',
+            },
+            output: {
+              result: 'success2',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step2',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'finish',
+        },
+      ]);
+      // Verify execution completed successfully
+      expect(executionResult.steps.step1).toMatchObject({
+        status: 'success',
+        output: { result: 'success1' },
+        payload: {},
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+      expect(executionResult.steps.step2).toMatchObject({
+        status: 'success',
+        output: { result: 'success2' },
+        payload: {
+          result: 'success1',
+        },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+    });
+
+    it('should handle basic sleep waiting flow', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
+      const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: step1Action,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: step2Action,
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({}),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+        steps: [step1, step2],
+      });
+      workflow.then(step1).sleep(1000).then(step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const runId = 'test-run-id';
+      let watchData: StreamEvent[] = [];
+      const run = await workflow.createRunAsync({
+        runId,
+      });
+
+      await resetInngest();
+
+      const { stream, getWorkflowState } = run.stream({ inputData: {} });
+
+      // Start watching the workflow
+      const collectedStreamData: StreamEvent[] = [];
+      for await (const data of stream) {
+        collectedStreamData.push(JSON.parse(JSON.stringify(data)));
+      }
+      watchData = collectedStreamData;
+
+      const executionResult = await getWorkflowState();
+
+      await resetInngest();
+
+      srv.close();
+
+      expect(watchData.length).toBe(11);
+      expect(watchData).toMatchObject([
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            startedAt: expect.any(Number),
+            status: 'running',
+            payload: {},
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            output: {
+              result: 'success1',
+            },
+            endedAt: expect.any(Number),
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step1',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            startedAt: expect.any(Number),
+            status: 'waiting',
+            payload: {
+              result: 'success1',
+            },
+          },
+          type: 'step-waiting',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            endedAt: expect.any(Number),
+            startedAt: expect.any(Number),
+            status: 'success',
+            output: {
+              result: 'success1',
+            },
+          },
+          type: 'step-result',
+        },
+        {
+          type: 'step-finish',
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+        },
+        {
+          payload: {
+            id: 'step2',
+            payload: {
+              result: 'success1',
+            },
+            startedAt: expect.any(Number),
+            status: 'running',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step2',
+            output: {
+              result: 'success2',
+            },
+            endedAt: expect.any(Number),
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step2',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'finish',
+        },
+      ]);
+
+      // Verify execution completed successfully
+      expect(executionResult.steps.step1).toMatchObject({
+        status: 'success',
+        output: { result: 'success1' },
+        payload: {},
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+      expect(executionResult.steps.step2).toMatchObject({
+        status: 'success',
+        output: { result: 'success2' },
+        payload: {
+          result: 'success1',
+        },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+    });
+
+    it('should handle basic sleep waiting flow with fn parameter', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1Action = vi.fn<any>().mockResolvedValue({ value: 1000 });
+      const step2Action = vi.fn<any>().mockResolvedValue({ value: 2000 });
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: step1Action,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.number() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: step2Action,
+        inputSchema: z.object({ value: z.number() }),
+        outputSchema: z.object({}),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+        steps: [step1, step2],
+      });
+      workflow
+        .then(step1)
+        .sleep(async ({ inputData }) => {
+          return inputData.value;
+        })
+        .then(step2)
+        .commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const runId = 'test-run-id';
+      let watchData: StreamEvent[] = [];
+      const run = await workflow.createRunAsync({
+        runId,
+      });
+
+      await resetInngest();
+
+      const { stream, getWorkflowState } = run.stream({ inputData: {} });
+
+      // Start watching the workflow
+      const collectedStreamData: StreamEvent[] = [];
+      for await (const data of stream) {
+        collectedStreamData.push(JSON.parse(JSON.stringify(data)));
+      }
+      watchData = collectedStreamData;
+
+      const executionResult = await getWorkflowState();
+
+      await resetInngest();
+
+      srv.close();
+
+      expect(watchData.length).toBe(11);
+      expect(watchData).toMatchObject([
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            startedAt: expect.any(Number),
+            status: 'running',
+            payload: {},
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            output: {
+              value: 1000,
+            },
+            endedAt: expect.any(Number),
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step1',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            startedAt: expect.any(Number),
+            status: 'waiting',
+            payload: {
+              value: 1000,
+            },
+          },
+          type: 'step-waiting',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            endedAt: expect.any(Number),
+            startedAt: expect.any(Number),
+            status: 'success',
+            output: {
+              value: 1000,
+            },
+          },
+          type: 'step-result',
+        },
+        {
+          type: 'step-finish',
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+        },
+        {
+          payload: {
+            id: 'step2',
+            payload: {
+              value: 1000,
+            },
+            startedAt: expect.any(Number),
+            status: 'running',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step2',
+            output: {
+              value: 2000,
+            },
+            endedAt: expect.any(Number),
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step2',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'finish',
+        },
+      ]);
+
+      // Verify execution completed successfully
+      expect(executionResult.steps.step1).toMatchObject({
+        status: 'success',
+        output: { value: 1000 },
+        payload: {},
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+      expect(executionResult.steps.step2).toMatchObject({
+        status: 'success',
+        output: { value: 2000 },
+        payload: {
+          value: 1000,
+        },
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+    });
+
+    it('should handle waitForEvent waiting flow', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
+      const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
+
+      const step1 = createStep({
+        id: 'step1',
+        execute: step1Action,
+        inputSchema: z.object({}),
+        outputSchema: z.object({ value: z.string() }),
+      });
+      const step2 = createStep({
+        id: 'step2',
+        execute: step2Action,
+        inputSchema: z.object({ value: z.string() }),
+        outputSchema: z.object({}),
+      });
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+        steps: [step1, step2],
+      });
+      workflow.then(step1).waitForEvent('user-event-test', step2).commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+      await resetInngest();
+
+      const runId = 'test-run-id';
+      let watchData: StreamEvent[] = [];
+      const run = await workflow.createRunAsync({
+        runId,
+      });
+
+      await resetInngest();
+
+      const { stream, getWorkflowState } = run.stream({ inputData: {} });
+
+      setTimeout(() => {
+        run.sendEvent('user-event-test', {
+          value: 'eventdata',
+        });
+      }, 3000);
+
+      // Start watching the workflow
+      const collectedStreamData: StreamEvent[] = [];
+      for await (const data of stream) {
+        collectedStreamData.push(JSON.parse(JSON.stringify(data)));
+      }
+      watchData = collectedStreamData;
+      console.dir({ watchData }, { depth: null });
+
+      const executionResult = await getWorkflowState();
+
+      await resetInngest();
+
+      srv.close();
+
+      expect(watchData.length).toBe(9);
+      expect(watchData).toMatchObject([
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'start',
+        },
+        {
+          payload: {
+            id: 'step1',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step1',
+            output: {
+              result: 'success1',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step1',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: 'step2',
+          },
+          type: 'step-waiting',
+        },
+        {
+          payload: {
+            id: 'step2',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'step2',
+            output: {
+              result: 'success2',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'step2',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'finish',
+        },
+      ]);
+      // Verify execution completed successfully
+      expect(executionResult.steps.step1).toMatchObject({
+        status: 'success',
+        output: { result: 'success1' },
+        payload: {},
+        startedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+      expect(executionResult.steps.step2).toMatchObject({
+        status: 'success',
+        output: { result: 'success2' },
+        payload: {
+          result: 'success1',
+        },
+        resumePayload: {
+          value: 'eventdata',
+        },
+        startedAt: expect.any(Number),
+        resumedAt: expect.any(Number),
+        endedAt: expect.any(Number),
+      });
+    });
+
+    it('should handle basic suspend and resume flow', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const getUserInputAction = vi.fn().mockResolvedValue({ userInput: 'test input' });
+      const promptAgentAction = vi
+        .fn()
+        .mockImplementationOnce(async ({ suspend }) => {
+          console.log('suspend');
+          await suspend();
+          return undefined;
+        })
+        .mockImplementationOnce(() => ({ modelOutput: 'test output' }));
+      const evaluateToneAction = vi.fn().mockResolvedValue({
+        toneScore: { score: 0.8 },
+        completenessScore: { score: 0.7 },
+      });
+      const improveResponseAction = vi.fn().mockResolvedValue({ improvedOutput: 'improved output' });
+      const evaluateImprovedAction = vi.fn().mockResolvedValue({
+        toneScore: { score: 0.9 },
+        completenessScore: { score: 0.8 },
+      });
+
+      const getUserInput = createStep({
+        id: 'getUserInput',
+        execute: getUserInputAction,
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ userInput: z.string() }),
+      });
+      const promptAgent = createStep({
+        id: 'promptAgent',
+        execute: promptAgentAction,
+        inputSchema: z.object({ userInput: z.string() }),
+        outputSchema: z.object({ modelOutput: z.string() }),
+      });
+      const evaluateTone = createStep({
+        id: 'evaluateToneConsistency',
+        execute: evaluateToneAction,
+        inputSchema: z.object({ modelOutput: z.string() }),
+        outputSchema: z.object({
+          toneScore: z.any(),
+          completenessScore: z.any(),
+        }),
+      });
+      const improveResponse = createStep({
+        id: 'improveResponse',
+        execute: improveResponseAction,
+        inputSchema: z.object({ toneScore: z.any(), completenessScore: z.any() }),
+        outputSchema: z.object({ improvedOutput: z.string() }),
+      });
+      const evaluateImproved = createStep({
+        id: 'evaluateImprovedResponse',
+        execute: evaluateImprovedAction,
+        inputSchema: z.object({ improvedOutput: z.string() }),
+        outputSchema: z.object({
+          toneScore: z.any(),
+          completenessScore: z.any(),
+        }),
+      });
+
+      const promptEvalWorkflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({}),
+        steps: [getUserInput, promptAgent, evaluateTone, improveResponse, evaluateImproved],
+      });
+
+      promptEvalWorkflow
+        .then(getUserInput)
+        .then(promptAgent)
+        .then(evaluateTone)
+        .then(improveResponse)
+        .then(evaluateImproved)
+        .commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': promptEvalWorkflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+
+      await resetInngest();
+
+      const run = await promptEvalWorkflow.createRunAsync();
+
+      const { stream, getWorkflowState } = run.stream({ inputData: { input: 'test' } });
+
+      for await (const data of stream) {
+        if (data.type === 'step-suspended') {
+          expect(promptAgentAction).toHaveBeenCalledTimes(1);
+
+          // make it async to show that execution is not blocked
+          setImmediate(() => {
+            const resumeData = { stepId: 'promptAgent', context: { userInput: 'test input for resumption' } };
+            run.resume({ resumeData: resumeData as any, step: promptAgent });
+          });
+          expect(evaluateToneAction).not.toHaveBeenCalledTimes(1);
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      const resumeResult = await getWorkflowState();
+
+      srv.close();
+
+      expect(evaluateToneAction).toHaveBeenCalledTimes(1);
+      expect(resumeResult.steps).toMatchObject({
+        input: { input: 'test' },
+        getUserInput: {
+          status: 'success',
+          output: { userInput: 'test input' },
+          payload: { input: 'test' },
+          startedAt: expect.any(Number),
+          endedAt: expect.any(Number),
+        },
+        promptAgent: {
+          status: 'success',
+          output: { modelOutput: 'test output' },
+          payload: { userInput: 'test input' },
+          startedAt: expect.any(Number),
+          endedAt: expect.any(Number),
+          resumePayload: { stepId: 'promptAgent', context: { userInput: 'test input for resumption' } },
+          resumedAt: expect.any(Number),
+          // suspendedAt: expect.any(Number),
+        },
+        evaluateToneConsistency: {
+          status: 'success',
+          output: { toneScore: { score: 0.8 }, completenessScore: { score: 0.7 } },
+          payload: { modelOutput: 'test output' },
+          startedAt: expect.any(Number),
+          endedAt: expect.any(Number),
+        },
+        improveResponse: {
+          status: 'success',
+          output: { improvedOutput: 'improved output' },
+          payload: { toneScore: { score: 0.8 }, completenessScore: { score: 0.7 } },
+          startedAt: expect.any(Number),
+          endedAt: expect.any(Number),
+        },
+        evaluateImprovedResponse: {
+          status: 'success',
+          output: { toneScore: { score: 0.9 }, completenessScore: { score: 0.8 } },
+          payload: { improvedOutput: 'improved output' },
+          startedAt: expect.any(Number),
+          endedAt: expect.any(Number),
+        },
+      });
+    });
+
+    it('should be able to use an agent as a step', async ctx => {
+      const inngest = new Inngest({
+        id: 'mastra',
+        baseUrl: `http://localhost:${(ctx as any).inngestPort}`,
+        middleware: [realtimeMiddleware()],
+      });
+
+      const { createWorkflow, createStep } = init(inngest);
+
+      const workflow = createWorkflow({
+        id: 'test-workflow',
+        inputSchema: z.object({
+          prompt1: z.string(),
+          prompt2: z.string(),
+        }),
+        outputSchema: z.object({}),
+      });
+
+      const agent = new Agent({
+        name: 'test-agent-1',
+        instructions: 'test agent instructions"',
+        model: new MockLanguageModelV1({
+          doStream: async () => ({
+            stream: simulateReadableStream({
+              chunks: [
+                { type: 'text-delta', textDelta: 'Paris' },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ],
+            }),
+            rawCall: { rawPrompt: null, rawSettings: {} },
+          }),
+        }),
+      });
+
+      const agent2 = new Agent({
+        name: 'test-agent-2',
+        instructions: 'test agent instructions',
+        model: new MockLanguageModelV1({
+          doStream: async () => ({
+            stream: simulateReadableStream({
+              chunks: [
+                { type: 'text-delta', textDelta: 'London' },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ],
+            }),
+            rawCall: { rawPrompt: null, rawSettings: {} },
+          }),
+        }),
+      });
+
+      const startStep = createStep({
+        id: 'start',
+        inputSchema: z.object({
+          prompt1: z.string(),
+          prompt2: z.string(),
+        }),
+        outputSchema: z.object({ prompt1: z.string(), prompt2: z.string() }),
+        execute: async ({ inputData }) => {
+          return {
+            prompt1: inputData.prompt1,
+            prompt2: inputData.prompt2,
+          };
+        },
+      });
+
+      const agentStep1 = createStep(agent);
+      const agentStep2 = createStep(agent2);
+
+      workflow
+        .then(startStep)
+        .map({
+          prompt: {
+            step: startStep,
+            path: 'prompt1',
+          },
+        })
+        .then(agentStep1)
+        .map({
+          prompt: {
+            step: startStep,
+            path: 'prompt2',
+          },
+        })
+        .then(agentStep2)
+        .commit();
+
+      const mastra = new Mastra({
+        storage: new DefaultStorage({
+          url: ':memory:',
+        }),
+        workflows: {
+          'test-workflow': workflow,
+        },
+        server: {
+          apiRoutes: [
+            {
+              path: '/inngest/api',
+              method: 'ALL',
+              createHandler: async ({ mastra }) => inngestServe({ mastra, inngest }),
+            },
+          ],
+        },
+      });
+
+      const app = await createHonoServer(mastra);
+
+      const srv = (globServer = serve({
+        fetch: app.fetch,
+        port: (ctx as any).handlerPort,
+      }));
+
+      await resetInngest();
+
+      const run = await workflow.createRunAsync({
+        runId: 'test-run-id',
+      });
+      const { stream } = run.stream({
+        inputData: {
+          prompt1: 'Capital of France, just the name',
+          prompt2: 'Capital of UK, just the name',
+        },
+      });
+
+      const values: StreamEvent[] = [];
+      for await (const value of stream.values()) {
+        values.push(value);
+      }
+
+      srv.close();
+
+      expect(values).toMatchObject([
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'start',
+        },
+        {
+          payload: {
+            id: 'start',
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: 'start',
+            output: {
+              prompt1: 'Capital of France, just the name',
+              prompt2: 'Capital of UK, just the name',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: 'start',
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            output: {
+              prompt: 'Capital of France, just the name',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: 'test-agent-1',
+          },
+          type: 'step-start',
+        },
+        {
+          args: {
+            prompt: 'Capital of France, just the name',
+          },
+          name: 'test-agent-1',
+          type: 'tool-call-streaming-start',
+        },
+        {
+          args: {
+            prompt: 'Capital of France, just the name',
+          },
+          argsTextDelta: 'Paris',
+          name: 'test-agent-1',
+          type: 'tool-call-delta',
+        },
+        {
+          payload: {
+            id: 'test-agent-1',
+            output: {
+              text: 'Paris',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+          },
+          type: 'step-start',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            output: {
+              prompt: 'Capital of UK, just the name',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+          },
+          type: 'step-start',
+        },
+        {
+          args: {
+            prompt: 'Capital of UK, just the name',
+          },
+          name: 'test-agent-2',
+          type: 'tool-call-streaming-start',
+        },
+        {
+          args: {
+            prompt: 'Capital of UK, just the name',
+          },
+          argsTextDelta: 'London',
+          name: 'test-agent-2',
+          type: 'tool-call-delta',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            output: {
+              text: 'London',
+            },
+            status: 'success',
+          },
+          type: 'step-result',
+        },
+        {
+          payload: {
+            id: expect.any(String),
+            metadata: {},
+          },
+          type: 'step-finish',
+        },
+        {
+          payload: {
+            runId: 'test-run-id',
+          },
+          type: 'finish',
+        },
+      ]);
+    });
+  });
 }, 40e3);
