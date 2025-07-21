@@ -303,25 +303,22 @@ export async function streamGenerateHandler({
       signal: abortSignal,
     });
 
-    const defaultStreamOptions = await agent.getDefaultStreamOptions({ runtimeContext: finalRuntimeContext });
-
-    const streamResponse =
-      rest.output || defaultStreamOptions?.output
-        ? streamResult.toTextStreamResponse({
-            headers: {
-              'Transfer-Encoding': 'chunked',
-            },
-          })
-        : streamResult.toDataStreamResponse({
-            sendUsage: true,
-            sendReasoning: true,
-            getErrorMessage: (error: any) => {
-              return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
-            },
-            headers: {
-              'Transfer-Encoding': 'chunked',
-            },
-          });
+    const streamResponse = rest.output
+      ? streamResult.toTextStreamResponse({
+          headers: {
+            'Transfer-Encoding': 'chunked',
+          },
+        })
+      : streamResult.toDataStreamResponse({
+          sendUsage: true,
+          sendReasoning: true,
+          getErrorMessage: (error: any) => {
+            return `An error occurred while processing your request. ${error instanceof Error ? error.message : JSON.stringify(error)}`;
+          },
+          headers: {
+            'Transfer-Encoding': 'chunked',
+          },
+        });
 
     return streamResponse;
   } catch (error) {
