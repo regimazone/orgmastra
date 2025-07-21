@@ -1,16 +1,5 @@
 # @mastra/core
 
-## 0.0.0-monorepo-test-20250721184330
-
-### Patch Changes
-
-- f248d53: Adding `getMessagesPaginated` to the serve, deployer, and client-js
-- 2affc57: Fix output type of network loop
-- 7827943: Handle streaming large data
-- bf1e7e7: Configure agent memory using runtimeContext
-- 4933192: Update Message List to ensure correct order of message parts
-- cbddd18: Remove erroneous reassignment of `Mastra.prototype.#vectors`
-
 ## 0.11.0-alpha.1
 
 ## 0.11.0-alpha.0

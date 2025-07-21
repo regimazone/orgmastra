@@ -1,6 +1,6 @@
 {
   "name": "@mastra/mcp-registry-registry",
-  "version": "0.0.0-monorepo-test-20250721184330",
+  "version": "0.10.4",
   "description": "MCP server for registry registry services.",
   "type": "module",
   "main": "dist/index.js",
@@ -51,6 +51,6 @@
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "@mastra/core": "workspace:*"
+    "@mastra/core": "^0.10.0-alpha.0"
   }
 }

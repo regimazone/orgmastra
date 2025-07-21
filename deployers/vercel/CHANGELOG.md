@@ -1,26 +1,5 @@
 # @mastra/deployer-vercel
 
-## 0.0.0-monorepo-test-20250721184330
-
-### Patch Changes
-
-- Updated dependencies [f248d53]
-- Updated dependencies [2affc57]
-- Updated dependencies [0938991]
-- Updated dependencies [45469c5]
-- Updated dependencies [6f50efd]
-- Updated dependencies [24eb25c]
-- Updated dependencies [bf6903e]
-- Updated dependencies [7827943]
-- Updated dependencies [bf1e7e7]
-- Updated dependencies [9de6f58]
-- Updated dependencies [4933192]
-- Updated dependencies [7983e53]
-- Updated dependencies [cbddd18]
-- Updated dependencies [15ce274]
-  - @mastra/core@0.0.0-monorepo-test-20250721184330
-  - @mastra/deployer@0.0.0-monorepo-test-20250721184330
-
 ## 0.11.7-alpha.0
 
 ### Patch Changes

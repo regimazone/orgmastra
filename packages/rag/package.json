@@ -1,6 +1,6 @@
 {
   "name": "@mastra/rag",
-  "version": "0.0.0-monorepo-test-20250721184330",
+  "version": "1.0.3",
   "description": "",
   "type": "module",
   "main": "dist/index.js",
@@ -37,7 +37,7 @@
     "zod": "^3.25.67"
   },
   "peerDependencies": {
-    "@mastra/core": "workspace:*",
+    "@mastra/core": "^0.10.0-alpha.0",
     "ai": "^4.0.0"
   },
   "devDependencies": {

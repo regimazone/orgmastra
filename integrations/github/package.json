@@ -1,6 +1,6 @@
 {
   "name": "@mastra/github",
-  "version": "0.0.0-monorepo-test-20250721184330",
+  "version": "1.2.4",
   "description": "",
   "main": "dist/index.js",
   "type": "module",
@@ -57,6 +57,6 @@
     "zod": "^3.25.67"
   },
   "peerDependencies": {
-    "@mastra/core": "workspace:*"
+    "@mastra/core": "^0.10.0-alpha.0"
   }
 }

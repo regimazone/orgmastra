@@ -1,6 +1,6 @@
 {
   "name": "@mastra/agui",
-  "version": "0.0.0-monorepo-test-20250721184330",
+  "version": "1.0.7-alpha.0",
   "description": "AGUI protocol helpers for Mastra",
   "type": "module",
   "files": [
@@ -37,7 +37,7 @@
     "rxjs": "7.8.1"
   },
   "peerDependencies": {
-    "@mastra/core": "workspace:*",
+    "@mastra/core": "^0.10.0-alpha.0",
     "zod": "^3.0.0"
   },
   "devDependencies": {

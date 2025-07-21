@@ -24,6 +24,6 @@
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "@mastra/core": "workspace:*"
+    "@mastra/core": "^0.10.0-alpha.0"
   }
 }
