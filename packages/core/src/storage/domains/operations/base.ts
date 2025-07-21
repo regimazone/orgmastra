@@ -24,6 +24,8 @@ export abstract class StoreOperations extends MastraBase {
         return 'BIGINT';
       case 'jsonb':
         return 'JSONB';
+      case 'float':
+        return 'FLOAT';
       default:
         return 'TEXT';
     }
