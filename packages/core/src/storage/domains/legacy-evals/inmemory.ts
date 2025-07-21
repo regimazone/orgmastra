@@ -70,7 +70,7 @@ export class InMemoryLegacyEvals extends LegacyEvalsStorage {
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     this.logger.debug(`MockStore: getEvalsByAgentName called for ${agentName}`);
     // Mock implementation - filter evals by agentName and type
-    let evals = Array.from(this.collection.values()).filter((e: any) => e.agent_name === agentName);
+    let evals = Array.from(this.collection.values()).filter((e: StorageEvalRow) => e.agent_name === agentName);
 
     if (type === 'test') {
       evals = evals.filter((e: any) => e.test_info && e.test_info.testPath);
