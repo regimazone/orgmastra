@@ -1,5 +1,112 @@
 # @mastra/core
 
+## 0.11.0-alpha.1
+
+## 0.11.0-alpha.0
+
+### Patch Changes
+
+- 7827943: Handle streaming large data
+- bf1e7e7: Configure agent memory using runtimeContext
+- cbddd18: Remove erroneous reassignment of `Mastra.prototype.#vectors`
+
+## 0.10.15
+
+### Patch Changes
+
+- 0b56518: Ensure removed runtimeContext values are not saved in snapshot
+- db5cc15: Create thread if it does not exist yet in agent network stream, generate and loopStream
+- 2ba5b76: Allow passing jsonSchema into workingMemory schema
+- 5237998: Fix foreach output
+- c3a30de: added new experimental vnext working memory
+- 37c1acd: Format semantic recall messages grouped by dates and labeled by if they're from a different thread or not, to improve longmemeval scores
+- 1aa60b1: Pipe runtimeContext to vNext network agent stream and generate steps, wire up runtimeContext for vNext Networks in cliet SDK & playground
+- 89ec9d4: remove cohere-ai client dependency and just make a fetch call
+- cf3a184: Add warning log when memory is not configured but threadId/resourceId are passed to agent
+- d6bfd60: Simplify Message-List Merge Logic and Updates
+- 626b0f4: [Cloud-126] Working Memory Playground - Added working memory to playground to allow users to view/edit working memory
+- c22a91f: Fix nested workflow resume in loop workflow breaking
+- f7403ab: Only change workflow status to success after all steps are successful
+- 6c89d7f: Save runtimeContext in snapshot
+- Updated dependencies [4da943f]
+  - @mastra/schema-compat@0.10.5
+
+## 0.10.15-alpha.1
+
+### Patch Changes
+
+- 0b56518: Ensure removed runtimeContext values are not saved in snapshot
+- 2ba5b76: Allow passing jsonSchema into workingMemory schema
+- c3a30de: added new experimental vnext working memory
+- cf3a184: Add warning log when memory is not configured but threadId/resourceId are passed to agent
+- d6bfd60: Simplify Message-List Merge Logic and Updates
+- Updated dependencies [4da943f]
+  - @mastra/schema-compat@0.10.5-alpha.0
+
+## 0.10.15-alpha.0
+
+### Patch Changes
+
+- db5cc15: Create thread if it does not exist yet in agent network stream, generate and loopStream
+- 5237998: Fix foreach output
+- 37c1acd: Format semantic recall messages grouped by dates and labeled by if they're from a different thread or not, to improve longmemeval scores
+- 1aa60b1: Pipe runtimeContext to vNext network agent stream and generate steps, wire up runtimeContext for vNext Networks in cliet SDK & playground
+- 89ec9d4: remove cohere-ai client dependency and just make a fetch call
+- 626b0f4: [Cloud-126] Working Memory Playground - Added working memory to playground to allow users to view/edit working memory
+- c22a91f: Fix nested workflow resume in loop workflow breaking
+- f7403ab: Only change workflow status to success after all steps are successful
+- 6c89d7f: Save runtimeContext in snapshot
+
+## 0.10.14
+
+### Patch Changes
+
+- Update @mastra/deployer
+
+## 0.10.12
+
+### Patch Changes
+
+- b4a9811: Remove async-await of stream inside llm base class
+- 4d5583d: [Cloud-195] added retrieved memory messages to agent traces
+
+## 0.10.12-alpha.1
+
+### Patch Changes
+
+- 4d5583d: [Cloud-195] added retrieved memory messages to agent traces
+
+## 0.10.12-alpha.0
+
+### Patch Changes
+
+- b4a9811: Remove async-await of stream inside llm base class
+
+## 0.10.11
+
+### Patch Changes
+
+- 2873c7f: dependencies updates:
+  - Updated dependency [`dotenv@^16.6.1` ↗︎](https://www.npmjs.com/package/dotenv/v/16.6.1) (from `^16.5.0`, in `dependencies`)
+- 1c1c6a1: dependencies updates:
+  - Updated dependency [`hono@^4.8.4` ↗︎](https://www.npmjs.com/package/hono/v/4.8.4) (from `^4.8.3`, in `dependencies`)
+- f8ce2cc: Add stepId to workflow executeStep error log
+- 8c846b6: Fixed a problem where per-resource working memory wasn't being queried properly
+- c7bbf1e: Implement workflow retry delay
+- 8722d53: Fix multi modal remaining steps
+- 565cc0c: fix redirection when clicking on the playground breadcrumbs
+- b790fd1: Ability to pass a function to .sleep()/.sleepUntil()
+- 132027f: Check if workflow and step is suspended before resuming
+- 0c85311: Fix Google models ZodNull tool schema handling
+- d7ed04d: make workflow execute use createRunAsync
+- cb16baf: Fix MCP tool output schema type and return value
+- f36e4f1: Allow passing custom instructions to generateTitle to override default instructions.
+- 7f6e403: [MASTRA-3765] Save Message parts - Add ability for user to save messages on step finish for stream and agent
+- Updated dependencies [0c85311]
+  - @mastra/schema-compat@0.10.4
+
+## 0.10.11-alpha.4
+
 ## 0.10.11-alpha.3
 
 ### Patch Changes
