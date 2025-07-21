@@ -89,10 +89,6 @@ export type StorageGetMessagesArg = {
   format?: MastraMessageFormat;
 };
 
-export type ScorerRow = {
-  input: string;
-};
-
 export type StorageEvalRow = {
   input: string;
   output: string;
