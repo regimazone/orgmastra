@@ -18,6 +18,8 @@ export abstract class StoreOperations extends MastraBase {
         return 'TEXT';
       case 'timestamp':
         return 'TIMESTAMP';
+      case 'float':
+        return 'FLOAT';
       case 'integer':
         return 'INTEGER';
       case 'bigint':
@@ -40,6 +42,7 @@ export abstract class StoreOperations extends MastraBase {
         return "DEFAULT '1970-01-01 00:00:00'";
       case 'integer':
       case 'bigint':
+      case 'float':
         return 'DEFAULT 0';
       case 'jsonb':
         return "DEFAULT '{}'";
