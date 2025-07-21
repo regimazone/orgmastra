@@ -434,7 +434,9 @@ export class NewAgentNetwork extends MastraBase {
                         This is the result from the agent: ${inputData.result}
 
                         You need to evaluate that our task is complete. Pay very close attention to the SYSTEM INSTRUCTIONS for when the task is considered complete. Only return true if the task is complete according to the system instructions. Pay close attention to the finalResult and completionReason.
-                        Original task: ${inputData.task}
+                        Original task: ${inputData.task}.
+
+                        The finalResult should always look like the result from the resource. So it can be a structured output or a string depending on the selected resource.
 
                         {
                             "isComplete": boolean,
