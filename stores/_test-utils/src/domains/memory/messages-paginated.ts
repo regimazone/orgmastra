@@ -389,8 +389,9 @@ export function createMessagesPaginatedTest({ storage }: { storage: MastraStorag
     });
 
     it('should upsert messages: duplicate id and different threadid', async () => {
-      const thread1 = await createSampleThread();
-      const thread2 = await createSampleThread();
+      const thread1 = createSampleThread();
+      const thread2 = createSampleThread();
+
       await storage.saveThread({ thread: thread1 });
       await storage.saveThread({ thread: thread2 });
 

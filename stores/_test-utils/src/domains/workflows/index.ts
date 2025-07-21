@@ -158,16 +158,10 @@ export function createWorkflowsTests({ storage }: { storage: MastraStorage }) {
       const sample = createSampleWorkflowSnapshot('success');
       runId = sample.runId;
       stepId = sample.stepId;
-      await storage.insert({
-        tableName: TABLE_WORKFLOW_SNAPSHOT,
-        record: {
-          workflow_name: workflowName,
-          run_id: runId,
-          resourceId: 'resource-abc',
-          snapshot: sample.snapshot,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+      await storage.persistWorkflowSnapshot({
+        workflowName,
+        runId,
+        snapshot: sample.snapshot,
       });
     });
 
