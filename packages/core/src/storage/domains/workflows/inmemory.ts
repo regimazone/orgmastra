@@ -54,7 +54,8 @@ export class WorkflowsInMemory extends WorkflowsStorage {
       keys: { workflow_name: workflowName, run_id: runId },
     });
 
-    return d ? d.snapshot : null;
+    // Return a deep copy to prevent mutation
+    return d ? JSON.parse(JSON.stringify(d.snapshot)) : null;
   }
 
   async getWorkflowRuns({
@@ -106,7 +107,7 @@ export class WorkflowsInMemory extends WorkflowsStorage {
     // Deserialize snapshot if it's a string
     const parsedRuns = runs.map((run: any) => ({
       ...run,
-      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : { ...run.snapshot },
+      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : JSON.parse(JSON.stringify(run.snapshot)),
       createdAt: new Date(run.createdAt),
       updatedAt: new Date(run.updatedAt),
       runId: run.run_id,
@@ -133,10 +134,10 @@ export class WorkflowsInMemory extends WorkflowsStorage {
 
     if (!run) return null;
 
-    // Deserialize snapshot if it's a string
+    // Return a deep copy to prevent mutation
     const parsedRun = {
       ...run,
-      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : run.snapshot,
+      snapshot: typeof run.snapshot === 'string' ? JSON.parse(run.snapshot) : JSON.parse(JSON.stringify(run.snapshot)),
       createdAt: new Date(run.createdAt),
       updatedAt: new Date(run.updatedAt),
       runId: run.run_id,

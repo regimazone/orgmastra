@@ -1,5 +1,21 @@
 # @mastra/client-js
 
+## 0.0.0-monorepo-test-20250721184330
+
+### Patch Changes
+
+- 4832752: Do not set content-type header when making POST/PUT requests without a body
+- f248d53: Adding `getMessagesPaginated` to the serve, deployer, and client-js
+- 2affc57: Fix output type of network loop
+- 7827943: Handle streaming large data
+- Updated dependencies [f248d53]
+- Updated dependencies [2affc57]
+- Updated dependencies [7827943]
+- Updated dependencies [bf1e7e7]
+- Updated dependencies [4933192]
+- Updated dependencies [cbddd18]
+  - @mastra/core@0.0.0-monorepo-test-20250721184330
+
 ## 0.10.15-alpha.1
 
 ### Patch Changes

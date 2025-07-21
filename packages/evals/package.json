@@ -1,6 +1,6 @@
 {
   "name": "@mastra/evals",
-  "version": "0.10.5",
+  "version": "0.0.0-monorepo-test-20250721184330",
   "description": "",
   "type": "module",
   "files": [
@@ -71,7 +71,7 @@
     "zod": "^3.25.67"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.1-alpha.0",
+    "@mastra/core": "workspace:*",
     "ai": "^4.0.0"
   },
   "devDependencies": {

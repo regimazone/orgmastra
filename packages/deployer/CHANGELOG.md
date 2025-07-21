@@ -1,5 +1,36 @@
 # @mastra/deployer
 
+## 0.0.0-monorepo-test-20250721184330
+
+### Minor Changes
+
+- 0938991: Refactored the hono server structure by extracting route logic into route groups based on namespace.
+
+### Patch Changes
+
+- f248d53: Adding `getMessagesPaginated` to the serve, deployer, and client-js
+- 45469c5: Resolve dependency of tsConfigPath modules
+- 6f50efd: Only enforce authorization on protected routes
+- 24eb25c: Provide fallback for extracted mastra options during bundling
+- bf6903e: Fix dependency resolving with directories
+
+  Follow import from `import x from 'pkg/dir'` => `import x from 'pkg/dir/index.js'`
+
+- 9de6f58: Unlocks the dev playground if auth is enabled
+- 7983e53: Revert cloudflare omit install deps step
+- 15ce274: Pipe all env vars in deloyer install
+
+  Fixes and issue with cloudflare
+
+- Updated dependencies [f248d53]
+- Updated dependencies [2affc57]
+- Updated dependencies [7827943]
+- Updated dependencies [bf1e7e7]
+- Updated dependencies [4933192]
+- Updated dependencies [cbddd18]
+  - @mastra/core@0.0.0-monorepo-test-20250721184330
+  - @mastra/server@0.0.0-monorepo-test-20250721184330
+
 ## 0.11.0-alpha.1
 
 ### Patch Changes

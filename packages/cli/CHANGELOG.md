@@ -1,5 +1,40 @@
 # mastra
 
+## 0.0.0-monorepo-test-20250721184330
+
+### Patch Changes
+
+- dd2a4c9: change the way we start the dev process of playground
+- 8f89bcd: fix traces pagination + sharing trace view with cloud
+- 0bf0bc8: fix link in shared components + add e2e tests
+- 2affc57: Fix output type of network loop
+- 51192f8: Spread the loaded env into the main process
+- f6c4d75: fix date picker on change
+- 59f0dcd: Add light background color for step statuses
+- cf8d497: factorize tabs component between cloud and core
+- 7827943: Handle streaming large data
+- 808b493: wrap runtime context with tooltip provider for usage in cloud
+- 09464dd: Share AgentMetadata component with cloud
+- 80692d5: refactor: sharing only the UI and not data fetching for traces
+- Updated dependencies [f248d53]
+- Updated dependencies [2affc57]
+- Updated dependencies [0938991]
+- Updated dependencies [45469c5]
+- Updated dependencies [6f50efd]
+- Updated dependencies [24eb25c]
+- Updated dependencies [bf6903e]
+- Updated dependencies [7827943]
+- Updated dependencies [bf1e7e7]
+- Updated dependencies [9de6f58]
+- Updated dependencies [4933192]
+- Updated dependencies [7983e53]
+- Updated dependencies [cbddd18]
+- Updated dependencies [15ce274]
+  - @mastra/core@0.0.0-monorepo-test-20250721184330
+  - @mastra/deployer@0.0.0-monorepo-test-20250721184330
+  - @mastra/loggers@0.0.0-monorepo-test-20250721184330
+  - @mastra/mcp@0.0.0-monorepo-test-20250721184330
+
 ## 0.10.14-alpha.1
 
 ### Patch Changes

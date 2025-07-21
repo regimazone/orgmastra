@@ -1,5 +1,19 @@
 # @mastra/memory
 
+## 0.0.0-monorepo-test-20250721184330
+
+### Patch Changes
+
+- 138f4a2: dependencies updates:
+  - Updated dependency [`redis@^5.6.0` ↗︎](https://www.npmjs.com/package/redis/v/5.6.0) (from `^4.7.1`, in `dependencies`)
+- Updated dependencies [f248d53]
+- Updated dependencies [2affc57]
+- Updated dependencies [7827943]
+- Updated dependencies [bf1e7e7]
+- Updated dependencies [4933192]
+- Updated dependencies [cbddd18]
+  - @mastra/core@0.0.0-monorepo-test-20250721184330
+
 ## 0.11.4-alpha.0
 
 ### Patch Changes

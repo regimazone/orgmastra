@@ -1,6 +1,6 @@
 {
   "name": "@mastra/firecrawl",
-  "version": "1.2.7",
+  "version": "0.0.0-monorepo-test-20250721184330",
   "description": "",
   "type": "module",
   "main": "dist/index.js",
@@ -55,6 +55,6 @@
     "zod": "^3.25.67"
   },
   "peerDependencies": {
-    "@mastra/core": "^0.10.0-alpha.0"
+    "@mastra/core": "workspace:*"
   }
 }

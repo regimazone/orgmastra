@@ -1,5 +1,40 @@
 # @mastra/deployer-cloudflare
 
+## 0.0.0-monorepo-test-20250721184330
+
+### Minor Changes
+
+- d83392d: Remove scope, auth, and cloudflare client from CloudflareDeployer
+
+  BREAKING CHANGES:
+  - Remove `scope` property and constructor parameter
+  - Remove `auth` parameter from constructor
+  - Remove private `cloudflare` client property and initialization
+  - Update `tagWorker` method to throw error directing users to Cloudflare dashboard
+  - Remove unused Cloudflare import
+
+  This simplifies the CloudflareDeployer API by removing external dependencies and authentication requirements. Users should now use the Cloudflare dashboard or API directly for operations that previously required the cloudflare client.
+
+### Patch Changes
+
+- 7983e53: Revert cloudflare omit install deps step
+- Updated dependencies [f248d53]
+- Updated dependencies [2affc57]
+- Updated dependencies [0938991]
+- Updated dependencies [45469c5]
+- Updated dependencies [6f50efd]
+- Updated dependencies [24eb25c]
+- Updated dependencies [bf6903e]
+- Updated dependencies [7827943]
+- Updated dependencies [bf1e7e7]
+- Updated dependencies [9de6f58]
+- Updated dependencies [4933192]
+- Updated dependencies [7983e53]
+- Updated dependencies [cbddd18]
+- Updated dependencies [15ce274]
+  - @mastra/core@0.0.0-monorepo-test-20250721184330
+  - @mastra/deployer@0.0.0-monorepo-test-20250721184330
+
 ## 0.10.16-alpha.1
 
 ### Patch Changes
