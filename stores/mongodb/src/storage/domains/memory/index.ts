@@ -71,7 +71,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
                 .toArray();
 
             // Find the target message
-            const targetIndex = allMessages.findIndex(msg => msg.id === id);
+            const targetIndex = allMessages.findIndex((msg: any) => msg.id === id);
 
             if (targetIndex === -1) continue;
 
@@ -136,7 +136,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
                     .limit(limit)
                     .toArray();
 
-                messages.push(...remainingMessages.map(row => this.parseRow(row)));
+                messages.push(...remainingMessages.map((row: any) => this.parseRow(row)));
             }
 
             // Sort all messages by creation date ascending
@@ -229,7 +229,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
                 .limit(perPage)
                 .toArray();
 
-            messages.push(...dataResult.map(row => this.parseRow(row)));
+            messages.push(...dataResult.map((row: any) => this.parseRow(row)));
 
             const messagesToReturn =
                 format === 'v1'
@@ -354,7 +354,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
             .find({ id: { $in: messageIds } })
             .toArray();
 
-        const existingMessagesParsed: MastraMessageV2[] = existingMessages.map(msg => this.parseRow(msg));
+        const existingMessagesParsed: MastraMessageV2[] = existingMessages.map((msg: any) => this.parseRow(msg));
 
         if (existingMessagesParsed.length === 0) {
             return [];
@@ -438,7 +438,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
             .find({ id: { $in: messageIds } })
             .toArray();
 
-        return updatedMessages.map(row => this.parseRow(row));
+        return updatedMessages.map((row: any) => this.parseRow(row));
     }
 
     async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
@@ -592,7 +592,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
                 return [];
             }
 
-            return results.map(result => ({
+            return results.map((result: any) => ({
                 ...result,
                 metadata: typeof result.metadata === 'string' ? safelyParseJSON(result.metadata) : result.metadata,
             }));
@@ -629,7 +629,7 @@ export class MemoryStorageMongoDB extends MemoryStorage {
                 .toArray();
 
             return {
-                threads: threads.map(thread => ({
+                threads: threads.map((thread: any) => ({
                     id: thread.id,
                     title: thread.title,
                     resourceId: thread.resourceId,

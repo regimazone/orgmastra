@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Routes, Route, BrowserRouter, Outlet } from 'react-router';
+=======
+import { Routes, Route, BrowserRouter, Outlet, useNavigate } from 'react-router';
+>>>>>>> 8ee246917cc68a1176b8eb21e1e155debc6d6ec2
 
 import { Layout } from '@/components/layout';
 
@@ -26,26 +30,35 @@ import { PostHogProvider } from './lib/analytics';
 import RuntimeContext from './pages/runtime-context';
 import MCPs from './pages/mcps';
 import MCPServerToolExecutor from './pages/mcps/tool';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
-import { QueryClient } from '@tanstack/react-query';
+
 import { McpServerPage } from './pages/mcps/[serverId]';
 import { WorkflowGraphLayout } from './pages/workflows/layouts/workflow-graph-layout';
-import { LinkComponentProvider, MastraClientProvider } from '@mastra/playground-ui';
+import { LinkComponentProvider, MastraClientProvider, PlaygroundQueryClient } from '@mastra/playground-ui';
 import VNextNetwork from './pages/networks/network/v-next';
 import Scorer from './pages/scorers/scorer';
 import { NavigateTo } from './lib/react-router';
 import { Link } from './lib/framework';
 
-function App() {
-  const [queryClient] = useState(() => new QueryClient());
+const LinkComponentWrapper = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
+  const frameworkNavigate = (path: string) => {
+    navigate(path);
+  };
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <LinkComponentProvider Link={Link} navigate={frameworkNavigate}>
+      {children}
+    </LinkComponentProvider>
+  );
+};
+
+function App() {
+  return (
+    <PlaygroundQueryClient>
       <PostHogProvider>
         <MastraClientProvider>
-          <LinkComponentProvider Link={Link}>
-            <BrowserRouter>
+          <BrowserRouter>
+            <LinkComponentWrapper>
               <Routes>
                 <Route
                   element={
@@ -172,11 +185,11 @@ function App() {
                   <Route path="/runtime-context" element={<RuntimeContext />} />
                 </Route>
               </Routes>
-            </BrowserRouter>
-          </LinkComponentProvider>
+            </LinkComponentWrapper>
+          </BrowserRouter>
         </MastraClientProvider>
       </PostHogProvider>
-    </QueryClientProvider>
+    </PlaygroundQueryClient>
   );
 }
 

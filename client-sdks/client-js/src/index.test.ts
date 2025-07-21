@@ -28,7 +28,13 @@ describe('MastraClient Resources', () => {
       } else {
         responseBody = new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(JSON.stringify(data)));
+            if (typeof data === 'string') {
+              controller.enqueue(new TextEncoder().encode(data));
+            } else if (typeof data === 'object' && data !== null) {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify(data)));
+            } else {
+              controller.enqueue(new TextEncoder().encode(String(data)));
+            }
             controller.close();
           },
         });
@@ -283,7 +289,7 @@ describe('MastraClient Resources', () => {
     });
 
     it('should stream responses', async () => {
-      const mockChunk = { content: 'test response' };
+      const mockChunk = `0:"test response"\n`;
       mockFetchResponse(mockChunk, { isStream: true });
 
       const response = await agent.stream({
@@ -302,7 +308,7 @@ describe('MastraClient Resources', () => {
       if (reader) {
         const { value, done } = await reader.read();
         expect(done).toBe(false);
-        expect(new TextDecoder().decode(value)).toBe(JSON.stringify(mockChunk));
+        expect(new TextDecoder().decode(value)).toBe(mockChunk);
       }
     });
 
@@ -592,6 +598,48 @@ describe('MastraClient Resources', () => {
       });
       expect(global.fetch).toHaveBeenCalledWith(
         `${clientOptions.baseUrl}/api/memory/threads/${threadId}/messages?agentId=${agentId}&limit=${limit}`,
+        expect.objectContaining({
+          headers: expect.objectContaining(clientOptions.headers),
+        }),
+      );
+    });
+
+    it('should get paginated thread messages', async () => {
+      const mockResponse = {
+        messages: [
+          {
+            id: '1',
+            content: 'test message',
+            threadId,
+            role: 'user',
+            type: 'text',
+            resourceId: 'test-resource',
+            createdAt: new Date(),
+          },
+        ],
+        total: 5,
+        page: 1,
+        perPage: 2,
+        hasMore: true,
+      };
+      mockFetchResponse(mockResponse);
+
+      const selectBy = {
+        pagination: {
+          page: 1,
+          perPage: 2,
+        },
+      };
+
+      const result = await memoryThread.getMessagesPaginated({
+        resourceId: 'test-resource',
+        format: 'v2',
+        selectBy,
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${clientOptions.baseUrl}/api/memory/threads/${threadId}/messages/paginated?resourceId=test-resource&format=v2&selectBy=${encodeURIComponent(JSON.stringify(selectBy))}`,
         expect.objectContaining({
           headers: expect.objectContaining(clientOptions.headers),
         }),

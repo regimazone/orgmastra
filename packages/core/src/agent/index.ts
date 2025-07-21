@@ -105,7 +105,7 @@ export class Agent<
   readonly #description?: string;
   readonly model?: DynamicArgument<MastraLanguageModel>;
   #mastra?: Mastra;
-  #memory?: MastraMemory;
+  #memory?: DynamicArgument<MastraMemory>;
   #workflows?: DynamicArgument<Record<string, Workflow>>;
   #defaultGenerateOptions: DynamicArgument<AgentGenerateOptions>;
   #defaultStreamOptions: DynamicArgument<AgentStreamOptions>;
@@ -113,6 +113,9 @@ export class Agent<
   evals: TMetrics;
   #scorers: DynamicArgument<Scorers>;
   #voice: CompositeVoice;
+
+  // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
+  private _agentNetworkAppend = false;
 
   constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
     super({ component: RegisteredLogger.AGENT });
@@ -180,24 +183,54 @@ export class Agent<
     } else {
       this.#voice = new DefaultVoice();
     }
+
+    // @ts-ignore Flag for agent network messages
+    this._agentNetworkAppend = config._agentNetworkAppend || false;
   }
 
   public hasOwnMemory(): boolean {
     return Boolean(this.#memory);
   }
 
-  public getMemory(): MastraMemory | undefined {
-    const memory = this.#memory;
+  public async getMemory({ runtimeContext = new RuntimeContext() }: { runtimeContext?: RuntimeContext } = {}): Promise<
+    MastraMemory | undefined
+  > {
+    if (!this.#memory) {
+      return undefined;
+    }
 
-    if (memory && !memory.hasOwnStorage && this.#mastra) {
-      const storage = this.#mastra.getStorage();
+    let resolvedMemory: MastraMemory;
 
-      if (storage) {
-        memory.setStorage(storage);
+    if (typeof this.#memory !== 'function') {
+      resolvedMemory = this.#memory;
+    } else {
+      const result = this.#memory({ runtimeContext });
+      resolvedMemory = await Promise.resolve(result);
+
+      if (!resolvedMemory) {
+        const mastraError = new MastraError({
+          id: 'AGENT_GET_MEMORY_FUNCTION_EMPTY_RETURN',
+          domain: ErrorDomain.AGENT,
+          category: ErrorCategory.USER,
+          details: {
+            agentName: this.name,
+          },
+          text: `[Agent:${this.name}] - Function-based memory returned empty value`,
+        });
+        this.logger.trackException(mastraError);
+        this.logger.error(mastraError.toString());
+        throw mastraError;
       }
     }
 
-    return memory;
+    if (resolvedMemory && !resolvedMemory.hasOwnStorage && this.#mastra) {
+      const storage = this.#mastra.getStorage();
+      if (storage) {
+        resolvedMemory.setStorage(storage);
+      }
+    }
+
+    return resolvedMemory;
   }
 
   get voice() {
@@ -676,6 +709,7 @@ export class Agent<
     userMessages,
     systemMessage,
     messageList = new MessageList({ threadId, resourceId }),
+    runtimeContext = new RuntimeContext(),
   }: {
     resourceId: string;
     threadId: string;
@@ -685,8 +719,9 @@ export class Agent<
     systemMessage?: CoreMessage;
     runId?: string;
     messageList?: MessageList;
+    runtimeContext?: RuntimeContext;
   }) {
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     if (memory) {
       const thread = passedThread ?? (await memory.getThreadById({ threadId }));
 
@@ -714,7 +749,7 @@ export class Agent<
                   config: memoryConfig,
                   vectorMessageSearch: messageList.getLatestUserContent() || '',
                 })
-                .then(r => r.messagesV2),
+                .then((r: any) => r.messagesV2),
               memory.getSystemMessage({ threadId, memoryConfig }),
             ])
           : [[], null];
@@ -778,7 +813,7 @@ export class Agent<
   }) {
     let convertedMemoryTools: Record<string, CoreTool> = {};
     // Get memory tools if available
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     const memoryTools = memory?.getTools?.();
 
     if (memoryTools) {
@@ -856,13 +891,15 @@ export class Agent<
     threadId,
     vectorMessageSearch,
     memoryConfig,
+    runtimeContext,
   }: {
     resourceId?: string;
     threadId: string;
     vectorMessageSearch: string;
     memoryConfig?: MemoryConfig;
+    runtimeContext: RuntimeContext;
   }) {
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     if (!memory) {
       return [];
     }
@@ -894,7 +931,7 @@ export class Agent<
 
     this.logger.debug(`[Agents:${this.name}] - Assembling assigned tools`, { runId, threadId, resourceId });
 
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
 
     // Mastra tools passed into the Agent
 
@@ -953,7 +990,7 @@ export class Agent<
   }) {
     let toolsForRequest: Record<string, CoreTool> = {};
 
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     const toolsFromToolsets = Object.values(toolsets || {});
 
     if (toolsFromToolsets.length > 0) {
@@ -1000,7 +1037,7 @@ export class Agent<
     clientTools?: ToolsInput;
   }) {
     let toolsForRequest: Record<string, CoreTool> = {};
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     // Convert client tools
     const clientToolsForInput = Object.entries(clientTools || {});
     if (clientToolsForInput.length > 0) {
@@ -1241,7 +1278,7 @@ export class Agent<
           this.logger.debug(`[Agents:${this.name}] - Starting generation`, { runId });
         }
 
-        const memory = this.getMemory();
+        const memory = await this.getMemory({ runtimeContext });
 
         const toolEnhancements = [
           // toolsets
@@ -1258,7 +1295,7 @@ export class Agent<
           runId,
           toolsets: toolsets ? Object.keys(toolsets) : undefined,
           clientTools: clientTools ? Object.keys(clientTools) : undefined,
-          hasMemory: !!this.getMemory(),
+          hasMemory: !!memory,
           hasResourceId: !!resourceId,
         });
 
@@ -1273,7 +1310,13 @@ export class Agent<
           runtimeContext,
         });
 
-        const messageList = new MessageList({ threadId, resourceId, generateMessageId })
+        const messageList = new MessageList({
+          threadId,
+          resourceId,
+          generateMessageId,
+          // @ts-ignore Flag for agent network messages
+          _agentNetworkAppend: this._agentNetworkAppend,
+        })
           .addSystem({
             role: 'system',
             content: instructions || `${this.instructions}.`,
@@ -1347,6 +1390,7 @@ export class Agent<
                   threadId: threadObject.id,
                   vectorMessageSearch: new MessageList().add(messages, `user`).getLatestUserContent() || '',
                   memoryConfig,
+                  runtimeContext,
                 }),
                 memory.getSystemMessage({ threadId: threadObject.id, resourceId, memoryConfig }),
               ])
@@ -1422,7 +1466,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           memorySystemMessage: memorySystemMessage || undefined,
         });
 
-        const processedList = new MessageList({ threadId: threadObject.id, resourceId })
+        const processedList = new MessageList({
+          threadId: threadObject.id,
+          resourceId,
+          // @ts-ignore Flag for agent network messages
+          _agentNetworkAppend: this._agentNetworkAppend,
+        })
           .addSystem(instructions || `${this.instructions}.`)
           .addSystem(memorySystemMessage)
           .add(context || [], 'context')
@@ -1482,8 +1531,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           result: resToLog,
           threadId,
         });
-        const memory = this.getMemory();
-        const messageListResponses = new MessageList({ threadId, resourceId })
+        const messageListResponses = new MessageList({
+          threadId,
+          resourceId,
+          // @ts-ignore Flag for agent network messages
+          _agentNetworkAppend: this._agentNetworkAppend,
+        })
           .add(result.response.messages, 'response')
           .get.all.core();
 
@@ -1491,6 +1544,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           m => m.role === 'tool' && m?.content?.some(c => c?.toolName === 'updateWorkingMemory'),
         );
         // working memory updates the thread, so we need to get the latest thread if we used it
+        const memory = await this.getMemory({ runtimeContext });
         const thread = usedWorkingMemory
           ? threadId
             ? await memory?.getThreadById({ threadId })
@@ -1725,11 +1779,17 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const threadFromArgs = resolveThreadIdFromArgs({ ...args, ...generateOptions });
     const resourceId = args.memory?.resource || resourceIdFromArgs;
     const memoryConfig = args.memory?.options || memoryConfigFromArgs;
+
+    if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
+      this.logger.warn(
+        `[Agent:${this.name}] - No memory is configured but resourceId and threadId were passed in args. This will not work.`,
+      );
+    }
     const runId = args.runId || randomUUID();
     const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
     const llm = await this.getLLM({ runtimeContext });
 
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     const saveQueueManager = new SaveQueueManager({
       logger: this.logger,
       memory,
@@ -1977,11 +2037,17 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const resourceId = args.memory?.resource || resourceIdFromArgs;
     const memoryConfig = args.memory?.options || memoryConfigFromArgs;
 
+    if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
+      this.logger.warn(
+        `[Agent:${this.name}] - No memory is configured but resourceId and threadId were passed in args. This will not work.`,
+      );
+    }
+
     const runId = args.runId || randomUUID();
     const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
     const llm = await this.getLLM({ runtimeContext });
 
-    const memory = this.getMemory();
+    const memory = await this.getMemory({ runtimeContext });
     const saveQueueManager = new SaveQueueManager({
       logger: this.logger,
       memory,

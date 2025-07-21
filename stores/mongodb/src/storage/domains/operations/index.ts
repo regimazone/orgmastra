@@ -2,40 +2,21 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { safelyParseJSON, StoreOperations, TABLE_SCHEMAS } from '@mastra/core/storage';
 import type { StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
-import type { Db, MongoClient } from 'mongodb';
+import type { ConnectorHandler } from '../../connectors/base';
 
 export interface MongoDBOperationsConfig {
-    client: MongoClient;
-    dbName: string;
+    connector: ConnectorHandler;
 }
-
 export class StoreOperationsMongoDB extends StoreOperations {
-    #isConnected = false;
-    #client: MongoClient;
-    #db: Db | undefined;
-    readonly #dbName: string;
+    readonly #connector: ConnectorHandler;
 
     constructor(config: MongoDBOperationsConfig) {
         super();
-        this.#isConnected = false;
-        this.#dbName = config.dbName;
-        this.#client = config.client
-    }
-
-    async getConnection(): Promise<Db> {
-        if (this.#isConnected) {
-            return this.#db!;
-        }
-
-        await this.#client.connect();
-        this.#db = this.#client.db(this.#dbName);
-        this.#isConnected = true;
-        return this.#db;
+        this.#connector = config.connector;
     }
 
     async getCollection(collectionName: string) {
-        const db = await this.getConnection();
-        return db.collection(collectionName);
+        return this.#connector.getCollection(collectionName);
     }
 
     async hasColumn(_table: string, _column: string): Promise<boolean> {

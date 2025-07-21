@@ -64,9 +64,9 @@ export class LegacyEvalsMongoDB extends LegacyEvalsStorage {
 
             const collection = await this.operations.getCollection(TABLE_EVALS);
             const documents = await collection.find(query).sort({ created_at: 'desc' }).toArray();
-            const result = documents.map(row => transformEvalRow(row));
+            const result = documents.map((row: any) => transformEvalRow(row));
             // Post filter to remove if test_info.testPath is null
-            return result.filter(row => {
+            return result.filter((row: any) => {
                 if (type === 'live') {
                     return !Boolean(row.testInfo?.testPath);
                 }
@@ -150,10 +150,10 @@ export class LegacyEvalsMongoDB extends LegacyEvalsStorage {
                 .limit(perPage)
                 .toArray();
 
-            const evals = documents.map(row => transformEvalRow(row));
+            const evals = documents.map((row: any) => transformEvalRow(row));
 
             // Post filter to remove if test_info.testPath is null
-            const filteredEvals = evals.filter(row => {
+            const filteredEvals = evals.filter((row: any) => {
                 if (type === 'live') {
                     return !Boolean(row.testInfo?.testPath);
                 }

@@ -69,6 +69,8 @@ export type PaginationInfo = {
   hasMore: boolean;
 };
 
+export type MastraMessageFormat = 'v1' | 'v2';
+
 export type StorageGetMessagesArg = {
   threadId: string;
   resourceId?: string;
@@ -84,7 +86,7 @@ export type StorageGetMessagesArg = {
     pagination?: PaginationArgs;
   };
   threadConfig?: MemoryConfig;
-  format?: 'v1' | 'v2';
+  format?: MastraMessageFormat;
 };
 
 export type ScorerRow = {

@@ -53,7 +53,7 @@ export interface AgentConfig<
   mastra?: Mastra;
   evals?: TMetrics;
   scorers?: DynamicArgument<Scorers>;
-  memory?: MastraMemory;
+  memory?: DynamicArgument<MastraMemory>;
   voice?: CompositeVoice;
   /** @deprecated This property is deprecated. Use evals instead to add evaluation metrics. */
   metrics?: TMetrics;
@@ -91,10 +91,10 @@ export type AgentGenerateOptions<
   runId?: string;
   /** Callback fired after each generation step completes */
   onStepFinish?: OUTPUT extends undefined
-    ? EXPERIMENTAL_OUTPUT extends undefined
-      ? GenerateTextOnStepFinishCallback<any>
-      : GenerateTextOnStepFinishCallback<any>
-    : never;
+  ? EXPERIMENTAL_OUTPUT extends undefined
+  ? GenerateTextOnStepFinishCallback<any>
+  : GenerateTextOnStepFinishCallback<any>
+  : never;
   /** Maximum number of steps allowed for generation */
   maxSteps?: number;
   /** Schema for structured output, does not work with tools, use experimental_output instead */
@@ -113,7 +113,7 @@ export type AgentGenerateOptions<
    */
   savePerStep?: boolean;
 } & (
-  | {
+    | {
       /**
        * @deprecated Use the `memory` property instead for all memory-related options.
        */
@@ -123,7 +123,7 @@ export type AgentGenerateOptions<
        */
       threadId?: undefined;
     }
-  | {
+    | {
       /**
        * @deprecated Use the `memory` property instead for all memory-related options.
        */
@@ -133,7 +133,7 @@ export type AgentGenerateOptions<
        */
       threadId: string;
     }
-) &
+  ) &
   (OUTPUT extends undefined ? DefaultLLMTextOptions : DefaultLLMTextObjectOptions);
 
 /**
@@ -162,16 +162,16 @@ export type AgentStreamOptions<
   runId?: string;
   /** Callback fired when streaming completes */
   onFinish?: OUTPUT extends undefined
-    ? StreamTextOnFinishCallback<any>
-    : OUTPUT extends ZodSchema
-      ? StreamObjectOnFinishCallback<z.infer<OUTPUT>>
-      : StreamObjectOnFinishCallback<any>;
+  ? StreamTextOnFinishCallback<any>
+  : OUTPUT extends ZodSchema
+  ? StreamObjectOnFinishCallback<z.infer<OUTPUT>>
+  : StreamObjectOnFinishCallback<any>;
   /** Callback fired after each generation step completes */
   onStepFinish?: OUTPUT extends undefined
-    ? EXPERIMENTAL_OUTPUT extends undefined
-      ? StreamTextOnStepFinishCallback<any>
-      : StreamTextOnStepFinishCallback<any>
-    : never;
+  ? EXPERIMENTAL_OUTPUT extends undefined
+  ? StreamTextOnStepFinishCallback<any>
+  : StreamTextOnStepFinishCallback<any>
+  : never;
   /** Maximum number of steps allowed for generation */
   maxSteps?: number;
   /** Schema for structured output */
@@ -192,7 +192,7 @@ export type AgentStreamOptions<
    */
   savePerStep?: boolean;
 } & (
-  | {
+    | {
       /**
        * @deprecated Use the `memory` property instead for all memory-related options.
        */
@@ -202,7 +202,7 @@ export type AgentStreamOptions<
        */
       threadId?: undefined;
     }
-  | {
+    | {
       /**
        * @deprecated Use the `memory` property instead for all memory-related options.
        */
@@ -212,5 +212,5 @@ export type AgentStreamOptions<
        */
       threadId: string;
     }
-) &
+  ) &
   (OUTPUT extends undefined ? DefaultLLMStreamOptions : DefaultLLMStreamObjectOptions);

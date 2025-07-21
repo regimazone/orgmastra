@@ -228,7 +228,7 @@ export class LegacyEvalsStorageClickhouse extends LegacyEvalsStorage {
                     id: 'CLICKHOUSE_STORAGE_GET_EVALS_FAILED',
                     domain: ErrorDomain.STORAGE,
                     category: ErrorCategory.THIRD_PARTY,
-                    details: { agentName, type: type ?? null },
+                    details: { agentName: agentName ?? 'all', type: type ?? 'all' },
                 },
                 error,
             );

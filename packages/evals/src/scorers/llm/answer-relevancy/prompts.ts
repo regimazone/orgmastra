@@ -31,8 +31,8 @@ export const createExtractPrompt = (output: string) => `
   `;
 
 export const createScorePrompt = (
-  input: string,
-  statements: string[],
+    input: string,
+    statements: string[],
 ) => `Evaluate each statement's relevance to the input question, considering direct answers, related context, and uncertain cases.
 
       Return JSON with array of result objects. Each result must include:
@@ -160,19 +160,19 @@ export const createScorePrompt = (
 `;
 
 export const createReasonPrompt = ({
-  input,
-  output,
-  score,
-  results,
-  scale,
+    input,
+    output,
+    score,
+    results,
+    scale,
 }: {
-  input: string;
-  output: string;
-  score: number;
-  results: { result: string; reason: string }[];
-  scale: number;
+    input: string;
+    output: string;
+    score: number;
+    results: { result: string; reason: string }[];
+    scale: number;
 }) => `
-    Explain the irrelevancy score where 0 is the lowest and ${scale} is the highest for the LLM's response using this context:
+    Explain the relevancy score where 0 is the lowest and ${scale} is the highest for the LLM's response using this context:
       Context:
       Input: ${input}
       Output: ${output}

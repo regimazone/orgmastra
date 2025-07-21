@@ -9,39 +9,31 @@ import type {
   StorageColumn,
   StorageGetMessagesArg,
   StorageGetTracesArg,
-  StorageGetTracesPaginatedArg,
   TABLE_NAMES,
   WorkflowRun,
   WorkflowRuns,
-  StoragePagination,
-  StorageDomains,
   StorageResourceType,
+  StorageDomains,
+  StoragePagination,
+  StorageGetTracesPaginatedArg,
 } from '@mastra/core/storage';
 import {
   MastraStorage,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
-import type { Db, MongoClientOptions } from 'mongodb';
-import { MongoClient } from 'mongodb';
+import { MongoDBConnector } from './connectors/MongoDBConnector';
 import { LegacyEvalsMongoDB } from './domains/legacy-evals';
 import { MemoryStorageMongoDB } from './domains/memory';
 import { StoreOperationsMongoDB } from './domains/operations';
 import { ScoresStorageMongoDB } from './domains/scores';
 import { TracesStorageMongoDB } from './domains/traces';
 import { WorkflowsStorageMongoDB } from './domains/workflows';
+import type { MongoDBConfig } from './types';
 
-export interface MongoDBConfig {
-  url: string;
-  dbName: string;
-  options?: MongoClientOptions;
-}
 
 export class MongoDBStore extends MastraStorage {
-  #isConnected = false;
-  #client: MongoClient;
-  #db: Db | undefined;
-  readonly #dbName: string;
+  #connector: MongoDBConnector;
 
   stores: StorageDomains
 
@@ -61,19 +53,13 @@ export class MongoDBStore extends MastraStorage {
 
   constructor(config: MongoDBConfig) {
     super({ name: 'MongoDBStore' });
-    this.#isConnected = false;
+
+    this.stores = {} as StorageDomains;
 
     try {
-      if (!config.url?.trim().length) {
-        throw new Error(
-          'MongoDBStore: url must be provided and cannot be empty. Passing an empty string may cause fallback to local MongoDB defaults.',
-        );
-      }
-
-      if (!config.dbName?.trim().length) {
-        throw new Error(
-          'MongoDBStore: dbName must be provided and cannot be empty. Passing an empty string may cause fallback to local MongoDB defaults.',
-        );
+      if ('connectorHandler' in config) {
+        this.#connector = MongoDBConnector.fromConnectionHandler(config.connectorHandler);
+        return;
       }
     } catch (error) {
       throw new MastraError(
@@ -81,18 +67,32 @@ export class MongoDBStore extends MastraStorage {
           id: 'STORAGE_MONGODB_STORE_CONSTRUCTOR_FAILED',
           domain: ErrorDomain.STORAGE,
           category: ErrorCategory.USER,
-          details: { url: config.url, dbName: config.dbName },
+          details: { connectionHandler: true },
         },
         error,
       );
     }
 
-    this.#dbName = config.dbName;
-    this.#client = new MongoClient(config.url, config.options);
+    try {
+      this.#connector = MongoDBConnector.fromDatabaseConfig({
+        options: config.options,
+        url: config.url,
+        dbName: config.dbName,
+      });
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'STORAGE_MONGODB_STORE_CONSTRUCTOR_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.USER,
+          details: { url: config?.url, dbName: config?.dbName },
+        },
+        error,
+      );
+    }
 
     const operations = new StoreOperationsMongoDB({
-      client: this.#client,
-      dbName: this.#dbName,
+      connector: this.#connector,
     });
 
     const memory = new MemoryStorageMongoDB({
@@ -123,22 +123,6 @@ export class MongoDBStore extends MastraStorage {
       scores,
       workflows,
     };
-  }
-
-  private async getConnection(): Promise<Db> {
-    if (this.#isConnected) {
-      return this.#db!;
-    }
-
-    await this.#client.connect();
-    this.#db = this.#client.db(this.#dbName);
-    this.#isConnected = true;
-    return this.#db;
-  }
-
-  private async getCollection(collectionName: string) {
-    const db = await this.getConnection();
-    return db.collection(collectionName);
   }
 
   async createTable({ tableName, schema }: { tableName: TABLE_NAMES, schema: Record<string, StorageColumn> }): Promise<void> {
@@ -249,6 +233,10 @@ export class MongoDBStore extends MastraStorage {
     return this.stores.traces.getTraces(args);
   }
 
+  async getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }> {
+    return this.stores.traces.getTracesPaginated(args);
+  }
+
   async getWorkflowRuns(args?: {
     workflowName?: string;
     fromDate?: Date;
@@ -305,15 +293,9 @@ export class MongoDBStore extends MastraStorage {
     return this.stores.workflows.getWorkflowRunById({ runId, workflowName });
   }
 
-
-
-  async getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }> {
-    return this.stores.traces.getTracesPaginated(args);
-  }
-
   async close(): Promise<void> {
     try {
-      await this.#client.close();
+      await this.#connector.close();
     } catch (error) {
       throw new MastraError(
         {
