@@ -3,13 +3,13 @@
   "version": "0.0.15",
   "description": "",
   "type": "module",
-  "main": "src/default-tests.ts",
+  "main": "src/index.ts",
   "private": true,
   "scripts": {
     "test": "vitest run"
   },
   "exports": {
-    ".": "./src/default-tests.ts"
+    ".": "./src/index.ts"
   },
   "keywords": [],
   "author": "",

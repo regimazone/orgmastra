@@ -40,13 +40,13 @@ export function createTestSuite(storage: MastraStorage) {
       await storage.clearTable({ tableName: TABLE_SCORERS });
     });
 
-    // createOperationsTests({ storage });
+    createOperationsTests({ storage });
 
-    // createWorkflowsTests({ storage });
+    createWorkflowsTests({ storage });
 
-    // createTraceTests({ storage });
+    createTraceTests({ storage });
 
-    // createEvalsTests({ storage });
+    createEvalsTests({ storage });
 
     createMemoryTest({ storage });
 
