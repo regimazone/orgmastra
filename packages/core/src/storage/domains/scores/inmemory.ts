@@ -1,4 +1,4 @@
-import type { ScoreRowData } from '../../../eval';
+import type { ScoreRowData } from '../../../scores/types';
 import type { PaginationInfo, StoragePagination } from '../../types';
 import { ScoresStorage } from './base';
 

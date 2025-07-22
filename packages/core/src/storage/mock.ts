@@ -1,6 +1,6 @@
 import type { MastraMessageV2 } from '../agent';
-import type { ScoreRowData } from '../eval';
 import type { MastraMessageV1, StorageThreadType } from '../memory/types';
+import type { ScoreRowData } from '../scores/types';
 import type { Trace } from '../telemetry';
 import type { WorkflowRunState } from '../workflows';
 import { MastraStorage } from './base';
@@ -200,7 +200,9 @@ export class InMemoryStore extends MastraStorage {
     selectBy,
     format,
   }: StorageGetMessagesArg & { format?: 'v1' | 'v2' }): Promise<MastraMessageV1[] | MastraMessageV2[]> {
-    return this.stores.memory.getMessages({ threadId, resourceId, selectBy, format }) as unknown as Promise<MastraMessageV1[] | MastraMessageV2[]>;
+    return this.stores.memory.getMessages({ threadId, resourceId, selectBy, format }) as unknown as Promise<
+      MastraMessageV1[] | MastraMessageV2[]
+    >;
   }
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
@@ -302,7 +304,9 @@ export class InMemoryStore extends MastraStorage {
     return this.stores.scores.getScoresByEntityId({ entityId, entityType, pagination });
   }
 
-  async getEvals(options: { agentName?: string; type?: 'test' | 'live' } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[] }> {
+  async getEvals(
+    options: { agentName?: string; type?: 'test' | 'live' } & PaginationArgs,
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
     return this.stores.legacyEvals.getEvals(options);
   }
 

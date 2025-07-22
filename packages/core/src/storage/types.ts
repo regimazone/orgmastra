@@ -89,10 +89,6 @@ export type StorageGetMessagesArg = {
   format?: MastraMessageFormat;
 };
 
-export type ScorerRow = {
-  input: string;
-};
-
 export type StorageEvalRow = {
   input: string;
   output: string;
@@ -104,7 +100,7 @@ export type StorageEvalRow = {
   global_run_id: string;
   run_id: string;
   created_at: Date;
-}
+};
 
 export type EvalRow = {
   input: string;
@@ -153,4 +149,4 @@ export type StorageMessageType = {
   type: string;
   createdAt: Date;
   resourceId: string | null;
-}
+};
