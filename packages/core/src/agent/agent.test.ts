@@ -3156,7 +3156,7 @@ describe('Agent save message parts', () => {
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
       expect(saveCallCount).toBeGreaterThanOrEqual(1);
-    }, 500000);
+    }, 10000);
 
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
@@ -3195,7 +3195,7 @@ describe('Agent save message parts', () => {
       expect(saveCallCount).toBeGreaterThan(1);
       const messages = await mockMemory.getMessages({ threadId: 'thread-echo', resourceId: 'resource-echo' });
       expect(messages.length).toBeGreaterThan(0);
-    }, 500000);
+    }, 10000);
 
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
@@ -3250,7 +3250,7 @@ describe('Agent save message parts', () => {
       expect(saveCallCount).toBeGreaterThan(1);
       const messages = await mockMemory.getMessages({ threadId: 'thread-multi', resourceId: 'resource-multi' });
       expect(messages.length).toBeGreaterThan(0);
-    }, 500000);
+    }, 10000);
 
     it('should persist the full message after a successful run', async () => {
       const mockMemory = new MockMemory();
