@@ -159,6 +159,14 @@
   @apply !text-mastra-el-5 !bg-mastra-bg-1 !border-none;
 }
 
+.scorerListItem:has(+ .expanded) {
+  border-bottom: none;
+}
+
+.scorerListItem.expanded:has(+ .expanded) {
+  margin-bottom: 5px;
+}
+
 /* styles.css */
 .CollapsibleContent {
   overflow: hidden;
@@ -197,11 +205,4 @@ code[class^='language-'] {
 th:has(header) {
   height: var(--top-bar-height) !important;
   padding-block: 0 !important ;
-}
-
-.scorerListItem:has(+ .expanded) {
-  border-bottom: none;
-}
-.scorerListItem.expanded:has(+ .expanded) {
-  margin-bottom: 5px;
 }
