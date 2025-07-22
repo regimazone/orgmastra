@@ -1,5 +1,5 @@
 import { Txt } from '@/ds/components/Txt';
-import { ScoringEntityType } from '@mastra/core';
+import { ScoringEntityType } from '@mastra/core/scores';
 import { useScorers } from '../hooks/use-scorers';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRef } from 'react';
