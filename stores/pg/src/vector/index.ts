@@ -376,7 +376,7 @@ export class PgVector extends MastraVector<PGVectorFilter> {
               this.logger.error(`Failed to create schema "${this.schema}"`, { error });
               throw new Error(
                 `Unable to create schema "${this.schema}". This requires CREATE privilege on the database. ` +
-                `Either create the schema manually or grant CREATE privilege to the user.`,
+                  `Either create the schema manually or grant CREATE privilege to the user.`,
               );
             }
           }
@@ -593,7 +593,7 @@ export class PgVector extends MastraVector<PGVectorFilter> {
             } catch {
               this.logger.warn(
                 'Could not install vector extension. This requires superuser privileges. ' +
-                'If the extension is already installed globally, you can ignore this warning.',
+                  'If the extension is already installed globally, you can ignore this warning.',
               );
               // Don't set vectorExtensionInstalled to false here since we're not sure if it failed
               // due to permissions or if it's already installed globally

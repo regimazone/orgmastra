@@ -58,7 +58,7 @@ export class StoreOperationsPG extends StoreOperations {
               this.logger.error(`Failed to create schema "${this.schemaName}"`, { error });
               throw new Error(
                 `Unable to create schema "${this.schemaName}". This requires CREATE privilege on the database. ` +
-                `Either create the schema manually or grant CREATE privilege to the user.`,
+                  `Either create the schema manually or grant CREATE privilege to the user.`,
               );
             }
           }
@@ -187,8 +187,9 @@ export class StoreOperationsPG extends StoreOperations {
             CREATE TABLE IF NOT EXISTS ${getTableName({ indexName: tableName, schemaName: getSchemaName(this.schemaName) })} (
               ${finalColumns}
             );
-            ${tableName === TABLE_WORKFLOW_SNAPSHOT
-          ? `
+            ${
+              tableName === TABLE_WORKFLOW_SNAPSHOT
+                ? `
             DO $$ BEGIN
               IF NOT EXISTS (
                 SELECT 1 FROM pg_constraint WHERE conname = 'mastra_workflow_snapshot_workflow_name_run_id_key'
@@ -199,8 +200,8 @@ export class StoreOperationsPG extends StoreOperations {
               END IF;
             END $$;
             `
-          : ''
-        }
+                : ''
+            }
           `;
 
       await this.client.none(sql);

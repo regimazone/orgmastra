@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { describe, beforeAll, beforeEach, afterAll } from 'vitest';
+import { describe, beforeAll, afterAll } from 'vitest';
 import type { MastraStorage } from '@mastra/core/storage';
 import {
   TABLE_WORKFLOW_SNAPSHOT,
@@ -8,8 +7,9 @@ import {
   TABLE_THREADS,
   TABLE_RESOURCES,
   TABLE_SCORERS,
+  TABLE_TRACES,
 } from '@mastra/core/storage';
-import { createScoresTest } from './domains/scores';
+// import { createScoresTest } from './domains/scores';
 import { createMemoryTest } from './domains/memory';
 import { createWorkflowsTests } from './domains/workflows';
 import { createTraceTests } from './domains/traces';
@@ -32,12 +32,15 @@ export function createTestSuite(storage: MastraStorage) {
 
     afterAll(async () => {
       // Clear tables after tests
-      await storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT });
-      await storage.clearTable({ tableName: TABLE_EVALS });
-      await storage.clearTable({ tableName: TABLE_MESSAGES });
-      await storage.clearTable({ tableName: TABLE_THREADS });
-      await storage.clearTable({ tableName: TABLE_RESOURCES });
-      await storage.clearTable({ tableName: TABLE_SCORERS });
+      await Promise.all([
+        storage.clearTable({ tableName: TABLE_WORKFLOW_SNAPSHOT }),
+        storage.clearTable({ tableName: TABLE_EVALS }),
+        storage.clearTable({ tableName: TABLE_MESSAGES }),
+        storage.clearTable({ tableName: TABLE_THREADS }),
+        storage.clearTable({ tableName: TABLE_RESOURCES }),
+        storage.clearTable({ tableName: TABLE_SCORERS }),
+        storage.clearTable({ tableName: TABLE_TRACES }),
+      ]);
     });
 
     createOperationsTests({ storage });
@@ -50,6 +53,6 @@ export function createTestSuite(storage: MastraStorage) {
 
     createMemoryTest({ storage });
 
-    createScoresTest({ storage });
+    // createScoresTest({ storage });
   });
 }

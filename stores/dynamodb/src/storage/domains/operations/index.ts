@@ -10,9 +10,8 @@ import {
   TABLE_THREADS,
   TABLE_TRACES,
   TABLE_WORKFLOW_SNAPSHOT,
-  type StorageColumn,
-  type TABLE_NAMES,
 } from '@mastra/core/storage';
+import type { StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
 import type { Service } from 'electrodb';
 
 export class StoreOperationsDynamoDB extends StoreOperations {

@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 import type { Db } from 'mongodb';
-import type { DatabaseConfig } from '../types';
-import type { ConnectorHandler } from './base';
+import type { ConnectorHandler } from './ConnectorHandler';
+import type { DatabaseConfig } from './types';
 
 type MongoDBConnectorOptions =
   | {

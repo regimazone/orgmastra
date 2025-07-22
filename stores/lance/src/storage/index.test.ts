@@ -1,6 +1,4 @@
-import {
-  createTestSuite,
-} from '@internal/storage-test-utils';
+import { createTestSuite } from '@internal/storage-test-utils';
 import { vi } from 'vitest';
 import { LanceStorage } from './index';
 

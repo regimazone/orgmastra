@@ -1,8 +1,10 @@
 import type { Client, InValue } from '@libsql/client';
-import { MessageList } from '@mastra/core/agent';
+import { parseSqlIdentifier } from '@mastra/core';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
+import { MessageList } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
+import type { PaginationInfo, StorageGetMessagesArg, StorageResourceType } from '@mastra/core/storage';
 import {
   MemoryStorage,
   resolveMessageLimit,
@@ -10,9 +12,7 @@ import {
   TABLE_RESOURCES,
   TABLE_THREADS,
 } from '@mastra/core/storage';
-import type { PaginationArgs, PaginationInfo, StorageGetMessagesArg, StorageResourceType } from '@mastra/core/storage';
 import type { StoreOperationsLibSQL } from '../operations';
-import { parseSqlIdentifier } from '@mastra/core';
 
 export class MemoryLibSQL extends MemoryStorage {
   private client: Client;
@@ -386,11 +386,11 @@ export class MemoryLibSQL extends MemoryStorage {
           // Deep merge metadata if it exists on both
           ...(existingMessage.content?.metadata && updatableFields.content.metadata
             ? {
-              metadata: {
-                ...existingMessage.content.metadata,
-                ...updatableFields.content.metadata,
-              },
-            }
+                metadata: {
+                  ...existingMessage.content.metadata,
+                  ...updatableFields.content.metadata,
+                },
+              }
             : {}),
         };
         setClauses.push(`${parseSqlIdentifier('content', 'column name')} = ?`);

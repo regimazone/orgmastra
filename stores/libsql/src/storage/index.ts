@@ -1,20 +1,20 @@
 import { createClient } from '@libsql/client';
 import type { Client } from '@libsql/client';
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
-import type { ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
+import type { ScoreRowData } from '@mastra/core/scores';
 import { MastraStorage } from '@mastra/core/storage';
 import type {
   EvalRow,
   PaginationArgs,
   PaginationInfo,
   StorageColumn,
+  StoragePagination,
   StorageGetMessagesArg,
   StorageResourceType,
   TABLE_NAMES,
   WorkflowRun,
   WorkflowRuns,
-  StoragePagination,
   StorageGetTracesArg,
   StorageDomains,
 } from '@mastra/core/storage';

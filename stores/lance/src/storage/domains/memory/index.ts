@@ -104,7 +104,7 @@ export class StoreMemoryLance extends MemoryStorage {
     title: string;
     metadata: Record<string, unknown>;
   }): Promise<StorageThreadType> {
-    const maxRetries = 3;
+    const maxRetries = 5;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {

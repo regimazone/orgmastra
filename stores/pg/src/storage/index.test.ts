@@ -1,6 +1,4 @@
-import {
-  createTestSuite,
-} from '@internal/storage-test-utils';
+import { createTestSuite } from '@internal/storage-test-utils';
 import { vi } from 'vitest';
 import { pgTests, TEST_CONFIG } from './test-utils';
 import { PostgresStore } from '.';

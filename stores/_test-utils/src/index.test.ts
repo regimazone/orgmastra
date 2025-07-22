@@ -1,4 +1,4 @@
-import { MockStore } from "@mastra/core/storage";
-import { createTestSuite } from "./default-tests";
+import { MockStore } from '@mastra/core/storage';
+import { createTestSuite } from './factory';
 
 createTestSuite(new MockStore());

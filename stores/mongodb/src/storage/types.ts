@@ -4,8 +4,8 @@ import type { ConnectorHandler } from './connectors/base';
 export type MongoDBConfig =
   | DatabaseConfig
   | {
-    connectorHandler: ConnectorHandler;
-  };
+      connectorHandler: ConnectorHandler;
+    };
 
 export type DatabaseConfig = {
   url: string;

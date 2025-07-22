@@ -1,13 +1,10 @@
 import type { ClickHouseClient } from '@clickhouse/client';
 import { createClient } from '@clickhouse/client';
-import { MessageList } from '@mastra/core/agent';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
-import {
-  MastraStorage,
-} from '@mastra/core/storage';
+import type { ScoreRowData } from '@mastra/core/scores';
+import { MastraStorage } from '@mastra/core/storage';
 import type {
   TABLE_SCHEMAS,
   EvalRow,
@@ -64,12 +61,11 @@ export type ClickhouseConfig = {
   };
 };
 
-
 export class ClickhouseStore extends MastraStorage {
   protected db: ClickHouseClient;
   protected ttl: ClickhouseConfig['ttl'] = {};
 
-  stores: StorageDomains
+  stores: StorageDomains;
 
   constructor(config: ClickhouseConfig) {
     super({ name: 'ClickhouseStore' });
@@ -104,25 +100,33 @@ export class ClickhouseStore extends MastraStorage {
     };
   }
 
-  get supports(): { selectByIncludeResourceScope: boolean; resourceWorkingMemory: boolean; hasColumn: boolean; createTable: boolean; } {
+  get supports(): {
+    selectByIncludeResourceScope: boolean;
+    resourceWorkingMemory: boolean;
+    hasColumn: boolean;
+    createTable: boolean;
+  } {
     return {
       selectByIncludeResourceScope: true,
       resourceWorkingMemory: true,
       hasColumn: true,
       createTable: true,
-    }
+    };
   }
 
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     return this.stores.legacyEvals.getEvalsByAgentName(agentName, type);
   }
 
-  async getEvals(options: { agentName?: string; type?: 'test' | 'live'; } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[]; }> {
+  async getEvals(
+    options: { agentName?: string; type?: 'test' | 'live' } & PaginationArgs,
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
     return this.stores.legacyEvals.getEvals(options);
   }
 
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    return this.stores.operations.batchInsert({ tableName, records });
+    await this.stores.operations.batchInsert({ tableName, records });
+    // await this.optimizeTable({ tableName });
   }
 
   async optimizeTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
@@ -195,13 +199,7 @@ export class ClickhouseStore extends MastraStorage {
     return this.stores.operations.insert({ tableName, record });
   }
 
-  async load<R>({
-    tableName,
-    keys,
-  }: {
-    tableName: TABLE_NAMES;
-    keys: Record<string, string>;
-  }): Promise<R | null> {
+  async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
     return this.stores.operations.load({ tableName, keys });
   }
 
@@ -337,7 +335,6 @@ export class ClickhouseStore extends MastraStorage {
   }): Promise<MastraMessageV2[]> {
     return this.stores.memory.updateMessages(args);
   }
-
 
   async getResourceById({ resourceId }: { resourceId: string }): Promise<StorageResourceType | null> {
     return this.stores.memory.getResourceById({ resourceId });

@@ -1,6 +1,4 @@
-import {
-  createTestSuite,
-} from '@internal/storage-test-utils';
+import { createTestSuite } from '@internal/storage-test-utils';
 import { Mastra } from '@mastra/core/mastra';
 
 import { LibSQLStore } from './index';

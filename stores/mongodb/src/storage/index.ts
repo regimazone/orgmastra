@@ -1,7 +1,7 @@
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { ErrorDomain, ErrorCategory, MastraError } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/eval';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
+import type { ScoreRowData } from '@mastra/core/scores';
 import type {
   EvalRow,
   PaginationArgs,
@@ -17,9 +17,7 @@ import type {
   StoragePagination,
   StorageGetTracesPaginatedArg,
 } from '@mastra/core/storage';
-import {
-  MastraStorage,
-} from '@mastra/core/storage';
+import { MastraStorage } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { MongoDBConnector } from './connectors/MongoDBConnector';
@@ -31,11 +29,10 @@ import { TracesStorageMongoDB } from './domains/traces';
 import { WorkflowsStorageMongoDB } from './domains/workflows';
 import type { MongoDBConfig } from './types';
 
-
 export class MongoDBStore extends MastraStorage {
   #connector: MongoDBConnector;
 
-  stores: StorageDomains
+  stores: StorageDomains;
 
   public get supports(): {
     selectByIncludeResourceScope: boolean;
@@ -125,7 +122,13 @@ export class MongoDBStore extends MastraStorage {
     };
   }
 
-  async createTable({ tableName, schema }: { tableName: TABLE_NAMES, schema: Record<string, StorageColumn> }): Promise<void> {
+  async createTable({
+    tableName,
+    schema,
+  }: {
+    tableName: TABLE_NAMES;
+    schema: Record<string, StorageColumn>;
+  }): Promise<void> {
     return this.stores.operations.createTable({ tableName, schema });
   }
 
@@ -199,9 +202,9 @@ export class MongoDBStore extends MastraStorage {
 
   async saveMessages(args: { messages: MastraMessageV1[]; format?: undefined | 'v1' }): Promise<MastraMessageV1[]>;
   async saveMessages(args: { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[]>;
-  async saveMessages(args:
-    | { messages: MastraMessageV1[]; format?: undefined | 'v1' }
-    | { messages: MastraMessageV2[]; format: 'v2' }): Promise<MastraMessageV2[] | MastraMessageV1[]> {
+  async saveMessages(
+    args: { messages: MastraMessageV1[]; format?: undefined | 'v1' } | { messages: MastraMessageV2[]; format: 'v2' },
+  ): Promise<MastraMessageV2[] | MastraMessageV1[]> {
     return this.stores.memory.saveMessages(args);
   }
 
@@ -221,10 +224,10 @@ export class MongoDBStore extends MastraStorage {
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     return this.stores.memory.updateMessages(_args);
   }

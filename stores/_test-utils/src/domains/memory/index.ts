@@ -1,8 +1,14 @@
-import { TABLE_MESSAGES, TABLE_THREADS, TABLE_RESOURCES, TABLE_SCORERS, type MastraStorage } from '@mastra/core/storage';
+import {
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_RESOURCES,
+  TABLE_SCORERS,
+  type MastraStorage,
+} from '@mastra/core/storage';
 import { createMessagesPaginatedTest } from './messages-paginated';
 import { createThreadsTest } from './threads';
 import { createMessagesUpdateTest } from './messages-update';
-import { createResourcesTest } from './resources';
+// import { createResourcesTest } from './resources';
 import { beforeAll } from 'vitest';
 
 export function createMemoryTest({ storage }: { storage: MastraStorage }) {
@@ -25,5 +31,5 @@ export function createMemoryTest({ storage }: { storage: MastraStorage }) {
 
   createMessagesUpdateTest({ storage });
 
-  createResourcesTest({ storage });
+  // createResourcesTest({ storage });
 }

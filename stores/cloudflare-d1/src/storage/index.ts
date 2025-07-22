@@ -1,11 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/eval';
 import type { StorageThreadType, MastraMessageV1, MastraMessageV2 } from '@mastra/core/memory';
-import {
-  MastraStorage,
-} from '@mastra/core/storage';
+import type { ScoreRowData } from '@mastra/core/scores';
+import { MastraStorage } from '@mastra/core/storage';
 import type {
   EvalRow,
   PaginationInfo,
@@ -76,7 +74,7 @@ export class D1Store extends MastraStorage {
   private binding?: D1Database; // D1Database binding
   private tablePrefix: string;
 
-  stores: StorageDomains
+  stores: StorageDomains;
 
   /**
    * Creates a new D1Store instance
@@ -378,22 +376,24 @@ export class D1Store extends MastraStorage {
     return this.stores.legacyEvals.getEvalsByAgentName(agentName, type);
   }
 
-  async getEvals(options: {
-    agentName?: string;
-    type?: 'test' | 'live';
-  } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[] }> {
+  async getEvals(
+    options: {
+      agentName?: string;
+      type?: 'test' | 'live';
+    } & PaginationArgs,
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
     return this.stores.legacyEvals.getEvals(options);
   }
 
   async updateMessages(_args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: {
-        metadata?: MastraMessageContentV2['metadata'];
-        content?: MastraMessageContentV2['content'];
-      };
-    }[];
+      {
+        id: string;
+        content?: {
+          metadata?: MastraMessageContentV2['metadata'];
+          content?: MastraMessageContentV2['content'];
+        };
+      }[];
   }): Promise<MastraMessageV2[]> {
     return this.stores.memory.updateMessages(_args);
   }
@@ -445,7 +445,11 @@ export class D1Store extends MastraStorage {
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return this.stores.scores.getScoresByEntityId({ entityId: _entityId, entityType: _entityType, pagination: _pagination });
+    return this.stores.scores.getScoresByEntityId({
+      entityId: _entityId,
+      entityType: _entityType,
+      pagination: _pagination,
+    });
   }
 
   async getScoresByScorerId({
@@ -459,9 +463,9 @@ export class D1Store extends MastraStorage {
   }
 
   /**
- * Close the database connection
- * No explicit cleanup needed for D1 in either REST or Workers Binding mode
- */
+   * Close the database connection
+   * No explicit cleanup needed for D1 in either REST or Workers Binding mode
+   */
   async close(): Promise<void> {
     this.logger.debug('Closing D1 connection');
     // No explicit cleanup needed for D1

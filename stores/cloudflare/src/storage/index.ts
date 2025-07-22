@@ -1,8 +1,8 @@
 import type { KVNamespace } from '@cloudflare/workers-types';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/eval';
 import type { StorageThreadType, MastraMessageV1, MastraMessageV2 } from '@mastra/core/memory';
+import type { ScoreRowData } from '@mastra/core/scores';
 import {
   MastraStorage,
   TABLE_MESSAGES,
@@ -40,7 +40,7 @@ import { isWorkersConfig } from './types';
 import type { CloudflareStoreConfig, RecordTypes } from './types';
 
 export class CloudflareStore extends MastraStorage {
-  stores: StorageDomains
+  stores: StorageDomains;
   private client?: Cloudflare;
   private accountId?: string;
   private namespacePrefix: string;
@@ -106,33 +106,32 @@ export class CloudflareStore extends MastraStorage {
         this.logger.info('Using Cloudflare KV REST API');
       }
 
-
       const operations = new StoreOperationsCloudflare({
         accountId: this.accountId,
         client: this.client,
         namespacePrefix: this.namespacePrefix,
         bindings: this.bindings,
-      })
+      });
 
       const legacyEvals = new LegacyEvalsStorageCloudflare({
-        operations
-      })
+        operations,
+      });
 
       const workflows = new WorkflowsStorageCloudflare({
         operations,
-      })
+      });
 
       const traces = new TracesStorageCloudflare({
         operations,
-      })
+      });
 
       const memory = new MemoryStorageCloudflare({
         operations,
-      })
+      });
 
       const scores = new ScoresStorageCloudflare({
         operations,
-      })
+      });
 
       this.stores = {
         operations,
@@ -142,7 +141,6 @@ export class CloudflareStore extends MastraStorage {
         memory,
         scores,
       };
-
     } catch (error) {
       throw new MastraError(
         {
@@ -250,10 +248,7 @@ export class CloudflareStore extends MastraStorage {
     return this.stores.workflows.persistWorkflowSnapshot(params);
   }
 
-  async loadWorkflowSnapshot(params: {
-    workflowName: string;
-    runId: string;
-  }): Promise<WorkflowRunState | null> {
+  async loadWorkflowSnapshot(params: { workflowName: string; runId: string }): Promise<WorkflowRunState | null> {
     return this.stores.workflows.loadWorkflowSnapshot(params);
   }
 
@@ -289,12 +284,13 @@ export class CloudflareStore extends MastraStorage {
     });
   }
 
-
   async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
     return this.stores.legacyEvals.getEvalsByAgentName(agentName, type);
   }
 
-  async getEvals(options: { agentName?: string; type?: 'test' | 'live'; dateRange?: { start?: Date; end?: Date } } & PaginationArgs): Promise<PaginationInfo & { evals: EvalRow[] }> {
+  async getEvals(
+    options: { agentName?: string; type?: 'test' | 'live'; dateRange?: { start?: Date; end?: Date } } & PaginationArgs,
+  ): Promise<PaginationInfo & { evals: EvalRow[] }> {
     return this.stores.legacyEvals.getEvals(options);
   }
 
@@ -353,14 +349,13 @@ export class CloudflareStore extends MastraStorage {
 
   async updateMessages(args: {
     messages: Partial<Omit<MastraMessageV2, 'createdAt'>> &
-    {
-      id: string;
-      content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
-    }[];
+      {
+        id: string;
+        content?: { metadata?: MastraMessageContentV2['metadata']; content?: MastraMessageContentV2['content'] };
+      }[];
   }): Promise<MastraMessageV2[]> {
     return this.stores.memory.updateMessages(args);
   }
-
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
     return this.stores.scores.getScoreById({ id });
