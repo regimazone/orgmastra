@@ -4,12 +4,14 @@ import type { JSONSchema7 } from 'json-schema';
 export type { MastraMessageV2, MastraMessageV3 } from '../agent';
 import type { ZodObject } from 'zod';
 import type * as AIV4 from '../agent/message-list/ai-sdk-4';
-import type { MastraLanguageModel, DynamicArgument } from '../agent/types';
+import type { MastraLanguageModel } from '../agent/types';
 import type { MastraStorage } from '../storage';
+import type { DynamicArgument } from '../types';
 import type { MastraVector } from '../vector';
 import type { MemoryProcessor } from '.';
 
 export type { MastraLanguageModel, DynamicArgument };
+export type { UIMessage as AiMessageType } from 'ai';
 
 // Types for the memory system
 export type MastraMessageV1 = {
