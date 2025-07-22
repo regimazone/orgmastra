@@ -1,3 +1,4 @@
+// run tests
 import type {
   CoreAssistantMessage as AiCoreAssistantMessage,
   CoreMessage as AiCoreMessage,

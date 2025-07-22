@@ -1,3 +1,4 @@
+// run tests
 import { Thread } from '@/components/assistant-ui/thread';
 
 import { MastraRuntimeProvider } from '@/services/mastra-runtime-provider';

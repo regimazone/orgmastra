@@ -1,3 +1,4 @@
+// run tests
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { parseSqlIdentifier } from '@mastra/core/utils';
 import { MastraVector } from '@mastra/core/vector';

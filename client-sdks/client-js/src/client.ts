@@ -1,3 +1,4 @@
+// run tests
 import type { AbstractAgent } from '@ag-ui/client';
 import type { ServerDetailInfo } from '@mastra/core/mcp';
 import { AGUIAdapter } from './adapters/agui';

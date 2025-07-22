@@ -1,3 +1,4 @@
+// run tests
 import type { Mastra } from '@mastra/core';
 import {
   getWorkflowsHandler as getOriginalWorkflowsHandler,

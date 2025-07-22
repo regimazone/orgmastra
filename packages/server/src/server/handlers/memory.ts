@@ -1,3 +1,4 @@
+// run tests
 import { generateEmptyFromSchema } from '@mastra/core';
 import type { StorageGetMessagesArg } from '@mastra/core';
 import type { RuntimeContext } from '@mastra/core/di';

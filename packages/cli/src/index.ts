@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+// run tests
 import { Command } from 'commander';
 
 import { config } from 'dotenv';

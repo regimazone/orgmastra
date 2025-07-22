@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+// run tests
 import { Command } from 'commander';
 
 import { PosthogAnalytics } from 'mastra/dist/analytics/index.js';

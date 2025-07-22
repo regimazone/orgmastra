@@ -1,3 +1,4 @@
+// run tests
 import type {
   CoreMessage,
   GenerateObjectResult,
