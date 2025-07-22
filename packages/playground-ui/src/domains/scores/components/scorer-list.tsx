@@ -32,8 +32,6 @@ export const ScorerList = ({ entityId, entityType }: ScorerListProps) => {
     })
     .map(scorerKey => ({ ...scorers[scorerKey], id: scorerKey }));
 
-  console.log(entityId, scorerList);
-
   if (scorerList.length === 0) {
     return <EmptyScorerList />;
   }

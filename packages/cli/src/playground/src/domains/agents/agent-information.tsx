@@ -15,7 +15,6 @@ import { useMemory } from '@/hooks/use-memory';
 import { AgentMemory } from './agent-memory';
 import { useState, useEffect } from 'react';
 import { AgentPromptEnhancer } from './agent-instructions-enhancer';
-import { AgentOverview } from './agent-overview';
 
 export function AgentInformation({ agentId, chatInputValue }: { agentId: string; chatInputValue?: string }) {
   const { agent, isLoading } = useAgent(agentId);
@@ -52,10 +51,6 @@ export function AgentInformation({ agentId, chatInputValue }: { agentId: string;
             {memory?.result && <Tab value="memory">Memory</Tab>}
             <Tab value="logs">Log Drains</Tab>
           </TabList>
-          <TabContent value="overview">
-            {isLoading && <Skeleton className="h-full" />}
-            {agent && <AgentOverview agent={agent} agentId={agentId} />}
-          </TabContent>
           <TabContent value="overview">
             {isLoading && <Skeleton className="h-full" />}
             {agent && (
