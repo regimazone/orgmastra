@@ -1,19 +1,5 @@
-import type { MetricResult } from '@mastra/core/eval';
-import { createScorer } from '@mastra/core/eval';
+import { createScorer } from '@mastra/core/scores';
 import Sentiment from 'sentiment';
-
-interface ToneConsitencyResult extends MetricResult {
-  info:
-    | {
-        responseSentiment: number;
-        referenceSentiment: number;
-        difference: number;
-      }
-    | {
-        avgSentiment: number;
-        sentimentVariance: number;
-      };
-}
 
 export function createToneScorer() {
   return createScorer({
@@ -34,7 +20,7 @@ export function createToneScorer() {
 
         return {
           score: normalizedScore,
-          info: {
+          result: {
             responseSentiment: responseSentiment.comparative,
             referenceSentiment: referenceSentiment.comparative,
             difference: sentimentDiff,
@@ -51,7 +37,7 @@ export function createToneScorer() {
 
       return {
         score: stability,
-        info: {
+        result: {
           avgSentiment,
           sentimentVariance: variance,
         },

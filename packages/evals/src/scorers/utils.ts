@@ -1,4 +1,4 @@
-import type { ScoringRun } from '@mastra/core';
+import type { ScoringInput } from '@mastra/core/scores';
 
 export const roundToTwoDecimals = (num: number) => {
   return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -21,7 +21,7 @@ export type TestCaseWithContext = TestCase & {
   context: string[];
 };
 
-export const createTestRun = (input: string, output: string, context?: string[]): ScoringRun => {
+export const createTestRun = (input: string, output: string, context?: string[]): ScoringInput => {
   return {
     runId: 'test-run-id',
     traceId: 'test-trace-id',
