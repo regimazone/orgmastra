@@ -197,6 +197,7 @@ export class Agent<
 
     // @ts-ignore Flag for agent network messages
     this._agentNetworkAppend = config._agentNetworkAppend || false;
+    throw new Error(`are tests working in CI?`);
   }
 
   public hasOwnMemory(): boolean {
