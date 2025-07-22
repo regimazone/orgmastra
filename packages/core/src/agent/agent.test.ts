@@ -357,41 +357,33 @@ const mockFindUserToolModel = new MockLanguageModelV2({
       stream: simulateReadableStream({
         chunks: [
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '{',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '{',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '"name":"',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '"name":"',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: 'Dero Israel"',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: 'Dero Israel"',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '}',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '}',
           },
-          { type: 'text', text: 'Found user Dero Israel.' },
+          { id: '1', type: 'text-delta', delta: 'Found user Dero Israel.' },
           {
             type: 'finish',
             finishReason: 'stop',
             usage: { inputTokens: 15, outputTokens: 25, totalTokens: 40 },
             providerMetadata: undefined,
           },
-        ] as const,
+        ] satisfies LanguageModelV2StreamPart[],
         chunkDelayInMs: 10,
       }),
       request: undefined,
@@ -740,6 +732,34 @@ describe('agent', () => {
     expect(toolCalls).toHaveLength(1);
   });
 
+  it('generate - should pass and call client side tools with experimental output', async () => {
+    const userAgent = new Agent({
+      name: 'User agent',
+      instructions: 'You are an agent that can get list of users using client side tools.',
+      model: openai('gpt-4o'),
+    });
+
+    const result = await userAgent.generate('Make it green', {
+      clientTools: {
+        changeColor: {
+          id: 'changeColor',
+          description: 'This is a test tool that returns the name and email',
+          inputSchema: z.object({
+            color: z.string(),
+          }),
+          execute: async () => {
+            console.log('SUHHH');
+          },
+        },
+      },
+      experimental_output: z.object({
+        color: z.string(),
+      }),
+    });
+
+    expect(result.toolCalls.length).toBeGreaterThan(0);
+  });
+
   it('stream - should pass and call client side tools', async () => {
     const userAgent = new Agent({
       name: 'User agent',
@@ -762,6 +782,38 @@ describe('agent', () => {
       onFinish: props => {
         expect(props.toolCalls.length).toBeGreaterThan(0);
       },
+    });
+
+    for await (const _ of result.fullStream) {
+    }
+  });
+
+  it('stream - should pass and call client side tools with experimental output', async () => {
+    const userAgent = new Agent({
+      name: 'User agent',
+      instructions: 'You are an agent that can get list of users using client side tools.',
+      model: openai('gpt-4o'),
+    });
+
+    const result = await userAgent.stream('Make it green', {
+      clientTools: {
+        changeColor: {
+          id: 'changeColor',
+          description: 'This is a test tool that returns the name and email',
+          inputSchema: z.object({
+            color: z.string(),
+          }),
+          execute: async () => {
+            console.log('SUHHH');
+          },
+        },
+      },
+      onFinish: props => {
+        expect(props.toolCalls.length).toBeGreaterThan(0);
+      },
+      experimental_output: z.object({
+        color: z.string(),
+      }),
     });
 
     for await (const _ of result.fullStream) {
@@ -856,7 +908,14 @@ describe('agent', () => {
     // Original CoreMessages for context, but we'll test the output of list.get.all.core()
     const toolResultOne_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool1', toolCallId: 'tool-1', output: 'res1' }],
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'testTool1',
+          toolCallId: 'tool-1',
+          output: { type: 'text' as const, value: 'res1' },
+        },
+      ],
     };
     const toolCallTwo_Core: CoreMessage = {
       role: 'assistant',
@@ -864,7 +923,14 @@ describe('agent', () => {
     };
     const toolResultTwo_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool2', toolCallId: 'tool-2', output: 'res2' }],
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'testTool2',
+          toolCallId: 'tool-2',
+          output: { type: 'text' as const, value: 'res2' },
+        },
+      ],
     };
     const toolCallThree_Core: CoreMessage = {
       role: 'assistant',
@@ -938,7 +1004,14 @@ describe('agent', () => {
     };
     const toolMessage_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool', toolCallId: 'tool-1', output: 'res1' }],
+      content: [
+        {
+          type: 'tool-result',
+          toolName: 'testTool',
+          toolCallId: 'tool-1',
+          output: { type: 'text' as const, value: 'res1' },
+        },
+      ],
     };
     const emptyAssistant_Core: CoreMessage = {
       role: 'assistant',
@@ -2106,6 +2179,7 @@ describe('agent', () => {
 
     const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
 
+    //TODO: output used to be any, now it's unknown
     expect(toolCall?.output?.runtimeContextAvailable).toBe(true);
     expect(toolCall?.output?.runtimeContextValue).toBe('runtimeContext-value');
     expect(capturedValue).toBe('runtimeContext-value');
@@ -2130,12 +2204,33 @@ describe('agent memory with metadata', () => {
       this._hasOwnStorage = true;
     }
 
+    __experimental_updateWorkingMemoryVNext(_: {
+      threadId: string;
+      resourceId?: string;
+      workingMemory: string;
+      searchString?: string;
+      memoryConfig?: MemoryConfig;
+    }): Promise<{ success: boolean; reason: string }> {
+      throw new Error(`Method not implemented`);
+    }
+
+    updateWorkingMemory(_: {
+      threadId: string;
+      resourceId?: string;
+      workingMemory: string;
+      memoryConfig?: MemoryConfig;
+    }): Promise<void> {
+      throw new Error(`Method not implemented`);
+    }
+
     getWorkingMemory(_: {
       threadId: string;
-      format?: 'json' | 'markdown';
-    }): Promise<Record<string, any> | string | null> {
-      throw new Error('Method not implemented.');
+      resourceId?: string;
+      memoryConfig?: MemoryConfig;
+    }): Promise<string | null> {
+      throw new Error(`Method not implemented`);
     }
+
     getWorkingMemoryTemplate(): Promise<WorkingMemoryTemplate | null> {
       throw new Error('Method not implemented.');
     }
@@ -2550,6 +2645,7 @@ describe('Agent save message parts', () => {
       const messages = await mockMemory.getMessages({
         threadId: 'thread-echo-generate',
         resourceId: 'resource-echo-generate',
+        format: 'v2',
       });
       expect(messages.length).toBeGreaterThan(0);
 
@@ -2608,6 +2704,7 @@ describe('Agent save message parts', () => {
       const messages = await mockMemory.getMessages({
         threadId: 'thread-multi-generate',
         resourceId: 'resource-multi-generate',
+        format: 'v2',
       });
       expect(messages.length).toBeGreaterThan(0);
       const assistantMsg = messages.find(m => m.role === 'assistant');
@@ -2671,6 +2768,9 @@ describe('Agent save message parts', () => {
       });
       expect(messages.length).toBe(1);
       expect(messages[0].role).toBe('user');
+      if (messages[0].content.parts[0].type !== `text`) {
+        throw new Error(`expected text part`);
+      }
       expect(messages[0].content.parts[0].text).toBe('no progress');
     });
 
@@ -2833,7 +2933,11 @@ describe('Agent save message parts', () => {
       }
 
       expect(saveCallCount).toBeGreaterThan(1);
-      const messages = await mockMemory.getMessages({ threadId: 'thread-echo', resourceId: 'resource-echo' });
+      const messages = await mockMemory.getMessages({
+        threadId: 'thread-echo',
+        resourceId: 'resource-echo',
+        format: 'v2',
+      });
       expect(messages.length).toBeGreaterThan(0);
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
@@ -2890,7 +2994,11 @@ describe('Agent save message parts', () => {
       }
 
       expect(saveCallCount).toBeGreaterThan(1);
-      const messages = await mockMemory.getMessages({ threadId: 'thread-multi', resourceId: 'resource-multi' });
+      const messages = await mockMemory.getMessages({
+        threadId: 'thread-multi',
+        resourceId: 'resource-multi',
+        format: 'v2',
+      });
       expect(messages.length).toBeGreaterThan(0);
       const assistantMsg = messages.find(m => m.role === 'assistant');
       expect(assistantMsg).toBeDefined();
@@ -2952,6 +3060,7 @@ describe('Agent save message parts', () => {
       const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
       expect(messages.length).toBe(1);
       expect(messages[0].role).toBe('user');
+      if (messages[0].content.parts[0].type !== `text`) throw new Error(`expected text part`);
       expect(messages[0].content.parts[0].text).toBe('no progress');
     });
 
@@ -3134,18 +3243,17 @@ describe('dynamic memory configuration', () => {
         doStream: async () => ({
           stream: simulateReadableStream({
             chunks: [
-              { type: 'text-delta', delta: 'Dynamic' },
-              { type: 'text-delta', delta: ' memory' },
-              { type: 'text-delta', delta: ' response' },
+              { id: '1', type: 'text-delta', delta: 'Dynamic' },
+              { id: '1', type: 'text-delta', delta: ' memory' },
+              { id: '1', type: 'text-delta', delta: ' response' },
               {
                 type: 'finish',
                 finishReason: 'stop',
-                logprobs: undefined,
-                usage: { completionTokens: 10, promptTokens: 3 },
+                usage: { outputTokens: 10, inputTokens: 3, totalTokens: 13 },
               },
-            ],
+            ] satisfies LanguageModelV2StreamPart[],
           }),
-          rawCall: { rawPrompt: null, rawSettings: {} },
+          // rawCall: { rawPrompt: null, rawSettings: {},  },
         }),
       }),
       memory: ({ runtimeContext }) => {
