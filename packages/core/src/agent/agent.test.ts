@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { TestIntegration } from '../integration/openapi-toolset.mock';
+import { noopLogger } from '../logger';
 import { Mastra } from '../mastra';
 import { MastraMemory } from '../memory';
 import type {
@@ -418,7 +419,7 @@ function assertNoDuplicateParts(parts: any[]) {
 describe('agent', () => {
   const integration = new TestIntegration();
 
-  let dummyModel;
+  let dummyModel: MockLanguageModelV2;
   beforeEach(() => {
     dummyModel = new MockLanguageModelV2({
       doGenerate: async _options => ({
@@ -722,6 +723,7 @@ describe('agent', () => {
           inputSchema: z.object({
             color: z.string(),
           }),
+          execute: async () => {},
         },
       },
     });
@@ -777,6 +779,7 @@ describe('agent', () => {
           inputSchema: z.object({
             color: z.string(),
           }),
+          execute: async () => {},
         },
       },
       onFinish: props => {
@@ -786,6 +789,34 @@ describe('agent', () => {
 
     for await (const _ of result.fullStream) {
     }
+
+    expect(await result.finishReason).toBe('tool-calls');
+  });
+
+  it('streamVNext - should pass and call client side tools', async () => {
+    const userAgent = new Agent({
+      name: 'User agent',
+      instructions: 'You are an agent that can get list of users using client side tools.',
+      model: openai('gpt-4o'),
+    });
+
+    const result = await userAgent.streamVNext('Make it green', {
+      clientTools: {
+        changeColor: {
+          id: 'changeColor',
+          description: 'This is a test tool that returns the name and email',
+          inputSchema: z.object({
+            color: z.string(),
+          }),
+          execute: async () => {},
+        },
+      },
+      onFinish: props => {
+        expect(props.toolCalls.length).toBeGreaterThan(0);
+      },
+    });
+
+    expect(await result.finishReason).toBe('tool-calls');
   });
 
   it('stream - should pass and call client side tools with experimental output', async () => {
@@ -1367,6 +1398,7 @@ describe('agent', () => {
       model: dummyModel,
       memory: mockMemory,
     });
+    agent.__setLogger(noopLogger);
 
     // This should not throw, title generation happens async
     await agent.generate('Test message', {
@@ -1733,6 +1765,7 @@ describe('agent', () => {
       model: dummyModel,
       memory: mockMemory,
     });
+    agent.__setLogger(noopLogger);
 
     // This should not throw, title generation happens async
     await agent.generate('Test message', {
@@ -1795,6 +1828,8 @@ describe('agent', () => {
       model: dummyModel,
       memory: mockMemory,
     });
+
+    agent.__setLogger(noopLogger);
 
     await agent.generate('Test message', {
       memory: {
@@ -2016,77 +2051,106 @@ describe('agent', () => {
     expect(vercelExecute).toHaveBeenCalled();
   });
 
-  // const mockFindUserToolModel = new MockLanguageModelV2({
-  //   doGenerate: async () => {
-  //     // Simulate a tool call response
-  //     return Promise.resolve({
-  //       content: [
-  //         {
-  //           type: 'tool-call',
-  //           toolCallId: 'mock-find-user-call-id',
-  //           toolName: 'findUserTool',
-  //           args: { name: 'Dero Israel' },
-  //         },
-  //       ],
-  //       finishReason: 'tool-calls',
-  //       usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-  //       providerMetadata: undefined,
-  //       request: undefined,
-  //       response: { id: 'mock-find-user-gen-response-id', timestamp: new Date(), modelId: 'mock-find-user-model' },
-  //       warnings: [],
-  //       steps: [
-  //         {
-  //           content: [
-  //             {
-  //               type: 'tool-call',
-  //               toolCallId: 'mock-find-user-call-id',
-  //               toolName: 'findUserTool',
-  //               args: { name: 'Dero Israel' },
-  //             },
-  //           ],
-  //           text: '',
-  //           reasoning: [],
-  //           reasoningText: undefined,
-  //           files: [],
-  //           sources: [],
-  //           toolCalls: [
-  //             {
-  //               type: 'tool-call',
-  //               toolCallId: 'mock-find-user-call-id',
-  //               toolName: 'findUserTool',
-  //               args: { name: 'Dero Israel' },
-  //             },
-  //           ],
-  //           toolResults: [], // Tool result is added in the next step in real scenario, but we can simulate it here for simplicity
-  //           finishReason: 'tool-calls',
-  //           usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-  //           warnings: [],
-  //           request: undefined,
-  //           response: {
-  //             id: 'mock-find-user-gen-response-id-step1',
-  //             timestamp: new Date(),
-  //             modelId: 'mock-find-user-model',
-  //           },
-  //           providerMetadata: undefined,
-  //         },
-  //         {
-  //           content: [
-  //             {
-  //               type: 'tool-result',
-  //               toolCallId: 'mock-find-user-call-id',
-  //               toolName: 'findUserTool',
-  //               result: { name: 'Dero Israel' },
-  //             },
-  //             { type: 'text', text: 'Found user Dero Israel.' },
-  //           ],
-  //           text: 'Found user Dero Israel.',
-  //         },
-  //       ],
-  //     });
-  //   },
-  // });
+    it('should make runtimeContext available to tools when injected in generate', async () => {
+      const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
+      let capturedValue: string | null = null;
 
-  it('should make runtimeContext available to tools when injected in generate', async () => {
+      const testTool = createTool({
+        id: 'runtimeContext-test-tool',
+        description: 'A tool that verifies runtimeContext is available',
+        inputSchema: z.object({
+          query: z.string(),
+        }),
+        execute: ({ runtimeContext }) => {
+          capturedValue = runtimeContext.get('test-value')!;
+
+          return Promise.resolve({
+            success: true,
+            runtimeContextAvailable: !!runtimeContext,
+            runtimeContextValue: capturedValue,
+          });
+        },
+      });
+
+      const agent = new Agent({
+        name: 'runtimeContext-test-agent',
+        instructions: 'You are an agent that tests runtimeContext availability.',
+        model: openai('gpt-4o'),
+        tools: { testTool },
+      });
+
+      const mastra = new Mastra({
+        agents: { agent },
+        logger: false,
+      });
+
+      const testAgent = mastra.getAgent('agent');
+
+      const response = await testAgent.generate('Use the runtimeContext-test-tool with query "test"', {
+        toolChoice: 'required',
+        runtimeContext: testRuntimeContext,
+      });
+
+      const toolCall = response.toolResults.find(result => result.toolName === 'testTool');
+
+      expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
+      expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
+      expect(capturedValue).toBe('runtimeContext-value');
+    }, 500000);
+
+    it('should make runtimeContext available to tools when injected in stream', async () => {
+      const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
+      let capturedValue: string | null = null;
+
+      const testTool = createTool({
+        id: 'runtimeContext-test-tool',
+        description: 'A tool that verifies runtimeContext is available',
+        inputSchema: z.object({
+          query: z.string(),
+        }),
+        execute: ({ runtimeContext }) => {
+          capturedValue = runtimeContext.get('test-value')!;
+
+          return Promise.resolve({
+            success: true,
+            runtimeContextAvailable: !!runtimeContext,
+            runtimeContextValue: capturedValue,
+          });
+        },
+      });
+
+      const agent = new Agent({
+        name: 'runtimeContext-test-agent',
+        instructions: 'You are an agent that tests runtimeContext availability.',
+        model: openai('gpt-4o'),
+        tools: { testTool },
+      });
+
+      const mastra = new Mastra({
+        agents: { agent },
+        logger: false,
+      });
+
+      const testAgent = mastra.getAgent('agent');
+
+      const stream = await testAgent.stream('Use the runtimeContext-test-tool with query "test"', {
+        toolChoice: 'required',
+        runtimeContext: testRuntimeContext,
+      });
+
+      for await (const _chunk of stream.textStream) {
+        // empty line
+      }
+
+      const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
+
+      expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
+      expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
+      expect(capturedValue).toBe('runtimeContext-value');
+    }, 500000);
+  });
+
+  it('should make runtimeContext available to tools when injected in streamVNext', async () => {
     const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
     let capturedValue: string | null = null;
 
@@ -2121,155 +2185,23 @@ describe('agent', () => {
 
     const testAgent = mastra.getAgent('agent');
 
-    const response = await testAgent.generate('Use the runtimeContext-test-tool with query "test"', {
+    const stream = await testAgent.streamVNext('Use the runtimeContext-test-tool with query "test"', {
       toolChoice: 'required',
       runtimeContext: testRuntimeContext,
     });
 
-    const toolCall = response.toolResults.find(result => result.toolName === 'testTool');
-
-    expect(toolCall?.output?.runtimeContextAvailable).toBe(true);
-    expect(toolCall?.output?.runtimeContextValue).toBe('runtimeContext-value');
-    expect(capturedValue).toBe('runtimeContext-value');
-  }, 500000);
-
-  it('should make runtimeContext available to tools when injected in stream', async () => {
-    const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
-    let capturedValue: string | null = null;
-
-    const testTool = createTool({
-      id: 'runtimeContext-test-tool',
-      description: 'A tool that verifies runtimeContext is available',
-      inputSchema: z.object({
-        query: z.string(),
-      }),
-      execute: ({ runtimeContext }) => {
-        capturedValue = runtimeContext.get('test-value')!;
-
-        return Promise.resolve({
-          success: true,
-          runtimeContextAvailable: !!runtimeContext,
-          runtimeContextValue: capturedValue,
-        });
-      },
-    });
-
-    const agent = new Agent({
-      name: 'runtimeContext-test-agent',
-      instructions: 'You are an agent that tests runtimeContext availability.',
-      model: openai('gpt-4o'),
-      tools: { testTool },
-    });
-
-    const mastra = new Mastra({
-      agents: { agent },
-      logger: false,
-    });
-
-    const testAgent = mastra.getAgent('agent');
-
-    const stream = await testAgent.stream('Use the runtimeContext-test-tool with query "test"', {
-      toolChoice: 'required',
-      runtimeContext: testRuntimeContext,
-    });
-
-    for await (const _chunk of stream.textStream) {
-      // empty line
-    }
+    await stream.text;
 
     const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
 
-    //TODO: output used to be any, now it's unknown
-    expect(toolCall?.output?.runtimeContextAvailable).toBe(true);
-    expect(toolCall?.output?.runtimeContextValue).toBe('runtimeContext-value');
+    expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
+    expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
     expect(capturedValue).toBe('runtimeContext-value');
   }, 500000);
 });
 
 describe('agent memory with metadata', () => {
-  class MockMemory extends MastraMemory {
-    threads: Record<string, StorageThreadType> = {};
-
-    constructor() {
-      super({ name: 'mock' });
-      Object.defineProperty(this, 'storage', {
-        get: () => ({
-          init: async () => {},
-          getThreadById: this.getThreadById.bind(this),
-          saveThread: async ({ thread }: { thread: StorageThreadType }) => {
-            return this.saveThread({ thread });
-          },
-        }),
-      });
-      this._hasOwnStorage = true;
-    }
-
-    __experimental_updateWorkingMemoryVNext(_: {
-      threadId: string;
-      resourceId?: string;
-      workingMemory: string;
-      searchString?: string;
-      memoryConfig?: MemoryConfig;
-    }): Promise<{ success: boolean; reason: string }> {
-      throw new Error(`Method not implemented`);
-    }
-
-    updateWorkingMemory(_: {
-      threadId: string;
-      resourceId?: string;
-      workingMemory: string;
-      memoryConfig?: MemoryConfig;
-    }): Promise<void> {
-      throw new Error(`Method not implemented`);
-    }
-
-    getWorkingMemory(_: {
-      threadId: string;
-      resourceId?: string;
-      memoryConfig?: MemoryConfig;
-    }): Promise<string | null> {
-      throw new Error(`Method not implemented`);
-    }
-
-    getWorkingMemoryTemplate(): Promise<WorkingMemoryTemplate | null> {
-      throw new Error('Method not implemented.');
-    }
-
-    async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
-      return this.threads[threadId] || null;
-    }
-
-    async saveThread({
-      thread,
-    }: {
-      thread: StorageThreadType;
-      memoryConfig?: MemoryConfig;
-    }): Promise<StorageThreadType> {
-      const newThread = { ...thread, updatedAt: new Date() };
-      if (!newThread.createdAt) {
-        newThread.createdAt = new Date();
-      }
-      this.threads[thread.id] = newThread;
-      return this.threads[thread.id];
-    }
-
-    async rememberMessages() {
-      return { messages: [], messagesV2: [] };
-    }
-    async getThreadsByResourceId() {
-      return [];
-    }
-    async saveMessages() {
-      return [];
-    }
-    async query() {
-      return { messages: [], uiMessages: [], uiMessagesV4: [], messagesV2: [] };
-    }
-    async deleteThread(threadId: string) {
-      delete this.threads[threadId];
-    }
-  }
-  let dummyModel;
+  let dummyModel: MockLanguageModelV2;
   beforeEach(() => {
     dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
@@ -2430,6 +2362,33 @@ describe('agent memory with metadata', () => {
     expect(thread?.resourceId).toBe('user-1');
   });
 
+  it('should create a new thread with metadata using streamVNext', async () => {
+    const mockMemory = new MockMemory();
+    const agent = new Agent({
+      name: 'test-agent',
+      instructions: 'test',
+      model: dummyModel,
+      memory: mockMemory,
+    });
+
+    const res = await agent.streamVNext('hello', {
+      memory: {
+        resource: 'user-1',
+        thread: {
+          id: 'thread-1',
+          metadata: { client: 'test-stream' },
+        },
+      },
+    });
+
+    await res.text;
+
+    const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
+    expect(thread).toBeDefined();
+    expect(thread?.metadata).toEqual({ client: 'test-stream' });
+    expect(thread?.resourceId).toBe('user-1');
+  });
+
   it('should still work with deprecated threadId and resourceId', async () => {
     const mockMemory = new MockMemory();
     const agent = new Agent({
@@ -2563,6 +2522,7 @@ describe('Agent save message parts', () => {
         memory: mockMemory,
         tools: { errorTool, echoTool },
       });
+      agent.__setLogger(noopLogger);
 
       let stepCount = 0;
       let caught = false;
@@ -2844,6 +2804,7 @@ describe('Agent save message parts', () => {
         memory: mockMemory,
         tools: { errorTool, echoTool },
       });
+      agent.__setLogger(noopLogger);
 
       let stepCount = 0;
 
@@ -3089,6 +3050,292 @@ describe('Agent save message parts', () => {
         for await (const _part of stream.fullStream) {
           // Should never yield
         }
+      } catch (err) {
+        expect(err.message).toBe('Immediate interruption');
+      }
+
+      expect(saveCallCount).toBe(0);
+      const messages = await mockMemory.getMessages({ threadId: 'thread-3', resourceId: 'resource-3' });
+      expect(messages.length).toBe(0);
+    });
+  });
+
+  describe('streamVnext', () => {
+    it('should rescue partial messages (including tool calls) if stream is aborted/interrupted', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+      let savedMessages: any[] = [];
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        savedMessages.push(...args[0].messages);
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const errorTool = createTool({
+        id: 'errorTool',
+        description: 'Always throws an error.',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async () => {
+          throw new Error('Tool failed!');
+        },
+      });
+
+      const echoTool = createTool({
+        id: 'echoTool',
+        description: 'Echoes the input string.',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async ({ context }) => ({ output: context.input }),
+      });
+
+      const agent = new Agent({
+        name: 'partial-rescue-agent',
+        instructions:
+          'Call each tool in a separate step. Do not use parallel tool calls. Always wait for the result of one tool before calling the next.',
+        model: openai('gpt-4o'),
+        memory: mockMemory,
+        tools: { errorTool, echoTool },
+      });
+      agent.__setLogger(noopLogger);
+
+      let stepCount = 0;
+
+      const stream = await agent.streamVNext(
+        'Please echo this and then use the error tool. Be verbose and take multiple steps.',
+        {
+          memory: {
+            thread: 'thread-partial-rescue',
+            resource: 'resource-partial-rescue',
+          },
+          savePerStep: true,
+          onStepFinish: (result: any) => {
+            if (result.toolCalls && result.toolCalls.length > 1) {
+              throw new Error('Model attempted parallel tool calls; test requires sequential tool calls');
+            }
+            stepCount++;
+            if (stepCount === 2) {
+              throw new Error('Simulated error in onStepFinish');
+            }
+          },
+        },
+      );
+
+      let caught = false;
+      try {
+        await stream.text;
+      } catch (err) {
+        caught = true;
+        expect(err.message).toMatch(/Simulated error in onStepFinish/i);
+      }
+      expect(caught).toBe(true);
+
+      // After interruption, check what was saved
+      const messages = await mockMemory.getMessages({
+        threadId: 'thread-partial-rescue',
+        resourceId: 'resource-partial-rescue',
+        format: 'v2',
+      });
+      // User message should be saved
+      expect(messages.find(m => m.role === 'user')).toBeTruthy();
+      // At least one assistant message (could be partial) should be saved
+      expect(messages.find(m => m.role === 'assistant')).toBeTruthy();
+      // At least one tool call (echoTool or errorTool) should be saved if the model got that far
+      const assistantWithToolInvocation = messages.find(
+        m =>
+          m.role === 'assistant' &&
+          m.content &&
+          Array.isArray(m.content.parts) &&
+          m.content.parts.some(
+            part =>
+              part.type === 'tool-invocation' &&
+              part.toolInvocation &&
+              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+          ),
+      );
+      expect(assistantWithToolInvocation).toBeTruthy();
+      // There should be at least one save call (user and partial assistant/tool)
+      expect(saveCallCount).toBeGreaterThanOrEqual(1);
+    }, 500000);
+
+    it('should incrementally save messages across steps and tool calls', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const echoTool = createTool({
+        id: 'echoTool',
+        description: 'Echoes the input string.',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async ({ context }) => ({ output: context.input }),
+      });
+
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'If the user prompt contains "Echo:", always call the echoTool. Be verbose in your response.',
+        model: openai('gpt-4o'),
+        memory: mockMemory,
+        tools: { echoTool },
+      });
+
+      const stream = await agent.streamVNext('Echo: Please echo this long message and explain why.', {
+        memory: {
+          thread: 'thread-echo',
+          resource: 'resource-echo',
+        },
+        savePerStep: true,
+      });
+
+      await stream.text;
+
+      expect(saveCallCount).toBeGreaterThan(1);
+      const messages = await mockMemory.getMessages({ threadId: 'thread-echo', resourceId: 'resource-echo' });
+      expect(messages.length).toBeGreaterThan(0);
+    }, 500000);
+
+    it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const echoTool = createTool({
+        id: 'echoTool',
+        description: 'Echoes the input string.',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async ({ context }) => ({ output: context.input }),
+      });
+
+      const uppercaseTool = createTool({
+        id: 'uppercaseTool',
+        description: 'Converts input to uppercase.',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async ({ context }) => ({ output: context.input.toUpperCase() }),
+      });
+
+      const agent = new Agent({
+        name: 'test-agent-multi',
+        instructions: [
+          'If the user prompt contains "Echo:", call the echoTool.',
+          'If the user prompt contains "Uppercase:", call the uppercaseTool.',
+          'If both are present, call both tools and explain the results.',
+          'Be verbose in your response.',
+        ].join(' '),
+        model: openai('gpt-4o'),
+        memory: mockMemory,
+        tools: { echoTool, uppercaseTool },
+      });
+
+      const stream = await agent.streamVNext(
+        'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
+        {
+          memory: {
+            thread: 'thread-multi',
+            resource: 'resource-multi',
+          },
+          savePerStep: true,
+        },
+      );
+
+      await stream.text;
+
+      expect(saveCallCount).toBeGreaterThan(1);
+      const messages = await mockMemory.getMessages({ threadId: 'thread-multi', resourceId: 'resource-multi' });
+      expect(messages.length).toBeGreaterThan(0);
+    }, 500000);
+
+    it('should persist the full message after a successful run', async () => {
+      const mockMemory = new MockMemory();
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'test',
+        model: dummyResponseModel,
+        memory: mockMemory,
+      });
+      const stream = await agent.streamVNext('repeat tool calls', {
+        memory: {
+          thread: 'thread-1',
+          resource: 'resource-1',
+        },
+      });
+
+      await stream.text;
+
+      const messages = await mockMemory.getMessages({ threadId: 'thread-1', resourceId: 'resource-1', format: 'v2' });
+      // Check that the last message matches the expected final output
+      expect(
+        messages[messages.length - 1]?.content?.parts?.some(
+          p => p.type === 'text' && p.text?.includes('Dummy response'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const agent = new Agent({
+        name: 'no-progress-agent',
+        instructions: 'test',
+        model: emptyResponseModel,
+        memory: mockMemory,
+      });
+
+      const stream = await agent.streamVNext('no progress', {
+        memory: {
+          thread: 'thread-2',
+          resource: 'resource-2',
+        },
+      });
+
+      await stream.text;
+
+      expect(saveCallCount).toBe(1);
+
+      const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
+      expect(messages.length).toBe(1);
+      expect(messages[0].role).toBe('user');
+      expect(messages[0].content.content).toBe('no progress');
+    });
+
+    it('should not save any message if interrupted before any part is emitted', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const agent = new Agent({
+        name: 'immediate-interrupt-agent',
+        instructions: 'test',
+        model: errorResponseModel,
+        memory: mockMemory,
+      });
+
+      const stream = await agent.streamVNext('interrupt before step', {
+        memory: {
+          thread: 'thread-3',
+          resource: 'resource-3',
+        },
+      });
+
+      try {
+        await stream.text;
       } catch (err) {
         expect(err.message).toBe('Immediate interruption');
       }

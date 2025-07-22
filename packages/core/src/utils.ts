@@ -6,6 +6,7 @@ import type { IMastraLogger } from './logger';
 import type { Mastra } from './mastra';
 import type { MastraMemory } from './memory';
 import type { RuntimeContext } from './runtime-context';
+import type { ChunkType } from './stream/MastraAgentStream';
 import type { CoreTool, ToolAction, ToolParameters, VercelTool } from './tools';
 import { isVercelV5Tool, createCompatibleToolSet } from './tools/ai-sdk-v5-compat';
 import type { CompatibleTool, CompatibleToolSet } from './tools/ai-sdk-v5-compat';
@@ -223,6 +224,7 @@ export interface ToolOptions {
   memory?: MastraMemory;
   agentName?: string;
   model?: MastraLanguageModel;
+  writableStream?: WritableStream<ChunkType>;
 }
 
 type ToolToConvert = Omit<VercelTool | ToolAction<any, any, any>, 'id'> & { id?: string };
