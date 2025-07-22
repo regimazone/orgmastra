@@ -2,6 +2,8 @@
 
 The core foundation of the Mastra framework, providing essential components and interfaces for building AI-powered applications.
 
+small update
+
 ## Installation
 
 ```bash
