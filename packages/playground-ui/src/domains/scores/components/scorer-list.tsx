@@ -48,13 +48,10 @@ export const ScorerList = ({ entityId, entityType }: ScorerListProps) => {
 };
 
 export const EmptyScorerList = () => {
+  // TODO: Add a link to the scorer documentation when available
   return (
     <Txt as="p" variant="ui-lg" className="text-icon6">
-      No scorers were attached to this agent. You can create scorer following the{' '}
-      <a href="https://mastra.ai/docs" target="_blank" rel="noopener noreferrer" className="underline">
-        documentation
-      </a>
-      .
+      No scorers were attached to this agent.
     </Txt>
   );
 };
