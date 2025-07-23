@@ -216,6 +216,7 @@ export class MockProvider extends MastraLLM {
 
     return {
       ...result,
+      // @ts-ignore
       fullStream: result.fullStream,
       // @ts-ignore on await read the stream
       then: (onfulfilled, onrejected) => {
