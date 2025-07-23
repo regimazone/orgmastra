@@ -117,7 +117,9 @@ export type GenerateReturn<
   Tools extends ToolSet,
   Output extends ZodSchema | JSONSchema7 | undefined = undefined,
   StructuredOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
-> = GenerateTextResult<Tools, StructuredOutput> | GenerateObjectResult<Output>;
+> = Output extends undefined
+  ? GenerateTextResult<Tools, StructuredOutput>
+  : GenerateObjectResult<Output>;
 // #endregion
 
 // #region streamText
