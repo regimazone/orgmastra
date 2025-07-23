@@ -231,7 +231,7 @@ describe('agent', () => {
 
     const { text, toolCalls } = response;
 
-    expect(text).toContain('Donald Trump');
+    expect(text).toContain('ronald Trump');
     expect(toolCalls.length).toBeLessThan(1);
   });
 
