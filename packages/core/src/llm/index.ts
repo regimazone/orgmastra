@@ -6,16 +6,15 @@ import type {
   CoreUserMessage as AiCoreUserMessage,
   EmbedManyResult as AiEmbedManyResult,
   EmbedResult as AiEmbedResult,
-  GenerateObjectResult,
-  GenerateTextResult,
-  StreamObjectResult,
-  StreamTextResult,
   TelemetrySettings,
   streamText,
   streamObject,
   generateText,
   generateObject,
   StopCondition,
+  UIMessage,
+  StreamTextOnFinishCallback,
+  StreamObjectOnFinishCallback,
 } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { z, ZodSchema } from 'zod';
@@ -71,13 +70,14 @@ export type StructuredOutput = {
       };
 };
 
-export type GenerateReturn<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = Z extends undefined
-  ? GenerateTextResult<any, Z extends ZodSchema ? z.infer<Z> : unknown>
-  : GenerateObjectResult<Z extends ZodSchema ? z.infer<Z> : unknown>;
-
-export type StreamReturn<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = Z extends undefined
-  ? StreamTextResult<any, Z extends ZodSchema ? z.infer<Z> : unknown>
-  : StreamObjectResult<any, Z extends ZodSchema ? z.infer<Z> : unknown, any>;
+export type {
+  GenerateReturn,
+  StreamReturn,
+  GenerateObjectResult,
+  GenerateTextResult,
+  StreamObjectResult,
+  StreamTextResult,
+} from './model/base.types';
 
 export type OutputType = StructuredOutput | ZodSchema | JSONSchema7 | undefined;
 
@@ -141,17 +141,17 @@ export type LLMTextObjectOptions<T extends ZodSchema | JSONSchema7 | undefined =
 
 export type LLMStreamOptions<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = {
   output?: OutputType | Z;
-  onFinish?: (result: string) => Promise<void> | void;
+  onFinish?: StreamTextOnFinishCallback<any>;
 } & MastraCustomLLMOptions<Z> &
   DefaultLLMStreamOptions;
 
 export type LLMInnerStreamOptions<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = {
-  messages: CoreMessage[];
-  onFinish?: (result: string) => Promise<void> | void;
+  messages: UIMessage[] | CoreMessage[];
 } & MastraCustomLLMOptions<Z> &
   DefaultLLMStreamOptions;
 
-export type LLMStreamObjectOptions<T extends ZodSchema | JSONSchema7 | undefined = undefined> = {
-  structuredOutput: JSONSchema7 | z.ZodType<T> | StructuredOutput;
-} & LLMInnerStreamOptions<T> &
+export type LLMStreamObjectOptions<Z extends ZodSchema | JSONSchema7 | undefined = undefined> = {
+  structuredOutput: JSONSchema7 | z.ZodType<Z> | StructuredOutput;
+  onFinish?: StreamObjectOnFinishCallback<any>;
+} & LLMInnerStreamOptions<Z> &
   DefaultLLMStreamObjectOptions;
