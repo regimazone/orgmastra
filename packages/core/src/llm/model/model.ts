@@ -43,12 +43,12 @@ import type {
 
 type MessageInput = string | string[] | ModelMessage | ModelMessage[];
 
-export class MastraLLM extends MastraBase {
+export class MastraLLM extends MastraLLMBase {
   #model: MastraLanguageModel;
   #mastra?: Mastra;
 
   constructor({ model, mastra }: { model: MastraLanguageModel; mastra?: Mastra }) {
-    super({ name: 'aisdk', component: RegisteredLogger.LLM });
+    super({ name: 'aisdk' });
 
     this.#model = model;
 

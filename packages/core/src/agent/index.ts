@@ -14,7 +14,6 @@ import { MastraError, ErrorDomain, ErrorCategory } from '../error';
 import type { Metric } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import { MastraLLM } from '../llm/model';
-import type { MastraLLMBase } from '../llm/model';
 import type {
   GenerateObjectWithMessagesArgs,
   GenerateTextWithMessagesArgs,
@@ -1210,7 +1209,7 @@ export class Agent<
     runtimeContext: RuntimeContext;
     writableStream?: WritableStream<ChunkType>;
   }): Promise<Record<string, CoreTool<Exclude<ToolParameters, JSONSchema7Type>>>> {
-     let mastraProxy = undefined;
+    let mastraProxy = undefined;
     const logger = this.logger;
 
     if (this.#mastra) {
@@ -1815,7 +1814,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       outputText: string;
       structuredOutput?: boolean;
     }) => Promise<void>;
-    llm: MastraLLMBase;
+    llm: MastraLLM;
   }>;
   private prepareLLMOptions<
     Tools extends ToolSet,
@@ -1841,7 +1840,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       outputText: string;
       structuredOutput?: boolean;
     }) => Promise<void>;
-    llm: MastraLLMBase;
+    llm: MastraLLM;
   }>;
   private async prepareLLMOptions<
     Tools extends ToolSet,
@@ -1882,7 +1881,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
           outputText: string;
         }) => Promise<void>);
-    llm: MastraLLMBase;
+    llm: MastraLLM;
   }> {
     const {
       context,
@@ -2057,8 +2056,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
       await after({
         result: result as unknown as OUTPUT extends undefined
-        ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
-        : GenerateObjectResult<OUTPUT>,
+          ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+          : GenerateObjectResult<OUTPUT>,
         outputText: result.text,
       });
 
