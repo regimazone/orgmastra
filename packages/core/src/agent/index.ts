@@ -1748,7 +1748,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     structuredOutput?: boolean;
   }) {
     const agentName = this.name;
-    const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
+    const userInputMessages = messageList.get.all.aiV4.ui().filter(m => m.role === 'user');
     const input = userInputMessages
       .map(message => (typeof message.content === 'string' ? message.content : ''))
       .join('\n');
@@ -2069,7 +2069,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const result = await llm.__textObject<NonNullable<OUTPUT>>({
       ...llmOptions,
       structuredOutput: output as NonNullable<OUTPUT>,
-    });
+    } as GenerateObjectWithMessagesArgs<NonNullable<OUTPUT>>);
 
     const outputText = JSON.stringify(result.object);
 
