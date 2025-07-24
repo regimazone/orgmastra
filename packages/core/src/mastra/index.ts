@@ -366,6 +366,10 @@ do:
           vectors: this.#vectors,
         });
 
+        if (config?.workflowOptions?.executionEngine) {
+          workflow.executionEngine = config.workflowOptions.executionEngine;
+        }
+
         // @ts-ignore
         this.#workflows[key] = workflow;
       });
