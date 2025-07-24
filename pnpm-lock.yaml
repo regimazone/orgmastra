@@ -3595,9 +3595,15 @@ importers:
 
   workflows/cloudflare-workflows:
     dependencies:
+      '@hono/zod-validator':
+        specifier: ^0.7.2
+        version: 0.7.2(hono@4.8.4)(zod@3.25.67)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      hono:
+        specifier: ^4.8.4
+        version: 4.8.4
       zod:
         specifier: ^3.25.67
         version: 3.25.67
@@ -6197,6 +6203,12 @@ packages:
     resolution: {integrity: sha512-7wxLKdb8h7JTdZ+K8DJNE3KXQMIpJejkBTQjrYlUWF28Z1PGOKw6kUykARe5NTfueIN37jbyG/sBYsbzXzG53A==}
     peerDependencies:
       hono: '*'
+
+  '@hono/zod-validator@0.7.2':
+    resolution: {integrity: sha512-ub5eL/NeZ4eLZawu78JpW/J+dugDAYhwqUIdp9KYScI6PZECij4Hx4UsrthlEUutqDDhPwRI0MscUfNkvn/mqQ==}
+    peerDependencies:
+      hono: '>=3.9.0'
+      zod: ^3.25.0 || ^4.0.0
 
   '@hookform/resolvers@3.10.0':
     resolution: {integrity: sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag==}
@@ -21477,6 +21489,11 @@ snapshots:
   '@hono/swagger-ui@0.5.2(hono@4.8.4)':
     dependencies:
       hono: 4.8.4
+
+  '@hono/zod-validator@0.7.2(hono@4.8.4)(zod@3.25.67)':
+    dependencies:
+      hono: 4.8.4
+      zod: 3.25.67
 
   '@hookform/resolvers@3.10.0(react-hook-form@7.59.0(react@19.1.0))':
     dependencies:

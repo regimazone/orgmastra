@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.node.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
@@ -11,6 +11,6 @@
     "moduleResolution": "Node",
     "types": ["node"]
   },
-  "include": ["src/**/*", "worker-configuration.d.ts"],
+  "include": ["src/*", "src/**/*", "worker-configuration.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

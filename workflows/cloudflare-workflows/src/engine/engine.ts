@@ -1,21 +1,6 @@
 import { DefaultExecutionEngine } from '@mastra/core/workflows';
 import type { Mastra } from '@mastra/core';
 
-// Methods that should be intercepted and forwarded to Cloudflare Workflows
-const INTERCEPTED_METHODS = [
-  'execute',
-  // 'executeStep',
-  // 'executeParallel',
-  // 'executeConditional',
-  // 'executeLoop',
-  // 'executeForeach',
-  // 'executeSleep',
-  // 'executeSleepUntil',
-  // 'executeWaitForEvent',
-  // 'executeEntry',
-  // 'persistStepUpdate',
-] as const;
-
 export class CloudflareWorkflowsExecutionEngine extends DefaultExecutionEngine {
   private workerUrl: string;
 
@@ -26,65 +11,85 @@ export class CloudflareWorkflowsExecutionEngine extends DefaultExecutionEngine {
     }
     this.workerUrl = workerUrl;
     this.name = 'CloudflareWorkflowsExecutionEngine';
-
-    // Create a proxy to intercept method calls
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        const originalValue = Reflect.get(target, prop, receiver);
-
-        // Only intercept the specified execution methods
-        if (typeof prop === 'string' && INTERCEPTED_METHODS.includes(prop as any)) {
-          return async (...args: any[]) => {
-            if (!target.isRunningInCloudflareWorkflows()) {
-              console.log(`Forwarding ${prop} to Cloudflare Workflow with args:`, args);
-              return target.forwardToCloudflareWorkflow(prop, args);
-            }
-            // If running in Cloudflare Workflows, call the original method from the DefaultExecutionEngine
-            return originalValue.apply(target, args);
-          };
-        }
-
-        return originalValue;
-      },
-    });
   }
 
   private isRunningInCloudflareWorkflows(): boolean {
-    const isRunningInCloudflareWorkflows = process.env.MASTRA_WORKFLOW_EXECUTION_CONTEXT === 'cloudflare-workflows';
-    console.log(`isRunningInCloudflareWorkflows: ${isRunningInCloudflareWorkflows.toString()}`);
-    return isRunningInCloudflareWorkflows;
+    return process.env.MASTRA_WORKFLOW_EXECUTION_CONTEXT === 'cloudflare-workflows';
   }
 
-  private async forwardToCloudflareWorkflow(methodName: string, args: any[]): Promise<any> {
-    try {
-      const response = await fetch(this.workerUrl, {
+  async execute(params: any) {
+    if (!this.isRunningInCloudflareWorkflows()) {
+      const serializedParams = {
+        workflowId: params.workflowId,
+        runId: params.runId,
+        input: params.input,
+        resume: params.resume,
+        retryConfig: params.retryConfig,
+        runtimeContextData: params.runtimeContext ? this.serializeRuntimeContext(params.runtimeContext) : {},
+        graph: params.graph,
+        serializedStepGraph: params.serializedStepGraph,
+      };
+
+      const response = await fetch(`${this.workerUrl}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          method: methodName,
-          args: args,
-        }),
+        body: JSON.stringify(serializedParams),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error);
+      const instanceRes = await response.json();
+      if (instanceRes.error) {
+        throw new Error(instanceRes.error);
       }
 
-      return result.data;
-    } catch (error) {
-      throw new Error(
-        `Failed to forward ${methodName} to Cloudflare Workflow at ${this.workerUrl}: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-      );
+      // keep polling fetches to /instance/status/:instanceId
+      const getStatus = async () => {
+        console.log(`Getting status for cloudflare workflow instance ${instanceRes.instanceId}`);
+        const statusRes = await fetch(`${this.workerUrl}/instance/status/${instanceRes.instanceId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!statusRes.ok) {
+          throw new Error(`HTTP ${statusRes.status}: ${statusRes.statusText}`);
+        }
+        return statusRes.json();
+      };
+
+      let status = await getStatus();
+      while (status.status !== 'complete') {
+        await new Promise(res => setTimeout(res, 500));
+        status = await getStatus();
+      }
+
+      return status.output;
     }
+
+    // If running in Cloudflare Workflows, call the original method from the DefaultExecutionEngine
+    return super.execute(params);
+  }
+
+  private serializeRuntimeContext(runtimeContext: any): Record<string, any> {
+    const data: Record<string, any> = {};
+    // RuntimeContext has a registry Map, extract its contents
+    if (runtimeContext.registry && runtimeContext.registry instanceof Map) {
+      for (const [key, value] of runtimeContext.registry.entries()) {
+        try {
+          // Only include serializable values
+          JSON.stringify(value);
+          data[key] = value;
+        } catch {
+          // Skip non-serializable values
+          console.warn(`Skipping non-serializable runtime context value for key: ${key}`);
+        }
+      }
+    }
+    return data;
   }
 }
