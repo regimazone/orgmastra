@@ -3,11 +3,10 @@ import type { JSONSchema7 } from 'json-schema';
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { RuntimeContext } from '../../runtime-context';
+import { MockProvider } from '../../test-utils/llm-mock';
 import type { ConvertedCoreTool } from '../../tools';
 import { createTool } from '../../tools';
 import { makeCoreTool } from '../../utils';
-
-import { MockProvider } from './mock';
 
 describe('MastraLLM', () => {
   const mockMastra = {
