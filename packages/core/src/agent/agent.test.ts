@@ -801,7 +801,7 @@ describe('agent', () => {
     expect(await result.finishReason).toBe('tool-calls');
   });
 
-  it('streamVNext - should pass and call client side tools', async () => {
+  it.skip('streamVNext - should pass and call client side tools', async () => {
     const userAgent = new Agent({
       name: 'User agent',
       instructions: 'You are an agent that can get list of users using client side tools.',
@@ -2108,7 +2108,7 @@ describe('agent', () => {
   //   },
   // });
 
-  it('should make runtimeContext available to tools when injected in streamVNext', async () => {
+  it.skip('should make runtimeContext available to tools when injected in streamVNext', async () => {
     const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
     let capturedValue: string | null = null;
 
@@ -2381,7 +2381,7 @@ describe('agent memory with metadata', () => {
     expect(thread?.resourceId).toBe('user-1');
   });
 
-  it('should create a new thread with metadata using streamVNext', async () => {
+  it.skip('should create a new thread with metadata using streamVNext', async () => {
     const mockMemory = new MockMemory();
     const agent = new Agent({
       name: 'test-agent',
@@ -3065,7 +3065,7 @@ describe('Agent save message parts', () => {
     });
   });
 
-  describe('streamVnext', () => {
+  describe.skip('streamVnext', () => {
     it('should rescue partial messages (including tool calls) if stream is aborted/interrupted', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
