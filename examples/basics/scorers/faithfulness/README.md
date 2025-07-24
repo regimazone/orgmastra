@@ -1,6 +1,6 @@
-# Faithfulness Metric Example
+# Faithfulness Scorer Example
 
-This example demonstrates how to use Mastra's Faithfulness metric to evaluate how accurately responses adhere to the provided context without introducing unsupported information.
+This example demonstrates how to use Mastra's Faithfulness Scorer to evaluate how accurately responses adhere to the provided context without introducing unsupported information.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ This example demonstrates how to use Mastra's Faithfulness metric to evaluate ho
 
    ```bash
    git clone https://github.com/mastra-ai/mastra
-   cd examples/basics/evals/faithfulness
+   cd examples/basics/scorers/faithfulness
    ```
 
 2. Copy the environment variables file and add your OpenAI API key:
@@ -32,7 +32,7 @@ This example demonstrates how to use Mastra's Faithfulness metric to evaluate ho
 3. Install dependencies:
 
    ```bash
-   pnpm install
+   pnpm install --ignore-workspace
    ```
 
 4. Run the example:
@@ -43,40 +43,46 @@ This example demonstrates how to use Mastra's Faithfulness metric to evaluate ho
 
 ## Overview
 
-The Faithfulness metric evaluates how accurately responses adhere to provided context. It evaluates:
+The Faithfulness Scorer evaluates how accurately responses adhere to provided context without introducing unsupported claims. It analyzes:
 
-- Factual accuracy of claims
-- Presence of unsupported information
-- Context adherence
-- Information reliability
+- Factual accuracy of claims against provided context
+- Detection of unsupported or fabricated information (hallucinations)
+- Context adherence and reliability
+- Verification of all response claims against source material
 
 ## Example Structure
 
 The example includes three scenarios:
 
-1. High Faithfulness: Testing Tesla Model 3 facts (all claims supported)
-2. Mixed Faithfulness: Testing Python history (some unsupported claims)
-3. Low Faithfulness: Testing technology trends (mostly unsupported claims)
+1. **High Faithfulness**: Testing Tesla Model 3 facts where all response claims are supported by context
+2. **Mixed Faithfulness**: Testing Python programming language where some claims are supported and others are not
+3. **Low Faithfulness**: Testing Mars information where response claims contradict the provided context
 
 Each scenario demonstrates:
 
-- Setting up the metric with factual context
-- Generating responses to evaluate
-- Measuring claim faithfulness
-- Interpreting the results with detailed reasoning
+- Setting up the scorer with specific context and model configuration
+- Providing context arrays for fact verification
+- Running faithfulness evaluation on responses
+- Interpreting the results with detailed reasoning about claim support
 
 ## Expected Output
 
 The example will output:
 
-- The context and query for each scenario
-- The generated response
-- The metric score (0-1)
-- Detailed reasoning for the score
+- The provided context, input query, and response for each scenario
+- The scorer result with:
+  - Score (0-1, where 1 indicates perfect faithfulness to context)
+  - Detailed reasoning explaining which claims are supported or unsupported
 
 ## Key Components
 
-- `FaithfulnessMetric`: The main metric class for evaluating faithfulness
-- Configuration options:
-  - `context`: Array of context strings
-  - `scale`: Scale factor for the final score (default: 1)
+- `createFaithfulnessScorer`: Function that creates the faithfulness scorer instance
+- Scorer configuration:
+  - `model`: The language model to use for evaluation (e.g., OpenAI GPT-4)
+  - `options.context`: Array of context strings that serve as the source of truth
+  - `options.scale`: Optional scale factor for the final score (default: 1)
+- `scorer.run()`: Method to evaluate input/output pairs for faithfulness
+  - Takes `{ input, output }` where:
+    - `input`: Array of chat messages (e.g., `[{ role: 'user', content: 'question' }]`)
+    - `output`: Response object (e.g., `{ role: 'assistant', text: 'response' }`)
+  - Returns `{ score, reason }` with numerical score and detailed explanation
