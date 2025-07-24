@@ -1,11 +1,11 @@
-# Custom Eval Metric Example
+# Custom LLM Scorer Example
 
-This example demonstrates how to create a custom LLM-based evaluation metric in Mastra to check recipes for gluten content.
+This example demonstrates how to create a custom LLM Scorer in Mastra to check recipes for gluten content.
 
 ## Prerequisites
 
 - Node.js v20.0+
-- pnpm (recommended) or npm
+- pnpm
 - OpenAI API key (required for LLM-based evaluation)
 
 ## Getting Started
@@ -14,7 +14,7 @@ This example demonstrates how to create a custom LLM-based evaluation metric in 
 
    ```bash
    git clone https://github.com/mastra-ai/mastra
-   cd examples/basics/evals/custom-eval
+   cd examples/basics/scorers/custom-llm-scorer
    ```
 
 2. Copy the environment variables file and add your OpenAI API key:
@@ -32,20 +32,31 @@ This example demonstrates how to create a custom LLM-based evaluation metric in 
 3. Install dependencies:
 
    ```bash
-   pnpm install
+   pnpm install --ignore-workspace
    ```
 
-4. Run the example:
+4. Run the example script:
 
    ```bash
    pnpm start
    ```
 
+5. Run the playground to test Live Scorers:
+
+   ```bash
+   pnpm mastra:start
+   ```
+
+   - Navigate to Agents -> chef-agent
+   - Ask for a recipe about rice krispy squares
+   - Ask for a recipe about Mac and Cheese
+   - Navigate to Scorers -> Gluten Checker and confirm the scores for the two prompts
+
 ## Overview
 
-This example shows how to create a custom LLM-based metric to evaluate recipes for gluten content. It demonstrates:
+This example shows how to create a custom LLM-based scorer to evaluate recipes for gluten content. It demonstrates:
 
-- Using a custom metric with an agent
+- Using a custom scorer with an agent
 - Evaluating recipe responses
 - Identifying gluten sources
 - Providing detailed feedback
@@ -73,8 +84,8 @@ Input: "Can you give me a simple pasta recipe with exact measurements and timing
 Agent Response: [Recipe details...]
 Metric Result: {
   score: 0,
-  glutenSources: ["pasta (wheat)"],
-  reason: "The recipe contains gluten from wheat-based pasta."
+  glutenSources: ["pasta"],
+  reason: "The recipe contains gluten from pasta."
 }
 
 Example 2 - Gluten-Free Recipe:
@@ -89,7 +100,7 @@ Metric Result: {
 
 ## Key Components
 
-- `GlutenCheckerMetric`: LLM-based metric for evaluating gluten content in recipes
+- `glutenCheckerScorer`: LLM-based scorer for evaluating gluten content in recipes
 - Integration with Chef Michel agent for recipe generation
 - Simple binary scoring system:
   - 0: Recipe contains gluten
