@@ -3153,9 +3153,7 @@ describe('Agent save message parts', () => {
           Array.isArray(m.content.parts) &&
           m.content.parts.some(
             part =>
-              part.type === 'tool-invocation' &&
-              part.toolInvocation &&
-              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+              part.type.includes('echoTool') || (part.type.includes('errorTool') && part.state === 'output-available'),
           ),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
@@ -3313,7 +3311,7 @@ describe('Agent save message parts', () => {
       const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
       expect(messages.length).toBe(1);
       expect(messages[0].role).toBe('user');
-      expect(messages[0].content.content).toBe('no progress');
+      expect(messages[0].content.parts[0].text).toBe('no progress');
     });
 
     it('should not save any message if interrupted before any part is emitted', async () => {
