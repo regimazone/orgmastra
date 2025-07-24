@@ -23,6 +23,8 @@ A custom scorer in Mastra can use native JavaScript methods to evaluate conditio
 import { createScorer } from "@mastra/core/scores";
 
 const wordInclusionScorer = createScorer({
+  name: 'Word Inclusion',
+  description: 'Check if the output contains any of the words in the input',
   analyze: ({ input, output }) => {
     const tokenize = (text: string) => text.toLowerCase().match(/\b\w+\b/g) || [];
 
@@ -38,8 +40,10 @@ const wordInclusionScorer = createScorer({
 
     return {
       score,
-      totalWords,
-      matchedWords: matchedWords.length
+      result: {
+        totalWords,
+        matchedWords: matchedWords.length
+      }
     }
   }
 })
@@ -174,5 +178,5 @@ An explanation for the score, with details including:
 
 <GithubLink
   marginTop='mt-16'
-  link="https://github.com/mastra-ai/mastra/blob/main/examples/basics/scorers/word-inclusion"
+  link="https://github.com/mastra-ai/mastra/blob/main/examples/basics/scorers/custom-code-scorer"
 />
