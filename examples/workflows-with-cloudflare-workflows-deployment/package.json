@@ -1,0 +1,30 @@
+{
+  "name": "mastra-cloudflare-workflows-example",
+  "version": "0.1.0",
+  "description": "Example of deploying Mastra workflows to Cloudflare Workflows",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "mastra:dev": "mastra dev",
+    "wrangler:dev": "wrangler types && wrangler dev",
+    "wrangler:deploy": "wrangler types && wrangler deploy",
+    "wrangler:types": "wrangler types"
+  },
+  "dependencies": {
+    "@mastra/cloudflare-workflows": "^0.11.0",
+    "@mastra/core": "^0.11.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^3.99.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@mastra/core": "link:../../packages/core",
+      "@mastra/cloudflare-workflows": "link:../../workflows/cloudflare-workflows",
+      "mastra": "link:../../packages/cli"
+    }
+  }
+}
