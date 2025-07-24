@@ -1,6 +1,6 @@
-# Completeness Metric Example
+# Completeness Scorer Example
 
-This example demonstrates how to use Mastra's Completeness metric to evaluate how thoroughly LLM-generated responses cover key elements from the input.
+This example demonstrates how to use Mastra's Completeness Scorer to evaluate how thoroughly LLM-generated responses cover key elements from the input.
 
 ## Prerequisites
 
@@ -13,13 +13,13 @@ This example demonstrates how to use Mastra's Completeness metric to evaluate ho
 
    ```bash
    git clone https://github.com/mastra-ai/mastra
-   cd examples/basics/evals/completeness
+   cd examples/basics/scorers/completeness
    ```
 
 2. Install dependencies:
 
    ```bash
-   pnpm install
+   pnpm install --ignore-workspace
    ```
 
 3. Run the example:
@@ -30,43 +30,49 @@ This example demonstrates how to use Mastra's Completeness metric to evaluate ho
 
 ## Overview
 
-The Completeness metric evaluates how thoroughly responses cover key elements from the input. It evaluates:
+The Completeness Scorer evaluates how thoroughly responses cover key elements from the input. It uses NLP analysis to extract and compare elements, evaluating:
 
-- Coverage of important elements (nouns, verbs, entities)
-- Presence of required information
+- Coverage of important elements (nouns, verbs, topics, terms)
+- Presence of required information from the input
 - Missing or incomplete elements
-- Element count and distribution
+- Element count and distribution analysis
+
+The scorer uses the `compromise` NLP library to extract meaningful elements and calculates coverage percentage based on how many input elements are present in the output.
 
 ## Example Structure
 
 The example includes three scenarios:
 
-1. High Completeness: Testing primary colors enumeration
-2. Mixed Completeness: Testing partial color listing
-3. Low Completeness: Testing seasons enumeration
+1. **Complete Coverage**: Testing when output perfectly matches input elements (primary colors)
+2. **Partial Coverage**: Testing when output covers some but not all input elements
+3. **Minimal Coverage**: Testing when output covers very few input elements (seasons)
 
 Each scenario demonstrates:
 
-- Setting up the metric with input elements
-- Generating responses to evaluate
-- Measuring element coverage
-- Interpreting the results with detailed reasoning
+- Setting up the scorer (no configuration needed)
+- Providing input/output pairs for evaluation
+- Running the completeness analysis
+- Interpreting the results with missing elements and element counts
 
 ## Expected Output
 
 The example will output:
 
-- The context and query for each scenario
-- The generated response
-- The metric score (0-1)
-- Analysis of missing elements and element counts
+- The input and output text for each scenario
+- The scorer result with:
+  - Score (0-1, where 1 indicates complete coverage)
+  - Extract step results showing:
+    - Missing elements from the input
+    - Element counts (input vs output)
 
 ## Key Components
 
-- `CompletenessMetric`: The main metric class for evaluating completeness
-- `Agent`: A basic Mastra agent for generating responses
-- Element analysis:
-  - Input elements extracted
-  - Output elements matched
-  - Missing elements identified
-  - Element count comparison
+- `createCompletenessScorer`: Function that creates the completeness scorer instance
+- No configuration required - the scorer uses built-in NLP analysis
+- `scorer.run()`: Method to evaluate input/output pairs for completeness
+  - Takes `{ input, output }` where:
+    - `input`: Array of chat messages (e.g., `[{ role: 'user', content: 'text' }]`)
+    - `output`: Response object (e.g., `{ role: 'assistant', text: 'response' }`)
+  - Returns results with:
+    - `score`: Numerical score (0-1)
+    - `extractStepResult`: Detailed analysis including missing elements and counts
