@@ -1,7 +1,7 @@
-import { KeywordCoverageMetric } from '@mastra/evals/nlp';
+import { createKeywordCoverageScorer } from '@mastra/evals/scorers/code';
 
 // Configure the metric
-const metric = new KeywordCoverageMetric();
+const metric = createKeywordCoverageScorer();
 
 // Example 1: Full keyword coverage
 const input1 = 'JavaScript frameworks like React and Vue';
@@ -11,13 +11,13 @@ console.log('Example 1 - Full Coverage:');
 console.log('Input:', input1);
 console.log('Output:', output1);
 
-const result1 = await metric.measure(input1, output1);
+const result1 = await metric.run({
+  input: [{ role: 'user', content: input1 }],
+  output: { role: 'assistant', text: output1 },
+});
 console.log('Metric Result:', {
   score: result1.score,
-  info: {
-    totalKeywords: result1.info.totalKeywords,
-    matchedKeywords: result1.info.matchedKeywords,
-  },
+  analyzeStepResult: result1.analyzeStepResult,
 });
 
 // Example 2: Partial keyword coverage
@@ -28,13 +28,13 @@ console.log('Example 2 - Partial Coverage:');
 console.log('Input:', input2);
 console.log('Output:', output2);
 
-const result2 = await metric.measure(input2, output2);
+const result2 = await metric.run({
+  input: [{ role: 'user', content: input2 }],
+  output: { role: 'assistant', text: output2 },
+});
 console.log('Metric Result:', {
   score: result2.score,
-  info: {
-    totalKeywords: result2.info.totalKeywords,
-    matchedKeywords: result2.info.matchedKeywords,
-  },
+  analyzeStepResult: result2.analyzeStepResult,
 });
 
 // Example 3: Minimal keyword coverage
@@ -45,11 +45,11 @@ console.log('Example 3 - Minimal Coverage:');
 console.log('Input:', input3);
 console.log('Output:', output3);
 
-const result3 = await metric.measure(input3, output3);
+const result3 = await metric.run({
+  input: [{ role: 'user', content: input3 }],
+  output: { role: 'assistant', text: output3 },
+});
 console.log('Metric Result:', {
   score: result3.score,
-  info: {
-    totalKeywords: result3.info.totalKeywords,
-    matchedKeywords: result3.info.matchedKeywords,
-  },
+  analyzeStepResult: result3.analyzeStepResult,
 });

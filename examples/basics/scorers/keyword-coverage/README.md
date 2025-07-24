@@ -1,6 +1,6 @@
-# Keyword Coverage Metric Example
+# Keyword Coverage Scorer Example
 
-This example demonstrates how to use Mastra's Keyword Coverage metric to evaluate how well responses cover important keywords from the input text.
+This example demonstrates how to use Mastra's Keyword Coverage Scorer to evaluate how well responses cover important keywords from the input text.
 
 ## Prerequisites
 
@@ -13,13 +13,13 @@ This example demonstrates how to use Mastra's Keyword Coverage metric to evaluat
 
    ```bash
    git clone https://github.com/mastra-ai/mastra
-   cd examples/basics/evals/keyword-coverage
+   cd examples/basics/scorers/keyword-coverage
    ```
 
 2. Install dependencies:
 
    ```bash
-   pnpm install
+   pnpm install --ignore-workspace
    ```
 
 3. Run the example:
@@ -30,7 +30,7 @@ This example demonstrates how to use Mastra's Keyword Coverage metric to evaluat
 
 ## Overview
 
-The Keyword Coverage metric evaluates how well responses include important keywords from the input. It analyzes:
+The Keyword Coverage Scorer evaluates how well responses include important keywords and terms from the input text. It analyzes:
 
 - Presence of key terms and concepts
 - Coverage of technical terminology
@@ -57,16 +57,20 @@ Each scenario demonstrates:
 
 The example will output:
 
-- The input text with keywords to match
-- The output text being evaluated
-- The coverage score (0-1)
-- Detailed statistics about matched keywords
+- The input text containing keywords to match
+- The output text being evaluated for keyword presence
+- The scorer result with:
+  - Score (0-1, where 1 indicates perfect keyword coverage)
+  - Analyze step results showing detailed keyword matching statistics
 
 ## Key Components
 
-- `KeywordCoverageMetric`: The main metric class for evaluating keyword coverage
-- Keyword analysis features:
-  - Stop word filtering
-  - Case normalization
-  - Technical term handling
-  - Compound word support
+- `createKeywordCoverageScorer`: Function that creates the keyword coverage scorer instance
+- No configuration required - the scorer uses built-in keyword extraction and matching
+- `scorer.run()`: Method to evaluate input/output pairs for keyword coverage
+  - Takes `{ input, output }` where:
+    - `input`: Array of chat messages (e.g., `[{ role: 'user', content: 'text' }]`)
+    - `output`: Response object (e.g., `{ role: 'assistant', text: 'response' }`)
+  - Returns results with:
+    - `score`: Numerical coverage score (0-1)
+    - `analyzeStepResult`: Detailed keyword matching analysis and statistics
