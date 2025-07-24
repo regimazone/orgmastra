@@ -577,11 +577,11 @@ export class Workflow<
     this.steps = {};
     this.stepDefs = steps;
 
-    if (!executionEngine) {
-      // TODO: this should be configured using the Mastra class instance that's passed in
-      this.executionEngine = new DefaultExecutionEngine({ mastra: this.#mastra });
-    } else if (!this.executionEngine) {
-      this.executionEngine = executionEngine;
+    if (mastra?.workflowOptions?.executionEngine) {
+      this.executionEngine = mastra.workflowOptions.executionEngine;
+      this.executionEngine.__registerMastra(mastra);
+    } else {
+      this.executionEngine = executionEngine ?? new DefaultExecutionEngine({ mastra: this.#mastra });
     }
 
     this.#runs = new Map();
@@ -597,6 +597,11 @@ export class Workflow<
 
   __registerMastra(mastra: Mastra) {
     this.#mastra = mastra;
+    this.executionEngine.__registerMastra(mastra);
+  }
+
+  __registerExecutionEngine(executionEngine: ExecutionEngine, mastra: Mastra) {
+    this.executionEngine = executionEngine;
     this.executionEngine.__registerMastra(mastra);
   }
 

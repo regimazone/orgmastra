@@ -122,6 +122,10 @@ export class Mastra<
     return this.#memory;
   }
 
+  get workflowOptions() {
+    return this.#workflowOptions;
+  }
+
   constructor(
     config?: Config<
       TAgents,
@@ -367,7 +371,7 @@ do:
         });
 
         if (config?.workflowOptions?.executionEngine) {
-          workflow.executionEngine = config.workflowOptions.executionEngine;
+          workflow.__registerExecutionEngine(config.workflowOptions.executionEngine, this);
         }
 
         // @ts-ignore
