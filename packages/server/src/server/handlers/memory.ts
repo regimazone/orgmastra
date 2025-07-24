@@ -562,7 +562,7 @@ export async function searchMemoryHandler({
         });
 
         // Get thread messages for context
-        const threadMessages = (await memory.query({ threadId: thread.id })).uiMessages;
+        const threadMessages = (await memory.query({ threadId: thread.id })).uiMessagesV4;
 
         // Process results
         result.messagesV2.forEach(msg => {
@@ -628,7 +628,7 @@ export async function searchMemoryHandler({
         config,
       });
 
-      const threadMessages = (await memory.query({ threadId })).uiMessages;
+      const threadMessages = (await memory.query({ threadId })).uiMessagesV4;
 
       result.messagesV2.forEach(msg => {
         // Skip duplicates
