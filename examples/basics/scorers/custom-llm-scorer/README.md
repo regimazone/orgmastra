@@ -82,7 +82,7 @@ The example will output:
 Example 1 - Recipe with Gluten:
 Input: "Can you give me a simple pasta recipe with exact measurements and timing?"
 Agent Response: [Recipe details...]
-Metric Result: {
+Result: {
   score: 0,
   glutenSources: ["pasta"],
   reason: "The recipe contains gluten from pasta."
@@ -91,7 +91,7 @@ Metric Result: {
 Example 2 - Gluten-Free Recipe:
 Input: "What is a quick way to make rice and beans?"
 Agent Response: [Recipe details...]
-Metric Result: {
+Result: {
   score: 1,
   glutenSources: [],
   reason: "The recipe is gluten-free as rice and beans do not contain gluten."
