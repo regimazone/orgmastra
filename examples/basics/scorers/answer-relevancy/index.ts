@@ -1,8 +1,5 @@
 import { openai } from '@ai-sdk/openai';
 import { createAnswerRelevancyScorer } from '@mastra/evals/scorers/llm';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Configure the scorer
 const scorer = createAnswerRelevancyScorer({

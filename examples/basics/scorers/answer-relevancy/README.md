@@ -38,7 +38,7 @@ This example demonstrates how to use Mastra's Answer Relevancy Scorer to evaluat
 4. Run the example:
 
    ```bash
-   pnpx tsx index.ts
+   pnpm start
    ```
 
 ## Overview
