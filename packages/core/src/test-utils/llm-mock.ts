@@ -3,10 +3,9 @@ import type { FinishReason, LanguageModelUsage, CallWarning } from 'ai';
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
 
-import { MastraLLM } from './model'; // Changed from import type
-
 // Helper type for the 'content' array in doGenerate response, as LanguageModelV2Content is not directly exported
 type MockTextContentPart = { type: 'text'; text: string };
+import { MastraLLM } from '../llm/model/model';
 
 export function createMockModel({
   objectGenerationMode,
