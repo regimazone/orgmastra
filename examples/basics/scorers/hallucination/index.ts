@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { HallucinationMetric } from '@mastra/evals/llm';
+import { createHallucinationScorer } from '@mastra/evals/scorers/llm';
 
 // Example 1: No hallucination (output matches context)
 const context1 = [
@@ -8,8 +8,8 @@ const context1 = [
   'The original model had a 3.5-inch screen.',
 ];
 
-const metric1 = new HallucinationMetric(openai('gpt-4o-mini'), {
-  context: context1,
+const metric1 = createHallucinationScorer({
+  model: openai('gpt-4o-mini'),
 });
 
 const query1 = 'When was the first iPhone released?';
@@ -21,10 +21,14 @@ console.log('Context:', context1);
 console.log('Query:', query1);
 console.log('Response:', response1);
 
-const result1 = await metric1.measure(query1, response1);
+const result1 = await metric1.run({
+  input: [{ role: 'user', content: query1 }],
+  output: { role: 'assistant', text: response1 },
+  additionalContext: { context: context1 },
+});
 console.log('Metric Result:', {
   score: result1.score,
-  reason: result1.info.reason,
+  reason: result1.reason,
 });
 
 // Example 2: Mixed hallucination (some facts correct, some wrong)
@@ -35,8 +39,8 @@ const context2 = [
   'The movie was filmed in Tunisia and England.',
 ];
 
-const metric2 = new HallucinationMetric(openai('gpt-4o-mini'), {
-  context: context2,
+const metric2 = createHallucinationScorer({
+  model: openai('gpt-4o-mini'),
 });
 
 const query2 = 'Tell me about the first Star Wars movie.';
@@ -48,10 +52,14 @@ console.log('Context:', context2);
 console.log('Query:', query2);
 console.log('Response:', response2);
 
-const result2 = await metric2.measure(query2, response2);
+const result2 = await metric2.run({
+  input: [{ role: 'user', content: query2 }],
+  output: { role: 'assistant', text: response2 },
+  additionalContext: { context: context2 },
+});
 console.log('Metric Result:', {
   score: result2.score,
-  reason: result2.info.reason,
+  reason: result2.reason,
 });
 
 // Example 3: Complete hallucination (all facts wrong)
@@ -61,8 +69,8 @@ const context3 = [
   'It covered a distance of 120 feet.',
 ];
 
-const metric3 = new HallucinationMetric(openai('gpt-4o-mini'), {
-  context: context3,
+const metric3 = createHallucinationScorer({
+  model: openai('gpt-4o-mini'),
 });
 
 const query3 = 'When did the Wright brothers first fly?';
@@ -74,8 +82,12 @@ console.log('Context:', context3);
 console.log('Query:', query3);
 console.log('Response:', response3);
 
-const result3 = await metric3.measure(query3, response3);
+const result3 = await metric3.run({
+  input: [{ role: 'user', content: query3 }],
+  output: { role: 'assistant', text: response3 },
+  additionalContext: { context: context3 },
+});
 console.log('Metric Result:', {
   score: result3.score,
-  reason: result3.info.reason,
+  reason: result3.reason,
 });
