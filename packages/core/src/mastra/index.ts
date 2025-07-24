@@ -16,7 +16,7 @@ import { InstrumentClass, Telemetry } from '../telemetry';
 import type { OtelConfig } from '../telemetry';
 import type { MastraTTS } from '../tts';
 import type { MastraVector } from '../vector';
-import type { Workflow } from '../workflows';
+import type { Workflow, ExecutionEngine } from '../workflows';
 import type { LegacyWorkflow } from '../workflows/legacy';
 import { createOnScorerHook } from './hooks';
 
@@ -39,6 +39,9 @@ export interface Config<
   logger?: TLogger | false;
   legacy_workflows?: TLegacyWorkflows;
   workflows?: TWorkflows;
+  workflowOptions?: {
+    executionEngine?: ExecutionEngine;
+  };
   tts?: TTTS;
   telemetry?: OtelConfig;
   deployer?: MastraDeployer;
@@ -94,6 +97,9 @@ export class Mastra<
   #server?: ServerConfig;
   #mcpServers?: TMCPServers;
   #bundler?: BundlerConfig;
+  #workflowOptions?: {
+    executionEngine?: ExecutionEngine;
+  };
 
   /**
    * @deprecated use getTelemetry() instead
@@ -343,7 +349,9 @@ do:
         }
       });
     }
-
+    if (config?.workflowOptions) {
+      this.#workflowOptions = config?.workflowOptions;
+    }
     this.#workflows = {} as TWorkflows;
     if (config?.workflows) {
       Object.entries(config.workflows).forEach(([key, workflow]) => {
@@ -357,6 +365,7 @@ do:
           tts: this.#tts,
           vectors: this.#vectors,
         });
+
         // @ts-ignore
         this.#workflows[key] = workflow;
       });
