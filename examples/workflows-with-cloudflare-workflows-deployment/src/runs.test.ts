@@ -67,6 +67,11 @@ describe('Workflow Execution Comparison', () => {
     // Note: timestamps might differ, so we'll check structure rather than exact equality
     expect(typeof localResult.result).toBe(typeof cfResult.result);
 
+    expect({ ...localResult.result, completedAt: undefined }).toEqual({ ...cfResult.result, completedAt: undefined });
+
+    expect(localResult.result.completedAt).toBeDefined();
+    expect(cfResult.result.completedAt).toBeDefined();
+
     // console.log('Local result:', JSON.stringify(localResult, null, 2));
     // console.log('CF result:', JSON.stringify(cfResult, null, 2));
   });
