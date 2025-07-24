@@ -1,8 +1,5 @@
 import type { LanguageModelV2 } from '@ai-sdk/provider';
-import type {
-  GenerateTextOnStepFinishCallback,
-  TelemetrySettings,
-} from 'ai';
+import type { GenerateTextOnStepFinishCallback, TelemetrySettings } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import type { Metric } from '../eval';

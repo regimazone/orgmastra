@@ -109,10 +109,10 @@ export type GenerateObjectWithMessagesArgs<Output extends ZodSchema | JSONSchema
   structuredOutput: Output;
   output?: never;
 } & GenerateObjectOptions<Output> & {
-  onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
-  experimental_output?: Output;
-  maxSteps?: number;
-};
+    onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
+    experimental_output?: Output;
+    maxSteps?: number;
+  };
 
 export type GenerateObjectResult<Output extends ZodSchema | JSONSchema7 | undefined = undefined> =
   OriginalGenerateObjectResult<inferOutput<Output>> & {
@@ -148,8 +148,8 @@ export type StreamTextWithMessagesArgs<
   messages: UIMessage[] | CoreMessage[];
   output?: never;
 } & StreamTextOptions<Tools, Output> & {
-  maxSteps?: number;
-};
+    maxSteps?: number;
+  };
 
 export type StreamTextResult<
   Tools extends ToolSet,
