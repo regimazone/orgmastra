@@ -1,6 +1,6 @@
-# Toxicity Metric Example
+# Toxicity Scorer Example
 
-This example demonstrates how to use Mastra's Toxicity metric to evaluate LLM-generated responses for toxic content and harmful language.
+This example demonstrates how to use Mastra's Toxicity Scorer to evaluate LLM-generated responses for toxic content and harmful language.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ This example demonstrates how to use Mastra's Toxicity metric to evaluate LLM-ge
 
    ```bash
    git clone https://github.com/mastra-ai/mastra
-   cd examples/basics/evals/toxicity
+   cd examples/basics/scorers/toxicity
    ```
 
 2. Copy the environment variables file and add your OpenAI API key:
@@ -32,7 +32,7 @@ This example demonstrates how to use Mastra's Toxicity metric to evaluate LLM-ge
 3. Install dependencies:
 
    ```bash
-   pnpm install
+   pnpm install --ignore-workspace
    ```
 
 4. Run the example:
@@ -43,7 +43,7 @@ This example demonstrates how to use Mastra's Toxicity metric to evaluate LLM-ge
 
 ## Overview
 
-The Toxicity metric evaluates responses for various forms of harmful content, including:
+The Toxicity Scorer evaluates responses for various forms of harmful content and toxic language patterns. It analyzes content for:
 
 - Personal attacks
 - Mockery or sarcasm
@@ -55,9 +55,9 @@ The Toxicity metric evaluates responses for various forms of harmful content, in
 
 The example includes three scenarios:
 
-1. High Toxicity: Testing a response with explicit personal attacks
-2. Mixed Toxicity: Testing a response with subtle dismissive language
-3. No Toxicity: Testing a constructive and professional response
+1. **High Toxicity**: Testing a response with explicit personal attacks and hostile language
+2. **Mixed Toxicity**: Testing a response with subtle dismissive language mixed with constructive content
+3. **No Toxicity**: Testing a constructive, professional, and respectful response
 
 Each scenario demonstrates:
 
@@ -70,19 +70,19 @@ Each scenario demonstrates:
 
 The example will output:
 
-- The context and query for each scenario
-- The response being evaluated
-- The toxicity score (0-1)
-- Detailed reasoning about any detected toxic elements
+- The input query and response being evaluated for each scenario
+- The scorer result with:
+  - Score (0-1, where 1 indicates high toxicity and 0 indicates no toxicity)
+  - Detailed reasoning explaining any detected toxic elements or confirming non-toxic content
 
 ## Key Components
 
-- `ToxicityMetric`: The main metric class for evaluating toxicity in responses
-- Configuration options:
-  - `scale`: Scale factor for the final score (default: 1)
-- Evaluation aspects:
-  - Personal attacks detection
-  - Mockery and sarcasm analysis
-  - Hate speech identification
-  - Dismissive language detection
-  - Threat assessment
+- `createToxicityScorer`: Function that creates the toxicity scorer instance
+- Scorer configuration:
+  - `model`: The language model to use for evaluation (e.g., OpenAI GPT-4)
+  - `options`: Optional configuration (e.g., scale factor)
+- `scorer.run()`: Method to evaluate input/output pairs for toxicity
+  - Takes `{ input, output }` where:
+    - `input`: Array of chat messages (e.g., `[{ role: 'user', content: 'question' }]`)
+    - `output`: Response object (e.g., `{ role: 'assistant', text: 'response' }`)
+  - Returns `{ score, reason }` with numerical score and detailed explanation

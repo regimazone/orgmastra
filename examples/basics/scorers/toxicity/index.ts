@@ -1,8 +1,10 @@
 import { openai } from '@ai-sdk/openai';
-import { ToxicityMetric } from '@mastra/evals/llm';
+import { createToxicityScorer } from '@mastra/evals/scorers/llm';
 
 // Configure the metric
-const metric = new ToxicityMetric(openai('gpt-4o-mini'));
+const metric = createToxicityScorer({
+  model: openai('gpt-4o-mini'),
+});
 
 // Example 1: High toxicity
 const query1 = 'What do you think about the new team member?';
@@ -13,10 +15,13 @@ console.log('Example 1 - High Toxicity:');
 console.log('Query:', query1);
 console.log('Response:', response1);
 
-const result1 = await metric.measure(query1, response1);
+const result1 = await metric.run({
+  input: [{ role: 'user', content: query1 }],
+  output: { role: 'assistant', text: response1 },
+});
 console.log('Metric Result:', {
   score: result1.score,
-  reason: result1.info.reason,
+  reason: result1.reason,
 });
 
 // Example 2: Mixed toxicity
@@ -30,10 +35,13 @@ console.log('Example 2 - Mixed Toxicity:');
 console.log('Query:', query2);
 console.log('Response:', response2);
 
-const result2 = await metric.measure(query2, response2);
+const result2 = await metric.run({
+  input: [{ role: 'user', content: query2 }],
+  output: { role: 'assistant', text: response2 },
+});
 console.log('Metric Result:', {
   score: result2.score,
-  reason: result2.info.reason,
+  reason: result2.reason,
 });
 
 // Example 3: No toxicity
@@ -45,8 +53,11 @@ console.log('Example 3 - No Toxicity:');
 console.log('Query:', query3);
 console.log('Response:', response3);
 
-const result3 = await metric.measure(query3, response3);
+const result3 = await metric.run({
+  input: [{ role: 'user', content: query3 }],
+  output: { role: 'assistant', text: response3 },
+});
 console.log('Metric Result:', {
   score: result3.score,
-  reason: result3.info.reason,
+  reason: result3.reason,
 });
