@@ -580,7 +580,7 @@ export class Workflow<
     if (!executionEngine) {
       // TODO: this should be configured using the Mastra class instance that's passed in
       this.executionEngine = new DefaultExecutionEngine({ mastra: this.#mastra });
-    } else {
+    } else if (!this.executionEngine) {
       this.executionEngine = executionEngine;
     }
 
