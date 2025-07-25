@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import EventEmitter from 'events';
-import type { ReadableStream, WritableStream } from 'node:stream/web';
-import { TransformStream } from 'node:stream/web';
+import type { ReadableStream, WritableStream } from 'stream/web';
+import { TransformStream } from 'stream/web';
 import { z } from 'zod';
 import type { Mastra, WorkflowRun } from '..';
 import type { MastraPrimitives } from '../action';
@@ -11,7 +11,7 @@ import { RuntimeContext } from '../di';
 import { RegisteredLogger } from '../logger';
 import type { MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
-import type { ChunkType } from '../stream/MastraAgentStream';
+import type { ChunkType } from '../stream/types';
 import { MastraWorkflowStream } from '../stream/MastraWorkflowStream';
 import { Tool } from '../tools';
 import type { ToolExecutionContext } from '../tools/types';
@@ -334,13 +334,24 @@ export function createStep<
         }
 
         for await (const chunk of fullStream) {
-          switch (chunk.type) {
+          switch (chunk.type as string) {
             case 'text':
-              await emitter.emit('watch-v2', {
-                type: 'tool-call-delta',
-                ...toolData,
-                argsTextDelta: chunk.text,
-              });
+              if ('text' in chunk) {
+                await emitter.emit('watch-v2', {
+                  type: 'tool-call-delta',
+                  ...toolData,
+                  argsTextDelta: chunk.text,
+                });
+              }
+              break;
+            case 'text-delta':
+              if ('textDelta' in chunk) {
+                await emitter.emit('watch-v2', {
+                  type: 'tool-call-delta',
+                  ...toolData,
+                  argsTextDelta: chunk.textDelta,
+                });
+              }
               break;
 
             case 'start-step':
@@ -348,6 +359,8 @@ export function createStep<
             case 'finish':
               break;
 
+            case 'text-start':
+            case 'text-end':
             case 'tool-call':
             case 'tool-result':
             case 'tool-input-start':

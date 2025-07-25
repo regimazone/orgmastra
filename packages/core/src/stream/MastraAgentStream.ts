@@ -1,11 +1,7 @@
 import { ReadableStream, TransformStream } from 'stream/web';
+import type { ChunkType } from './types';
 
-export type ChunkType = {
-  type: string;
-  runId: string;
-  from: string;
-  payload: Record<string, any>;
-};
+export type { ChunkType };
 
 function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, write: (chunk: any) => void) {
   if (value.type === 'step-start') {

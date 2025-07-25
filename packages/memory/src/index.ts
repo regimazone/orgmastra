@@ -647,32 +647,72 @@ export class Memory extends MastraMemory {
   protected updateMessageToHideWorkingMemory(message: MastraMessageV1): MastraMessageV1 | null {
     const workingMemoryRegex = /<working_memory>([^]*?)<\/working_memory>/g;
 
-    if (typeof message?.content === `string`) {
+    if (message.role === 'system') {
       return {
         ...message,
         content: message.content.replace(workingMemoryRegex, ``).trim(),
       };
-    } else if (Array.isArray(message?.content)) {
-      // Filter out updateWorkingMemory tool-call/result content items
-      const filteredContent = message.content.filter(
-        content =>
-          (content.type !== 'tool-call' && content.type !== 'tool-result') ||
-          content.toolName !== 'updateWorkingMemory',
-      );
-      const newContent = filteredContent.map(content => {
-        if (content.type === 'text') {
-          return {
-            ...content,
-            text: content.text.replace(workingMemoryRegex, '').trim(),
-          };
-        }
-        return { ...content };
-      }) as MastraMessageV1['content'];
-      if (!newContent.length) return null;
-      return { ...message, content: newContent };
-    } else {
-      return { ...message };
+    } else if (message.role === 'user') {
+      if (typeof message.content === 'string') {
+        return {
+          ...message,
+          content: message.content.replace(workingMemoryRegex, ``).trim(),
+        };
+      } else if (Array.isArray(message.content)) {
+        // For user messages, we only need to handle text parts
+        const newContent = message.content.map(content => {
+          if (content.type === 'text') {
+            return {
+              ...content,
+              text: content.text.replace(workingMemoryRegex, '').trim(),
+            };
+          }
+          return { ...content };
+        });
+        return { ...message, content: newContent };
+      }
+    } else if (message.role === 'assistant') {
+      if (typeof message.content === 'string') {
+        return {
+          ...message,
+          content: message.content.replace(workingMemoryRegex, ``).trim(),
+        };
+      } else if (Array.isArray(message.content)) {
+        // Filter out updateWorkingMemory tool-call content items
+        const filteredContent = message.content.filter(content => {
+          if (content.type === 'tool-call') {
+            return content.toolName !== 'updateWorkingMemory';
+          }
+          return true;
+        });
+        const newContent = filteredContent.map(content => {
+          if (content.type === 'text') {
+            return {
+              ...content,
+              text: content.text.replace(workingMemoryRegex, '').trim(),
+            };
+          }
+          return { ...content };
+        });
+        if (!newContent.length) return null;
+        return { ...message, content: newContent };
+      }
+    } else if (message.role === 'tool') {
+      if (Array.isArray(message.content)) {
+        // Filter out updateWorkingMemory tool-result content items
+        const filteredContent = message.content.filter(content => {
+          if (content.type === 'tool-result') {
+            return content.toolName !== 'updateWorkingMemory';
+          }
+          return true;
+        });
+        const newContent = filteredContent as Extract<MastraMessageV1, { role: 'tool' }>['content'];
+        if (!newContent.length) return null;
+        return { ...message, content: newContent };
+      }
     }
+
+    return { ...message };
   }
   protected updateMessageToHideWorkingMemoryV2(message: MastraMessageV2): MastraMessageV2 | null {
     const workingMemoryRegex = /<working_memory>([^]*?)<\/working_memory>/g;

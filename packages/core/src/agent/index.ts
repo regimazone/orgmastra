@@ -4,7 +4,7 @@ export { getToolName } from './message-list/ai-sdk-5/index';
 export * from './v5-to-v4-stream';
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
-import type { CoreMessage, StreamObjectResult, StreamTextResult, TextPart, Tool, UIMessage } from 'ai';
+import type { ModelMessage, StreamObjectResult, StreamTextResult, TextPart, Tool, UIMessage } from 'ai';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7, JSONSchema7Type } from 'json-schema';
 import type { z, ZodSchema } from 'zod';
@@ -761,8 +761,8 @@ export class Agent<
     threadId: string;
     thread?: StorageThreadType;
     memoryConfig?: MemoryConfig;
-    userMessages?: CoreMessage[];
-    systemMessage?: CoreMessage;
+    userMessages?: ModelMessage[];
+    systemMessage?: ModelMessage;
     runId?: string;
     messageList?: MessageList;
     runtimeContext?: RuntimeContext;
@@ -818,11 +818,11 @@ export class Agent<
           ?.map(m => m.content)
           ?.join(`\n`) ?? undefined;
 
-      const newMessages = messageList.get.input.v1() as CoreMessage[];
+      const newMessages = messageList.get.input.v1() as ModelMessage[];
 
       const processedMemoryMessages = memory.processMessages({
         // these will be processed
-        messages: messageList.get.remembered.v1() as CoreMessage[],
+        messages: messageList.get.remembered.v1() as ModelMessage[],
         // these are here for inspecting but shouldn't be returned by the processor
         // - ex TokenLimiter needs to measure all tokens even though it's only processing remembered messages
         newMessages,
@@ -1327,9 +1327,9 @@ export class Agent<
     resourceId?: string;
     thread?: (Partial<StorageThreadType> & { id: string }) | undefined;
     memoryConfig?: MemoryConfig;
-    context?: CoreMessage[];
+    context?: ModelMessage[];
     runId?: string;
-    messages: string | string[] | CoreMessage[] | AiMessageType[];
+    messages: string | string[] | ModelMessage[] | AiMessageType[];
     runtimeContext: RuntimeContext;
     generateMessageId: undefined | IDGenerator;
     saveQueueManager: SaveQueueManager;
@@ -1522,10 +1522,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
         const processedMemoryMessages = memory.processMessages({
           // these will be processed
-          messages: messageList.get.remembered.v1() as CoreMessage[],
+          messages: messageList.get.remembered.v1() as ModelMessage[],
           // these are here for inspecting but shouldn't be returned by the processor
           // - ex TokenLimiter needs to measure all tokens even though it's only processing remembered messages
-          newMessages: messageList.get.input.v1() as CoreMessage[],
+          newMessages: messageList.get.input.v1() as ModelMessage[],
           systemMessage,
           memorySystemMessage: memorySystemMessage || undefined,
         });
@@ -1796,7 +1796,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     Output extends ZodSchema | JSONSchema7 | undefined = undefined,
     ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     options: AgentGenerateOptions<Output, ExperimentalOutput>,
   ): Promise<{
     before: () => Promise<
@@ -1822,7 +1822,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     Output extends ZodSchema | JSONSchema7 | undefined = undefined,
     ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     options: AgentStreamOptions<Output, ExperimentalOutput>,
   ): Promise<{
     before: () => Promise<
@@ -1848,7 +1848,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     Output extends ZodSchema | JSONSchema7 | undefined = undefined,
     ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     options: (AgentGenerateOptions<Output, ExperimentalOutput> | AgentStreamOptions<Output, ExperimentalOutput>) & {
       writableStream?: WritableStream<ChunkType>;
     },
@@ -2017,15 +2017,15 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   }
 
   async generate(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentGenerateOptions<undefined, undefined> & { output?: never; experimental_output?: never },
   ): Promise<GenerateTextResult<any, undefined>>;
   async generate<OUTPUT extends ZodSchema | JSONSchema7>(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentGenerateOptions<OUTPUT, undefined> & { output?: OUTPUT; experimental_output?: never },
   ): Promise<GenerateObjectResult<OUTPUT>>;
   async generate<EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7>(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentGenerateOptions<undefined, EXPERIMENTAL_OUTPUT> & {
       output?: never;
       experimental_output?: EXPERIMENTAL_OUTPUT;
@@ -2035,7 +2035,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
     const defaultGenerateOptions = await this.getDefaultGenerateOptions({
@@ -2090,21 +2090,21 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> & { output?: never; experimental_output?: never },
   ): Promise<StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>>;
   async stream<
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> & { output?: OUTPUT; experimental_output?: never },
   ): Promise<StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>>;
   async stream<
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     args?: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> & {
       output?: never;
       experimental_output?: EXPERIMENTAL_OUTPUT;
@@ -2125,7 +2125,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     streamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<
     | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
@@ -2139,7 +2139,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     };
 
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedStreamOptions);
-    const { onFinish, runId, output, experimental_output, ...llmOptions } = await before();
+    const { onFinish, runId, output, experimental_output, onError, ...llmOptions } = await before();
 
     if (!output || experimental_output) {
       this.logger.debug(`Starting agent ${this.name} llm stream call`, {
@@ -2178,7 +2178,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     return llm.__streamObject({
       ...llmOptions,
-      onFinish: async result => {
+      onError: onError ? async (event: { error: unknown }): Promise<void> => {
+        await onError(event);
+      } : undefined,
+      onFinish: async (result: any) => {
         try {
           const outputText = JSON.stringify(result.object);
           await after({
@@ -2203,7 +2206,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     Output extends ZodSchema | undefined = undefined,
     StructuredOutput extends ZodSchema | undefined = undefined,
   >(
-    messages: string | string[] | CoreMessage[] | AiMessageType[],
+    messages: string | string[] | ModelMessage[] | AiMessageType[],
     streamOptions?: AgentVNextStreamOptions<Output, StructuredOutput>,
   ): MastraAgentStream<
     Output extends ZodSchema
@@ -2246,12 +2249,15 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         };
 
         const { llm, before, after } = await this.prepareLLMOptions(messages, mergedStreamOptions);
-        const { onFinish, runId, output, experimental_output, ...llmOptions } = await before();
+        const { onFinish, runId, output, experimental_output, onError, ...llmOptions } = await before();
 
         if (output) {
           const streamResult = llm.__streamObject({
             ...llmOptions,
-            onFinish: async result => {
+            onError: onError ? async (event: { error: unknown }): Promise<void> => {
+              await onError(event);
+            } : undefined,
+            onFinish: async (result: any) => {
               onResult(result.object as ResolvedOutput);
               try {
                 const outputText = JSON.stringify(result.object);
