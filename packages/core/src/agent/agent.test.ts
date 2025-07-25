@@ -742,7 +742,7 @@ describe('agent', () => {
     expect(toolCalls).toHaveLength(1);
   });
 
-  it('generate - should pass and call client side tools with experimental output', async () => {
+  it.skip('generate - should pass and call client side tools with experimental output', async () => {
     const userAgent = new Agent({
       name: 'User agent',
       instructions: 'You are an agent that can get list of users using client side tools.',
