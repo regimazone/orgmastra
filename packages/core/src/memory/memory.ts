@@ -2,6 +2,7 @@ import type { AssistantContent, UserContent, CoreMessage, EmbeddingModel, UIMess
 
 import type { MastraMessageV2, MastraMessageV3 } from '../agent/message-list';
 import { MastraBase } from '../base';
+import type { Mastra } from '../mastra';
 import type { MastraStorage, StorageGetMessagesArg } from '../storage';
 import { augmentWithInit } from '../storage/storageWithInit';
 import type { CoreTool } from '../tools';
@@ -77,6 +78,7 @@ export abstract class MastraMemory extends MastraBase {
   embedder?: EmbeddingModel<string>;
   private processors: MemoryProcessor[] = [];
   protected threadConfig: MemoryConfig = { ...memoryDefaultOptions };
+  #mastra?: Mastra;
 
   constructor(config: { name: string } & SharedMemoryConfig) {
     super({ component: 'MEMORY', name: config.name });
@@ -103,6 +105,15 @@ export abstract class MastraMemory extends MastraBase {
       }
       this.embedder = config.embedder;
     }
+  }
+
+  /**
+   * Internal method used by Mastra to register itself with the memory.
+   * @param mastra The Mastra instance.
+   * @internal
+   */
+  __registerMastra(mastra: Mastra): void {
+    this.#mastra = mastra;
   }
 
   protected _hasOwnStorage = false;
@@ -388,7 +399,7 @@ export abstract class MastraMemory extends MastraBase {
    * @returns A unique string ID
    */
   public generateId(): string {
-    return crypto.randomUUID();
+    return this.#mastra?.generateId() || crypto.randomUUID();
   }
 
   /**

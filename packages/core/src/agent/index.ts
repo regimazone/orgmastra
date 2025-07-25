@@ -1534,6 +1534,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         const processedList = new MessageList({
           threadId: threadObject.id,
           resourceId,
+          generateMessageId: this.#mastra?.generateId.bind(this.#mastra),
           // @ts-ignore Flag for agent network messages
           _agentNetworkAppend: this._agentNetworkAppend,
         })
@@ -1736,7 +1737,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const input = userInputMessages
       .map(message => (typeof message.content === 'string' ? message.content : ''))
       .join('\n');
-    const runIdToUse = runId || crypto.randomUUID();
+    const runIdToUse = runId || this.#mastra?.generateId() || randomUUID();
 
     if (Object.keys(this.evals || {}).length > 0) {
       for (const metric of Object.values(this.evals || {})) {
@@ -1897,7 +1898,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         `[Agent:${this.name}] - No memory is configured but resourceId and threadId were passed in args. This will not work.`,
       );
     }
-    const runId = args.runId || randomUUID();
+    const runId = args.runId || this.#mastra?.generateId() || randomUUID();
     const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
     const llm = await this.getLLM({ runtimeContext });
 
@@ -2115,9 +2116,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
     | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>
   > {
-    const defaultStreamOptions = await this.getDefaultStreamOptions({
-      runtimeContext: streamOptions.runtimeContext,
-    });
+    const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions.runtimeContext });
+
     const mergedStreamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
       ...defaultStreamOptions,
       ...streamOptions,
