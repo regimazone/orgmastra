@@ -1,11 +1,38 @@
 import { ReadableStream, TransformStream } from 'stream/web';
+import type { LanguageModelV1StreamPart } from 'ai';
+import type { ChunkType } from './types';
 
-export type ChunkType = {
-  type: string;
-  runId: string;
-  from: string;
-  payload: Record<string, any>;
-};
+function convertFullStreamChunkToAISDKv4(chunk: any) {
+  if (chunk.type === 'text-delta') {
+    return {
+      type: 'text-delta',
+      textDelta: chunk.payload.text,
+    };
+  } else if (chunk.type === 'step-start') {
+    return {
+      type: 'step-start',
+      ...(chunk.payload || {}),
+    }
+  } else if (chunk.type === 'step-finish') {
+    const { totalUsage, reason, ...rest } = chunk.payload
+    console.log('Step finish chunk', chunk)
+    return {
+      usage: {
+        promptTokens: totalUsage.promptTokens,
+        completionTokens: totalUsage.completionTokens,
+        totalTokens: totalUsage.totalTokens || (totalUsage.promptTokens + totalUsage.completionTokens),
+      },
+      ...rest,
+      finishReason: reason,
+      type: 'step-finish',
+    }
+  } else if (chunk.type === 'finish') {
+    return {
+      type: 'finish',
+      ...chunk.payload,
+    }
+  }
+}
 
 function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, write: (chunk: any) => void) {
   if (value.type === 'step-start') {
@@ -42,14 +69,16 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       },
     });
   } else if (value.type === 'text-delta') {
-    write({
-      type: 'text-delta',
-      runId: ctx.runId,
-      from: 'AGENT',
-      payload: {
-        text: value.textDelta,
-      },
-    });
+    if (value.textDelta) {
+      write({
+        type: 'text-delta',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: {
+          text: value.textDelta,
+        },
+      });
+    }
   } else if (value.type === 'step-finish') {
     write({
       type: 'step-finish',
@@ -64,14 +93,24 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       },
     });
   } else if (value.type === 'finish') {
+    const { finishReason, usage, providerMetadata, ...rest } = value
     write({
       type: 'finish',
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        reason: value.finishReason,
         usage: value.usage,
         providerMetadata: value.providerMetadata,
+        ...rest,
       },
+    });
+  } else if (value.type === 'response-metadata') {
+    write({
+      type: 'response-metadata',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: value,
     });
   }
 }
@@ -103,11 +142,11 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     ) => Promise<ReadableStream<any>> | ReadableStream<any>;
     getOptions: () =>
       | Promise<{
-          runId: string;
-        }>
+        runId: string;
+      }>
       | {
-          runId: string;
-        };
+        runId: string;
+      };
   }) {
     const deferredPromise = {
       promise: null,
@@ -177,11 +216,10 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
                   this.#toolResults.push(chunk.payload);
                   break;
                 case 'step-finish':
+                case 'finish':
                   if (chunk.payload.reason) {
                     this.#finishReason = chunk.payload.reason;
                   }
-                  break;
-                case 'finish':
                   updateUsageCount(chunk.payload.usage);
                   chunk.payload.totalUsage = this.#usageCount;
                   break;
@@ -201,6 +239,21 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     });
 
     this.#streamPromise = deferredPromise;
+  }
+
+
+  get aisdkv4() {
+    return this.pipeThrough(
+      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
+        transform(chunk, controller) {
+          const transformedChunk = convertFullStreamChunkToAISDKv4(chunk)
+
+          if (transformedChunk) {
+            controller.enqueue(transformedChunk as LanguageModelV1StreamPart);
+          }
+        },
+      }),
+    );
   }
 
   get finishReason() {
