@@ -2,10 +2,18 @@
  * This file is an adaptation of https://github.com/vercel/ai/blob/e14c066bf4d02c5ee2180c56a01fa0e5216bc582/packages/ai/core/prompt/convert-to-core-messages.ts
  * But has been modified to work with Mastra storage adapter messages (MastraMessageV1)
  */
-import type { AssistantContent, FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from 'ai';
+import type {
+  FilePart,
+  ImagePart,
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+  ReasoningPart,
+} from '@ai-sdk/provider-utils';
+import type { AssistantContent } from 'ai';
 import type { MastraMessageV1 } from '../../../memory/types';
 import type { MastraMessageContentV2, MastraMessageV2 } from '../../message-list';
-import type { ReasoningPart, RedactedReasoningPart } from '../ai-sdk-4/core/prompt/content-part';
+import type { RedactedReasoningPart } from '../ai-sdk-4/core/prompt/content-part';
 import { attachmentsToParts } from './attachments-to-parts';
 
 type MessagePart =

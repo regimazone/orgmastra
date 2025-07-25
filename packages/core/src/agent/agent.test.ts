@@ -358,34 +358,47 @@ const mockFindUserToolModel = new MockLanguageModelV2({
       stream: simulateReadableStream({
         chunks: [
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
+            type: 'tool-input-start',
+            id: 'mock-find-user-call-id-stream',
             toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '{',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '"name":"',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '{',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: 'Dero Israel"',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '"name":"',
           },
           {
-            type: 'tool-call-delta',
-            toolCallId: 'mock-find-user-call-id-stream',
-            toolName: 'findUserTool',
-            toolCallType: 'function',
-            inputTextDelta: '}',
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: 'Dero Israel"',
           },
-          { type: 'text', text: 'Found user Dero Israel.' },
+          {
+            type: 'tool-input-delta',
+            id: 'mock-find-user-call-id-stream',
+            delta: '}',
+          },
+          {
+            type: 'tool-input-end',
+            id: 'mock-find-user-call-id-stream',
+          },
+          {
+            type: 'text-start',
+            id: 'text-1',
+          },
+          {
+            type: 'text-delta',
+            id: 'text-1',
+            delta: 'Found user Dero Israel.',
+          },
+          {
+            type: 'text-end',
+            id: 'text-1',
+          },
           {
             type: 'finish',
             finishReason: 'stop',
@@ -427,7 +440,7 @@ function assertNoDuplicateParts(parts: any[]) {
 describe('agent', () => {
   const integration = new TestIntegration();
 
-  let dummyModel: MockLanguageModelV1;
+  let dummyModel: MockLanguageModelV2;
   beforeEach(() => {
     dummyModel = new MockLanguageModelV2({
       doGenerate: async _options => ({
@@ -947,7 +960,9 @@ describe('agent', () => {
     // Original CoreMessages for context, but we'll test the output of list.get.all.core()
     const toolResultOne_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool1', toolCallId: 'tool-1', output: 'res1' }],
+      content: [
+        { type: 'tool-result', toolName: 'testTool1', toolCallId: 'tool-1', output: { type: 'text', value: 'res1' } },
+      ],
     };
     const toolCallTwo_Core: CoreMessage = {
       role: 'assistant',
@@ -955,7 +970,9 @@ describe('agent', () => {
     };
     const toolResultTwo_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool2', toolCallId: 'tool-2', output: 'res2' }],
+      content: [
+        { type: 'tool-result', toolName: 'testTool2', toolCallId: 'tool-2', output: { type: 'text', value: 'res2' } },
+      ],
     };
     const toolCallThree_Core: CoreMessage = {
       role: 'assistant',
@@ -1029,7 +1046,9 @@ describe('agent', () => {
     };
     const toolMessage_Core: CoreMessage = {
       role: 'tool',
-      content: [{ type: 'tool-result', toolName: 'testTool', toolCallId: 'tool-1', output: 'res1' }],
+      content: [
+        { type: 'tool-result', toolName: 'testTool', toolCallId: 'tool-1', output: { type: 'text', value: 'res1' } },
+      ],
     };
     const emptyAssistant_Core: CoreMessage = {
       role: 'assistant',
