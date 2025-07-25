@@ -33,6 +33,7 @@ export type {
   MastraMessageV3,
   MastraMessageContentV3,
   MessageList,
+  UIMessageWithMetadata,
 } from './message-list/index.ts';
 export type { UIMessage as AiMessageType } from 'ai';
 

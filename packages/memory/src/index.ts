@@ -1,12 +1,12 @@
 import type { AllMastraMessageTypesList, CoreTool, MastraMessageV1, MastraMessageV3 } from '@mastra/core';
 import { getToolName, MessageList } from '@mastra/core/agent';
-import type { MastraMessageV2 } from '@mastra/core/agent';
+import type { MastraMessageV2, UIMessageWithMetadata } from '@mastra/core/agent';
 import { MastraMemory } from '@mastra/core/memory';
 import type { MemoryConfig, SharedMemoryConfig, StorageThreadType, WorkingMemoryTemplate } from '@mastra/core/memory';
 import type { StorageGetMessagesArg } from '@mastra/core/storage';
 import { generateEmptyFromSchema } from '@mastra/core/utils';
 import { embedMany, isToolUIPart } from 'ai';
-import type { CoreMessage, TextPart, UIMessage } from 'ai';
+import type { CoreMessage, TextPart } from 'ai';
 import { Mutex } from 'async-mutex';
 import type { JSONSchema7 } from 'json-schema';
 
@@ -100,7 +100,7 @@ export class Memory extends MastraMemory {
     threadConfig?: MemoryConfig;
   }): Promise<{
     messages: CoreMessage[];
-    uiMessages: UIMessage[];
+    uiMessages: UIMessageWithMetadata[];
     uiMessagesV4: AIV4UIMessage[];
     messagesV2: MastraMessageV2[];
   }> {

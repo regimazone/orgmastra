@@ -3883,8 +3883,8 @@ describe('MessageList', () => {
 
       // toolInvocations array should also only have the result
       expect(uiMessage.toolInvocations).toHaveLength(1);
-      expect(uiMessage.toolInvocations?.[0].state).toBe('result');
-      expect(uiMessage.toolInvocations?.[0].toolCallId).toBe('call-4');
+      expect(uiMessage.toolInvocations![0].state).toBe('result');
+      expect(uiMessage.toolInvocations![0].toolCallId).toBe('call-4');
     });
 
     it('should handle clientTool scenario - filter call states when querying from memory', () => {
@@ -4004,12 +4004,16 @@ describe('MessageList', () => {
       const resultToolParts = uiMessageWithResult.parts.filter(p => p.type === 'tool-invocation');
       expect(resultToolParts.length).toBe(1);
       expect(resultToolParts[0].toolInvocation.state).toBe('result');
-      expect((resultToolParts[0].toolInvocation as any).result).toBe(42);
+      if (resultToolParts[0].toolInvocation.state === `result`) {
+        expect(resultToolParts[0].toolInvocation.result).toBe(42);
+      }
 
       // toolInvocations array should have the result
       expect(uiMessageWithResult.toolInvocations).toHaveLength(1);
-      expect(uiMessageWithResult.toolInvocations?.[0].state).toBe('result');
-      expect((uiMessageWithResult.toolInvocations?.[0] as any).result).toBe(42);
+      expect(uiMessageWithResult.toolInvocations![0].state).toBe('result');
+      if (uiMessageWithResult.toolInvocations![0].state === `result`) {
+        expect(uiMessageWithResult.toolInvocations![0].result).toBe(42);
+      }
     });
   });
 });
