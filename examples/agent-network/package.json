@@ -12,8 +12,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ai-sdk/openai": "2.0.0-beta.6",
-    "@ai-sdk/anthropic": "2.0.0-beta.5",
+    "@ai-sdk/openai": "2.0.0-beta.11",
+    "@ai-sdk/anthropic": "2.0.0-beta.8",
     "@mastra/client-js": "latest",
     "@mastra/core": "latest",
     "@mastra/libsql": "latest",

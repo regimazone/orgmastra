@@ -27,7 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "ai": "5.0.0-beta.14",
+    "ai": "5.0.0-beta.27",
     "fastembed": "^1.14.4"
   },
   "devDependencies": {

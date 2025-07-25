@@ -10,36 +10,41 @@ const __dirname = path.dirname(__filename);
 // AI SDK package version mappings from current beta to latest beta
 const VERSION_MAPPINGS = {
   ai: {
-    '5.0.0-beta.5': '5.0.0-beta.14',
+    '5.0.0-beta.5': '5.0.0-beta.27',
+    '5.0.0-beta.14': '5.0.0-beta.27',
   },
   '@ai-sdk/provider': {
-    '2.0.0-alpha.15': '2.0.0-beta.5',
+    '2.0.0-alpha.15': '2.0.0-beta.1',
     '2.0.0-beta.5': '2.0.0-beta.1',
   },
   '@ai-sdk/openai': {
-    '2.0.0-beta.5': '2.0.0-beta.6',
+    '2.0.0-beta.5': '2.0.0-beta.11',
+    '2.0.0-beta.6': '2.0.0-beta.11',
   },
   '@ai-sdk/react': {
-    '2.0.0-alpha.15': '2.0.0-beta.5',
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
+    '2.0.0-alpha.15': '2.0.0-beta.27',
+    '2.0.0-beta.1': '2.0.0-beta.27',
+    '2.0.0-beta.2': '2.0.0-beta.27',
+    '2.0.0-beta.3': '2.0.0-beta.27',
+    '2.0.0-beta.4': '2.0.0-beta.27',
+    '2.0.0-beta.5': '2.0.0-beta.27',
+    '1.0.0': '2.0.0-beta.27', // Major upgrade
   },
   '@ai-sdk/anthropic': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
+    '2.0.0-beta.1': '2.0.0-beta.8',
+    '2.0.0-beta.2': '2.0.0-beta.8',
+    '2.0.0-beta.3': '2.0.0-beta.8',
+    '2.0.0-beta.4': '2.0.0-beta.8',
+    '2.0.0-beta.5': '2.0.0-beta.8',
+    '1.0.0': '2.0.0-beta.8', // Major upgrade
   },
   '@ai-sdk/google': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
+    '2.0.0-beta.1': '2.0.0-beta.14',
+    '2.0.0-beta.2': '2.0.0-beta.14',
+    '2.0.0-beta.3': '2.0.0-beta.14',
+    '2.0.0-beta.4': '2.0.0-beta.14',
+    '2.0.0-beta.5': '2.0.0-beta.14',
+    '1.0.0': '2.0.0-beta.14', // Major upgrade
   },
   '@ai-sdk/provider-utils': {
     '^3.0.0-alpha.14': '3.0.0-beta.5',
@@ -50,11 +55,21 @@ const VERSION_MAPPINGS = {
     '2.2.8': '3.0.0-beta.5', // Major upgrade
   },
   '@ai-sdk/ui-utils': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '^1.2.11': '2.0.0-beta.5', // Major upgrade
+    '2.0.0-beta.1': '2.0.0-canary.3',
+    '2.0.0-beta.2': '2.0.0-canary.3',
+    '2.0.0-beta.3': '2.0.0-canary.3',
+    '2.0.0-beta.4': '2.0.0-canary.3',
+    '2.0.0-beta.5': '2.0.0-canary.3',
+    '^1.2.11': '2.0.0-canary.3', // Major upgrade
+  },
+  '@ai-sdk/cohere': {
+    '2.0.0-beta.11': '2.0.0-beta.6',
+    '2.0.0-beta.1': '2.0.0-beta.6',
+    '2.0.0-beta.2': '2.0.0-beta.6',
+    '2.0.0-beta.3': '2.0.0-beta.6',
+    '2.0.0-beta.4': '2.0.0-beta.6',
+    '2.0.0-beta.5': '2.0.0-beta.6',
+    '1.0.0': '2.0.0-beta.6', // Major upgrade
   },
 };
 
@@ -156,9 +171,9 @@ function getNewVersion(packageName, currentVersion) {
   const mappings = VERSION_MAPPINGS[packageName];
   if (!mappings) {
     // Default beta version for unmapped packages
-    if (packageName === 'ai') return '5.0.0-beta.5';
+    if (packageName === 'ai') return '5.0.0-beta.27';
     if (packageName.startsWith('@ai-sdk/')) {
-      return '2.0.0-beta.5'; // Most @ai-sdk packages are on 2.x
+      return '2.0.0-beta.11'; // Most @ai-sdk packages are on 2.x
     }
     return currentVersion; // Keep unchanged if no mapping
   }
