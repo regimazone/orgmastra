@@ -1,6 +1,7 @@
 name: Tool Builder Tests
 
 on:
+  push:
   pull_request:
     branches: [main]
     paths:

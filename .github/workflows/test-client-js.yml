@@ -1,6 +1,7 @@
 name: Client JS Tests
 
 on:
+  push:
   pull_request:
     branches: [main]
     paths:
