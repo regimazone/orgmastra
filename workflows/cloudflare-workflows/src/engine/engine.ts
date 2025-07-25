@@ -47,6 +47,7 @@ export class CloudflareWorkflowsExecutionEngine extends DefaultExecutionEngine {
         throw new Error(instanceRes.error);
       }
 
+      // TODO: need a better way to handle long running workflows. The current mastra apis are async/await but the workflow could run for hours. If this was called from a serverless function, it would timeout even though the workflow is still running.
       // keep polling fetches to /instance/status/:instanceId
       const getStatus = async () => {
         console.log(`Getting status for cloudflare workflow instance ${instanceRes.instanceId}`);
