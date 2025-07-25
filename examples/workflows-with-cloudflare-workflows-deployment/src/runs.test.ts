@@ -3,6 +3,8 @@ import { Mastra } from '@mastra/core';
 import { CloudflareWorkflowsExecutionEngine } from '@mastra/cloudflare-workflows/engine';
 import { simpleWorkflow } from './mastra/workflows/simple-workflow.js';
 
+// temporary simple test to compare local and cloudflare execution engines
+
 const mastra = new Mastra({
   workflows: { simpleWorkflow },
 });
