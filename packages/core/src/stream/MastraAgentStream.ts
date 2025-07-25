@@ -12,25 +12,40 @@ function convertFullStreamChunkToAISDKv4(chunk: any) {
     return {
       type: 'step-start',
       ...(chunk.payload || {}),
-    }
+    };
   } else if (chunk.type === 'step-finish') {
-    const { totalUsage, reason, ...rest } = chunk.payload
-    console.log('Step finish chunk', chunk)
+    const { totalUsage, reason, ...rest } = chunk.payload;
+    console.log('Step finish chunk', chunk);
     return {
       usage: {
         promptTokens: totalUsage.promptTokens,
         completionTokens: totalUsage.completionTokens,
-        totalTokens: totalUsage.totalTokens || (totalUsage.promptTokens + totalUsage.completionTokens),
+        totalTokens: totalUsage.totalTokens || totalUsage.promptTokens + totalUsage.completionTokens,
       },
       ...rest,
       finishReason: reason,
       type: 'step-finish',
-    }
+    };
   } else if (chunk.type === 'finish') {
     return {
       type: 'finish',
       ...chunk.payload,
-    }
+    };
+  } else if (chunk.type === 'reasoning') {
+    return {
+      type: 'reasoning',
+      textDelta: chunk.payload.text,
+    };
+  } else if (chunk.type === 'reasoning-signature') {
+    return {
+      type: 'reasoning-signature',
+      signature: chunk.payload.signature,
+    };
+  } else if (chunk.type === 'redacted-reasoning') {
+    return {
+      type: 'redacted-reasoning',
+      data: chunk.payload.data,
+    };
   }
 }
 
@@ -93,7 +108,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       },
     });
   } else if (value.type === 'finish') {
-    const { finishReason, usage, providerMetadata, ...rest } = value
+    const { finishReason, usage, providerMetadata, ...rest } = value;
     write({
       type: 'finish',
       runId: ctx.runId,
@@ -111,6 +126,33 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       runId: ctx.runId,
       from: 'AGENT',
       payload: value,
+    });
+  } else if (value.type === 'reasoning') {
+    write({
+      type: 'reasoning',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        text: value.textDelta,
+      },
+    });
+  } else if (value.type === 'reasoning-signature') {
+    write({
+      type: 'reasoning-signature',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        signature: value.signature,
+      },
+    });
+  } else if (value.type === 'redacted-reasoning') {
+    write({
+      type: 'redacted-reasoning',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        data: value.data,
+      },
     });
   }
 }
@@ -142,11 +184,11 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     ) => Promise<ReadableStream<any>> | ReadableStream<any>;
     getOptions: () =>
       | Promise<{
-        runId: string;
-      }>
+          runId: string;
+        }>
       | {
-        runId: string;
-      };
+          runId: string;
+        };
   }) {
     const deferredPromise = {
       promise: null,
@@ -241,12 +283,11 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     this.#streamPromise = deferredPromise;
   }
 
-
   get aisdkv4() {
     return this.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
-          const transformedChunk = convertFullStreamChunkToAISDKv4(chunk)
+          const transformedChunk = convertFullStreamChunkToAISDKv4(chunk);
 
           if (transformedChunk) {
             controller.enqueue(transformedChunk as LanguageModelV1StreamPart);
