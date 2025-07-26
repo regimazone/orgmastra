@@ -1,10 +1,12 @@
 import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
-import { MockLanguageModelV1, mockId } from 'ai/test';
+import { MockLanguageModelV1, mockId, mockValues } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 
 import { createTestModel, modelWithFiles, modelWithReasoning, modelWithSources } from './test-utils';
 
 import { AgenticLoop } from './vnext';
+import { z } from 'zod';
+import { tool } from 'ai';
 
 const defaultSettings = () =>
   ({
@@ -200,7 +202,7 @@ describe('V4 tests', () => {
       expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
     });
 
-    it.only('should send files', async () => {
+    it('should send files', async () => {
       const result = await looper.loop({
         model: modelWithFiles,
         ...defaultSettings(),
@@ -208,67 +210,170 @@ describe('V4 tests', () => {
 
       expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
     });
-  });
 
-  it('should send files', async () => {
-    const result = await looper.loop({
-      runId,
-      model: modelWithFiles,
-      system: 'You are a helpful assistant.',
-      prompt: 'test-input',
-      threadId: '123',
-      resourceId: '456',
-    });
+    it('should use fallback response metadata when response metadata is not provided', async () => {
+      const result = await looper.loop({
+        model: new MockLanguageModelV1({
+          doStream: async ({ prompt, mode }) => {
+            expect(mode).toStrictEqual({
+              type: 'regular',
+              tools: undefined,
+              toolChoice: undefined,
+            });
 
-    expect(await convertAsyncIterableToArray(result)).toMatchSnapshot();
-  });
-
-  it('should use fallback response metadata when response metadata is not provided', async () => {
-    const result = await looper.loop({
-      runId,
-      model: new MockLanguageModelV1({
-        doStream: async ({ prompt, mode }) => {
-          expect(mode).toStrictEqual({
-            type: 'regular',
-            tools: undefined,
-            toolChoice: undefined,
-          });
-
-          expect(prompt).toStrictEqual([
-            {
-              role: 'user',
-              content: [{ type: 'text', text: 'test-input' }],
-              providerMetadata: undefined,
-            },
-          ]);
-
-          return {
-            stream: convertArrayToReadableStream([
-              { type: 'text-delta', textDelta: 'Hello' },
-              { type: 'text-delta', textDelta: ', ' },
-              { type: 'text-delta', textDelta: `world!` },
+            expect(prompt).toStrictEqual([
               {
-                type: 'finish',
-                finishReason: 'stop',
-                logprobs: undefined,
-                usage: { completionTokens: 10, promptTokens: 3 },
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
               },
-            ]),
-            rawCall: { rawPrompt: 'prompt', rawSettings: {} },
-          };
+            ]);
+
+            return {
+              stream: convertArrayToReadableStream([
+                { type: 'text-delta', textDelta: 'Hello' },
+                { type: 'text-delta', textDelta: ', ' },
+                { type: 'text-delta', textDelta: `world!` },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            };
+          },
+        }),
+        prompt: 'test-input',
+        _internal: {
+          currentDate: mockValues(new Date(2000)),
+          generateId: mockValues('id-2000'),
         },
-      }),
-      prompt: 'test-input',
-      // _internal: {
-      //     currentDate: mockValues(new Date(2000)),
-      //     generateId: mockValues('id-2000'),
-      // },
-      // experimental_generateMessageId: mockId({ prefix: 'msg' }),
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      const messages = await convertAsyncIterableToArray(result.aisdkv4);
+
+      expect(messages).toMatchSnapshot();
     });
 
-    console.log(await convertAsyncIterableToArray(result));
+    it('should send tool calls', async () => {
+      const result = await looper.loop({
+        model: new MockLanguageModelV1({
+          doStream: async ({ prompt, mode }) => {
+            expect(mode).toStrictEqual({
+              type: 'regular',
+              tools: [
+                {
+                  type: 'function',
+                  name: 'tool1',
+                  description: undefined,
+                  parameters: {
+                    $schema: 'http://json-schema.org/draft-07/schema#',
+                    additionalProperties: false,
+                    properties: { value: { type: 'string' } },
+                    required: ['value'],
+                    type: 'object',
+                  },
+                },
+              ],
+              toolChoice: { type: 'required' },
+            });
 
-    expect(await convertAsyncIterableToArray(result)).toMatchSnapshot();
+            expect(prompt).toStrictEqual([
+              {
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
+              },
+            ]);
+
+            return {
+              stream: convertArrayToReadableStream([
+                {
+                  type: 'response-metadata',
+                  id: 'id-0',
+                  modelId: 'mock-model-id',
+                  timestamp: new Date(0),
+                },
+                {
+                  type: 'tool-call',
+                  toolCallType: 'function',
+                  toolCallId: 'call-1',
+                  toolName: 'tool1',
+                  args: `{ "value": "value" }`,
+                },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            };
+          },
+        }),
+        tools: {
+          tool1: {
+            parameters: z.object({ value: z.string() }),
+          },
+        },
+        toolChoice: 'required',
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+    });
+
+    it.only('should send tool results', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            {
+              type: 'tool-call',
+              toolCallType: 'function',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              args: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              logprobs: undefined,
+              usage: { completionTokens: 10, promptTokens: 3 },
+            },
+          ]),
+        }),
+        tools: {
+          tool1: tool({
+            parameters: z.object({ value: z.string() }),
+            execute: async (args, options) => {
+              expect(args).toStrictEqual({ value: 'value' });
+
+              console.log(JSON.stringify(options.messages, null, 2), 'MESSAGES YO');
+
+              expect(options.messages).toStrictEqual([{ role: 'user', content: 'test-input' }]);
+              return `${args.value}-result`;
+            },
+          }),
+        },
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      const messages = await convertAsyncIterableToArray(result.aisdkv4);
+
+      console.log(JSON.stringify(messages, null, 2), 'MESSAGES RETURN');
+
+      expect(messages).toMatchSnapshot();
+    });
   });
 
   describe('result.finishReason', () => {

@@ -1,13 +1,9 @@
-import type { LanguageModelV1FunctionTool, LanguageModelV1ToolChoice } from '@ai-sdk/provider';
-import { generateId, type LanguageModel } from 'ai';
+import { generateId, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../agent/message-list';
 import { MastraAgentStream } from '../../stream/MastraAgentStream';
 import { createWorkflow, createStep } from '../../workflows';
-
-type Tool = LanguageModelV1FunctionTool & {
-  execute: (inputData: any) => Promise<any>;
-};
+import { prepareToolsAndToolChoice } from './prepare-tools';
 
 export class AgenticLoop {
   stepCount = 0;
@@ -35,19 +31,47 @@ export class AgenticLoop {
     return messageList;
   }
 
-  createToolCallStep({ tools }: { tools?: Tool[] }) {
+  createToolCallStep({ tools }: { tools?: ToolSet }) {
     return createStep({
       id: 'toolCallStep',
       inputSchema: z.any(),
       outputSchema: z.any(),
-      execute: async ({ inputData }) => {
-        const tool = tools?.find(tool => tool.name === inputData.toolName);
+      execute: async ({ inputData, getStepResult }) => {
+        console.log('Tool call step');
+
+        console.log(JSON.stringify(inputData, null, 2));
+
+        console.log(Object.values(tools || {}));
+
+        const tool =
+          tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.name === inputData.toolName);
 
         if (!tool) {
           throw new Error(`Tool ${inputData.toolName} not found`);
         }
 
-        const result = await tool.execute({ inputData: JSON.parse(inputData.args) });
+        if (!tool.execute) {
+          return inputData;
+        }
+
+        const initialResult = getStepResult({
+          id: 'generateText',
+        } as any);
+
+        const messageList = this.toMessageList(initialResult.messages);
+
+        console.log(messageList.get.all.v1(), 'MESSAGE LIST v1');
+        console.log(messageList.get.all.v2(), 'MESSAGE LIST v2');
+        console.log(messageList.get.all.core(), 'MESSAGE LIST core');
+        console.log(messageList.get.all.ui(), 'MESSAGE LIST ui');
+
+        const result = await tool.execute(JSON.parse(inputData.args), {
+          toolCallId: inputData.toolCallId,
+          messages: messageList.get.all.ui().map(message => ({
+            role: message.role,
+            content: message.content,
+          })) as any,
+        });
 
         return { result, ...inputData };
       },
@@ -66,8 +90,8 @@ export class AgenticLoop {
   }: {
     writer: WritableStreamDefaultWriter<any>;
     model: LanguageModel;
-    tools?: Tool[];
-    toolChoice?: LanguageModelV1ToolChoice;
+    tools?: ToolSet;
+    toolChoice?: string;
     providerMetadata?: Record<string, any>;
     runId: string;
     messageId?: string;
@@ -104,8 +128,11 @@ export class AgenticLoop {
                 inputFormat: 'messages',
                 mode: {
                   type: 'regular',
-                  tools,
-                  toolChoice,
+                  ...prepareToolsAndToolChoice({
+                    tools,
+                    toolChoice: toolChoice as any,
+                    activeTools: Object.keys(tools || {}),
+                  }),
                 },
                 providerMetadata,
                 prompt: messageList.get.all.core() as any,
@@ -258,8 +285,8 @@ export class AgenticLoop {
   }: {
     writer: WritableStreamDefaultWriter<any>;
     model: LanguageModel;
-    tools?: Tool[];
-    toolChoice?: LanguageModelV1ToolChoice;
+    tools?: ToolSet;
+    toolChoice?: string;
     providerMetadata?: Record<string, any>;
     runId: string;
     responseId?: string;
@@ -295,18 +322,35 @@ export class AgenticLoop {
         return inputData.response.toolCalls || [];
       })
       .foreach(toolCallStep)
-      .map(async ({ getStepResult, inputData }) => {
+      .map(async ({ getStepResult, inputData, bail }) => {
         const initialResult = getStepResult(llmStep);
+
+        if (inputData.every(toolCall => toolCall?.result === undefined)) {
+          return bail(initialResult);
+        }
 
         const messageList = this.toMessageList(initialResult.messages || []);
 
         if (inputData?.length) {
+          for (const toolCall of inputData) {
+            await writer.write({
+              type: 'tool-result',
+              payload: {
+                args: JSON.parse(toolCall.args || '{}'),
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result: toolCall.result,
+              },
+            });
+          }
+
           messageList.add(
             {
               role: 'tool',
               content: inputData.map(toolCall => {
                 return {
                   type: 'tool-result',
+                  args: JSON.parse(toolCall.args),
                   toolCallId: toolCall.toolCallId,
                   toolName: toolCall.toolName,
                   result: toolCall.result,
@@ -346,8 +390,8 @@ export class AgenticLoop {
   }: {
     runId?: string;
     model: LanguageModel;
-    tools?: Tool[];
-    toolChoice?: LanguageModelV1ToolChoice;
+    tools?: ToolSet;
+    toolChoice?: string;
     system?: string;
     prompt: string;
     threadId?: string;
