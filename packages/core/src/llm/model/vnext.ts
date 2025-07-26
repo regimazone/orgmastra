@@ -60,11 +60,6 @@ export class AgenticLoop {
 
         const messageList = this.toMessageList(initialResult.messages);
 
-        console.log(messageList.get.all.v1(), 'MESSAGE LIST v1');
-        console.log(messageList.get.all.v2(), 'MESSAGE LIST v2');
-        console.log(messageList.get.all.core(), 'MESSAGE LIST core');
-        console.log(messageList.get.all.ui(), 'MESSAGE LIST ui');
-
         const result = await tool.execute(JSON.parse(inputData.args), {
           toolCallId: inputData.toolCallId,
           messages: messageList.get.all.ui().map(message => ({
@@ -168,8 +163,25 @@ export class AgenticLoop {
 
         let providerMetadata: Record<string, any> | undefined = undefined;
 
+        let stepFinishPayload;
+
+        let hasErrored = false;
+
         for await (const chunk of agentStream) {
           switch (chunk.type) {
+            case 'error':
+              hasErrored = true;
+              await writer.write(chunk);
+              stepFinishPayload = {
+                isContinued: false,
+                reason: 'error',
+                totalUsage: {
+                  promptTokens: 0,
+                  completionTokens: 0,
+                  totalTokens: 0,
+                },
+              };
+              break;
             case 'response-metadata':
               responseMetadata = {
                 id: chunk.payload.id,
@@ -179,31 +191,32 @@ export class AgenticLoop {
               };
               break;
             case 'finish':
-              console.log('Writing finish', chunk);
               providerMetadata = chunk.payload.providerMetadata;
-              await writer.write({
-                payload: {
-                  ...chunk.payload,
-                  usage: {
-                    promptTokens: chunk.payload.totalUsage.promptTokens,
-                    completionTokens: chunk.payload.totalUsage.completionTokens,
-                    totalTokens:
-                      chunk.payload.totalUsage.totalTokens ||
-                      chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
-                  },
-                  response: responseMetadata || defaultResponseMetadata,
-                  messageId,
-                  isContinued: chunk.payload.reason === 'stop' ? false : true,
-                  warnings: chunk.payload.warnings,
-                  experimental_providerMetadata: chunk.payload.providerMetadata,
-                  providerMetadata: chunk.payload.providerMetadata,
-                  request: {},
+              stepFinishPayload = {
+                reason: chunk.payload.reason,
+                logprobs: chunk.payload.logprobs,
+                totalUsage: {
+                  promptTokens: chunk.payload.totalUsage.promptTokens,
+                  completionTokens: chunk.payload.totalUsage.completionTokens,
+                  totalTokens:
+                    chunk.payload.totalUsage.totalTokens ||
+                    chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
                 },
-                type: 'step-finish',
-              });
+                response: responseMetadata || defaultResponseMetadata,
+                messageId,
+                isContinued: !['stop', 'error'].includes(chunk.payload.reason),
+                warnings: chunk.payload.warnings,
+                experimental_providerMetadata: chunk.payload.providerMetadata,
+                providerMetadata: chunk.payload.providerMetadata,
+                request: {},
+              };
               break;
             default:
               await writer.write(chunk);
+          }
+
+          if (hasErrored) {
+            break;
           }
         }
 
@@ -254,9 +267,12 @@ export class AgenticLoop {
 
         const usage = await agentStream.usage;
 
+        console.log('usage', usage);
+
         return {
           response: {
-            finishReason,
+            stepFinishPayload,
+            finishReason: hasErrored ? 'error' : finishReason,
             text,
             toolCalls,
             usage: {
@@ -325,7 +341,14 @@ export class AgenticLoop {
       .map(async ({ getStepResult, inputData, bail }) => {
         const initialResult = getStepResult(llmStep);
 
-        if (inputData.every(toolCall => toolCall?.result === undefined)) {
+        console.log('stepFinishPayload', initialResult.response.stepFinishPayload);
+
+        if (inputData?.every(toolCall => toolCall?.result === undefined)) {
+          await writer.write({
+            type: 'step-finish',
+            payload: initialResult.response.stepFinishPayload,
+          });
+
           return bail(initialResult);
         }
 
@@ -336,7 +359,7 @@ export class AgenticLoop {
             await writer.write({
               type: 'tool-result',
               payload: {
-                args: JSON.parse(toolCall.args || '{}'),
+                args: JSON.parse(toolCall.args),
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
                 result: toolCall.result,
@@ -361,6 +384,11 @@ export class AgenticLoop {
           );
         }
 
+        await writer.write({
+          type: 'step-finish',
+          payload: initialResult.response.stepFinishPayload,
+        });
+
         return {
           ...initialResult,
           messages: messageList.get.all.core(),
@@ -381,6 +409,7 @@ export class AgenticLoop {
     maxSteps = 5,
     maxRetries = 3,
     providerMetadata,
+    toolCallStreaming,
     experimental_generateMessageId,
     _internal = {
       currentDate: () => new Date(),
@@ -398,6 +427,7 @@ export class AgenticLoop {
     resourceId?: string;
     maxSteps?: number;
     maxRetries?: number;
+    toolCallStreaming?: boolean;
     providerMetadata?: Record<string, any>;
     experimental_generateMessageId?: () => string;
     _internal?: {
@@ -467,7 +497,7 @@ export class AgenticLoop {
               },
             })
               .dowhile(executionWorkflow, async ({ inputData }) => {
-                return inputData.response.finishReason !== 'stop' && this.stepCount < maxSteps;
+                return !['stop', 'error'].includes(inputData.response.finishReason) && this.stepCount < maxSteps;
               })
               .map(({ inputData }) => {
                 const toolCalls = inputData.messages.filter(message => message.role === 'tool');
@@ -494,7 +524,7 @@ export class AgenticLoop {
               return;
             }
 
-            console.log('Execution result', executionResult.result.response);
+            // console.log('Execution result', executionResult.result.response);
 
             await workflowStreamWriter.write({
               type: 'finish',

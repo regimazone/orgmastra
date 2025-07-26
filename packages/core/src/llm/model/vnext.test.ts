@@ -1,12 +1,24 @@
-import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
+import {
+  convertArrayToReadableStream,
+  convertAsyncIterableToArray,
+  convertReadableStreamToArray,
+} from '@ai-sdk/provider-utils/test';
 import { MockLanguageModelV1, mockId, mockValues } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 
-import { createTestModel, modelWithFiles, modelWithReasoning, modelWithSources } from './test-utils';
+import {
+  createMockServerResponse,
+  createTestModel,
+  modelWithFiles,
+  modelWithReasoning,
+  modelWithSources,
+} from './test-utils';
 
 import { AgenticLoop } from './vnext';
 import { z } from 'zod';
-import { tool } from 'ai';
+import { createDataStream, pipeDataStreamToResponse, StreamData, streamText, tool } from 'ai';
+import { delay } from '../../utils';
+import { mergeStreams, prepareOutgoingHttpHeaders, writeToServerResponse } from '../../stream/compat';
 
 const defaultSettings = () =>
   ({
@@ -326,7 +338,7 @@ describe('V4 tests', () => {
       expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
     });
 
-    it.only('should send tool results', async () => {
+    it('should send tool results', async () => {
       const result = await looper.loop({
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -374,15 +386,65 @@ describe('V4 tests', () => {
 
       expect(messages).toMatchSnapshot();
     });
-  });
 
-  describe('result.finishReason', () => {
-    it('should resolve with finish reason', async () => {
+    it('should send delayed asynchronous tool results', async () => {
       const result = await looper.loop({
-        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            {
+              type: 'tool-call',
+              toolCallType: 'function',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              args: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              logprobs: undefined,
+              usage: { completionTokens: 10, promptTokens: 3 },
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            parameters: z.object({ value: z.string() }),
+            execute: async ({ value }) => {
+              await delay(50); // delay to show bug where step finish is sent before tool result
+              return `${value}-result`;
+            },
+          },
+        },
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+    });
+
+    it('should filter out empty text deltas', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            { type: 'text-delta', textDelta: '' },
             { type: 'text-delta', textDelta: 'Hello' },
+            { type: 'text-delta', textDelta: '' },
+            { type: 'text-delta', textDelta: ', ' },
+            { type: 'text-delta', textDelta: '' },
+            { type: 'text-delta', textDelta: 'world!' },
+            { type: 'text-delta', textDelta: '' },
             {
               type: 'finish',
               finishReason: 'stop',
@@ -392,11 +454,280 @@ describe('V4 tests', () => {
           ]),
         }),
         prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      // result.consumeStream();
+      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+    });
 
-      expect(await result.finishReason).toStrictEqual('stop');
+    it('should forward error in doStream as error stream part', async () => {
+      const result = streamText({
+        model: new MockLanguageModelV1({
+          doStream: async () => {
+            throw new Error('test error');
+          },
+        }),
+        prompt: 'test-input',
+      });
+
+      expect(await convertAsyncIterableToArray(result.fullStream)).toStrictEqual([
+        {
+          type: 'error',
+          error: new Error('test error'),
+        },
+      ]);
     });
   });
+
+  describe('result.pipeDataStreamToResponse', async () => {
+    it('should write data stream parts to a Node.js response-like object', async () => {
+      const mockResponse = createMockServerResponse();
+
+      const result = await looper.loop({
+        model: createTestModel(),
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      writeToServerResponse({
+        response: mockResponse,
+        stream: result
+          .toDataStreamV4({ sendReasoning: false, sendSources: false })
+          .pipeThrough(new TextEncoderStream() as any) as any,
+        headers: {
+          'X-Vercel-AI-Data-Stream': 'v1',
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+      });
+
+      // pipeDataStreamToResponse(mockResponse)
+
+      await mockResponse.waitForEnd();
+
+      console.log('mockResponse', mockResponse);
+
+      expect(mockResponse.statusCode).toBe(200);
+      expect(mockResponse.headers).toEqual({
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Vercel-AI-Data-Stream': 'v1',
+      });
+
+      console.log('mockResponse.getDecodedChunks()', mockResponse.getDecodedChunks());
+
+      expect(mockResponse.getDecodedChunks()).toMatchSnapshot();
+    });
+  });
+
+  it('should write file content to a Node.js response-like object', async () => {
+    const mockResponse = createMockServerResponse();
+
+    const result = await looper.loop({
+      model: modelWithFiles,
+      ...defaultSettings(),
+    });
+
+    writeToServerResponse({
+      response: mockResponse,
+      stream: result
+        .toDataStreamV4({ sendReasoning: false, sendSources: false })
+        .pipeThrough(new TextEncoderStream() as any) as any,
+      headers: {
+        'X-Vercel-AI-Data-Stream': 'v1',
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    });
+
+    await mockResponse.waitForEnd();
+
+    expect(mockResponse.statusCode).toBe(200);
+    expect(mockResponse.headers).toEqual({
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Vercel-AI-Data-Stream': 'v1',
+    });
+    expect(mockResponse.getDecodedChunks()).toMatchSnapshot();
+  });
+
+  describe('result.pipeTextStreamToResponse', async () => {
+    it('should write text deltas to a Node.js response-like object', async () => {
+      const mockResponse = createMockServerResponse();
+
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-delta', textDelta: 'Hello' },
+            { type: 'text-delta', textDelta: ', ' },
+            { type: 'text-delta', textDelta: 'world!' },
+          ]),
+        }),
+        prompt: 'test-input',
+      });
+
+      writeToServerResponse({
+        response: mockResponse,
+        headers: {
+          'X-Vercel-AI-Data-Stream': 'v1',
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+        stream: result.textStream.pipeThrough(new TextEncoderStream() as any) as any,
+      });
+
+      await mockResponse.waitForEnd();
+
+      expect(mockResponse.statusCode).toBe(200);
+      expect(mockResponse.headers).toEqual({
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Vercel-AI-Data-Stream': 'v1',
+      });
+      expect(mockResponse.getDecodedChunks()).toEqual(['Hello', ', ', 'world!']);
+    });
+  });
+
+  describe('result.toDataStream', () => {
+    it('should create a data stream', async () => {
+      const result = await looper.loop({
+        model: createTestModel(),
+        ...defaultSettings(),
+      });
+
+      const dataStream = result
+        .toDataStreamV4({ sendReasoning: false, sendSources: false })
+        .pipeThrough(new TextEncoderStream() as any) as any;
+
+      expect(await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream()))).toMatchSnapshot();
+    });
+
+    it('should support merging with existing stream data', async () => {
+      const result = await looper.loop({
+        model: createTestModel(),
+        ...defaultSettings(),
+      });
+
+      const streamData = new StreamData();
+      streamData.append('stream-data-value');
+      streamData.close();
+
+      let dataStream = result.toDataStreamV4().pipeThrough(new TextEncoderStream() as any) as any;
+
+      dataStream = mergeStreams(streamData.stream, dataStream);
+
+      expect(await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream()))).toMatchSnapshot();
+    });
+
+    it('should send tool call and tool result stream parts', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'tool-call-delta',
+              toolCallId: 'call-1',
+              toolCallType: 'function',
+              toolName: 'tool1',
+              argsTextDelta: '{ "value":',
+            },
+            {
+              type: 'tool-call-delta',
+              toolCallId: 'call-1',
+              toolCallType: 'function',
+              toolName: 'tool1',
+              argsTextDelta: ' "value" }',
+            },
+            {
+              type: 'tool-call',
+              toolCallType: 'function',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              args: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              logprobs: undefined,
+              usage: { completionTokens: 10, promptTokens: 3 },
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            parameters: z.object({ value: z.string() }),
+            execute: async ({ value }) => `${value}-result`,
+          },
+        },
+        ...defaultSettings(),
+      });
+
+      expect(
+        await convertReadableStreamToArray(
+          result
+            .toDataStreamV4()
+            .pipeThrough(new TextEncoderStream() as any)
+            .pipeThrough(new TextDecoderStream() as any) as any,
+        ),
+      ).toMatchSnapshot();
+    });
+
+    it('should mask error messages by default', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
+        }),
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStreamV4().pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+  });
+
+  // it('should send tool call, tool call stream start, tool call deltas, and tool result stream parts when tool call delta flag is enabled', async () => {
+  //     const result = await looper.loop({
+  //         model: createTestModel({
+  //             stream: convertArrayToReadableStream([
+  //                 {
+  //                     type: 'tool-call-delta',
+  //                     toolCallId: 'call-1',
+  //                     toolCallType: 'function',
+  //                     toolName: 'tool1',
+  //                     argsTextDelta: '{ "value":',
+  //                 },
+  //                 {
+  //                     type: 'tool-call-delta',
+  //                     toolCallId: 'call-1',
+  //                     toolCallType: 'function',
+  //                     toolName: 'tool1',
+  //                     argsTextDelta: ' "value" }',
+  //                 },
+  //                 {
+  //                     type: 'tool-call',
+  //                     toolCallType: 'function',
+  //                     toolCallId: 'call-1',
+  //                     toolName: 'tool1',
+  //                     args: `{ "value": "value" }`,
+  //                 },
+  //                 {
+  //                     type: 'finish',
+  //                     finishReason: 'stop',
+  //                     logprobs: undefined,
+  //                     usage: { completionTokens: 10, promptTokens: 3 },
+  //                 },
+  //             ]),
+  //         }),
+  //         tools: {
+  //             tool1: {
+  //                 parameters: z.object({ value: z.string() }),
+  //                 execute: async ({ value }) => `${value}-result`,
+  //             },
+  //         },
+  //         toolCallStreaming: true,
+  //         ...defaultSettings(),
+  //     });
+
+  //     expect(
+  //         await convertReadableStreamToArray(
+  //             result.aisdkv4Client().pipeThrough(new TextEncoderStream() as any).pipeThrough(new TextDecoderStream() as any) as any,
+  //         ),
+  //     ).toMatchSnapshot();
+  // });
 });
