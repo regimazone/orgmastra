@@ -173,7 +173,7 @@ describe('V4 tests', () => {
       expect(messages).toMatchSnapshot();
     });
 
-    it.only('should send reasoning deltas', async () => {
+    it('should send reasoning deltas', async () => {
       const result = await looper.loop({
         runId,
         model: modelWithReasoning,
@@ -186,19 +186,28 @@ describe('V4 tests', () => {
 
       expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
     });
-  });
 
-  it('should send sources', async () => {
-    const result = await looper.loop({
-      runId,
-      model: modelWithSources,
-      system: 'You are a helpful assistant.',
-      prompt: 'test-input',
-      threadId: '123',
-      resourceId: '456',
+    it('should send sources', async () => {
+      const result = await looper.loop({
+        runId,
+        model: modelWithSources,
+        system: 'You are a helpful assistant.',
+        threadId: '123',
+        resourceId: '456',
+        ...defaultSettings(),
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
     });
 
-    expect(await convertAsyncIterableToArray(result)).toMatchSnapshot();
+    it.only('should send files', async () => {
+      const result = await looper.loop({
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+    });
   });
 
   it('should send files', async () => {

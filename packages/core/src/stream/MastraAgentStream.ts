@@ -1,6 +1,7 @@
 import { ReadableStream, TransformStream } from 'stream/web';
 import type { LanguageModelV1StreamPart } from 'ai';
 import type { ChunkType } from './types';
+import { DefaultGeneratedFileWithType } from './generated-file';
 
 function convertFullStreamChunkToAISDKv4(chunk: any) {
   if (chunk.type === 'text-delta') {
@@ -46,6 +47,16 @@ function convertFullStreamChunkToAISDKv4(chunk: any) {
       type: 'redacted-reasoning',
       data: chunk.payload.data,
     };
+  } else if (chunk.type === 'source') {
+    return {
+      type: 'source',
+      source: chunk.payload.source,
+    };
+  } else if (chunk.type === 'file') {
+    return new DefaultGeneratedFileWithType({
+      data: chunk.payload.data,
+      mimeType: chunk.payload.mimeType,
+    });
   }
 }
 
@@ -152,6 +163,25 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       from: 'AGENT',
       payload: {
         data: value.data,
+      },
+    });
+  } else if (value.type === 'source') {
+    write({
+      type: 'source',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        source: value.source,
+      },
+    });
+  } else if (value.type === 'file') {
+    write({
+      type: 'file',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        data: value.data,
+        mimeType: value.mimeType,
       },
     });
   }

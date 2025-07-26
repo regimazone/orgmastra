@@ -62,7 +62,6 @@ export class AgenticLoop {
     providerMetadata,
     runId,
     messageId,
-    responseId,
     _internal,
   }: {
     writer: WritableStreamDefaultWriter<any>;
@@ -131,7 +130,16 @@ export class AgenticLoop {
           },
         });
 
+        const defaultResponseMetadata = {
+          id: _internal?.generateId?.(),
+          timestamp: _internal?.currentDate?.(),
+          modelId: model.modelId,
+          headers: undefined,
+        };
+
         let responseMetadata: Record<string, any> | undefined = undefined;
+
+        let providerMetadata: Record<string, any> | undefined = undefined;
 
         for await (const chunk of agentStream) {
           switch (chunk.type) {
@@ -145,6 +153,7 @@ export class AgenticLoop {
               break;
             case 'finish':
               console.log('Writing finish', chunk);
+              providerMetadata = chunk.payload.providerMetadata;
               await writer.write({
                 payload: {
                   ...chunk.payload,
@@ -155,17 +164,12 @@ export class AgenticLoop {
                       chunk.payload.totalUsage.totalTokens ||
                       chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
                   },
-                  response: responseMetadata || {
-                    id: responseId,
-                    timestamp: _internal?.currentDate?.(),
-                    modelId: model.modelId,
-                    headers: undefined,
-                  },
+                  response: responseMetadata || defaultResponseMetadata,
                   messageId,
                   isContinued: chunk.payload.reason === 'stop' ? false : true,
                   warnings: chunk.payload.warnings,
-                  experimental_providerMetadata: providerMetadata,
-                  providerMetadata,
+                  experimental_providerMetadata: chunk.payload.providerMetadata,
+                  providerMetadata: chunk.payload.providerMetadata,
                   request: {},
                 },
                 type: 'step-finish',
@@ -233,7 +237,8 @@ export class AgenticLoop {
               completionTokens: usage.completionTokens + (inputData.response?.usage?.completionTokens || 0),
               totalTokens: usage.promptTokens + usage.completionTokens + (inputData.response?.usage?.totalTokens || 0),
             },
-            metadata: responseMetadata,
+            providerMetadata: providerMetadata,
+            metadata: responseMetadata || defaultResponseMetadata,
           },
           messages,
         };
@@ -248,7 +253,6 @@ export class AgenticLoop {
     toolChoice,
     providerMetadata,
     runId,
-    responseId,
     experimental_generateMessageId,
     _internal,
   }: {
@@ -275,7 +279,6 @@ export class AgenticLoop {
       toolChoice,
       providerMetadata,
       runId,
-      responseId,
       messageId,
       _internal,
     });
@@ -395,7 +398,8 @@ export class AgenticLoop {
               },
             });
 
-            const responseId = _internal.generateId?.();
+            // We call this for no reason because of aisdk
+            _internal.generateId?.();
 
             const workflowStreamWriter = workflowStream.getWriter();
 
@@ -408,7 +412,6 @@ export class AgenticLoop {
               runId,
               experimental_generateMessageId,
               _internal,
-              responseId,
             });
 
             const mainWorkflow = createWorkflow({
@@ -456,8 +459,8 @@ export class AgenticLoop {
                 usage: executionResult.result.response.usage,
                 finishReason: executionResult.result.response.finishReason,
                 response: executionResult.result?.response?.metadata,
-                providerMetadata,
-                experimental_providerMetadata: providerMetadata,
+                providerMetadata: executionResult.result?.response?.providerMetadata,
+                experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
               },
             });
 
