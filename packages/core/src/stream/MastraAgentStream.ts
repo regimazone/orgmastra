@@ -3,7 +3,14 @@ import type { DataStreamOptions, LanguageModelV1StreamPart, StreamData, TextStre
 import type { ChunkType } from './types';
 import { DefaultGeneratedFileWithType } from './generated-file';
 import type { ServerResponse } from 'http';
-import { getErrorMessage, getErrorMessageV4, prepareOutgoingHttpHeaders, writeToServerResponse } from './compat';
+import {
+  getErrorMessage,
+  getErrorMessageV4,
+  mergeStreams,
+  prepareOutgoingHttpHeaders,
+  prepareResponseHeaders,
+  writeToServerResponse,
+} from './compat';
 import { formatDataStreamPart, type DataStreamString } from '@ai-sdk/ui-utils';
 
 function convertFullStreamChunkToAISDKv4({
@@ -552,6 +559,43 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
         },
       }),
     );
+  }
+
+  toDataStreamResponseV4({
+    headers,
+    status,
+    statusText,
+    data,
+    getErrorMessage,
+    sendUsage,
+    sendReasoning,
+    sendSources,
+    experimental_sendFinish,
+  }: ResponseInit &
+    DataStreamOptions & {
+      data?: StreamData;
+      getErrorMessage?: (error: unknown) => string;
+    } = {}): Response {
+    let dataStream = this.toDataStreamV4({
+      getErrorMessage,
+      sendUsage,
+      sendReasoning,
+      sendSources,
+      experimental_sendFinish,
+    }).pipeThrough(new TextEncoderStream() as any) as any;
+
+    if (data) {
+      dataStream = mergeStreams(data.stream, dataStream);
+    }
+
+    return new Response(dataStream, {
+      status,
+      statusText,
+      headers: prepareResponseHeaders(headers, {
+        contentType: 'text/plain; charset=utf-8',
+        dataStreamVersion: 'v1',
+      }),
+    });
   }
 
   toDataStreamV4({

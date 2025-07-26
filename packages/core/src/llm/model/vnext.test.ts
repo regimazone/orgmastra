@@ -2,6 +2,7 @@ import {
   convertArrayToReadableStream,
   convertAsyncIterableToArray,
   convertReadableStreamToArray,
+  convertResponseStreamToArray,
 } from '@ai-sdk/provider-utils/test';
 import { MockLanguageModelV1, mockId, mockValues } from 'ai/test';
 import { describe, expect, it } from 'vitest';
@@ -19,6 +20,8 @@ import { z } from 'zod';
 import { createDataStream, pipeDataStreamToResponse, StreamData, streamText, tool } from 'ai';
 import { delay } from '../../utils';
 import { mergeStreams, prepareOutgoingHttpHeaders, writeToServerResponse } from '../../stream/compat';
+
+import { toDataStreamResponseTests } from './ai-sdk/v4/toDataStreamResponse';
 
 const defaultSettings = () =>
   ({
@@ -809,5 +812,10 @@ describe('V4 tests', () => {
         await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
       ).toMatchSnapshot();
     });
+  });
+
+  toDataStreamResponseTests({
+    engine: looper,
+    version: 'v4',
   });
 });
