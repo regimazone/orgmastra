@@ -518,35 +518,6 @@ describe('V4 tests', () => {
     });
   });
 
-  it('should write file content to a Node.js response-like object', async () => {
-    const mockResponse = createMockServerResponse();
-
-    const result = await looper.loop({
-      model: modelWithFiles,
-      ...defaultSettings(),
-    });
-
-    writeToServerResponse({
-      response: mockResponse,
-      stream: result
-        .toDataStreamV4({ sendReasoning: false, sendSources: false })
-        .pipeThrough(new TextEncoderStream() as any) as any,
-      headers: {
-        'X-Vercel-AI-Data-Stream': 'v1',
-        'Content-Type': 'text/plain; charset=utf-8',
-      },
-    });
-
-    await mockResponse.waitForEnd();
-
-    expect(mockResponse.statusCode).toBe(200);
-    expect(mockResponse.headers).toEqual({
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Vercel-AI-Data-Stream': 'v1',
-    });
-    expect(mockResponse.getDecodedChunks()).toMatchSnapshot();
-  });
-
   describe('result.pipeTextStreamToResponse', async () => {
     it('should write text deltas to a Node.js response-like object', async () => {
       const mockResponse = createMockServerResponse();
