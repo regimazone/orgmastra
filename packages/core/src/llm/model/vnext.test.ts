@@ -665,6 +665,59 @@ describe('V4 tests', () => {
       ).toMatchSnapshot();
     });
 
+    it('should send tool call, tool call stream start, tool call deltas, and tool result stream parts when tool call delta flag is enabled', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'tool-call-delta',
+              toolCallId: 'call-1',
+              toolCallType: 'function',
+              toolName: 'tool1',
+              argsTextDelta: '{ "value":',
+            },
+            {
+              type: 'tool-call-delta',
+              toolCallId: 'call-1',
+              toolCallType: 'function',
+              toolName: 'tool1',
+              argsTextDelta: ' "value" }',
+            },
+            {
+              type: 'tool-call',
+              toolCallType: 'function',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              args: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              logprobs: undefined,
+              usage: { completionTokens: 10, promptTokens: 3 },
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            parameters: z.object({ value: z.string() }),
+            execute: async ({ value }) => `${value}-result`,
+          },
+        },
+        toolCallStreaming: true,
+        ...defaultSettings(),
+      });
+
+      expect(
+        await convertReadableStreamToArray(
+          result
+            .toDataStreamV4()
+            .pipeThrough(new TextEncoderStream() as any)
+            .pipeThrough(new TextDecoderStream() as any) as any,
+        ),
+      ).toMatchSnapshot();
+    });
+
     it('should mask error messages by default', async () => {
       const result = await looper.loop({
         model: createTestModel({
@@ -679,55 +732,111 @@ describe('V4 tests', () => {
         await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
       ).toMatchSnapshot();
     });
+
+    it('should support custom error messages', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
+        }),
+        ...defaultSettings(),
+      });
+
+      const dataStream = result
+        .toDataStreamV4({
+          getErrorMessage: error => `custom error message: ${error}`,
+        })
+        .pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+
+    it('should suppress usage information when sendUsage is false', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-delta', textDelta: 'Hello, World!' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: { promptTokens: 3, completionTokens: 10 },
+            },
+          ]),
+        }),
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStreamV4({ sendUsage: false }).pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+
+    it('should omit message finish event (d:) when sendFinish is false', async () => {
+      const result = await looper.loop({
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-delta', textDelta: 'Hello, World!' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: { promptTokens: 3, completionTokens: 10 },
+            },
+          ]),
+        }),
+        ...defaultSettings(),
+      });
+
+      const dataStream = result
+        .toDataStreamV4({
+          experimental_sendFinish: false,
+        })
+        .pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+
+    it('should send reasoning content when sendReasoning is true', async () => {
+      const result = await looper.loop({
+        model: modelWithReasoning,
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStreamV4({ sendReasoning: true }).pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+
+    it('should send source content when sendSources is true', async () => {
+      const result = await looper.loop({
+        model: modelWithSources,
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStreamV4({ sendSources: true }).pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
+
+    it('should send file content', async () => {
+      const result = await looper.loop({
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStreamV4().pipeThrough(new TextEncoderStream() as any);
+
+      expect(
+        await convertReadableStreamToArray(dataStream.pipeThrough(new TextDecoderStream() as any) as any),
+      ).toMatchSnapshot();
+    });
   });
-
-  // it('should send tool call, tool call stream start, tool call deltas, and tool result stream parts when tool call delta flag is enabled', async () => {
-  //     const result = await looper.loop({
-  //         model: createTestModel({
-  //             stream: convertArrayToReadableStream([
-  //                 {
-  //                     type: 'tool-call-delta',
-  //                     toolCallId: 'call-1',
-  //                     toolCallType: 'function',
-  //                     toolName: 'tool1',
-  //                     argsTextDelta: '{ "value":',
-  //                 },
-  //                 {
-  //                     type: 'tool-call-delta',
-  //                     toolCallId: 'call-1',
-  //                     toolCallType: 'function',
-  //                     toolName: 'tool1',
-  //                     argsTextDelta: ' "value" }',
-  //                 },
-  //                 {
-  //                     type: 'tool-call',
-  //                     toolCallType: 'function',
-  //                     toolCallId: 'call-1',
-  //                     toolName: 'tool1',
-  //                     args: `{ "value": "value" }`,
-  //                 },
-  //                 {
-  //                     type: 'finish',
-  //                     finishReason: 'stop',
-  //                     logprobs: undefined,
-  //                     usage: { completionTokens: 10, promptTokens: 3 },
-  //                 },
-  //             ]),
-  //         }),
-  //         tools: {
-  //             tool1: {
-  //                 parameters: z.object({ value: z.string() }),
-  //                 execute: async ({ value }) => `${value}-result`,
-  //             },
-  //         },
-  //         toolCallStreaming: true,
-  //         ...defaultSettings(),
-  //     });
-
-  //     expect(
-  //         await convertReadableStreamToArray(
-  //             result.aisdkv4Client().pipeThrough(new TextEncoderStream() as any).pipeThrough(new TextDecoderStream() as any) as any,
-  //         ),
-  //     ).toMatchSnapshot();
-  // });
 });

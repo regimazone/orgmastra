@@ -13,7 +13,9 @@ function convertFullStreamChunkToAISDKv4({
   sendSources,
   sendUsage = true,
   experimental_sendFinish = true,
-  toolCallDeltas,
+  toolCallArgsDeltas,
+  toolCallStreaming,
+  getErrorMessage,
 }: {
   chunk: any;
   client: boolean;
@@ -21,7 +23,9 @@ function convertFullStreamChunkToAISDKv4({
   sendSources: boolean;
   sendUsage: boolean;
   experimental_sendFinish?: boolean;
-  toolCallDeltas?: Record<string, string[]>;
+  toolCallArgsDeltas?: Record<string, string[]>;
+  toolCallStreaming?: boolean;
+  getErrorMessage: (error: string) => string;
 }) {
   if (chunk.type === 'text-delta') {
     if (client) {
@@ -71,16 +75,19 @@ function convertFullStreamChunkToAISDKv4({
       type: 'step-finish',
     };
   } else if (chunk.type === 'finish') {
-    if (client && experimental_sendFinish) {
-      return formatDataStreamPart('finish_message', {
-        finishReason: chunk.payload.finishReason,
-        usage: sendUsage
-          ? {
-              promptTokens: chunk.payload.usage.promptTokens,
-              completionTokens: chunk.payload.usage.completionTokens,
-            }
-          : undefined,
-      });
+    if (client) {
+      if (experimental_sendFinish) {
+        return formatDataStreamPart('finish_message', {
+          finishReason: chunk.payload.finishReason,
+          usage: sendUsage
+            ? {
+                promptTokens: chunk.payload.usage.promptTokens,
+                completionTokens: chunk.payload.usage.completionTokens,
+              }
+            : undefined,
+        });
+      }
+      return;
     }
 
     return {
@@ -88,28 +95,37 @@ function convertFullStreamChunkToAISDKv4({
       ...chunk.payload,
     };
   } else if (chunk.type === 'reasoning') {
-    if (client && sendReasoning) {
-      return formatDataStreamPart('reasoning', chunk.textDelta);
+    if (client) {
+      if (sendReasoning) {
+        return formatDataStreamPart('reasoning', chunk.payload.text);
+      }
+      return;
     }
     return {
       type: 'reasoning',
       textDelta: chunk.payload.text,
     };
   } else if (chunk.type === 'reasoning-signature') {
-    if (client && sendReasoning) {
-      return formatDataStreamPart('reasoning_signature', {
-        signature: chunk.payload.signature,
-      });
+    if (client) {
+      if (sendReasoning) {
+        return formatDataStreamPart('reasoning_signature', {
+          signature: chunk.payload.signature,
+        });
+      }
+      return;
     }
     return {
       type: 'reasoning-signature',
       signature: chunk.payload.signature,
     };
   } else if (chunk.type === 'redacted-reasoning') {
-    if (client && sendReasoning) {
-      return formatDataStreamPart('redacted_reasoning', {
-        data: chunk.payload.data,
-      });
+    if (client) {
+      if (sendReasoning) {
+        return formatDataStreamPart('redacted_reasoning', {
+          data: chunk.payload.data,
+        });
+      }
+      return;
     }
     return {
       type: 'redacted-reasoning',
@@ -117,7 +133,7 @@ function convertFullStreamChunkToAISDKv4({
     };
   } else if (chunk.type === 'source') {
     if (client && sendSources) {
-      return formatDataStreamPart('source', chunk.source);
+      return formatDataStreamPart('source', chunk.payload.source);
     }
     return {
       type: 'source',
@@ -127,7 +143,7 @@ function convertFullStreamChunkToAISDKv4({
     if (client) {
       return formatDataStreamPart('file', {
         mimeType: chunk.payload.mimeType,
-        data: chunk.payload.base64,
+        data: chunk.payload.data,
       });
     }
     return new DefaultGeneratedFileWithType({
@@ -139,7 +155,7 @@ function convertFullStreamChunkToAISDKv4({
       let args;
 
       if (!chunk.payload.args) {
-        args = toolCallDeltas?.[chunk.payload.toolCallId]?.join('') ?? '';
+        args = toolCallArgsDeltas?.[chunk.payload.toolCallId]?.join('') ?? '';
       } else {
         args = chunk.payload.args;
       }
@@ -150,11 +166,36 @@ function convertFullStreamChunkToAISDKv4({
         args: JSON.parse(args),
       });
     }
+
     return {
       type: 'tool-call',
       toolCallId: chunk.payload.toolCallId,
       toolName: chunk.payload.toolName,
       args: JSON.parse(chunk.payload.args),
+    };
+  } else if (chunk.type === 'tool-call-streaming-start' && toolCallStreaming) {
+    if (client) {
+      return formatDataStreamPart('tool_call_streaming_start', {
+        toolCallId: chunk.payload.toolCallId,
+        toolName: chunk.payload.toolName,
+      });
+    }
+    return {
+      type: 'tool-call-streaming-start',
+      toolCallId: chunk.payload.toolCallId,
+      toolName: chunk.payload.toolName,
+    };
+  } else if (chunk.type === 'tool-call-delta' && toolCallStreaming) {
+    if (client) {
+      return formatDataStreamPart('tool_call_delta', {
+        toolCallId: chunk.payload.toolCallId,
+        argsTextDelta: chunk.payload.argsTextDelta,
+      });
+    }
+    return {
+      type: 'tool-call-delta',
+      toolCallId: chunk.payload.toolCallId,
+      argsTextDelta: chunk.payload.argsTextDelta,
     };
   } else if (chunk.type === 'tool-result') {
     if (client) {
@@ -163,7 +204,6 @@ function convertFullStreamChunkToAISDKv4({
         result: chunk.payload.result,
       });
     }
-
     return {
       type: 'tool-result',
       args: chunk.payload.args,
@@ -174,7 +214,7 @@ function convertFullStreamChunkToAISDKv4({
   } else if (chunk.type === 'error') {
     console.log('FROM MASTRA', chunk);
     if (client) {
-      return formatDataStreamPart('error', getErrorMessageV4());
+      return formatDataStreamPart('error', getErrorMessage(chunk.payload.error));
     }
     return {
       type: 'error',
@@ -221,7 +261,6 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       },
     });
   } else if (value.type === 'tool-call-delta') {
-    console.log('tool-call-delta', value);
     write({
       type: 'tool-call-delta',
       runId: ctx.runId,
@@ -231,6 +270,13 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
         toolCallId: value.toolCallId,
         toolName: value.toolName,
       },
+    });
+  } else if (value.type === 'tool-call-streaming-start') {
+    write({
+      type: 'tool-call-streaming-start',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: value,
     });
   } else if (value.type === 'text-delta') {
     if (value.textDelta) {
@@ -319,6 +365,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
       from: 'AGENT',
       payload: {
         data: value.data,
+        base64: value.base64,
         mimeType: value.mimeType,
       },
     });
@@ -342,7 +389,7 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     totalTokens: 0,
   };
   #bufferedText: string[] = [];
-  #toolCallDeltas: Record<string, string[]> = {};
+  #toolCallArgsDeltas: Record<string, string[]> = {};
   #toolResults: Record<string, any>[] = [];
   #toolCalls: Record<string, any>[] = [];
   #finishReason: string | null = null;
@@ -352,6 +399,7 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     reject: (reason?: any) => void;
   };
   #resultAsObject: Output | null = null;
+  #toolCallStreaming: boolean | undefined;
 
   constructor({
     createStream,
@@ -364,9 +412,11 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     getOptions: () =>
       | Promise<{
           runId: string;
+          toolCallStreaming?: boolean;
         }>
       | {
           runId: string;
+          toolCallStreaming?: boolean;
         };
   }) {
     const deferredPromise = {
@@ -385,7 +435,9 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
 
     super({
       start: async controller => {
-        const { runId } = await getOptions();
+        const { runId, toolCallStreaming } = await getOptions();
+
+        this.#toolCallStreaming = toolCallStreaming;
 
         const writer = new WritableStream<ChunkType>({
           write: chunk => {
@@ -428,10 +480,19 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
             convertFullStreamChunkToMastra(chunk, { runId }, chunk => {
               switch (chunk.type) {
                 case 'tool-call-delta':
-                  if (!this.#toolCallDeltas[chunk.payload.toolCallId]) {
-                    this.#toolCallDeltas[chunk.payload.toolCallId] = [];
+                  if (!this.#toolCallArgsDeltas[chunk.payload.toolCallId]) {
+                    this.#toolCallArgsDeltas[chunk.payload.toolCallId] = [];
+                    controller.enqueue({
+                      type: 'tool-call-streaming-start',
+                      from: 'AGENT',
+                      runId,
+                      payload: {
+                        toolCallId: chunk.payload.toolCallId,
+                        toolName: chunk.payload.toolName,
+                      },
+                    });
                   }
-                  this.#toolCallDeltas?.[chunk.payload.toolCallId]?.push(chunk.payload.argsTextDelta);
+                  this.#toolCallArgsDeltas?.[chunk.payload.toolCallId]?.push(chunk.payload.argsTextDelta);
                   break;
                 case 'text-delta':
                   this.#bufferedText.push(chunk.payload.text);
@@ -469,7 +530,7 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
   }
 
   get aisdkv4() {
-    const toolCallDeltas = this.#toolCallDeltas;
+    const toolCallArgsDeltas = this.#toolCallArgsDeltas;
 
     return this.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
@@ -481,7 +542,8 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
             sendSources: false,
             sendUsage: false,
             experimental_sendFinish: false,
-            toolCallDeltas,
+            toolCallArgsDeltas: toolCallArgsDeltas,
+            getErrorMessage,
           });
 
           if (transformedChunk) {
@@ -497,8 +559,16 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     sendSources = false,
     sendUsage = true,
     experimental_sendFinish = true,
-  }: { sendReasoning?: boolean; sendSources?: boolean; sendUsage?: boolean; experimental_sendFinish?: boolean } = {}) {
-    const toolCallDeltas = this.#toolCallDeltas;
+    getErrorMessage = getErrorMessageV4,
+  }: {
+    sendReasoning?: boolean;
+    sendSources?: boolean;
+    sendUsage?: boolean;
+    experimental_sendFinish?: boolean;
+    getErrorMessage?: (error: string) => string;
+  } = {}) {
+    const toolCallArgsDeltas = this.#toolCallArgsDeltas;
+    const toolCallStreaming = this.#toolCallStreaming;
 
     return this.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
@@ -511,7 +581,9 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
             sendSources,
             sendUsage,
             experimental_sendFinish,
-            toolCallDeltas,
+            toolCallArgsDeltas: toolCallArgsDeltas,
+            toolCallStreaming,
+            getErrorMessage,
           });
 
           console.log('transformedChunk', chunk.type, transformedChunk);

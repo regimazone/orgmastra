@@ -459,6 +459,7 @@ export class AgenticLoop {
       getOptions: () => {
         return {
           runId: runId,
+          toolCallStreaming,
         };
       },
       createStream: async writer => {
