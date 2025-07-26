@@ -83,6 +83,8 @@ describe('V4 tests', () => {
         resourceId: '456',
       });
 
+      console.log(result.textStream);
+
       expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['Hello', ', ', 'world!']);
     });
 

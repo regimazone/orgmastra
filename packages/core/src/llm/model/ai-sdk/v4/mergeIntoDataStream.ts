@@ -154,7 +154,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
   });
 
   describe('multiple stream consumption', () => {
-    it.only('should support text stream, ai stream, full stream on single result object', async () => {
+    it('should support text stream, ai stream, full stream on single result object', async () => {
       const result = await engine.loop({
         model: createTestModel({
           stream: convertArrayToReadableStream([

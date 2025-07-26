@@ -76,7 +76,7 @@ export class AgenticLoop {
   }
 
   createLLMStep({
-    writer,
+    controller,
     model,
     tools,
     toolChoice,
@@ -85,7 +85,7 @@ export class AgenticLoop {
     messageId,
     _internal,
   }: {
-    writer: WritableStreamDefaultWriter<any>;
+    controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
     tools?: ToolSet;
     toolChoice?: string;
@@ -105,7 +105,7 @@ export class AgenticLoop {
       inputSchema: z.any(),
       outputSchema: z.any(),
       execute: async ({ inputData }) => {
-        await writer.write({
+        await controller.enqueue({
           type: 'step-start',
           payload: {
             request: {},
@@ -224,7 +224,7 @@ export class AgenticLoop {
             switch (chunk.type) {
               case 'error':
                 hasErrored = true;
-                await writer.write(chunk);
+                await controller.enqueue(chunk);
                 stepFinishPayload = {
                   isContinued: false,
                   reason: 'error',
@@ -265,7 +265,7 @@ export class AgenticLoop {
                 };
                 break;
               default:
-                await writer.write(chunk);
+                await controller.enqueue(chunk);
             }
 
             if (hasErrored) {
@@ -364,7 +364,7 @@ export class AgenticLoop {
   }
 
   createExecutionWorkflow({
-    writer,
+    controller,
     model,
     tools,
     toolChoice,
@@ -373,7 +373,7 @@ export class AgenticLoop {
     experimental_generateMessageId,
     _internal,
   }: {
-    writer: WritableStreamDefaultWriter<any>;
+    controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
     tools?: ToolSet;
     toolChoice?: string;
@@ -390,7 +390,7 @@ export class AgenticLoop {
     const messageId = experimental_generateMessageId?.() || _internal.generateId?.();
 
     const llmStep = this.createLLMStep({
-      writer,
+      controller,
       model,
       tools,
       toolChoice,
@@ -420,7 +420,7 @@ export class AgenticLoop {
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           console.log('bailing');
           try {
-            await writer.write({
+            await controller.enqueue({
               type: 'step-finish',
               payload: initialResult.response.stepFinishPayload,
             });
@@ -435,7 +435,7 @@ export class AgenticLoop {
 
         if (inputData?.length) {
           for (const toolCall of inputData) {
-            await writer.write({
+            await controller.enqueue({
               type: 'tool-result',
               payload: {
                 args: JSON.parse(toolCall.args),
@@ -463,7 +463,7 @@ export class AgenticLoop {
           );
         }
 
-        await writer.write({
+        await controller.enqueue({
           type: 'step-finish',
           payload: initialResult.response.stepFinishPayload,
         });
@@ -534,107 +534,87 @@ export class AgenticLoop {
       runId = crypto.randomUUID();
     }
 
-    const agentStream = new MastraAgentStream({
-      getOptions: () => {
-        return {
-          runId: runId,
-          toolCallStreaming,
-        };
-      },
-      createStream: async writer => {
-        const readableStream = new ReadableStream({
-          start: async controller => {
-            const agentStreamWriter = writer.getWriter();
+    // We call this for no reason because of aisdk
+    _internal.generateId?.();
 
-            const workflowStream = new WritableStream({
-              write: async chunk => {
-                await agentStreamWriter.write(chunk);
-              },
-            });
+    const readableStream = new ReadableStream({
+      start: async controller => {
+        const executionWorkflow = this.createExecutionWorkflow({
+          controller,
+          model,
+          tools: tools || undefined,
+          toolChoice: toolChoice,
+          providerMetadata: providerMetadata,
+          runId,
+          experimental_generateMessageId,
+          _internal,
+        });
 
-            // We call this for no reason because of aisdk
-            _internal.generateId?.();
+        const mainWorkflow = createWorkflow({
+          id: 'agentic-loop',
+          inputSchema: z.any(),
+          outputSchema: z.any(),
+          retryConfig: {
+            attempts: maxRetries,
+          },
+        })
+          .dowhile(executionWorkflow, async ({ inputData }) => {
+            return !['stop', 'error'].includes(inputData.response.finishReason) && this.stepCount < maxSteps;
+          })
+          .map(({ inputData }) => {
+            const toolCalls = inputData.messages.filter(message => message.role === 'tool');
 
-            const workflowStreamWriter = workflowStream.getWriter();
+            inputData.response.toolCalls = toolCalls;
 
-            const executionWorkflow = this.createExecutionWorkflow({
-              writer: workflowStreamWriter,
-              model,
-              tools: tools || undefined,
-              toolChoice: toolChoice,
-              providerMetadata: providerMetadata,
-              runId,
-              experimental_generateMessageId,
-              _internal,
-            });
+            return inputData;
+          })
 
-            const mainWorkflow = createWorkflow({
-              id: 'agentic-loop',
-              inputSchema: z.any(),
-              outputSchema: z.any(),
-              retryConfig: {
-                attempts: maxRetries,
-              },
-            })
-              .dowhile(executionWorkflow, async ({ inputData }) => {
-                return !['stop', 'error'].includes(inputData.response.finishReason) && this.stepCount < maxSteps;
-              })
-              .map(({ inputData }) => {
-                const toolCalls = inputData.messages.filter(message => message.role === 'tool');
+          .commit();
 
-                inputData.response.toolCalls = toolCalls;
+        const run = await mainWorkflow.createRunAsync({
+          runId,
+        });
 
-                return inputData;
-              })
-
-              .commit();
-
-            const run = await mainWorkflow.createRunAsync({
-              runId,
-            });
-
-            const executionResult = await run.start({
-              inputData: {
-                messages,
-              },
-            });
-
-            console.log('executionResult', executionResult);
-
-            if (executionResult.status !== 'success') {
-              controller.close();
-              return;
-            }
-
-            // if (executionResult.result.response.finishReason === 'error') {
-            //   throw new Error('Error in execution');
-            // }
-
-            await workflowStreamWriter.write({
-              type: 'finish',
-              payload: {
-                logprobs: executionResult.result.response.logprobs,
-                usage: executionResult.result.response.usage,
-                finishReason: executionResult.result.response.finishReason,
-                response: executionResult.result?.response?.metadata,
-                providerMetadata: executionResult.result?.response?.providerMetadata,
-                experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
-              },
-            });
-
-            // if (executionResult.result.response.finishReason === 'error') {
-            //   controller.error();
-            //   return;
-            // }
-
-            controller.close();
+        const executionResult = await run.start({
+          inputData: {
+            messages,
           },
         });
 
-        return readableStream as any;
+        console.log('executionResult', executionResult);
+
+        if (executionResult.status !== 'success') {
+          controller.close();
+          return;
+        }
+
+        // if (executionResult.result.response.finishReason === 'error') {
+        //   throw new Error('Error in execution');
+        // }
+
+        await controller.enqueue({
+          type: 'finish',
+          payload: {
+            logprobs: executionResult.result.response.logprobs,
+            totalUsage: executionResult.result.response.usage,
+            finishReason: executionResult.result.response.finishReason,
+            response: executionResult.result?.response?.metadata,
+            providerMetadata: executionResult.result?.response?.providerMetadata,
+            experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
+          },
+        });
+
+        // if (executionResult.result.response.finishReason === 'error') {
+        //   controller.error();
+        //   return;
+        // }
+
+        controller.close();
       },
     });
 
-    return agentStream;
+    return new MastraModelOutput({
+      stream: readableStream as any,
+    });
   }
 }

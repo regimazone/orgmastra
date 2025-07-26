@@ -102,7 +102,8 @@ export class MastraModelOutput extends MastraBase {
               if (chunk.payload.reason) {
                 self.#finishReason = chunk.payload.reason;
               }
-              self.updateUsageCount(chunk.payload.usage);
+              console.log('USAGE', chunk);
+              self.updateUsageCount(chunk.payload.totalUsage);
               chunk.payload.totalUsage = self.#usageCount;
               break;
           }
@@ -165,6 +166,7 @@ export class MastraModelOutput extends MastraBase {
     completionTokens?: `${number}` | number;
     totalTokens?: `${number}` | number;
   }) {
+    console.log('UPDATE USAGE COUNT', usage);
     this.#usageCount.promptTokens += parseInt(usage.promptTokens?.toString() ?? '0', 10);
     this.#usageCount.completionTokens += parseInt(usage.completionTokens?.toString() ?? '0', 10);
     this.#usageCount.totalTokens += parseInt(usage.totalTokens?.toString() ?? '0', 10);

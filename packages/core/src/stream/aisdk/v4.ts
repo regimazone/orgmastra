@@ -74,7 +74,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
       from: 'AGENT',
       payload: {
         reason: value.finishReason,
-        usage: value.usage,
+        totalUsage: value.usage,
         response: value.response,
         messageId: value.messageId,
         providerMetadata: value.providerMetadata,
@@ -88,7 +88,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
       from: 'AGENT',
       payload: {
         reason: value.finishReason,
-        usage: value.usage,
+        totalUsage: value.usage,
         providerMetadata: value.providerMetadata,
         ...rest,
       },
