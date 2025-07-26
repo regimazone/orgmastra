@@ -4,6 +4,8 @@ import { MessageList } from '../../agent/message-list';
 import { MastraAgentStream } from '../../stream/MastraAgentStream';
 import { createWorkflow, createStep } from '../../workflows';
 import { prepareToolsAndToolChoice } from './prepare-tools';
+import { AISDKV4 } from '../../stream/aisdk/v4';
+import { MastraModelOutput } from '../../stream/base';
 
 export class AgenticLoop {
   stepCount = 0;
@@ -116,41 +118,87 @@ export class AgenticLoop {
 
         const messageList = this.toMessageList(inputData.messages || []);
 
-        const agentStream = new MastraAgentStream({
-          createStream: async () => {
-            try {
-              const stream = await model.doStream({
-                inputFormat: 'messages',
-                mode: {
-                  type: 'regular',
-                  ...prepareToolsAndToolChoice({
-                    tools,
-                    toolChoice: toolChoice as any,
-                    activeTools: Object.keys(tools || {}),
-                  }),
-                },
-                providerMetadata,
-                prompt: messageList.get.all.core() as any,
-              });
+        let stream;
+        if (model.specificationVersion === 'v1') {
+          const v4 = new AISDKV4({
+            component: 'LLM',
+            name: model.modelId,
+          });
 
-              return stream.stream as any;
-            } catch (error) {
-              console.error(error);
-              return new ReadableStream({
-                start: async controller => {
-                  controller.enqueue({
-                    type: 'error',
-                    error,
-                  });
-                  controller.close();
-                },
-              });
-            }
-          },
-          getOptions: () => {
-            return { runId };
-          },
+          stream = v4.initialize({
+            runId,
+            createStream: async () => {
+              try {
+                const stream = await model.doStream({
+                  inputFormat: 'messages',
+                  mode: {
+                    type: 'regular',
+                    ...prepareToolsAndToolChoice({
+                      tools,
+                      toolChoice: toolChoice as any,
+                      activeTools: Object.keys(tools || {}),
+                    }),
+                  },
+                  providerMetadata,
+                  prompt: messageList.get.all.core() as any,
+                });
+
+                return stream.stream as any;
+              } catch (error) {
+                console.error('DO STREAM ERROR', error);
+                return new ReadableStream({
+                  start: async controller => {
+                    controller.enqueue({
+                      type: 'error',
+                      error,
+                    });
+                    controller.close();
+                  },
+                });
+              }
+            },
+          });
+        }
+
+        const outputStream = new MastraModelOutput({
+          stream: stream!,
         });
+
+        // const agentStream = new MastraAgentStream({
+        //   createStream: async () => {
+        //     try {
+        //       const stream = await model.doStream({
+        //         inputFormat: 'messages',
+        //         mode: {
+        //           type: 'regular',
+        //           ...prepareToolsAndToolChoice({
+        //             tools,
+        //             toolChoice: toolChoice as any,
+        //             activeTools: Object.keys(tools || {}),
+        //           }),
+        //         },
+        //         providerMetadata,
+        //         prompt: messageList.get.all.core() as any,
+        //       });
+
+        //       return stream.stream as any;
+        //     } catch (error) {
+        //       console.error('DO STREAM ERROR', error);
+        //       return new ReadableStream({
+        //         start: async controller => {
+        //           controller.enqueue({
+        //             type: 'error',
+        //             error,
+        //           });
+        //           controller.close();
+        //         },
+        //       });
+        //     }
+        //   },
+        //   getOptions: () => {
+        //     return { runId };
+        //   },
+        // });
 
         const defaultResponseMetadata = {
           id: _internal?.generateId?.(),
@@ -161,68 +209,98 @@ export class AgenticLoop {
 
         let responseMetadata: Record<string, any> | undefined = undefined;
 
-        let providerMetadata: Record<string, any> | undefined = undefined;
-
         let stepFinishPayload;
 
         let hasErrored = false;
 
-        for await (const chunk of agentStream) {
-          switch (chunk.type) {
-            case 'error':
-              hasErrored = true;
-              await writer.write(chunk);
-              stepFinishPayload = {
-                isContinued: false,
-                reason: 'error',
-                totalUsage: {
-                  promptTokens: 0,
-                  completionTokens: 0,
-                  totalTokens: 0,
-                },
-              };
+        let text;
+        let toolCalls: any[] = [];
+        let finishReason;
+        let usage;
+
+        try {
+          for await (const chunk of outputStream.fullStream) {
+            console.log('FULL STREAM SHIT', chunk);
+            switch (chunk.type) {
+              case 'error':
+                hasErrored = true;
+                await writer.write(chunk);
+                stepFinishPayload = {
+                  isContinued: false,
+                  reason: 'error',
+                  totalUsage: {
+                    promptTokens: 0,
+                    completionTokens: 0,
+                    totalTokens: 0,
+                  },
+                };
+                break;
+              case 'response-metadata':
+                responseMetadata = {
+                  id: chunk.payload.id,
+                  timestamp: chunk.payload.timestamp,
+                  modelId: chunk.payload.modelId,
+                  headers: chunk.payload.headers,
+                };
+                break;
+              case 'finish':
+                providerMetadata = chunk.payload.providerMetadata;
+                stepFinishPayload = {
+                  reason: chunk.payload.reason,
+                  logprobs: chunk.payload.logprobs,
+                  totalUsage: {
+                    promptTokens: chunk.payload.totalUsage.promptTokens,
+                    completionTokens: chunk.payload.totalUsage.completionTokens,
+                    totalTokens:
+                      chunk.payload.totalUsage.totalTokens ||
+                      chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
+                  },
+                  response: responseMetadata || defaultResponseMetadata,
+                  messageId,
+                  isContinued: !['stop', 'error'].includes(chunk.payload.reason),
+                  warnings: chunk.payload.warnings,
+                  experimental_providerMetadata: chunk.payload.providerMetadata,
+                  providerMetadata: chunk.payload.providerMetadata,
+                  request: {},
+                };
+                break;
+              default:
+                await writer.write(chunk);
+            }
+
+            if (hasErrored) {
               break;
-            case 'response-metadata':
-              responseMetadata = {
-                id: chunk.payload.id,
-                timestamp: chunk.payload.timestamp,
-                modelId: chunk.payload.modelId,
-                headers: chunk.payload.headers,
-              };
-              break;
-            case 'finish':
-              providerMetadata = chunk.payload.providerMetadata;
-              stepFinishPayload = {
-                reason: chunk.payload.reason,
-                logprobs: chunk.payload.logprobs,
-                totalUsage: {
-                  promptTokens: chunk.payload.totalUsage.promptTokens,
-                  completionTokens: chunk.payload.totalUsage.completionTokens,
-                  totalTokens:
-                    chunk.payload.totalUsage.totalTokens ||
-                    chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
-                },
-                response: responseMetadata || defaultResponseMetadata,
-                messageId,
-                isContinued: !['stop', 'error'].includes(chunk.payload.reason),
-                warnings: chunk.payload.warnings,
-                experimental_providerMetadata: chunk.payload.providerMetadata,
-                providerMetadata: chunk.payload.providerMetadata,
-                request: {},
-              };
-              break;
-            default:
-              await writer.write(chunk);
+            }
           }
 
-          if (hasErrored) {
-            break;
-          }
+          text = outputStream.text;
+
+          console.log('text', text);
+          toolCalls = outputStream.toolCalls;
+          finishReason = outputStream.finishReason;
+          usage = outputStream.usage;
+        } catch {
+          hasErrored = true;
+          text = '';
+          toolCalls = [];
+          finishReason = 'error';
+          usage = {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+          };
+          stepFinishPayload = {
+            isContinued: false,
+            reason: 'error',
+            totalUsage: {
+              promptTokens: 0,
+              completionTokens: 0,
+              totalTokens: 0,
+            },
+          };
         }
 
-        const text = await agentStream.text;
-        const toolCalls = await agentStream.toolCalls;
-        const finishReason = await agentStream.finishReason;
+        console.log('hasErrored', hasErrored);
 
         if (toolCalls.length > 0) {
           const userContent = [] as any[];
@@ -264,10 +342,6 @@ export class AgenticLoop {
         }
 
         const messages = messageList.get.all.core();
-
-        const usage = await agentStream.usage;
-
-        console.log('usage', usage);
 
         return {
           response: {
@@ -344,10 +418,15 @@ export class AgenticLoop {
         console.log('stepFinishPayload', initialResult.response.stepFinishPayload);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
-          await writer.write({
-            type: 'step-finish',
-            payload: initialResult.response.stepFinishPayload,
-          });
+          console.log('bailing');
+          try {
+            await writer.write({
+              type: 'step-finish',
+              payload: initialResult.response.stepFinishPayload,
+            });
+          } catch (error) {
+            console.error('DO I ERROR', error);
+          }
 
           return bail(initialResult);
         }
@@ -520,12 +599,16 @@ export class AgenticLoop {
               },
             });
 
+            console.log('executionResult', executionResult);
+
             if (executionResult.status !== 'success') {
               controller.close();
               return;
             }
 
-            // console.log('Execution result', executionResult.result.response);
+            // if (executionResult.result.response.finishReason === 'error') {
+            //   throw new Error('Error in execution');
+            // }
 
             await workflowStreamWriter.write({
               type: 'finish',
@@ -538,6 +621,11 @@ export class AgenticLoop {
                 experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
               },
             });
+
+            // if (executionResult.result.response.finishReason === 'error') {
+            //   controller.error();
+            //   return;
+            // }
 
             controller.close();
           },

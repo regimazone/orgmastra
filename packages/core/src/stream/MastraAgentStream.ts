@@ -1,15 +1,17 @@
 import { ReadableStream, TransformStream } from 'stream/web';
-import type { DataStreamOptions, LanguageModelV1StreamPart, StreamData, TextStreamPart } from 'ai';
+import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData, TextStreamPart } from 'ai';
 import type { ChunkType } from './types';
 import { DefaultGeneratedFileWithType } from './generated-file';
 import type { ServerResponse } from 'http';
 import {
+  consumeStream,
   getErrorMessage,
   getErrorMessageV4,
   mergeStreams,
   prepareOutgoingHttpHeaders,
   prepareResponseHeaders,
   writeToServerResponse,
+  type ConsumeStreamOptions,
 } from './compat';
 import { formatDataStreamPart, type DataStreamString } from '@ai-sdk/ui-utils';
 
@@ -389,6 +391,8 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }, writ
   }
 }
 
+export class MastraStreamManager<Output> {}
+
 export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
   #usageCount = {
     promptTokens: 0,
@@ -484,6 +488,7 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
           });
 
           for await (const chunk of stream) {
+            console.log('CHUNK ####', chunk);
             convertFullStreamChunkToMastra(chunk, { runId }, chunk => {
               switch (chunk.type) {
                 case 'tool-call-delta':
@@ -520,6 +525,7 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
                   break;
               }
 
+              console.log('WTF IS', chunk);
               controller.enqueue(chunk);
             });
           }
@@ -536,10 +542,14 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     this.#streamPromise = deferredPromise;
   }
 
-  get aisdkv4() {
-    const toolCallArgsDeltas = this.#toolCallArgsDeltas;
+  teeStream() {
+    const [stream1] = this.tee();
+    return stream1;
+  }
 
-    return this.pipeThrough(
+  get toFullStreamV4() {
+    const toolCallArgsDeltas = this.#toolCallArgsDeltas;
+    return this.teeStream().pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
           const transformedChunk = convertFullStreamChunkToAISDKv4({
@@ -559,6 +569,47 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
         },
       }),
     );
+  }
+
+  mergeIntoDataStream(writer: DataStreamWriter, options?: DataStreamOptions) {
+    writer.merge(
+      this.toDataStreamV4({
+        getErrorMessage: writer.onError,
+        sendUsage: options?.sendUsage,
+        sendReasoning: options?.sendReasoning,
+        sendSources: options?.sendSources,
+        experimental_sendFinish: options?.experimental_sendFinish,
+      })
+        .pipeThrough(new TextEncoderStream() as any)
+        .pipeThrough(new TextDecoderStream() as any) as any,
+    );
+  }
+
+  toTextStreamResponse(init?: ResponseInit): Response {
+    return new Response(this.textStream.pipeThrough(new TextEncoderStream() as any) as any, {
+      status: init?.status ?? 200,
+      headers: prepareResponseHeaders(init?.headers, {
+        contentType: 'text/plain; charset=utf-8',
+      }),
+    });
+  }
+
+  async consumeStream(options?: ConsumeStreamOptions): Promise<void> {
+    try {
+      await consumeStream({
+        stream: this.pipeThrough(
+          new TransformStream({
+            transform(chunk, controller) {
+              controller.enqueue(chunk);
+            },
+          }),
+        ) as any,
+        onError: options?.onError,
+      });
+    } catch (error) {
+      console.log('consumeStream error', error);
+      options?.onError?.(error);
+    }
   }
 
   toDataStreamResponseV4({

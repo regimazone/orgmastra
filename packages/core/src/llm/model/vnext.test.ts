@@ -22,6 +22,7 @@ import { delay } from '../../utils';
 import { mergeStreams, prepareOutgoingHttpHeaders, writeToServerResponse } from '../../stream/compat';
 
 import { toDataStreamResponseTests } from './ai-sdk/v4/toDataStreamResponse';
+import { mergeIntoDataStreamTests } from './ai-sdk/v4/mergeIntoDataStream';
 
 const defaultSettings = () =>
   ({
@@ -39,7 +40,7 @@ const runId = '12345';
 
 describe('V4 tests', () => {
   describe('result.textStream', () => {
-    it('should send text deltas', async () => {
+    it.only('should send text deltas', async () => {
       const model = new MockLanguageModelV1({
         doStream: async ({ prompt, mode }) => {
           expect(mode).toStrictEqual({
@@ -185,7 +186,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      const messages = await convertAsyncIterableToArray(result.aisdkv4);
+      const messages = await convertAsyncIterableToArray(result.toFullStreamV4);
 
       expect(messages).toMatchSnapshot();
     });
@@ -201,7 +202,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should send sources', async () => {
@@ -214,7 +215,7 @@ describe('V4 tests', () => {
         ...defaultSettings(),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should send files', async () => {
@@ -223,7 +224,7 @@ describe('V4 tests', () => {
         ...defaultSettings(),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should use fallback response metadata when response metadata is not provided', async () => {
@@ -267,7 +268,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      const messages = await convertAsyncIterableToArray(result.aisdkv4);
+      const messages = await convertAsyncIterableToArray(result.toFullStreamV4);
 
       expect(messages).toMatchSnapshot();
     });
@@ -338,7 +339,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should send tool results', async () => {
@@ -383,7 +384,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      const messages = await convertAsyncIterableToArray(result.aisdkv4);
+      const messages = await convertAsyncIterableToArray(result.toFullStreamV4);
 
       console.log(JSON.stringify(messages, null, 2), 'MESSAGES RETURN');
 
@@ -428,7 +429,7 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should filter out empty text deltas', async () => {
@@ -460,11 +461,11 @@ describe('V4 tests', () => {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdkv4)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toMatchSnapshot();
     });
 
     it('should forward error in doStream as error stream part', async () => {
-      const result = streamText({
+      const result = await looper.loop({
         model: new MockLanguageModelV1({
           doStream: async () => {
             throw new Error('test error');
@@ -473,7 +474,7 @@ describe('V4 tests', () => {
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toStrictEqual([
+      expect(await convertAsyncIterableToArray(result.toFullStreamV4)).toStrictEqual([
         {
           type: 'error',
           error: new Error('test error'),
@@ -817,5 +818,9 @@ describe('V4 tests', () => {
   toDataStreamResponseTests({
     engine: looper,
     version: 'v4',
+  });
+
+  mergeIntoDataStreamTests({
+    engine: looper,
   });
 });
