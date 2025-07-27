@@ -4,7 +4,7 @@ import { MessageList } from '../../agent/message-list';
 import { MastraAgentStream } from '../../stream/MastraAgentStream';
 import { createWorkflow, createStep } from '../../workflows';
 import { prepareToolsAndToolChoice } from './prepare-tools';
-import { AISDKV4 } from '../../stream/aisdk/v4';
+import { AISDKV4InputStream } from '../../stream/aisdk/v4';
 import { MastraModelOutput } from '../../stream/base';
 
 export class AgenticLoop {
@@ -84,6 +84,7 @@ export class AgenticLoop {
     runId,
     messageId,
     _internal,
+    toolCallStreaming,
   }: {
     controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
@@ -99,28 +100,20 @@ export class AgenticLoop {
       now: () => number;
       generateId: () => string;
     };
+    toolCallStreaming?: boolean;
   }) {
     return createStep({
       id: 'generateText',
       inputSchema: z.any(),
       outputSchema: z.any(),
       execute: async ({ inputData }) => {
-        await controller.enqueue({
-          type: 'step-start',
-          payload: {
-            request: {},
-            warnings: [],
-            messageId: messageId,
-          },
-        });
-
         this.stepCount++;
 
         const messageList = this.toMessageList(inputData.messages || []);
 
         let stream;
         if (model.specificationVersion === 'v1') {
-          const v4 = new AISDKV4({
+          const v4 = new AISDKV4InputStream({
             component: 'LLM',
             name: model.modelId,
           });
@@ -160,8 +153,12 @@ export class AgenticLoop {
           });
         }
 
+        console.log('toolCallStreaming', toolCallStreaming);
         const outputStream = new MastraModelOutput({
           stream: stream!,
+          options: {
+            toolCallStreaming: toolCallStreaming,
+          },
         });
 
         // const agentStream = new MastraAgentStream({
@@ -217,10 +214,19 @@ export class AgenticLoop {
         let toolCalls: any[] = [];
         let finishReason;
         let usage;
+        let hasToolCallStreaming = false;
+
+        await controller.enqueue({
+          type: 'step-start',
+          payload: {
+            request: {},
+            warnings: [],
+            messageId: messageId,
+          },
+        });
 
         try {
           for await (const chunk of outputStream.fullStream) {
-            console.log('FULL STREAM SHIT', chunk);
             switch (chunk.type) {
               case 'error':
                 hasErrored = true;
@@ -264,6 +270,19 @@ export class AgenticLoop {
                   request: {},
                 };
                 break;
+              case 'tool-call-delta':
+                if (!hasToolCallStreaming) {
+                  await controller.enqueue({
+                    type: 'tool-call-streaming-start',
+                    from: 'AGENT',
+                    runId: chunk.runId,
+                    payload: {
+                      toolCallId: chunk.payload.toolCallId,
+                      toolName: chunk.payload.toolName,
+                    },
+                  });
+                  hasToolCallStreaming = true;
+                }
               default:
                 await controller.enqueue(chunk);
             }
@@ -274,8 +293,6 @@ export class AgenticLoop {
           }
 
           text = outputStream.text;
-
-          console.log('text', text);
           toolCalls = outputStream.toolCalls;
           finishReason = outputStream.finishReason;
           usage = outputStream.usage;
@@ -372,6 +389,7 @@ export class AgenticLoop {
     runId,
     experimental_generateMessageId,
     _internal,
+    toolCallStreaming,
   }: {
     controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
@@ -386,6 +404,7 @@ export class AgenticLoop {
       now: () => number;
       generateId: () => string;
     };
+    toolCallStreaming?: boolean;
   }) {
     const messageId = experimental_generateMessageId?.() || _internal.generateId?.();
 
@@ -398,6 +417,7 @@ export class AgenticLoop {
       runId,
       messageId,
       _internal,
+      toolCallStreaming,
     });
 
     const toolCallStep = this.createToolCallStep({ tools });
@@ -419,14 +439,11 @@ export class AgenticLoop {
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           console.log('bailing');
-          try {
-            await controller.enqueue({
-              type: 'step-finish',
-              payload: initialResult.response.stepFinishPayload,
-            });
-          } catch (error) {
-            console.error('DO I ERROR', error);
-          }
+
+          await controller.enqueue({
+            type: 'step-finish',
+            payload: initialResult.response.stepFinishPayload,
+          });
 
           return bail(initialResult);
         }
@@ -548,6 +565,7 @@ export class AgenticLoop {
           runId,
           experimental_generateMessageId,
           _internal,
+          toolCallStreaming,
         });
 
         const mainWorkflow = createWorkflow({
@@ -615,6 +633,9 @@ export class AgenticLoop {
 
     return new MastraModelOutput({
       stream: readableStream as any,
+      options: {
+        toolCallStreaming: toolCallStreaming,
+      },
     });
   }
 }

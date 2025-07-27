@@ -21,7 +21,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
       const dataStream = createDataStream({
         execute(writer) {
-          result.mergeIntoDataStream(writer);
+          result.aisdk.v4.mergeIntoDataStream(writer);
         },
       });
 
@@ -43,7 +43,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
       const dataStream = createDataStream({
         execute(writer) {
-          result.mergeIntoDataStream(writer);
+          result.aisdk.v4.mergeIntoDataStream(writer);
         },
         onError: error => `custom error message: ${error}`,
       });
@@ -59,7 +59,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         prompt: 'test-input',
       });
 
-      const response = result.toTextStreamResponse();
+      const response = result.aisdk.v4.toTextStreamResponse();
 
       expect(response.status).toStrictEqual(200);
       expect(Object.fromEntries(response.headers.entries())).toStrictEqual({
@@ -89,7 +89,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         prompt: 'test-input',
       });
 
-      await expect(result.consumeStream()).resolves.not.toThrow();
+      await expect(result.aisdk.v4.consumeStream()).resolves.not.toThrow();
     });
 
     it('should ignore ResponseAborted error during stream consumption', async () => {
@@ -111,7 +111,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         prompt: 'test-input',
       });
 
-      await expect(result.consumeStream()).resolves.not.toThrow();
+      await expect(result.aisdk.v4.consumeStream()).resolves.not.toThrow();
     });
 
     it('should ignore any errors during stream consumption', async () => {
@@ -129,7 +129,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         prompt: 'test-input',
       });
 
-      await expect(result.consumeStream()).resolves.not.toThrow();
+      await expect(result.aisdk.v4.consumeStream()).resolves.not.toThrow();
     });
 
     it('should call the onError callback with the error', async () => {
@@ -148,7 +148,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         prompt: 'test-input',
       });
 
-      await expect(result.consumeStream({ onError: onErrorCallback })).resolves.not.toThrow();
+      await expect(result.aisdk.v4.consumeStream({ onError: onErrorCallback })).resolves.not.toThrow();
       expect(onErrorCallback).toHaveBeenCalledWith(new Error('Some error'));
     });
   });
@@ -183,7 +183,7 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
       // console.log(textStreamArray);
 
-      const fullStream = result.toFullStreamV4;
+      const fullStream = result.aisdk.v4.fullStream;
 
       for await (const chunk of fullStream) {
         console.log(chunk);

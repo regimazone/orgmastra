@@ -668,7 +668,6 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
     return this.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
-          console.log('FROM MASTRA', chunk);
           const transformedChunk = convertFullStreamChunkToAISDKv4({
             chunk,
             client: true,
@@ -680,8 +679,6 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
             toolCallStreaming,
             getErrorMessage,
           });
-
-          console.log('transformedChunk', chunk.type, transformedChunk);
 
           if (transformedChunk) {
             controller.enqueue(transformedChunk as LanguageModelV1StreamPart);

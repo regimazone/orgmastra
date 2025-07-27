@@ -1,7 +1,7 @@
 import type { ServerResponse } from 'http';
 import type { LanguageModelV1CallWarning } from '@ai-sdk/provider';
 import type { LanguageModelV1, LanguageModelV1StreamPart } from 'ai';
-import { MockLanguageModelV1, convertArrayToReadableStream } from 'ai/test';
+import { MockLanguageModelV1, convertArrayToReadableStream, mockId } from 'ai/test';
 
 const modelWithReasoning = new MockLanguageModelV1({
   doStream: async () => ({
@@ -187,3 +187,13 @@ export function createMockServerResponse(): ServerResponse & MockServerResponse 
 }
 
 export { modelWithReasoning, createTestModel, modelWithSources, modelWithFiles };
+
+export const defaultSettings = () =>
+  ({
+    prompt: 'prompt',
+    experimental_generateMessageId: mockId({ prefix: 'msg' }),
+    _internal: {
+      generateId: mockId({ prefix: 'id' }),
+      currentDate: () => new Date(0),
+    },
+  }) as const;

@@ -1,9 +1,9 @@
 import { ReadableStream, TransformStream } from 'stream/web';
 import { MastraBase } from '../../base';
+import { AISDKV4OutputStream } from '../aisdk/v4';
 import type { ChunkType } from '../types';
 
 type CreateStream = () => Promise<ReadableStream<any>> | ReadableStream<any>;
-
 export abstract class BaseModelStream extends MastraBase {
   abstract transform({
     runId,
@@ -47,6 +47,7 @@ export abstract class BaseModelStream extends MastraBase {
 }
 
 export class MastraModelOutput extends MastraBase {
+  #aisdkv4: AISDKV4OutputStream;
   #baseStream: ReadableStream<any>;
   #bufferedText: string[] = [];
   #toolCallArgsDeltas: Record<string, string[]> = {};
@@ -63,7 +64,7 @@ export class MastraModelOutput extends MastraBase {
     totalTokens: 0,
   };
 
-  constructor({ stream }: { stream: ReadableStream<ChunkType> }) {
+  constructor({ stream, options }: { stream: ReadableStream<ChunkType>; options: { toolCallStreaming?: boolean } }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
     const self = this;
     this.#baseStream = stream.pipeThrough(
@@ -76,15 +77,6 @@ export class MastraModelOutput extends MastraBase {
             case 'tool-call-delta':
               if (!self.#toolCallArgsDeltas[chunk.payload.toolCallId]) {
                 self.#toolCallArgsDeltas[chunk.payload.toolCallId] = [];
-                controller.enqueue({
-                  type: 'tool-call-streaming-start',
-                  from: 'AGENT',
-                  runId: chunk.runId,
-                  payload: {
-                    toolCallId: chunk.payload.toolCallId,
-                    toolName: chunk.payload.toolName,
-                  },
-                });
               }
               self.#toolCallArgsDeltas?.[chunk.payload.toolCallId]?.push(chunk.payload.argsTextDelta);
               break;
@@ -93,24 +85,40 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'tool-call':
               self.#toolCalls.push(chunk.payload);
+              if (chunk.payload?.output?.from === 'AGENT' && chunk.payload?.output?.type === 'finish') {
+                const finishPayload = chunk.payload?.output.payload;
+                self.updateUsageCount(finishPayload.usage);
+              }
               break;
             case 'tool-result':
               self.#toolResults.push(chunk.payload);
               break;
-            case 'step-finish':
+            case 'step-finish': {
+              console.log(chunk, '####');
+              self.updateUsageCount(chunk.payload.totalUsage);
+              chunk.payload.totalUsage = self.#usageCount;
+              break;
+            }
             case 'finish':
               if (chunk.payload.reason) {
                 self.#finishReason = chunk.payload.reason;
               }
-              console.log('USAGE', chunk);
-              self.updateUsageCount(chunk.payload.totalUsage);
-              chunk.payload.totalUsage = self.#usageCount;
+              self.#usageCount = chunk.payload.totalUsage;
               break;
           }
           controller.enqueue(chunk);
         },
       }),
     );
+
+    console.log('options', options);
+
+    this.#aisdkv4 = new AISDKV4OutputStream({
+      modelOutput: this,
+      options: {
+        toolCallStreaming: options?.toolCallStreaming,
+      },
+    });
   }
 
   get text() {
@@ -170,5 +178,11 @@ export class MastraModelOutput extends MastraBase {
     this.#usageCount.promptTokens += parseInt(usage.promptTokens?.toString() ?? '0', 10);
     this.#usageCount.completionTokens += parseInt(usage.completionTokens?.toString() ?? '0', 10);
     this.#usageCount.totalTokens += parseInt(usage.totalTokens?.toString() ?? '0', 10);
+  }
+
+  get aisdk() {
+    return {
+      v4: this.#aisdkv4,
+    };
   }
 }
