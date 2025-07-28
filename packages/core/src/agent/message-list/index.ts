@@ -67,11 +67,6 @@ export type MessageInput =
   // db messages in AIV5.UIMessage format
   | MastraMessageV3;
 
-// Extend UIMessage to include optional metadata field
-export type UIMessageWithMetadata = AIV4.UIMessage & {
-  metadata?: Record<string, unknown>;
-};
-
 function isToolCallMessage(message: CoreMessage): boolean {
   if (message.role === 'tool') {
     return true;
