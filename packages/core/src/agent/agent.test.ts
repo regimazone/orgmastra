@@ -1,8 +1,7 @@
 import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModelV2StreamPart } from '@ai-sdk/provider';
-import { jsonSchema, simulateReadableStream } from 'ai';
-import type { CoreMessage } from 'ai';
+import { jsonSchema, simulateReadableStream, type CoreMessage } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
 import { config } from 'dotenv';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,13 +11,7 @@ import { TestIntegration } from '../integration/openapi-toolset.mock';
 import { noopLogger } from '../logger';
 import { Mastra } from '../mastra';
 import { MastraMemory } from '../memory';
-import type {
-  StorageThreadType,
-  MemoryConfig,
-  WorkingMemoryTemplate,
-  MastraMessageV1,
-  AllMastraMessageTypesList,
-} from '../memory';
+import type { StorageThreadType, MemoryConfig, MastraMessageV1, AllMastraMessageTypesList } from '../memory';
 import { RuntimeContext } from '../runtime-context';
 import type { StorageGetMessagesArg } from '../storage';
 import { createTool } from '../tools';
@@ -491,7 +484,7 @@ describe('agent', () => {
               {
                 type: 'finish',
                 finishReason: 'stop',
-                usage: { completionTokens: 10, promptTokens: 3 },
+                usage: { completionTokens: 10, promptTokens: 3, inputTokens: 3, outputTokens: 10, totalTokens: 13 },
                 providerMetadata: undefined,
               },
             ] as LanguageModelV2StreamPart[], // Added type assertion
@@ -723,7 +716,6 @@ describe('agent', () => {
           inputSchema: z.object({
             color: z.string(),
           }),
-          execute: async () => {},
         },
       },
     });
@@ -779,7 +771,6 @@ describe('agent', () => {
           inputSchema: z.object({
             color: z.string(),
           }),
-          execute: async () => {},
         },
       },
       onFinish: props => {
@@ -808,7 +799,6 @@ describe('agent', () => {
           inputSchema: z.object({
             color: z.string(),
           }),
-          execute: async () => {},
         },
       },
       onFinish: props => {
@@ -2051,106 +2041,7 @@ describe('agent', () => {
     expect(vercelExecute).toHaveBeenCalled();
   });
 
-    it('should make runtimeContext available to tools when injected in generate', async () => {
-      const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
-      let capturedValue: string | null = null;
-
-      const testTool = createTool({
-        id: 'runtimeContext-test-tool',
-        description: 'A tool that verifies runtimeContext is available',
-        inputSchema: z.object({
-          query: z.string(),
-        }),
-        execute: ({ runtimeContext }) => {
-          capturedValue = runtimeContext.get('test-value')!;
-
-          return Promise.resolve({
-            success: true,
-            runtimeContextAvailable: !!runtimeContext,
-            runtimeContextValue: capturedValue,
-          });
-        },
-      });
-
-      const agent = new Agent({
-        name: 'runtimeContext-test-agent',
-        instructions: 'You are an agent that tests runtimeContext availability.',
-        model: openai('gpt-4o'),
-        tools: { testTool },
-      });
-
-      const mastra = new Mastra({
-        agents: { agent },
-        logger: false,
-      });
-
-      const testAgent = mastra.getAgent('agent');
-
-      const response = await testAgent.generate('Use the runtimeContext-test-tool with query "test"', {
-        toolChoice: 'required',
-        runtimeContext: testRuntimeContext,
-      });
-
-      const toolCall = response.toolResults.find(result => result.toolName === 'testTool');
-
-      expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
-      expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
-      expect(capturedValue).toBe('runtimeContext-value');
-    }, 500000);
-
-    it('should make runtimeContext available to tools when injected in stream', async () => {
-      const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
-      let capturedValue: string | null = null;
-
-      const testTool = createTool({
-        id: 'runtimeContext-test-tool',
-        description: 'A tool that verifies runtimeContext is available',
-        inputSchema: z.object({
-          query: z.string(),
-        }),
-        execute: ({ runtimeContext }) => {
-          capturedValue = runtimeContext.get('test-value')!;
-
-          return Promise.resolve({
-            success: true,
-            runtimeContextAvailable: !!runtimeContext,
-            runtimeContextValue: capturedValue,
-          });
-        },
-      });
-
-      const agent = new Agent({
-        name: 'runtimeContext-test-agent',
-        instructions: 'You are an agent that tests runtimeContext availability.',
-        model: openai('gpt-4o'),
-        tools: { testTool },
-      });
-
-      const mastra = new Mastra({
-        agents: { agent },
-        logger: false,
-      });
-
-      const testAgent = mastra.getAgent('agent');
-
-      const stream = await testAgent.stream('Use the runtimeContext-test-tool with query "test"', {
-        toolChoice: 'required',
-        runtimeContext: testRuntimeContext,
-      });
-
-      for await (const _chunk of stream.textStream) {
-        // empty line
-      }
-
-      const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
-
-      expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
-      expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
-      expect(capturedValue).toBe('runtimeContext-value');
-    }, 500000);
-  });
-
-  it('should make runtimeContext available to tools when injected in streamVNext', async () => {
+  it('should make runtimeContext available to tools when injected in generate', async () => {
     const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
     let capturedValue: string | null = null;
 
@@ -2185,20 +2076,118 @@ describe('agent', () => {
 
     const testAgent = mastra.getAgent('agent');
 
-    const stream = await testAgent.streamVNext('Use the runtimeContext-test-tool with query "test"', {
+    const response = await testAgent.generate('Use the runtimeContext-test-tool with query "test"', {
       toolChoice: 'required',
       runtimeContext: testRuntimeContext,
     });
 
-    await stream.text;
+    const toolCall = response.toolResults.find(result => result.toolName === 'testTool');
+
+    expect((toolCall?.output as any)?.runtimeContextAvailable).toBe(true);
+    expect((toolCall?.output as any)?.runtimeContextValue).toBe('runtimeContext-value');
+    expect(capturedValue).toBe('runtimeContext-value');
+  }, 500000);
+
+  it('should make runtimeContext available to tools when injected in stream', async () => {
+    const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
+    let capturedValue: string | null = null;
+
+    const testTool = createTool({
+      id: 'runtimeContext-test-tool',
+      description: 'A tool that verifies runtimeContext is available',
+      inputSchema: z.object({
+        query: z.string(),
+      }),
+      execute: ({ runtimeContext }) => {
+        capturedValue = runtimeContext.get('test-value')!;
+
+        return Promise.resolve({
+          success: true,
+          runtimeContextAvailable: !!runtimeContext,
+          runtimeContextValue: capturedValue,
+        });
+      },
+    });
+
+    const agent = new Agent({
+      name: 'runtimeContext-test-agent',
+      instructions: 'You are an agent that tests runtimeContext availability.',
+      model: openai('gpt-4o'),
+      tools: { testTool },
+    });
+
+    const mastra = new Mastra({
+      agents: { agent },
+      logger: false,
+    });
+
+    const testAgent = mastra.getAgent('agent');
+
+    const stream = await testAgent.stream('Use the runtimeContext-test-tool with query "test"', {
+      toolChoice: 'required',
+      runtimeContext: testRuntimeContext,
+    });
+
+    for await (const _chunk of stream.textStream) {
+      // empty line
+    }
 
     const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
 
-    expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
-    expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
+    expect((toolCall?.output as any)?.runtimeContextAvailable).toBe(true);
+    expect((toolCall?.output as any)?.runtimeContextValue).toBe('runtimeContext-value');
     expect(capturedValue).toBe('runtimeContext-value');
   }, 500000);
 });
+
+it('should make runtimeContext available to tools when injected in streamVNext', async () => {
+  const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
+  let capturedValue: string | null = null;
+
+  const testTool = createTool({
+    id: 'runtimeContext-test-tool',
+    description: 'A tool that verifies runtimeContext is available',
+    inputSchema: z.object({
+      query: z.string(),
+    }),
+    execute: ({ runtimeContext }) => {
+      capturedValue = runtimeContext.get('test-value')!;
+
+      return Promise.resolve({
+        success: true,
+        runtimeContextAvailable: !!runtimeContext,
+        runtimeContextValue: capturedValue,
+      });
+    },
+  });
+
+  const agent = new Agent({
+    name: 'runtimeContext-test-agent',
+    instructions: 'You are an agent that tests runtimeContext availability.',
+    model: openai('gpt-4o'),
+    tools: { testTool },
+  });
+
+  const mastra = new Mastra({
+    agents: { agent },
+    logger: false,
+  });
+
+  const testAgent = mastra.getAgent('agent');
+
+  const stream = await testAgent.streamVNext('Use the runtimeContext-test-tool with query "test"', {
+    toolChoice: 'required',
+    runtimeContext: testRuntimeContext,
+  });
+
+  await stream.text;
+
+  const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
+
+  expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
+  expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
+  expect(capturedValue).toBe('runtimeContext-value');
+}, 500000);
 
 describe('agent memory with metadata', () => {
   let dummyModel: MockLanguageModelV2;
@@ -2442,7 +2431,7 @@ describe('Agent save message parts', () => {
           {
             type: 'finish',
             finishReason: 'stop',
-            usage: { completionTokens: 10, promptTokens: 3 },
+            usage: { completionTokens: 10, promptTokens: 3, inputTokens: 3, outputTokens: 10, totalTokens: 13 },
             providerMetadata: undefined,
           },
         ] as LanguageModelV2StreamPart[], // Added type assertion
@@ -2490,7 +2479,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         savedMessages.push(...args[0].messages);
         return MockMemory.prototype.saveMessages.apply(this, args);
@@ -2574,7 +2563,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -2617,7 +2606,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step generation', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -2702,7 +2691,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -2738,7 +2727,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -2771,7 +2760,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
 
-      const errorModel = new MockLanguageModelV1({
+      const errorModel = new MockLanguageModelV2({
         doGenerate: async () => {
           throw new Error('Simulated error during response');
         },
@@ -2810,7 +2799,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         savedMessages.push(...args[0].messages);
         return MockMemory.prototype.saveMessages.apply(this, args);
@@ -2901,7 +2890,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -2946,7 +2935,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3033,7 +3022,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3067,7 +3056,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3101,7 +3090,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
 
-      const errorModel = new MockLanguageModelV1({
+      const errorModel = new MockLanguageModelV2({
         doStream: async () => {
           const stream = new ReadableStream({
             pull() {
@@ -3149,7 +3138,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         savedMessages.push(...args[0].messages);
         return MockMemory.prototype.saveMessages.apply(this, args);
@@ -3245,7 +3234,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3284,7 +3273,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3366,7 +3355,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3399,7 +3388,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3435,7 +3424,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         savedMessages.push(...args[0].messages);
         return MockMemory.prototype.saveMessages.apply(this, args);
@@ -3531,7 +3520,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3570,7 +3559,7 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3652,7 +3641,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3685,7 +3674,7 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args) {
+      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
         saveCallCount++;
         return MockMemory.prototype.saveMessages.apply(this, args);
       };
@@ -3725,9 +3714,11 @@ describe('dynamic memory configuration', () => {
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
         usage: { promptTokens: 10, completionTokens: 20, totalTokens: 20, inputTokens: 1, outputTokens: 1 },
-        text: `Dummy response`,
         content: [{ type: 'text', text: 'Dummy response' }],
         warnings: [],
+        providerMetadata: undefined,
+        request: undefined,
+        response: { id: 'mock-dummy2-response-id', timestamp: new Date(), modelId: 'mock-dummy2-model' },
       }),
     });
   });
@@ -3907,16 +3898,20 @@ describe('dynamic memory configuration', () => {
 });
 
 describe('Dynamic instructions with mastra instance', () => {
-  let dummyModel: MockLanguageModelV1;
+  let dummyModel: MockLanguageModelV2;
   let mastra: Mastra;
 
   beforeEach(() => {
-    dummyModel = new MockLanguageModelV1({
+    dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
         usage: { promptTokens: 10, completionTokens: 20 },
-        text: `Logger test response`,
+        content: [{ type: 'text', text: 'Logger test response' }],
+        warnings: [],
+        providerMetadata: undefined,
+        request: undefined,
+        response: { id: 'mock-logger-response-id', timestamp: new Date(), modelId: 'mock-logger-model' },
       }),
     });
 
@@ -3988,27 +3983,31 @@ describe('Dynamic instructions with mastra instance', () => {
 });
 
 describe('UIMessageWithMetadata support', () => {
-  let dummyModel: MockLanguageModelV1;
+  let dummyModel: MockLanguageModelV2;
   let mockMemory: MockMemory;
 
   beforeEach(() => {
-    dummyModel = new MockLanguageModelV1({
+    dummyModel = new MockLanguageModelV2({
       doGenerate: async () => ({
         finishReason: 'stop',
-        usage: { completionTokens: 10, promptTokens: 3 },
-        text: 'Response acknowledging metadata',
+        usage: { completionTokens: 10, promptTokens: 3, inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+        content: [{ type: 'text', text: 'Response acknowledging metadata' }],
+        warnings: [],
+        providerMetadata: undefined,
+        request: undefined,
+        response: { id: 'mock-metadata-response-id', timestamp: new Date(), modelId: 'mock-metadata-model' },
       }),
       doStream: async () => ({
         stream: simulateReadableStream({
           chunks: [
-            { type: 'text-delta', textDelta: 'Response' },
-            { type: 'text-delta', textDelta: ' acknowledging' },
-            { type: 'text-delta', textDelta: ' metadata' },
+            { type: 'text-delta', id: 'chunk-1', delta: 'Response' },
+            { type: 'text-delta', id: 'chunk-2', delta: ' acknowledging' },
+            { type: 'text-delta', id: 'chunk-3', delta: ' metadata' },
             {
               type: 'finish',
               finishReason: 'stop',
               logprobs: undefined,
-              usage: { completionTokens: 10, promptTokens: 3 },
+              usage: { completionTokens: 10, promptTokens: 3, inputTokens: 3, outputTokens: 10, totalTokens: 13 },
             },
           ],
         }),
@@ -4050,8 +4049,9 @@ describe('UIMessageWithMetadata support', () => {
 
     // Verify messages were saved with metadata
     const savedMessages = await mockMemory.getMessages({
-      threadConfig: { id: 'support-thread', resourceId: 'customer-12345' },
-      limit: 10,
+      threadId: 'support-thread',
+      resourceId: 'customer-12345',
+      selectBy: { last: 10 },
     });
 
     expect(savedMessages.length).toBeGreaterThan(0);
@@ -4115,8 +4115,9 @@ describe('UIMessageWithMetadata support', () => {
 
     // Verify messages were saved with metadata
     const savedMessages = await mockMemory.getMessages({
-      threadConfig: { id: 'mobile-thread', resourceId: 'user-mobile' },
-      limit: 10,
+      threadId: 'mobile-thread',
+      resourceId: 'user-mobile',
+      selectBy: { last: 10 },
     });
 
     expect(savedMessages.length).toBeGreaterThan(0);
@@ -4182,8 +4183,12 @@ describe('UIMessageWithMetadata support', () => {
 
     // Verify messages were saved correctly
     const savedMessages = await mockMemory.getMessages({
-      threadConfig: { id: 'mixed-thread', resourceId: 'mixed-user' },
-      limit: 10,
+      threadId: 'mixed-thread',
+      resourceId: 'mixed-user',
+      threadConfig: {
+        lastMessages: 10,
+      },
+      format: 'v2',
     });
 
     expect(savedMessages.length).toBeGreaterThan(0);
