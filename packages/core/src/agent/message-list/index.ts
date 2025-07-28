@@ -149,7 +149,7 @@ export class MessageList {
           const userMessages = Array.from(this.newUserMessages);
           this.messages = this.messages.filter(m => !this.newUserMessages.has(m));
           this.newUserMessages.clear();
-          return userMessages;
+          return userMessages.map(MessageList.mastraMessageV3ToV2);
         },
       },
     };
