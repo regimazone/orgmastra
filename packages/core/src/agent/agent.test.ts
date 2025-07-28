@@ -2479,10 +2479,10 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        savedMessages.push(...args[0].messages);
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        savedMessages.push(...args.messages);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const errorTool = createTool({
@@ -2563,9 +2563,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -2606,9 +2606,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step generation', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -2691,9 +2691,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -2727,9 +2727,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -2799,10 +2799,10 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        savedMessages.push(...args[0].messages);
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        savedMessages.push(...args.messages);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const errorTool = createTool({
@@ -2890,9 +2890,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -2935,9 +2935,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -3022,9 +3022,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3056,9 +3056,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3138,10 +3138,10 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        savedMessages.push(...args[0].messages);
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        savedMessages.push(...args.messages);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const errorTool = createTool({
@@ -3234,9 +3234,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -3273,9 +3273,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -3355,9 +3355,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3388,9 +3388,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3424,10 +3424,10 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
       let savedMessages: any[] = [];
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        savedMessages.push(...args[0].messages);
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        savedMessages.push(...args.messages);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const errorTool = createTool({
@@ -3520,9 +3520,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages across steps and tool calls', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -3559,9 +3559,9 @@ describe('Agent save message parts', () => {
     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const echoTool = createTool({
@@ -3641,9 +3641,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3674,9 +3674,9 @@ describe('Agent save message parts', () => {
       const mockMemory = new MockMemory();
       let saveCallCount = 0;
 
-      mockMemory.saveMessages = async function (...args: Parameters<typeof MockMemory.prototype.saveMessages>) {
+      mockMemory.saveMessages = async function (args: any) {
         saveCallCount++;
-        return MockMemory.prototype.saveMessages.apply(this, args);
+        return MockMemory.prototype.saveMessages.apply(this, [args]);
       };
 
       const agent = new Agent({
@@ -3906,7 +3906,7 @@ describe('Dynamic instructions with mastra instance', () => {
       doGenerate: async () => ({
         rawCall: { rawPrompt: null, rawSettings: {} },
         finishReason: 'stop',
-        usage: { promptTokens: 10, completionTokens: 20 },
+        usage: { promptTokens: 10, completionTokens: 20, inputTokens: 10, outputTokens: 20, totalTokens: 30 },
         content: [{ type: 'text', text: 'Logger test response' }],
         warnings: [],
         providerMetadata: undefined,
