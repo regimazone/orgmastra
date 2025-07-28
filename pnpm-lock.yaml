@@ -498,8 +498,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/memory
       '@mastra/rag':
-        specifier: ^1.0.2
-        version: 1.0.3(@mastra/core@packages+core)(ai@4.3.19(react@19.1.0)(zod@3.25.76))(encoding@0.1.13)
+        specifier: workspace:*
+        version: link:../../packages/rag
       '@node-rs/xxhash':
         specifier: ^1.7.6
         version: 1.7.6
@@ -6687,12 +6687,6 @@ packages:
 
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
-
-  '@mastra/rag@1.0.3':
-    resolution: {integrity: sha512-ejhYBBs7EkJPoakxoSUa58yDFHYpMVHGw+K4YxGTudnBjfRj0Anp/7k06mbShycOpSQOfhJa0Cwz9Dp08ur0eA==}
-    peerDependencies:
-      '@mastra/core': ^0.10.0-alpha.0
-      ai: ^4.0.0
 
   '@mendable/firecrawl-js@1.29.2':
     resolution: {integrity: sha512-Yv3lyCbGTm8hRSrRzRi2eqJFXZNyTuL1y34tABSSxNPqlvL7HJV+f1zPnhksZ48gPcn/OJm/E68MDnSfTYXKzA==}
@@ -20453,20 +20447,6 @@ snapshots:
       read-yaml-file: 1.1.0
 
   '@marijn/find-cluster-break@1.0.2': {}
-
-  '@mastra/rag@1.0.3(@mastra/core@packages+core)(ai@4.3.19(react@19.1.0)(zod@3.25.76))(encoding@0.1.13)':
-    dependencies:
-      '@mastra/core': link:packages/core
-      '@paralleldrive/cuid2': 2.2.2
-      ai: 4.3.19(react@19.1.0)(zod@3.25.76)
-      big.js: 7.0.1
-      js-tiktoken: 1.0.20
-      node-html-better-parser: 1.5.1
-      pathe: 2.0.3
-      zeroentropy: 0.1.0-alpha.6(encoding@0.1.13)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - encoding
 
   '@mendable/firecrawl-js@1.29.2':
     dependencies:
