@@ -2,20 +2,17 @@
  * This file is an adaptation of https://github.com/vercel/ai/blob/e14c066bf4d02c5ee2180c56a01fa0e5216bc582/packages/ai/core/prompt/convert-to-core-messages.ts
  * But has been modified to work with Mastra storage adapter messages (MastraMessageV1)
  */
-import type { AssistantContent, FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from 'ai';
 import type { MastraMessageV1 } from '../../../memory/types';
 import type { MastraMessageContentV2, MastraMessageV2 } from '../../message-list';
+import type * as AIV4 from '../ai-sdk-4/';
 import type { ReasoningPart, RedactedReasoningPart } from '../ai-sdk-4/core/prompt/content-part';
 import { attachmentsToParts } from './attachments-to-parts';
 
-type MessagePart =
-  | TextPart
-  | ImagePart
-  | FilePart
-  | ReasoningPart
-  | RedactedReasoningPart
-  | ToolCallPart
-  | ToolResultPart;
+type TextPart = AIV4.TextUIPart;
+type FilePart = AIV4.FileUIPart;
+type ToolPart = AIV4.ToolInvocationUIPart;
+
+type MessagePart = TextPart | FilePart | ReasoningPart | RedactedReasoningPart | ToolPart;
 
 function isMessagePartArray(content: unknown): content is MessagePart[] {
   return Array.isArray(content) && content.every(part => typeof part === 'object' && 'type' in part);
@@ -36,7 +33,7 @@ const makePushOrCombine = (v1Messages: MastraMessageV1[]) => (msg: MastraMessage
     (msg.role !== `assistant` || (msg.role === `assistant` && msg.content.at(-1)?.type !== `tool-call`))
   ) {
     for (const part of msg.content) {
-      previousMessage.content.push(part);
+      previousMessage.content.push(part as any);
     }
   } else {
     v1Messages.push(msg);
@@ -119,7 +116,7 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
           let block: MastraMessageContentV2['parts'] = [];
 
           function processBlock() {
-            const content: AssistantContent = [];
+            const content: AIV4.AssistantContent = [];
 
             for (const part of block) {
               switch (part.type) {
@@ -273,7 +270,7 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
             role: 'tool',
             ...fields,
             type: 'tool-result',
-            content: stepInvocations.map((toolInvocation): ToolResultPart => {
+            content: stepInvocations.map((toolInvocation): AIV4.ToolContent[0] => {
               if (!('result' in toolInvocation)) {
                 // @ts-ignore
                 return toolInvocation;
@@ -283,9 +280,9 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
 
               return {
                 type: 'tool-result',
+                result,
                 toolCallId,
                 toolName,
-                result,
               };
             }),
           });
