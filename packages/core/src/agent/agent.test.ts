@@ -3891,7 +3891,7 @@ describe('dynamic memory configuration', () => {
 });
 
 describe('Input Processors', () => {
-  let mockModel: MockLanguageModelV1;
+  let mockModel: MockLanguageModelV2;
 
   // Helper function to create a MastraMessageV2
   const createMessage = (text: string, role: 'user' | 'assistant' = 'user'): MastraMessageV2 => ({
@@ -3905,18 +3905,18 @@ describe('Input Processors', () => {
   });
 
   beforeEach(() => {
-    mockModel = new MockLanguageModelV1({
+    mockModel = new MockLanguageModelV2({
       doGenerate: async ({ prompt }) => {
         // Extract text content from the prompt messages
-        const messages = Array.isArray(prompt) ? prompt : [];
+        const messages = prompt || [];
         const textContent = messages
-          .map(msg => {
+          .map((msg: any) => {
             if (typeof msg.content === 'string') {
               return msg.content;
             } else if (Array.isArray(msg.content)) {
               return msg.content
-                .filter(part => part.type === 'text')
-                .map(part => part.text)
+                .filter((part: any) => part.type === 'text')
+                .map((part: any) => part.text)
                 .join(' ');
             }
             return '';
@@ -3925,23 +3925,29 @@ describe('Input Processors', () => {
           .join(' ');
 
         return {
-          text: `processed: ${textContent}`,
-          finishReason: 'stop',
-          usage: { promptTokens: 10, completionTokens: 20 },
-          rawCall: { rawPrompt: prompt, rawSettings: {} },
+          content: [{ type: 'text', text: `processed: ${textContent}` }],
+          finishReason: 'stop' as const,
+          usage: {
+            promptTokens: 10,
+            completionTokens: 20,
+            totalTokens: 30,
+            inputTokens: 10,
+            outputTokens: 20,
+          },
+          warnings: [],
         };
       },
       doStream: async ({ prompt }) => {
         // Extract text content from the prompt messages
-        const messages = Array.isArray(prompt) ? prompt : [];
+        const messages = prompt || [];
         const textContent = messages
-          .map(msg => {
+          .map((msg: any) => {
             if (typeof msg.content === 'string') {
               return msg.content;
             } else if (Array.isArray(msg.content)) {
               return msg.content
-                .filter(part => part.type === 'text')
-                .map(part => part.text)
+                .filter((part: any) => part.type === 'text')
+                .map((part: any) => part.text)
                 .join(' ');
             }
             return '';
@@ -3949,19 +3955,29 @@ describe('Input Processors', () => {
           .filter(Boolean)
           .join(' ');
 
+        const textId = 'text-1';
         return {
           stream: simulateReadableStream({
             chunks: [
-              { type: 'text-delta', textDelta: 'processed: ' },
-              { type: 'text-delta', textDelta: textContent },
+              { type: 'text-start', id: textId } as const,
+              { type: 'text-delta', id: textId, delta: 'processed: ' } as const,
+              { type: 'text-delta', id: textId, delta: textContent } as const,
+              { type: 'text-end', id: textId } as const,
               {
                 type: 'finish',
                 finishReason: 'stop',
-                usage: { promptTokens: 10, completionTokens: 20 },
-              },
+                usage: {
+                  promptTokens: 10,
+                  completionTokens: 20,
+                  totalTokens: 30,
+                  inputTokens: 10,
+                  outputTokens: 20,
+                },
+              } as const,
             ],
           }),
-          rawCall: { rawPrompt: prompt, rawSettings: {} },
+          rawResponse: {},
+          warnings: [],
         };
       },
     });
