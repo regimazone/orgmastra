@@ -1988,7 +1988,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
             }
 
             if (props.finishReason === 'tool-calls') {
-              for (const toolCall of props.toolCalls) {
+              for (const toolCall of props.content) {
                 toolCallsCollection.set(toolCall.toolCallId, toolCall);
               }
             }
