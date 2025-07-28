@@ -1,7 +1,8 @@
 import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModelV2StreamPart } from '@ai-sdk/provider';
-import { jsonSchema, simulateReadableStream, type CoreMessage } from 'ai';
+import { jsonSchema, simulateReadableStream } from 'ai';
+import type { CoreMessage } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
 import { config } from 'dotenv';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
