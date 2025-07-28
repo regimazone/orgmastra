@@ -8,6 +8,7 @@ overrides:
   '@mastra/core': link:../../packages/core
   '@mastra/memory': link:../../packages/memory
   '@mastra/pg': link:../../stores/pg
+  '@mastra/loggers': link:../../packages/loggers
 
 importers:
 
@@ -19,6 +20,9 @@ importers:
       '@mastra/core':
         specifier: link:../../packages/core
         version: link:../../packages/core
+      '@mastra/loggers':
+        specifier: link:../../packages/loggers
+        version: link:../../packages/loggers
       '@mastra/memory':
         specifier: link:../../packages/memory
         version: link:../../packages/memory

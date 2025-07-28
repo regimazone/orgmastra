@@ -1,5 +1,34 @@
 import { mastra } from './mastra';
 
+function generateHugeTestData(count: number): any {
+  const data: any = {
+    id: Math.random().toString(36).substring(7),
+    timestamp: new Date().toISOString(),
+    users: [],
+  };
+
+  // Generate large arrays of test data
+  for (let i = 0; i < count; i++) {
+    data.users.push({
+      id: `user_${i}`,
+      name: `User ${i}`,
+      email: `user${i}@example.com`,
+      profile: {
+        age: Math.floor(Math.random() * 80) + 18,
+        location: `City ${i % 100}`,
+        preferences: Array.from({ length: 20 }, (_, j) => `pref_${j}_${Math.random().toString(36).substring(7)}`),
+        history: Array.from({ length: 50 }, (_, j) => ({
+          action: `action_${j}`,
+          timestamp: new Date(Date.now() - Math.random() * 31536000000).toISOString(),
+          data: { value: Math.random() * 1000, category: `cat_${j % 10}` },
+        })),
+      },
+    });
+  }
+
+  return data;
+}
+
 async function main() {
   console.log('🚀 Starting workflow with suspend/resume example...\n');
 
@@ -7,32 +36,15 @@ async function main() {
   const run = await myWorkflow.createRunAsync();
 
   try {
-    // Start the workflow - it will suspend at stepTwo
-    console.log('📝 Starting workflow with inputValue: 30');
-    const result = await run.start({
-      inputData: {
-        inputValue: 30,
-      },
-    });
-
-    console.log('📊 Workflow result:', JSON.stringify(result, null, 2));
-
-    // Check if the workflow is suspended
-    if (result.status === 'suspended') {
-      console.log('\n⏸️  Workflow is suspended! Suspended steps:', result.suspended);
-
-      // Resume the workflow with additional data
-      console.log('▶️  Resuming workflow with extraNumber: 5');
-      const resumedResult = await run.resume({
-        step: result.suspended[0], // Resume the first suspended step
-        resumeData: {
-          extraNumber: 5,
+    // Loop the workflow start 3 times
+    for (let i = 0; i < 10; i++) {
+      console.log(`📝 Starting workflow iteration ${i + 1} with input data`);
+      await run.start({
+        inputData: {
+          data: generateHugeTestData(10000),
         },
       });
-
-      console.log('✅ Resumed workflow result:', JSON.stringify(resumedResult, null, 2));
-    } else {
-      console.log('✅ Workflow completed without suspension');
+      console.log(`📊 Workflow iteration ${i + 1} completed`);
     }
   } catch (e) {
     console.error('❌ Error:', e);
