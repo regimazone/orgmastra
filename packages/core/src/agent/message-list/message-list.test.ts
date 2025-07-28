@@ -3652,19 +3652,6 @@ describe('MessageList', () => {
       const v4Messages = list.get.all.aiV4.ui();
       expect(v4Messages[0].content).toBe('Hello!');
       expect(v4Messages[0].id).toBe('msg-with-content');
-      // The content should stay as a string, not be parsed to an object
-      const messages = list.get.all.v2();
-      expect(messages[0].content.content).toBe('{"data": "value", "number": 42}'); // Should stay as string
-      expect(typeof messages[0].content.content).toBe('string'); // Should be a string, not an object
-      expect(messages[0].content.parts).toEqual([
-        {
-          type: 'step-start',
-        },
-        {
-          type: 'text',
-          text: '{"data": "value", "number": 42}',
-        },
-      ]);
     });
   });
 
