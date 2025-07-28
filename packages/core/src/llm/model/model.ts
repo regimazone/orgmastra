@@ -538,7 +538,7 @@ export class MastraLLM extends MastraBase {
         return streamObject({
           ...rest,
           model,
-          messages: convertToModelMessages(messages as any),
+          messages,
           output,
           experimental_telemetry: {
             ...this.experimental_telemetry,
