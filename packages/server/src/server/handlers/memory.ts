@@ -562,7 +562,7 @@ export async function searchMemoryHandler({
         });
 
         // Get thread messages for context
-        const threadMessages = (await memory.query({ threadId: thread.id })).uiMessages;
+        const threadMessages = (await memory.query({ threadId: thread.id, format: 'v2' })).uiMessages;
 
         // Process results
         result.messagesV2.forEach(msg => {
@@ -592,13 +592,21 @@ export async function searchMemoryHandler({
               before: threadMessages.slice(Math.max(0, messageIndex - 2), messageIndex).map(m => ({
                 id: m.id,
                 role: m.role,
-                content: m.content,
+                content: m.parts
+                  .map(p => (p.type === `text` ? p.text : null))
+                  .filter(Boolean)
+                  .join(`\n`),
+                // @ts-ignore
                 createdAt: m.createdAt || new Date(),
               })),
               after: threadMessages.slice(messageIndex + 1, messageIndex + 3).map(m => ({
                 id: m.id,
                 role: m.role,
-                content: m.content,
+                content: m.parts
+                  .map(p => (p.type === `text` ? p.text : null))
+                  .filter(Boolean)
+                  .join(`\n`),
+                // @ts-ignore
                 createdAt: m.createdAt || new Date(),
               })),
             };
@@ -628,7 +636,7 @@ export async function searchMemoryHandler({
         config,
       });
 
-      const threadMessages = (await memory.query({ threadId })).uiMessages;
+      const threadMessages = (await memory.query({ threadId, format: 'v2' })).uiMessages;
 
       result.messagesV2.forEach(msg => {
         // Skip duplicates
@@ -662,13 +670,21 @@ export async function searchMemoryHandler({
             before: threadMessages.slice(Math.max(0, messageIndex - 2), messageIndex).map(m => ({
               id: m.id,
               role: m.role,
-              content: m.content,
+              content: m.parts
+                .map(p => (p.type === `text` ? p.text : null))
+                .filter(Boolean)
+                .join(`\n`),
+              // @ts-ignore
               createdAt: m.createdAt || new Date(),
             })),
             after: threadMessages.slice(messageIndex + 1, messageIndex + 3).map(m => ({
               id: m.id,
               role: m.role,
-              content: m.content,
+              content: m.parts
+                .map(p => (p.type === `text` ? p.text : null))
+                .filter(Boolean)
+                .join(`\n`),
+              // @ts-ignore
               createdAt: m.createdAt || new Date(),
             })),
           };
