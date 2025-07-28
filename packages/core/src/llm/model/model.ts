@@ -8,16 +8,7 @@ import {
   OpenAISchemaCompatLayer,
 } from '@mastra/schema-compat';
 import type { ModelMessage, Schema, StopCondition, StreamObjectOnFinishCallback, StreamTextOnFinishCallback } from 'ai';
-import {
-  generateObject,
-  generateText,
-  jsonSchema,
-  stepCountIs,
-  Output,
-  streamObject,
-  streamText,
-  convertToModelMessages,
-} from 'ai';
+import { generateObject, generateText, jsonSchema, stepCountIs, Output, streamObject, streamText } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod';
