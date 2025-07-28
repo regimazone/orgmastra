@@ -142,6 +142,18 @@ export class MessageList {
       response: this.response,
     };
   }
+  public get clear() {
+    return {
+      input: {
+        v2: () => {
+          const userMessages = Array.from(this.newUserMessages);
+          this.messages = this.messages.filter(m => !this.newUserMessages.has(m));
+          this.newUserMessages.clear();
+          return userMessages;
+        },
+      },
+    };
+  }
   private all = {
     v3: () => this.messages,
     v2: () => this.messages.map(MessageList.mastraMessageV3ToV2),
