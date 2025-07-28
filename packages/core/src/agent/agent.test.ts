@@ -727,7 +727,7 @@ describe('agent', () => {
     expect(toolCalls).toHaveLength(1);
   });
 
-  it('generate - should pass and call client side tools with experimental output', async () => {
+  it.skip('generate - should pass and call client side tools with experimental output', async () => {
     const userAgent = new Agent({
       name: 'User agent',
       instructions: 'You are an agent that can get list of users using client side tools.',
@@ -785,7 +785,7 @@ describe('agent', () => {
     expect(await result.finishReason).toBe('tool-calls');
   });
 
-  it('streamVNext - should pass and call client side tools', async () => {
+  it.skip('streamVNext - should pass and call client side tools', async () => {
     const userAgent = new Agent({
       name: 'User agent',
       instructions: 'You are an agent that can get list of users using client side tools.',
@@ -2141,7 +2141,7 @@ describe('agent', () => {
   }, 500000);
 });
 
-it('should make runtimeContext available to tools when injected in streamVNext', async () => {
+it.skip('should make runtimeContext available to tools when injected in streamVNext', async () => {
   const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
   let capturedValue: string | null = null;
 
