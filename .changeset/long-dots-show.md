@@ -14,7 +14,6 @@
 '@mastra/server': minor
 '@mastra/evals': minor
 '@mastra/mongodb': minor
-'@mastra/agui': minor
 '@mastra/core': minor
 '@mastra/libsql': minor
 '@mastra/mcp': minor
