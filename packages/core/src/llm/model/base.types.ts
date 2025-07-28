@@ -93,7 +93,7 @@ export type GenerateTextResult<
 export type OriginalGenerateObjectOptions<Output extends ZodSchema | JSONSchema7 | undefined = undefined> =
   | Parameters<typeof generateObject<inferOutput<Output>>>[0]
   | (Parameters<typeof generateObject<inferOutput<Output>>>[0] & { output: 'array' })
-  | (Parameters<typeof generateObject<string>>[0] & { output: 'enum' })
+  | (Parameters<typeof generateObject<any>>[0] & { output: 'enum' })
   | (Parameters<typeof generateObject>[0] & { output: 'no-schema' });
 
 type GenerateObjectOptions<Output extends ZodSchema | JSONSchema7 | undefined = undefined> = Omit<

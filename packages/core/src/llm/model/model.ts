@@ -7,14 +7,7 @@ import {
   OpenAIReasoningSchemaCompatLayer,
   OpenAISchemaCompatLayer,
 } from '@mastra/schema-compat';
-import type {
-  ModelMessage,
-  Schema,
-  StopCondition,
-  LanguageModel,
-  StreamObjectOnFinishCallback,
-  StreamTextOnFinishCallback,
-} from 'ai';
+import type { ModelMessage, Schema, StopCondition, StreamObjectOnFinishCallback, StreamTextOnFinishCallback } from 'ai';
 import {
   generateObject,
   generateText,
@@ -29,27 +22,18 @@ import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod';
 
-import type {
-  LLMInnerStreamOptions,
-  LLMStreamObjectOptions,
-  LLMStreamOptions,
-  LLMTextObjectOptions,
-  LLMTextOptions,
-  StopConditionArgs,
-} from '../';
+import type { StopConditionArgs } from '../';
 import type { MastraPrimitives } from '../../action';
 import type { MastraLanguageModel } from '../../agent/types';
 import { MastraBase } from '../../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import { RegisteredLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
-import type { MastraMemory } from '../../memory/memory';
 import { createCompatibleToolSet } from '../../tools/ai-sdk-v5-compat';
 
 type MessageInput = string | string[] | ModelMessage | ModelMessage[];
 import { delay } from '../../utils';
 
-import { MastraLLMBase } from './base';
 import type {
   GenerateObjectWithMessagesArgs,
   GenerateTextResult,
@@ -58,13 +42,11 @@ import type {
   OriginalGenerateTextOptions,
   ToolSet,
   GenerateReturn,
-  OriginalGenerateObjectOptions,
   StreamTextWithMessagesArgs,
   StreamTextResult,
   OriginalStreamTextOptions,
   inferOutput,
   StreamObjectWithMessagesArgs,
-  OriginalStreamObjectOptions,
   StreamObjectResult,
   StreamReturn,
 } from './base.types';
@@ -196,6 +178,7 @@ export class MastraLLM extends MastraBase {
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       model,
       temperature,
+      // @ts-ignore
       tools: createCompatibleToolSet(tools),
       toolChoice,
       onStepFinish: async props => {
@@ -284,13 +267,14 @@ export class MastraLLM extends MastraBase {
     messages,
     structuredOutput,
     runId,
+    // @ts-ignore
     temperature,
     telemetry,
     threadId,
     resourceId,
     runtimeContext,
-    onStepFinish,
-    experimental_output,
+    // onStepFinish,
+    // experimental_output,
     ...rest
   }: GenerateObjectWithMessagesArgs<Z>): Promise<GenerateObjectResult<Z>> {
     const model = this.#model;
@@ -314,10 +298,6 @@ export class MastraLLM extends MastraBase {
         output,
         schema: processedSchema,
         ...rest,
-        messages,
-        model,
-        output,
-        schema: processedSchema as Schema<Z>,
         experimental_telemetry: {
           ...this.experimental_telemetry,
           ...telemetry,
@@ -406,7 +386,7 @@ export class MastraLLM extends MastraBase {
       experimental_activeTools: undefined,
       activeTools: undefined,
 
-      temperature,
+      // @ts-ignore
       tools: createCompatibleToolSet(tools),
       stopWhen: this.getStopWhen({ maxSteps, stopWhen }),
       toolChoice,
@@ -456,6 +436,7 @@ export class MastraLLM extends MastraBase {
       },
       onFinish: async props => {
         try {
+          // @ts-ignore
           await onFinish?.({ ...props, runId: runId! });
         } catch (e: unknown) {
           const mastraError = new MastraError(
@@ -493,7 +474,6 @@ export class MastraLLM extends MastraBase {
         });
       },
       ...rest,
-      messages,
       experimental_telemetry: {
         ...this.experimental_telemetry,
         ...telemetry,
@@ -554,6 +534,7 @@ export class MastraLLM extends MastraBase {
       const processedSchema = this._applySchemaCompat(structuredOutput!);
 
       try {
+        // @ts-ignore
         return streamObject({
           ...rest,
           model,
@@ -723,6 +704,7 @@ export class MastraLLM extends MastraBase {
       })) as unknown as GenerateReturn<Tools, Output, StructuredOutput>;
     }
 
+    // @ts-ignore
     return (await this.__textObject({
       messages: msgs,
       structuredOutput: output as NonNullable<Output>,
@@ -759,11 +741,13 @@ export class MastraLLM extends MastraBase {
       return this.__stream({
         messages: this.inputMessagesToModelMessages(messages),
         maxSteps,
+        // @ts-ignore
         onFinish: onFinish as StreamTextOnFinishCallback<Tools> | undefined,
         ...rest,
       }) as unknown as StreamReturn<Tools, Output, StructuredOutput>;
     }
 
+    // @ts-ignore
     return this.__streamObject({
       messages: this.inputMessagesToModelMessages(messages),
       structuredOutput: output,

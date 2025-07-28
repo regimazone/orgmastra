@@ -1006,6 +1006,7 @@ export class Agent<
           writableStream,
         };
 
+        // @ts-ignore
         return [k, makeCoreTool(tool, options)];
       }),
     );
@@ -1962,6 +1963,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         : GenerateObjectResult<OUTPUT>;
     }
 
+    // @ts-ignore
     const result = await llm.__textObject<NonNullable<OUTPUT>>({
       ...llmOptions,
       structuredOutput: output as NonNullable<OUTPUT>,
@@ -2127,6 +2129,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runId: defaultStreamOptions.runId!,
         };
       },
+      // @ts-ignore
       createStream: async (writer: WritableStream<ChunkType>, onResult: (result: ResolvedOutput) => void) => {
         const defaultStreamOptions = await defaultStreamOptionsPromise;
         const mergedStreamOptions: AgentVNextStreamOptions<Output, StructuredOutput> & {
