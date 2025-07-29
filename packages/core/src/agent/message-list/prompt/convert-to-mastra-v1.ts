@@ -258,21 +258,24 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                   ],
                 });
 
-                // tool message with tool results
-                pushOrCombine({
-                  role: 'tool',
-                  ...fields,
-                  type: 'tool-result',
-                  content: stepInvocations.map((toolInvocation): ToolResultPart => {
-                    const { toolCallId, toolName, result } = toolInvocation;
-                    return {
-                      type: 'tool-result',
-                      toolCallId,
-                      toolName,
-                      result,
-                    };
-                  }),
-                });
+                // tool message with tool results (only include those that have results)
+                const toolResultInvocations = stepInvocations.filter(ti => ti.state === 'result' && 'result' in ti);
+                if (toolResultInvocations.length > 0) {
+                  pushOrCombine({
+                    role: 'tool',
+                    ...fields,
+                    type: 'tool-result',
+                    content: toolResultInvocations.map((toolInvocation): ToolResultPart => {
+                      const { toolCallId, toolName, result } = toolInvocation;
+                      return {
+                        type: 'tool-result',
+                        toolCallId,
+                        toolName,
+                        result,
+                      };
+                    }),
+                  });
+                }
               }
             }
           }
