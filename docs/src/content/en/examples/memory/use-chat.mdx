@@ -95,7 +95,6 @@ export async function POST(request: Request) {
   const agent = mastraClient.getAgent("ChatAgent"); // Use your agent's ID
 
   // Stream the response with memory context
-  // Convert single message to messages array for consistency
   const response = await agent.stream({
     messages: [{ role: message.role || "user", content: message.content }],
     threadId,
@@ -238,6 +237,7 @@ function ChatApp() {
 2. **Authentication errors**: Check your API key configuration
 3. **Message duplication**: Verify you're only sending the latest message
 4. **Missing thread history**: Ensure `threadId` and `resourceId` are passed correctly
+5. **CORS errors (direct connection)**: Configure your Mastra Server to allow requests from your frontend origin
 
 ## Related
 
