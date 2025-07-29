@@ -88,51 +88,67 @@ type LLMJudge = {
   instructions: string;
 };
 
-export type PreprocessStepFn = (input: ScoringInput) => Promise<Record<string, any>>;
-export type PreprocessStepConfig = {
+export type PreprocessStepFn<TOutput = any> = (input: ScoringInput) => Promise<TOutput>;
+export type PreprocessStepConfig<TOutput = any> = {
   description: string;
   judge?: LLMJudge;
-  outputSchema?: z.ZodType<any>;
+  outputSchema?: z.ZodType<TOutput>;
   createPrompt: ({ run }: { run: ScoringInput }) => string;
 };
 
-export type PreprocessStep = PreprocessStepFn | PreprocessStepConfig;
+export type PreprocessStep<TOutput = any> = PreprocessStepFn<TOutput> | PreprocessStepConfig<TOutput>;
 
 // Type guard helper
-export function isPreprocessConfig(step: PreprocessStep): step is PreprocessStepConfig {
+export function isPreprocessConfig<TOutput = any>(
+  step: PreprocessStep<TOutput>,
+): step is PreprocessStepConfig<TOutput> {
   return typeof step === 'object' && step !== null && 'createPrompt' in step;
 }
 
-export type AnalyzeStepFn = (input: ScoringInputWithExtractStepResult) => Promise<ScoringAnalyzeStepResult>;
+export type AnalyzeStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (
+  input: ScoringInputWithExtractStepResult<TPreprocessOutput>,
+) => Promise<ScoringAnalyzeStepResult>;
 
-export type AnalyzeStepConfig = {
+export type AnalyzeStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
   judge?: LLMJudge;
-  outputSchema?: z.ZodType<any>;
-  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResult }) => string;
+  outputSchema?: z.ZodType<TAnalyzeOutput>;
+  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResult<TPreprocessOutput> }) => string;
 };
 
-export type AnalyzeStep = AnalyzeStepFn | AnalyzeStepConfig;
+export type AnalyzeStep<TPreprocessOutput = any, TAnalyzeOutput = any> =
+  | AnalyzeStepFn<TPreprocessOutput, TAnalyzeOutput>
+  | AnalyzeStepConfig<TPreprocessOutput, TAnalyzeOutput>;
 
 // Type guard helper
-export function isAnalyzeConfig(step: AnalyzeStep): step is AnalyzeStepConfig {
+export function isAnalyzeConfig<TPreprocessOutput = any, TAnalyzeOutput = any>(
+  step: AnalyzeStep<TPreprocessOutput, TAnalyzeOutput>,
+): step is AnalyzeStepConfig<TPreprocessOutput, TAnalyzeOutput> {
   return typeof step === 'object' && step !== null && 'createPrompt' in step;
 }
 
-export type ReasonStepFn = (
-  input: ScoringInputWithExtractStepResultAndAnalyzeStepResult,
+export type ReasonStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (
+  input: ScoringInputWithExtractStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>,
 ) => Promise<{ reason: string; reasonPrompt?: string } | null>;
 
-export type ReasonStepConfig = {
+export type ReasonStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
   judge?: LLMJudge;
-  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResultAndAnalyzeStepResult }) => string;
+  createPrompt: ({
+    run,
+  }: {
+    run: ScoringInputWithExtractStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>;
+  }) => string;
 };
 
-export type ReasonStep = ReasonStepFn | ReasonStepConfig;
+export type ReasonStep<TPreprocessOutput = any, TAnalyzeOutput = any> =
+  | ReasonStepFn<TPreprocessOutput, TAnalyzeOutput>
+  | ReasonStepConfig<TPreprocessOutput, TAnalyzeOutput>;
 
 // Type guard helper
-export function isReasonConfig(step: ReasonStep): step is ReasonStepConfig {
+export function isReasonConfig<TPreprocessOutput = any, TAnalyzeOutput = any>(
+  step: ReasonStep<TPreprocessOutput, TAnalyzeOutput>,
+): step is ReasonStepConfig<TPreprocessOutput, TAnalyzeOutput> {
   return typeof step === 'object' && step !== null && 'createPrompt' in step;
 }
 
@@ -142,6 +158,17 @@ export type ScorerOptions = {
   extract?: ExtractionStepFn;
   analyze: AnalyzeStepFn;
   reason?: ReasonStepFn;
+  metadata?: Record<string, any>;
+  isLLMScorer?: boolean;
+};
+
+// New generic scorer options that support type flow with union types
+export type TypedScorerOptions<TPreprocessOutput = any, TAnalyzeOutput = any> = {
+  name: string;
+  description: string;
+  preprocess?: PreprocessStep<TPreprocessOutput>;
+  analyze: AnalyzeStep<TPreprocessOutput, TAnalyzeOutput>;
+  generateReason?: ReasonStep<TPreprocessOutput, TAnalyzeOutput>;
   metadata?: Record<string, any>;
   isLLMScorer?: boolean;
 };
