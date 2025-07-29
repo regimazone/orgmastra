@@ -4,7 +4,7 @@ import { Mastra } from '../mastra';
 import { createWorkflow, createStep } from './index';
 
 describe('Workflow Execution Engine Bug', () => {
-  it('should reproduce the executionEngine undefined error', async () => {
+  it('should allow destructred start method', async () => {
     // Create a simple workflow
     const stepOne = createStep({
       id: 'stepOne',
