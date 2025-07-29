@@ -17,7 +17,6 @@ import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import { AgentIcon } from '@/ds/icons';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 import Spinner from '@/components/ui/spinner';
 
 type DialogMode = 'view' | 'save';
@@ -174,7 +173,7 @@ export function AgentTraceDialog({
                         name="select-scorer"
                         value={selectedScorer}
                         onChange={value => {
-                          setSelectedScorer(value);
+                          // setSelectedScorer(value );
                         }}
                         options={scorers.map(scorer => ({
                           value: scorer.id,
@@ -202,7 +201,7 @@ export function AgentTraceDialog({
                   value={targetDataset}
                   placeholder="Select a dataset"
                   onChange={value => {
-                    setTargetDataset(value);
+                    //   setTargetDataset(value);
                   }}
                   options={datasets.map(dataset => ({
                     value: dataset.id,

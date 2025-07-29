@@ -242,7 +242,7 @@ export function SimpleDropdown({ onSelect, items, triggerContent }: SimpleDropdo
       <DropdownMenuTrigger>{triggerContent}</DropdownMenuTrigger>
       <DropdownMenuContent>
         {(items || []).map((item, idx) => (
-          <DropdownMenuItem key={idx} onSelect={() => onSelect(idx)}>
+          <DropdownMenuItem key={idx} onSelect={() => onSelect(idx.toString())}>
             {item.label}
           </DropdownMenuItem>
         ))}
