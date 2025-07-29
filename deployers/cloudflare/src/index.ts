@@ -103,6 +103,10 @@ export class CloudflareDeployer extends Deployer {
     import { AvailableHooks, registerHook } from '@mastra/core/hooks';
     import { TABLE_EVALS } from '@mastra/core/storage';
     import { checkEvalStorageFields } from '@mastra/core/utils';
+    import { telemetry } from '#telemetry-config';
+    import { instrument } from '@microlabs/otel-cf-workers';
+
+    globalThis.___MASTRA_TELEMETRY___ = true;
 
     export default {
       fetch: async (request, env, context) => {
@@ -149,6 +153,18 @@ export class CloudflareDeployer extends Deployer {
         const app = await createHonoServer(_mastra, { tools: getToolExports(tools) });
         return app.fetch(request, env, context);
       }
+
+      // Configure export
+        telemetryConfig.exporter = {
+          url: telemetry.export.endpoint,
+          headers: telemetry.export.headers || {},
+        };
+
+      return telemetryConfig;
+    };
+
+    export default {
+      fetch: telemetry.enabled !== false ? instrument(handler, config) : handler
     }
 `;
   }
