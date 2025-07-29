@@ -820,6 +820,14 @@ export class MessageList {
       messageSource,
     );
 
+    // Preserve original V1 content format in metadata for round-trip preservation
+    if (message.content !== undefined) {
+      coreV2.content.metadata = {
+        ...(coreV2.content.metadata || {}),
+        __originalV1Content: message.content,
+      };
+    }
+
     return {
       id: message.id,
       role: coreV2.role,

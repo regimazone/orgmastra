@@ -47,6 +47,22 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
     const message = messages[i];
     const isLastMessage = i === messages.length - 1;
     if (!message?.content) continue;
+
+    // Check if we have the original V1 content preserved
+    const originalV1Content = (message.content.metadata as any)?.__originalV1Content;
+    if (originalV1Content !== undefined) {
+      // Restore the exact original V1 message format
+      v1Messages.push({
+        id: message.id,
+        createdAt: message.createdAt,
+        resourceId: message.resourceId!,
+        threadId: message.threadId!,
+        role: message.role as 'user' | 'assistant',
+        type: 'text',
+        content: originalV1Content,
+      });
+      continue;
+    }
     const { content, experimental_attachments: inputAttachments = [], parts: inputParts } = message.content;
     const { role } = message;
     const fields = {
