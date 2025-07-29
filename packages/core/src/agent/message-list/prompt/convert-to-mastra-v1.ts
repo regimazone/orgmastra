@@ -133,12 +133,15 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                   break;
                 }
                 case 'tool-invocation':
-                  content.push({
-                    type: 'tool-call' as const,
-                    toolCallId: part.toolInvocation.toolCallId,
-                    toolName: part.toolInvocation.toolName,
-                    args: part.toolInvocation.args,
-                  });
+                  // Skip updateWorkingMemory tool calls as they should not be visible in history
+                  if (part.toolInvocation.toolName !== 'updateWorkingMemory') {
+                    content.push({
+                      type: 'tool-call' as const,
+                      toolCallId: part.toolInvocation.toolCallId,
+                      toolName: part.toolInvocation.toolName,
+                      args: part.toolInvocation.args,
+                    });
+                  }
                   break;
               }
             }
@@ -160,7 +163,8 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
             // check if there are tool invocations with results in the block
             const stepInvocations = block
               .filter(part => `type` in part && part.type === 'tool-invocation')
-              .map(part => part.toolInvocation);
+              .map(part => part.toolInvocation)
+              .filter(ti => ti.toolName !== 'updateWorkingMemory');
 
             // Only create tool-result message if there are actual results
             const invocationsWithResults = stepInvocations.filter(ti => ti.state === 'result' && 'result' in ti);
@@ -226,7 +230,9 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
               }
             }
 
-            const unprocessedToolInvocations = toolInvocations.filter(ti => !processedToolCallIds.has(ti.toolCallId));
+            const unprocessedToolInvocations = toolInvocations.filter(
+              ti => !processedToolCallIds.has(ti.toolCallId) && ti.toolName !== 'updateWorkingMemory',
+            );
 
             if (unprocessedToolInvocations.length > 0) {
               // Group by step, handling undefined steps
@@ -299,7 +305,9 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
         }, 0);
 
         for (let i = 0; i <= maxStep; i++) {
-          const stepInvocations = toolInvocations.filter(toolInvocation => (toolInvocation.step ?? 0) === i);
+          const stepInvocations = toolInvocations.filter(
+            toolInvocation => (toolInvocation.step ?? 0) === i && toolInvocation.toolName !== 'updateWorkingMemory',
+          );
 
           if (stepInvocations.length === 0) {
             continue;
