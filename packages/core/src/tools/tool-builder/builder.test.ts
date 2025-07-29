@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { MastraLanguageModel } from '../../agent';
 import { Agent } from '../../agent';
-import { createTool } from '../index';
+import { createTool } from '../../tools';
 
 type Result = {
   modelName: string;
