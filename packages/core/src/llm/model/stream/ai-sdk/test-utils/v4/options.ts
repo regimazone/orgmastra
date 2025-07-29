@@ -1,12 +1,13 @@
 import type { TextStreamPart } from 'ai';
-import { convertArrayToReadableStream } from 'ai/test';
+import { convertArrayToReadableStream, MockLanguageModelV1 } from 'ai/test';
 import { describe, beforeEach, expect, it } from 'vitest';
 import { z } from 'zod';
-import { createTestModel, defaultSettings, modelWithSources } from '../../../../test-utils';
-import type { AgenticLoop } from '../../../../vnext';
+import { createTestModel, defaultSettings, modelWithFiles, modelWithSources } from '../../../../test-utils';
+import type { execute } from '../../../execute';
 import { convertFullStreamChunkToAISDKv4 } from '../../v4';
+import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 
-export function optionsTests({ engine }: { engine: AgenticLoop }) {
+export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe.skip('options.onChunk', () => {
     let result: Array<
       Extract<
@@ -26,7 +27,8 @@ export function optionsTests({ engine }: { engine: AgenticLoop }) {
 
     beforeEach(async () => {
       result = [];
-      const resultObject = await engine.loop({
+      const resultObject = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             { type: 'text-delta', textDelta: 'Hello' },
@@ -92,62 +94,69 @@ export function optionsTests({ engine }: { engine: AgenticLoop }) {
         },
         prompt: 'test-input',
         toolCallStreaming: true,
-        onChunk(event) {
-          console.log('event', event);
+        options: {
+          onChunk(event) {
+            console.log('event', event);
 
-          const transformed = convertFullStreamChunkToAISDKv4({
-            chunk: event,
-            client: false,
-            sendReasoning: true,
-            sendSources: true,
-            sendUsage: true,
-            getErrorMessage: (error: string) => error,
-            toolCallStreaming: true,
-          });
+            const transformed = convertFullStreamChunkToAISDKv4({
+              chunk: event,
+              client: false,
+              sendReasoning: true,
+              sendSources: true,
+              sendUsage: true,
+              getErrorMessage: (error: string) => error,
+              toolCallStreaming: true,
+            });
 
-          console.log('transformed', transformed);
+            console.log('transformed', transformed);
 
-          if (transformed) {
-            result.push(transformed);
-          }
+            if (transformed) {
+              result.push(transformed);
+            }
+          },
         },
       });
 
       await resultObject.aisdk.v4.consumeStream();
     });
 
-    it.skip('should return events in order', async () => {
+    it('should return events in order', async () => {
       expect(result).toMatchSnapshot();
     });
   });
 
-  describe.skip('options.onError', () => {
+  describe('options.onError', () => {
     it('should invoke onError', async () => {
       const result: Array<{ error: unknown }> = [];
 
-      const resultObject = streamText({
+      const resultObject = await executeFn({
+        runId,
         model: new MockLanguageModelV1({
           doStream: async () => {
             throw new Error('test error');
           },
         }),
         prompt: 'test-input',
-        onError(event) {
-          result.push(event);
+        options: {
+          onError(event) {
+            console.log('ON ERROR FUNC', event);
+            result.push(event);
+          },
         },
       });
 
-      await resultObject.consumeStream();
+      await resultObject.aisdk.v4.consumeStream();
 
       expect(result).toStrictEqual([{ error: new Error('test error') }]);
     });
   });
 
-  describe.skip('options.onFinish', () => {
+  describe('options.onFinish', () => {
     it('should send correct information', async () => {
-      let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
+      let result!: any;
 
-      const resultObject = streamText({
+      const resultObject = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -184,24 +193,32 @@ export function optionsTests({ engine }: { engine: AgenticLoop }) {
             execute: async ({ value }) => `${value}-result`,
           },
         },
-        onFinish: async event => {
-          result = event as unknown as typeof result;
+        options: {
+          onFinish: async event => {
+            console.log(JSON.stringify(event, null, 2), 'MESSAGES in ONFINISH');
+            result = event as unknown as typeof result;
+          },
         },
         ...defaultSettings(),
       });
 
-      await resultObject.consumeStream();
+      await resultObject.aisdk.v4.consumeStream();
+
+      console.log('result', JSON.stringify(result, null, 2));
 
       expect(result).toMatchSnapshot();
     });
 
     it('should send sources', async () => {
-      let result!: Parameters<Required<Parameters<typeof engine.loop>[0]>['onFinish']>[0];
+      let result!: any;
 
-      const resultObject = await engine.loop({
+      const resultObject = await executeFn({
+        runId,
         model: modelWithSources,
-        onFinish: async event => {
-          result = event as unknown as typeof result;
+        options: {
+          onFinish: async event => {
+            result = event as unknown as typeof result;
+          },
         },
         ...defaultSettings(),
       });
@@ -212,30 +229,36 @@ export function optionsTests({ engine }: { engine: AgenticLoop }) {
     });
 
     it('should send files', async () => {
-      let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
+      let result!: any;
 
-      const resultObject = streamText({
+      const resultObject = await executeFn({
+        runId,
         model: modelWithFiles,
-        onFinish: async event => {
-          result = event as unknown as typeof result;
+        options: {
+          onFinish: async event => {
+            result = event as unknown as typeof result;
+          },
         },
         ...defaultSettings(),
       });
 
-      await resultObject.consumeStream();
+      await resultObject.aisdk.v4.consumeStream();
 
       expect(result).toMatchSnapshot();
     });
 
     it('should not prevent error from being forwarded', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV1({
           doStream: async () => {
             throw new Error('test error');
           },
         }),
         prompt: 'test-input',
-        onFinish() {}, // just defined; do nothing
+        options: {
+          onFinish() {}, // just defined; do nothing
+        },
       });
 
       expect(await convertAsyncIterableToArray(result.fullStream)).toStrictEqual([

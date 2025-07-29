@@ -8,7 +8,7 @@ import { createStep, createWorkflow } from '../../../workflows';
 import { executeV4 } from './ai-sdk/v4';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
-import type { AgentWorkflowProps, StreamExecutorProps } from './types';
+import type { AgentWorkflowProps, ExecuteOptions, StreamExecutorProps } from './types';
 import { ConsoleLogger, type MastraLogger } from '../../../logger';
 
 const toolCallInpuSchema = z.object({
@@ -42,6 +42,7 @@ function createAgentWorkflow({
   activeTools,
   toolCallStreaming,
   _internal,
+  experimental_generateMessageId,
   controller,
   options,
 }: AgentWorkflowProps) {
@@ -51,12 +52,6 @@ function createAgentWorkflow({
       inputSchema: toolCallInpuSchema,
       outputSchema: toolCallOutputSchema,
       execute: async ({ inputData, getStepResult }) => {
-        console.log('Tool call step');
-
-        console.log(JSON.stringify(inputData, null, 2));
-
-        console.log(Object.values(tools || {}));
-
         const tool =
           tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.name === inputData.toolName);
 
@@ -99,7 +94,9 @@ function createAgentWorkflow({
       }),
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
+        console.log(inputData.messages, 'RAW MESSAGES');
         const messageList = MessageList.fromArray(inputData.messages);
+        console.log(messageList.get.all.v1(), 'MESSAGE LIST v1 AFTER CONVERSION');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -165,6 +162,10 @@ function createAgentWorkflow({
 
         try {
           for await (const chunk of outputStream.fullStream) {
+            if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
+              await options?.onChunk?.(chunk);
+            }
+
             switch (chunk.type) {
               case 'error':
                 runState.setState({
@@ -184,6 +185,8 @@ function createAgentWorkflow({
                     },
                   },
                 });
+
+                await options?.onError?.({ error: chunk.payload.error });
 
                 break;
               case 'response-metadata':
@@ -222,6 +225,7 @@ function createAgentWorkflow({
                     request,
                   },
                 });
+
                 break;
               case 'reasoning': {
                 const reasoningDeltasFromState = runState.state.reasoningDeltas;
@@ -282,7 +286,7 @@ function createAgentWorkflow({
                     },
                   });
 
-                  options?.onChunk?.({
+                  await options?.onChunk?.({
                     type: 'tool-call-streaming-start',
                     from: 'AGENT',
                     runId: chunk.runId,
@@ -320,14 +324,16 @@ function createAgentWorkflow({
             }
 
             if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
-              options?.onChunk?.(chunk);
+              await options?.onChunk?.(chunk);
             }
 
             if (runState.state.hasErrored) {
               break;
             }
           }
-        } catch {
+        } catch (error) {
+          console.log('Error in LLM Execution Step', error);
+
           runState.setState({
             hasErrored: true,
             stepFinishPayload: {
@@ -395,7 +401,6 @@ function createAgentWorkflow({
         /**
          * Assemble messages
          */
-
         const allMessages = messageList.get.all.v1().map(message => {
           return {
             id: message.id,
@@ -406,6 +411,8 @@ function createAgentWorkflow({
 
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
+
+        console.log('NON USER MESSAGES', JSON.stringify(nonUserMessages, null, 2));
 
         const stepFinishPayload = runState.state.stepFinishPayload;
 
@@ -433,6 +440,7 @@ function createAgentWorkflow({
             providerMetadata: providerMetadata,
             metadata: responseMetadata,
           },
+          steps: outputStream.steps,
           userMessages: userMessages,
           messages: nonUserMessages,
         };
@@ -447,8 +455,6 @@ function createAgentWorkflow({
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
-
-        console.log('stepFinishPayload', initialResult.response.stepFinishPayload);
 
         const messageList = MessageList.fromArray(initialResult.messages || []);
 
@@ -465,6 +471,8 @@ function createAgentWorkflow({
 
         if (inputData?.length) {
           for (const toolCall of inputData) {
+            console.log('Returning tool result', toolCall);
+
             const chunk = {
               type: 'tool-result',
               runId: runId,
@@ -479,11 +487,14 @@ function createAgentWorkflow({
 
             controller.enqueue(chunk);
 
-            options?.onChunk?.(chunk);
+            await options?.onChunk?.(chunk);
           }
+
+          const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
           messageList.add(
             {
+              id: toolResultMessageId,
               role: 'tool',
               content: inputData.map(toolCall => {
                 return {
@@ -497,6 +508,14 @@ function createAgentWorkflow({
             },
             'response',
           );
+
+          initialResult.response.stepFinishPayload.response.messages = messageList.get.all.v1().map(message => {
+            return {
+              id: message.id,
+              role: message.role,
+              content: message.content,
+            };
+          });
         }
 
         controller.enqueue({
@@ -508,7 +527,13 @@ function createAgentWorkflow({
 
         return {
           ...initialResult,
-          messages: messageList.get.all.core(),
+          messages: messageList.get.all.v1().map(message => {
+            return {
+              id: message.id,
+              role: message.role,
+              content: message.content,
+            };
+          }),
         };
       },
     });
@@ -549,7 +574,7 @@ function createStreamExecutor({
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
-      const messageId = experimental_generateMessageId?.() || _internal.generateId?.();
+      const messageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
       let stepCount = 0;
 
@@ -563,6 +588,7 @@ function createStreamExecutor({
         activeTools,
         inputMessages,
         _internal,
+        experimental_generateMessageId,
         controller,
         options,
         logger,
@@ -605,6 +631,8 @@ function createStreamExecutor({
       }
 
       // @TODO: CLEAN THIS SHIT UP BELOW
+
+      console.log('EXECUTION RESULT MESSAGES', JSON.stringify(executionResult.result.messages, null, 2));
 
       const finishPayload = {
         logprobs: executionResult.result.response.logprobs,
@@ -674,18 +702,18 @@ export async function execute(
 
   const messages = messageList.get.all.core() as LanguageModelV1Prompt;
 
-  if (_internal) {
-    // We call this for no reason because of aisdk
-    _internal.generateId?.();
-  }
+  let _internalToUse = _internal || {
+    currentDate: () => new Date(),
+    now: () => Date.now(),
+    generateId,
+  };
+
+  // We call this for no reason because of aisdk
+  _internalToUse.generateId?.();
 
   const streamExecutorProps: StreamExecutorProps = {
     runId,
-    _internal: _internal || {
-      currentDate: () => new Date(),
-      now: () => Date.now(),
-      generateId,
-    },
+    _internal: _internalToUse,
     inputMessages: messages,
     logger: loggerToUse,
     ...rest,
@@ -697,6 +725,7 @@ export async function execute(
     stream: executor,
     options: {
       toolCallStreaming: rest.toolCallStreaming,
+      onFinish: rest.options?.onFinish,
     },
   });
 }

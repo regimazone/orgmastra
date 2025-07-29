@@ -19,6 +19,12 @@ export type StreamInternal = {
   currentDate?: () => Date;
 };
 
+export type ExecuteOptions = {
+  onChunk?: (chunk: ChunkType) => Promise<void> | void;
+  onError?: ({ error }: { error: Error | string }) => Promise<void> | void;
+  onFinish?: (event: any) => Promise<void> | void;
+};
+
 export type ExecutionProps = {
   model: LanguageModelV1;
   inputMessages: LanguageModelV1Prompt;
@@ -28,10 +34,12 @@ export type ExecutionProps = {
   toolChoice?: ToolChoice<ToolSet> | undefined;
   activeTools?: Array<keyof ToolSet> | undefined;
   _internal?: StreamInternal;
+  experimental_generateMessageId?: Pick<
+    Parameters<typeof streamText>[0],
+    'experimental_generateMessageId'
+  >['experimental_generateMessageId'];
   toolCallStreaming?: boolean;
-  options?: {
-    onChunk: (chunk: ChunkType) => void;
-  };
+  options?: ExecuteOptions;
   logger?: MastraLogger;
 };
 
@@ -43,8 +51,4 @@ export type AgentWorkflowProps = {
 export type StreamExecutorProps = {
   maxSteps?: number;
   maxRetries?: number;
-  experimental_generateMessageId?: Pick<
-    Parameters<typeof streamText>[0],
-    'experimental_generateMessageId'
-  >['experimental_generateMessageId'];
 } & ExecutionProps;

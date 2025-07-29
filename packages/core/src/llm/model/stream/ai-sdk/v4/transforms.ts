@@ -14,7 +14,6 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       },
     };
   } else if (value.type === 'tool-call') {
-    console.log('tool-callzzzz', value);
     return {
       type: 'tool-call',
       runId: ctx.runId,

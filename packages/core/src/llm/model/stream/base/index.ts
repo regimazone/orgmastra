@@ -78,12 +78,21 @@ export class MastraModelOutput extends MastraBase {
     totalTokens: 0,
   };
 
-  constructor({ stream, options }: { stream: ReadableStream<ChunkType>; options: { toolCallStreaming?: boolean } }) {
+  constructor({
+    stream,
+    options,
+  }: {
+    stream: ReadableStream<ChunkType>;
+    options: {
+      toolCallStreaming?: boolean;
+      onFinish?: (event: any) => Promise<void> | void;
+    };
+  }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
     const self = this;
     this.#baseStream = stream.pipeThrough(
       new TransformStream<ChunkType, ChunkType>({
-        transform(chunk, controller) {
+        transform: async (chunk, controller) => {
           switch (chunk.type) {
             case 'source':
               self.#bufferedSources.push(chunk.payload.source);
@@ -117,7 +126,6 @@ export class MastraModelOutput extends MastraBase {
               self.#toolResults.push({ type: 'tool-result', ...chunk.payload });
               break;
             case 'step-finish': {
-              console.log('step-finish zzzz', chunk);
               self.updateUsageCount(chunk.payload.totalUsage);
               chunk.payload.totalUsage = self.#usageCount;
               self.#warnings = chunk.payload.warnings;
@@ -172,7 +180,6 @@ export class MastraModelOutput extends MastraBase {
               break;
             }
             case 'finish':
-              console.log('finish zzzz', chunk.payload);
               if (chunk.payload.reason) {
                 self.#finishReason = chunk.payload.reason;
               }
@@ -189,6 +196,26 @@ export class MastraModelOutput extends MastraBase {
               }
 
               self.#usageCount = chunk.payload.totalUsage;
+
+              const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
+
+              if (baseFinishStep) {
+                const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
+
+                console.log('FINISH CHUNK', JSON.stringify(chunk.payload.messages, null, 2));
+
+                await options?.onFinish?.({
+                  ...rest,
+                  finishReason: chunk.payload.reason,
+                  steps: self.#bufferedSteps,
+                  experimental_providerMetadata: chunk.payload.providerMetadata,
+                  response: {
+                    ...rest.response,
+                    messages: chunk.payload.messages,
+                  },
+                });
+              }
+
               break;
           }
           controller.enqueue(chunk);
@@ -221,6 +248,7 @@ export class MastraModelOutput extends MastraBase {
   }
 
   get steps() {
+    console.log('steps getter', this.#bufferedSteps);
     return this.#bufferedSteps;
   }
 
@@ -289,7 +317,6 @@ export class MastraModelOutput extends MastraBase {
     completionTokens?: `${number}` | number;
     totalTokens?: `${number}` | number;
   }) {
-    console.log('UPDATE USAGE COUNT', usage);
     this.#usageCount.promptTokens += parseInt(usage.promptTokens?.toString() ?? '0', 10);
     this.#usageCount.completionTokens += parseInt(usage.completionTokens?.toString() ?? '0', 10);
     this.#usageCount.totalTokens += parseInt(usage.totalTokens?.toString() ?? '0', 10);
