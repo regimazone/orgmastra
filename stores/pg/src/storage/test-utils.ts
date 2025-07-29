@@ -73,6 +73,51 @@ export function pgTests() {
       });
     });
 
+    describe('Large Payload Handling', () => {
+      it('should handle or fail gracefully when inserting a very large workflow snapshot payload', async () => {
+        // 100MB string payload
+        const hugeString = 'A'.repeat(100 * 1024 * 1024);
+        const hugeSnapshot = { context: hugeString, meta: { ts: Date.now() } };
+        const workflowName = 'large_payload_test';
+        const runId = 'run_' + Date.now();
+        let error: any = null;
+        try {
+          await store.persistWorkflowSnapshot({ workflowName, runId, snapshot: hugeSnapshot });
+        } catch (e) {
+          error = e;
+        }
+        expect(error).toBeNull();
+        const loadedSnapshot = await store.loadWorkflowSnapshot({ workflowName, runId });
+        expect(loadedSnapshot).toBeDefined();
+        expect(loadedSnapshot.context).toEqual(hugeString);
+        expect(loadedSnapshot.meta.ts).toBeDefined();
+      }, 120_000);
+
+      it('should handle or fail gracefully when inserting a very large workflow snapshot with a huge object payload', async () => {
+        // ~100MB object payload: Array of 25,000 objects, each ~4KB
+        const hugeObjectArray = Array.from({ length: 25000 }, (_, i) => ({
+          idx: i,
+          data: 'A'.repeat(4096), // 4KB per entry
+          meta: { nested: { timestamp: Date.now(), rand: Math.random() } },
+        }));
+        const hugeSnapshot = { context: hugeObjectArray, meta: { ts: Date.now() } };
+        const workflowName = 'large_object_payload_test';
+        const runId = 'run_' + Date.now();
+        let error: any = null;
+        try {
+          await store.persistWorkflowSnapshot({ workflowName, runId, snapshot: hugeSnapshot });
+        } catch (e) {
+          error = e;
+        }
+        expect(error).toBeNull();
+
+        const loadedSnapshot = await store.loadWorkflowSnapshot({ workflowName, runId });
+        expect(loadedSnapshot).toBeDefined();
+        expect(loadedSnapshot.context).toEqual(hugeObjectArray);
+        expect(loadedSnapshot.meta.ts).toBeDefined();
+      }, 120_000);
+    });
+
     describe('PgStorage Table Name Quoting', () => {
       const camelCaseTable = 'TestCamelCaseTable';
       const snakeCaseTable = 'test_snake_case_table';
