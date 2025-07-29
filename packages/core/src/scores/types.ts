@@ -190,7 +190,7 @@ export type InternalAnalyzeStepFn = (
 
 export type InternalReasonStepFn = (
   input: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore,
-) => Promise<{ reason: string } | null>;
+) => Promise<{ reason: string; prompt?: string } | null>;
 
 export type ScorerOptions = {
   name: string;

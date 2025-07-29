@@ -188,6 +188,7 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
 
             return {
               reason: result.object.reason,
+              prompt,
             };
           } else {
             // Function-based reasoning - wrap result automatically
