@@ -8,7 +8,6 @@ import type {
   SupportedEdgeType,
   KGRagOptions,
   GraphChunk,
-  GraphEmbedding,
   RankedNode,
 } from './types';
 
@@ -39,10 +38,10 @@ export class KGRag {
     if (this.schema) this.validateNode(node);
     if (this.options.requireEmbedding) {
       if (!node.embedding) {
-        throw new Error(`Node '${node.id}' must have an embedding.`);
+        throw new Error(`Node ${node.id} must have an embedding.`);
       }
       if (this.options.embeddingDimension !== undefined && node.embedding.length !== this.options.embeddingDimension) {
-        throw new Error(`Node '${node.id}' embedding dimension must be ${this.options.embeddingDimension}.`);
+        throw new Error(`Node ${node.id} embedding dimension must be ${this.options.embeddingDimension}.`);
       }
     }
     this.nodes.set(node.id, node);
@@ -71,9 +70,7 @@ export class KGRag {
     if (this.schema) this.validateEdge(edge);
     // Source/target existence check
     if (!this.nodes.has(edge.source) || !this.nodes.has(edge.target)) {
-      throw new Error(
-        `Edge '${edge.id}': both source ('${edge.source}') and target ('${edge.target}') nodes must exist.`,
-      );
+      throw new Error(`Both source ('${edge.source}') and target ('${edge.target}') nodes must exist.`);
     }
     this.edges.set(edge.id, edge);
     // Optional bidirectional edge
@@ -151,7 +148,7 @@ export class KGRag {
     return Array.from(this.nodes.values()).filter(node => node.properties?.[key] === value);
   }
 
-  batchAddNodes(nodes: KGNode[]) {
+  addNodes(nodes: KGNode[]) {
     for (const node of nodes) {
       this.addNode(node);
     }
@@ -175,7 +172,7 @@ export class KGRag {
       .map(edge => ({ id: edge.target, weight: edge.weight ?? 1 }));
   }
 
-  batchAddEdges(edges: KGEdge[]) {
+  addEdges(edges: KGEdge[]) {
     for (const edge of edges) {
       this.addEdge(edge);
     }
@@ -186,7 +183,7 @@ export class KGRag {
   /**
    * Compute cosine similarity between two vectors.
    */
-  static cosineSimilarity(vec1: number[], vec2: number[]): number {
+  cosineSimilarity(vec1: number[], vec2: number[]): number {
     if (!vec1 || !vec2) {
       throw new Error('Vectors must not be null or undefined');
     }
@@ -211,48 +208,112 @@ export class KGRag {
   /**
    * Utility to build a graph from text chunks and embeddings.
    */
-  createGraph(
-    chunks: GraphChunk[],
-    embeddings: GraphEmbedding[],
-    options: { threshold?: number; edgeType?: SupportedEdgeType; nodeType?: string } = {},
-  ): KGRag {
-    const threshold = options.threshold ?? 0.7;
-    const edgeType = options.edgeType ?? 'semantic';
-    const nodeType = options.nodeType ?? 'Document';
-    const now = new Date().toISOString();
-    const graph = new KGRag({ metadata: { name: 'GraphRAG', createdAt: now } });
+  addNodesFromChunks({
+    chunks,
+    edgeStrategy = 'cosine',
+    edgeOptions = {},
+    nodeType = 'Document',
+  }: {
+    chunks: GraphChunk[];
+    edgeStrategy?: 'cosine' | 'explicit' | 'callback';
+    edgeOptions?: any;
+    nodeType?: string;
+  }) {
+    if (!chunks?.length) {
+      throw new Error('Chunks array must not be empty');
+    }
+
+    let newNodes: KGNode[] = [];
     // Add nodes
-    chunks.forEach((chunk, index) => {
+    chunks.forEach((chunk, idx) => {
       const node: KGNode = {
-        id: index.toString(),
+        id: idx.toString(),
         type: nodeType,
         labels: [],
         properties: { text: chunk.text, ...chunk.metadata },
-        embedding: embeddings[index]?.vector,
-        createdAt: now,
+        embedding: chunk.embedding,
+        createdAt: new Date().toISOString(),
       };
-      graph.addNode(node);
+      newNodes.push(node);
     });
-    // Add edges based on cosine similarity
-    for (let i = 0; i < chunks.length; i++) {
-      const firstEmbedding = embeddings[i]?.vector as number[];
-      for (let j = i + 1; j < chunks.length; j++) {
-        const secondEmbedding = embeddings[j]?.vector as number[];
-        const similarity = KGRag.cosineSimilarity(firstEmbedding, secondEmbedding);
-        if (similarity > threshold) {
-          graph.addEdge({
-            id: `${i}__${j}__${edgeType}`,
-            source: i.toString(),
-            target: j.toString(),
+    this.addNodes(newNodes);
+
+    // Add edges based on strategy
+    switch (edgeStrategy) {
+      case 'cosine':
+        this.addEdgesByCosineSimilarity(newNodes, edgeOptions?.threshold ?? 0.7, edgeOptions?.edgeType ?? 'semantic');
+        break;
+      case 'explicit':
+        this.addEdges(edgeOptions?.edges ?? []);
+        break;
+      case 'callback':
+        this.addEdgesByCallback(newNodes, edgeOptions?.callback);
+        break;
+      default:
+        // No edges by default
+        break;
+    }
+  }
+
+  private hasValidEmbedding(node: KGNode): node is KGNode {
+    return Array.isArray(node.embedding) && node.embedding.every(e => typeof e === 'number');
+  }
+
+  addEdgesByCosineSimilarity(nodes: KGNode[], threshold: number = 0.7, edgeType: SupportedEdgeType = 'semantic') {
+    const embeddingNodes = nodes.filter(this.hasValidEmbedding);
+    if (embeddingNodes.length < 2) return;
+    let newEdges: KGEdge[] = [];
+    const seen = new Set<string>();
+    for (const firstNode of embeddingNodes) {
+      seen.add(firstNode.id);
+      for (const secondNode of embeddingNodes) {
+        if (firstNode.id === secondNode.id || seen.has(secondNode.id)) continue;
+        const sim = this.cosineSimilarity(firstNode.embedding as number[], secondNode.embedding as number[]);
+        if (sim > threshold) {
+          newEdges.push({
+            id: `${firstNode.id}__${secondNode.id}__${edgeType}`,
+            source: firstNode.id,
+            target: secondNode.id,
             type: edgeType,
             supportedEdgeType: edgeType,
-            weight: similarity,
-            createdAt: now,
+            weight: sim,
+            createdAt: new Date().toISOString(),
           });
         }
       }
     }
-    return graph;
+    this.addEdges(newEdges);
+  }
+
+  addEdgesByCallback(nodes: KGNode[], callback: (a: KGNode, b: KGNode) => boolean | Partial<KGEdge> | undefined) {
+    let newEdges: KGEdge[] = [];
+    const seen = new Set<string>();
+    for (const firstNode of nodes) {
+      seen.add(firstNode.id);
+      for (const secondNode of nodes) {
+        if (firstNode.id === secondNode.id || seen.has(secondNode.id)) continue;
+        const result = callback(firstNode, secondNode);
+        if (result === true) {
+          newEdges.push({
+            id: `${firstNode.id}__${secondNode.id}`,
+            source: firstNode.id,
+            target: secondNode.id,
+            type: 'custom',
+            createdAt: new Date().toISOString(),
+          });
+        } else if (typeof result === 'object' && result !== undefined) {
+          newEdges.push({
+            id: result.id ?? `${firstNode.id}__${secondNode.id}`,
+            source: firstNode.id,
+            target: secondNode.id,
+            type: result.type ?? 'custom',
+            ...result,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+    this.addEdges(newEdges);
   }
 
   /**
@@ -319,20 +380,20 @@ export class KGRag {
       throw new Error(`Query embedding must have dimension ${this.options.embeddingDimension}`);
     }
     if (topK < 1) {
-      throw new Error('topK must be greater than 0');
+      throw new Error('TopK must be greater than 0');
     }
     if (randomWalkSteps < 1) {
-      throw new Error('randomWalkSteps must be greater than 0');
+      throw new Error('Random walk steps must be greater than 0');
     }
     if (restartProb <= 0 || restartProb >= 1) {
-      throw new Error('restartProb must be between 0 and 1');
+      throw new Error('Restart probability must be between 0 and 1');
     }
     // Compute similarities
     const similarities = Array.from(this.nodes.values())
-      .filter(node => node.embedding)
+      .filter(node => Array.isArray(node.embedding) && node.embedding.length === query.length)
       .map(node => ({
         node,
-        similarity: KGRag.cosineSimilarity(query, node.embedding!),
+        similarity: this.cosineSimilarity(query, node.embedding!),
       }));
     similarities.sort((a, b) => b.similarity - a.similarity);
     const topNodes = similarities.slice(0, topK);
@@ -374,8 +435,8 @@ export class KGRag {
   static deserialize(json: string, schema?: KGSchema): KGRag {
     const obj = JSON.parse(json) as KGGraph;
     const kg = new KGRag({ metadata: obj.metadata || { name: '', createdAt: new Date().toISOString() }, schema });
-    kg.batchAddNodes(obj.nodes || []);
-    kg.batchAddEdges(obj.edges || []);
+    kg.addNodes(obj.nodes || []);
+    kg.addEdges(obj.edges || []);
     return kg;
   }
 

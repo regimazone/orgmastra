@@ -71,10 +71,7 @@ export interface KGSchema {
 export interface GraphChunk {
   text: string;
   metadata: Record<string, any>;
-}
-
-export interface GraphEmbedding {
-  vector: number[];
+  embedding?: number[];
 }
 
 export interface RankedNode extends KGNode {
