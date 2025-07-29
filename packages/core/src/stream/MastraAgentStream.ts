@@ -1,19 +1,15 @@
 import { ReadableStream, TransformStream } from 'stream/web';
-import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData, TextStreamPart } from 'ai';
-import type { ChunkType } from './types';
-import { DefaultGeneratedFileWithType } from './generated-file';
-import type { ServerResponse } from 'http';
+import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import {
   consumeStream,
   getErrorMessage,
   getErrorMessageV4,
   mergeStreams,
-  prepareOutgoingHttpHeaders,
   prepareResponseHeaders,
-  writeToServerResponse,
-  type ConsumeStreamOptions,
-} from './compat';
-import { formatDataStreamPart, type DataStreamString } from '@ai-sdk/ui-utils';
+} from '../llm/model/stream/ai-sdk/v4/compat';
+import type { ConsumeStreamOptions } from '../llm/model/stream/ai-sdk/v4/compat';
+import { DefaultGeneratedFileWithType } from '../llm/model/stream/ai-sdk/v4/file';
+import type { ChunkType } from './types';
 
 function convertFullStreamChunkToAISDKv4({
   chunk,

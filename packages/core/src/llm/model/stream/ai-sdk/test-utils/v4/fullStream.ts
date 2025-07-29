@@ -3,15 +3,15 @@ import { tool } from 'ai';
 import { MockLanguageModelV1, mockId, mockValues } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { delay } from '../../../../utils';
+import { delay } from '../../../../../../utils';
 import {
   createTestModel,
   defaultSettings,
   modelWithFiles,
   modelWithReasoning,
   modelWithSources,
-} from '../../test-utils';
-import type { AgenticLoop } from '../../vnext';
+} from '../../../../test-utils';
+import type { AgenticLoop } from '../../../../vnext';
 
 export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId: string }) {
   describe('result.fullStream', () => {

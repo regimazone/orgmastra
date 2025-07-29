@@ -1,10 +1,10 @@
 import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 import { MockLanguageModelV1 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
-import { createTestModel, defaultSettings, modelWithReasoning } from '../../test-utils';
-import type { AgenticLoop } from '../../vnext';
+import { createTestModel, defaultSettings, modelWithReasoning } from '../../../../test-utils';
+import type { execute } from '../../../execute';
 
-export function textStreamTests({ engine, runId }: { engine: AgenticLoop; runId: string }) {
+export function textStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.textStream', () => {
     it('should send text deltas', async () => {
       const model = new MockLanguageModelV1({
@@ -40,7 +40,7 @@ export function textStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
         },
       });
 
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model,
         system: 'You are a helpful assistant.',
@@ -55,7 +55,7 @@ export function textStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should filter out empty text deltas', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -84,7 +84,7 @@ export function textStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should not include reasoning content in textStream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         model: modelWithReasoning,
         runId,
         ...defaultSettings(),
@@ -94,7 +94,7 @@ export function textStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should swallow error to prevent server crash', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model: new MockLanguageModelV1({
           doStream: async () => {

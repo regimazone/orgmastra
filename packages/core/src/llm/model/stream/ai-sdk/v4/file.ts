@@ -5,18 +5,18 @@ import { convertBase64ToUint8Array, convertUint8ArrayToBase64 } from '@ai-sdk/pr
  */
 export interface GeneratedFile {
   /**
-  File as a base64 encoded string.
-       */
+    File as a base64 encoded string.
+         */
   readonly base64: string;
 
   /**
-  File as a Uint8Array.
-       */
+    File as a Uint8Array.
+         */
   readonly uint8Array: Uint8Array;
 
   /**
-  MIME type of the file
-     */
+    MIME type of the file
+       */
   readonly mimeType: string;
 }
 

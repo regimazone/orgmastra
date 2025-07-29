@@ -1,11 +1,12 @@
-import { generateId, type LanguageModel, type ToolSet } from 'ai';
+import { generateId } from 'ai';
+import type { LanguageModel, ToolSet } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../agent/message-list';
-import { MastraAgentStream } from '../../stream/MastraAgentStream';
+import type { ChunkType } from '../../stream/types';
 import { createWorkflow, createStep } from '../../workflows';
 import { prepareToolsAndToolChoice } from './prepare-tools';
-import { AISDKV4InputStream } from '../../stream/aisdk/v4';
-import { MastraModelOutput } from '../../stream/base';
+import { AISDKV4InputStream } from './stream/ai-sdk/v4';
+import { MastraModelOutput } from './stream/base';
 
 export class AgenticLoop {
   stepCount = 0;
@@ -60,14 +61,17 @@ export class AgenticLoop {
           id: 'generateText',
         } as any);
 
-        const messageList = this.toMessageList(initialResult.messages);
+        const messageList = this.toMessageList(initialResult.userMessages);
 
-        const result = await tool.execute(JSON.parse(inputData.args), {
+        const result = await tool.execute(inputData.args, {
           toolCallId: inputData.toolCallId,
-          messages: messageList.get.all.ui().map(message => ({
-            role: message.role,
-            content: message.content,
-          })) as any,
+          messages: messageList.get.all
+            .ui()
+            .filter(message => message.role === 'user')
+            .map(message => ({
+              role: message.role,
+              content: message.content,
+            })) as any,
         });
 
         return { result, ...inputData };
@@ -85,6 +89,8 @@ export class AgenticLoop {
     messageId,
     _internal,
     toolCallStreaming,
+    experimental_generateMessageId,
+    onChunk,
   }: {
     controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
@@ -109,9 +115,17 @@ export class AgenticLoop {
       execute: async ({ inputData }) => {
         this.stepCount++;
 
+        console.log('inputData FOR LLM', JSON.stringify(inputData.messages, null, 2));
+
         const messageList = this.toMessageList(inputData.messages || []);
 
+        console.log('messageList FOR LLM', JSON.stringify(messageList.get.all.core(), null, 2));
+
         let stream;
+        let warnings;
+        let request = {};
+        let rawResponse: any;
+
         if (model.specificationVersion === 'v1') {
           const v4 = new AISDKV4InputStream({
             component: 'LLM',
@@ -136,6 +150,10 @@ export class AgenticLoop {
                   prompt: messageList.get.all.core() as any,
                 });
 
+                warnings = stream.warnings;
+                request = stream.request || {};
+                rawResponse = stream.rawResponse;
+
                 return stream.stream as any;
               } catch (error) {
                 console.error('DO STREAM ERROR', error);
@@ -153,49 +171,12 @@ export class AgenticLoop {
           });
         }
 
-        console.log('toolCallStreaming', toolCallStreaming);
         const outputStream = new MastraModelOutput({
           stream: stream!,
           options: {
             toolCallStreaming: toolCallStreaming,
           },
         });
-
-        // const agentStream = new MastraAgentStream({
-        //   createStream: async () => {
-        //     try {
-        //       const stream = await model.doStream({
-        //         inputFormat: 'messages',
-        //         mode: {
-        //           type: 'regular',
-        //           ...prepareToolsAndToolChoice({
-        //             tools,
-        //             toolChoice: toolChoice as any,
-        //             activeTools: Object.keys(tools || {}),
-        //           }),
-        //         },
-        //         providerMetadata,
-        //         prompt: messageList.get.all.core() as any,
-        //       });
-
-        //       return stream.stream as any;
-        //     } catch (error) {
-        //       console.error('DO STREAM ERROR', error);
-        //       return new ReadableStream({
-        //         start: async controller => {
-        //           controller.enqueue({
-        //             type: 'error',
-        //             error,
-        //           });
-        //           controller.close();
-        //         },
-        //       });
-        //     }
-        //   },
-        //   getOptions: () => {
-        //     return { runId };
-        //   },
-        // });
 
         const defaultResponseMetadata = {
           id: _internal?.generateId?.(),
@@ -216,10 +197,12 @@ export class AgenticLoop {
         let usage;
         let hasToolCallStreaming = false;
 
+        let reasoningDeltas: any[] = [];
+
         await controller.enqueue({
           type: 'step-start',
           payload: {
-            request: {},
+            request: request,
             warnings: [],
             messageId: messageId,
           },
@@ -254,6 +237,7 @@ export class AgenticLoop {
                 stepFinishPayload = {
                   reason: chunk.payload.reason,
                   logprobs: chunk.payload.logprobs,
+                  warnings: warnings,
                   totalUsage: {
                     promptTokens: chunk.payload.totalUsage.promptTokens,
                     completionTokens: chunk.payload.totalUsage.completionTokens,
@@ -261,14 +245,49 @@ export class AgenticLoop {
                       chunk.payload.totalUsage.totalTokens ||
                       chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
                   },
-                  response: responseMetadata || defaultResponseMetadata,
+                  response: {
+                    ...(responseMetadata || defaultResponseMetadata),
+                    headers: rawResponse?.headers,
+                    messages: [],
+                  },
                   messageId,
                   isContinued: !['stop', 'error'].includes(chunk.payload.reason),
-                  warnings: chunk.payload.warnings,
                   experimental_providerMetadata: chunk.payload.providerMetadata,
                   providerMetadata: chunk.payload.providerMetadata,
-                  request: {},
+                  request,
                 };
+                break;
+              case 'reasoning':
+                reasoningDeltas.push(chunk.payload.text);
+                await controller.enqueue(chunk);
+                break;
+              case 'reasoning-signature':
+                if (reasoningDeltas.length) {
+                  messageList.add(
+                    {
+                      id: messageId,
+                      role: 'assistant',
+                      content: [
+                        { type: 'reasoning', text: reasoningDeltas.join(''), signature: chunk.payload.signature },
+                      ],
+                    },
+                    'response',
+                  );
+                  reasoningDeltas = [];
+                }
+
+                await controller.enqueue(chunk);
+                break;
+              case 'redacted-reasoning':
+                messageList.add(
+                  {
+                    id: messageId,
+                    role: 'assistant',
+                    content: [{ type: 'redacted-reasoning', data: chunk.payload.data }],
+                  },
+                  'response',
+                );
+                await controller.enqueue(chunk);
                 break;
               case 'tool-call-delta':
                 if (!hasToolCallStreaming) {
@@ -281,10 +300,42 @@ export class AgenticLoop {
                       toolName: chunk.payload.toolName,
                     },
                   });
+                  onChunk?.({
+                    type: 'tool-call-streaming-start',
+                    from: 'AGENT',
+                    runId: chunk.runId,
+                    payload: {
+                      toolCallId: chunk.payload.toolCallId,
+                      toolName: chunk.payload.toolName,
+                    },
+                  });
                   hasToolCallStreaming = true;
                 }
+                await controller.enqueue(chunk);
+                break;
+              case 'file':
+                messageList.add(
+                  {
+                    id: messageId,
+                    role: 'assistant',
+                    content: [
+                      {
+                        type: 'file',
+                        data: chunk.payload.data,
+                        mimeType: chunk.payload.mimeType,
+                      },
+                    ],
+                  },
+                  'response',
+                );
+                await controller.enqueue(chunk);
+                break;
               default:
                 await controller.enqueue(chunk);
+            }
+
+            if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
+              onChunk?.(chunk);
             }
 
             if (hasErrored) {
@@ -317,8 +368,6 @@ export class AgenticLoop {
           };
         }
 
-        console.log('hasErrored', hasErrored);
-
         if (toolCalls.length > 0) {
           const userContent = [] as any[];
 
@@ -336,34 +385,52 @@ export class AgenticLoop {
                 type: 'tool-call',
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
-                args: JSON.parse(toolCall.args),
+                args: toolCall.args,
               };
             }) as any),
           ];
 
           messageList.add(
             {
+              id: messageId,
               role: 'assistant',
               content: assistantContent,
             },
             'response',
           );
         } else {
-          messageList.add(
-            {
-              role: 'assistant',
-              content: [{ type: 'text', text }],
-            },
-            'response',
-          );
+          if (text) {
+            messageList.add(
+              {
+                id: messageId,
+                role: 'assistant',
+                content: [{ type: 'text', text }],
+              },
+              'response',
+            );
+          }
         }
 
-        const messages = messageList.get.all.core();
+        const allMessages = messageList.get.all.v1().map(message => {
+          return {
+            id: message.id,
+            role: message.role,
+            content: message.content,
+          };
+        });
+        const userMessages = allMessages.filter(message => message.role === 'user');
+        const nonUserMessages = allMessages.filter(message => message.role !== 'user');
+
+        if (stepFinishPayload && stepFinishPayload.response) {
+          stepFinishPayload.response.messages = nonUserMessages as any;
+        }
 
         return {
           response: {
+            headers: rawResponse?.headers,
+            warnings,
             stepFinishPayload,
-            finishReason: hasErrored ? 'error' : finishReason,
+            reason: hasErrored ? 'error' : finishReason,
             text,
             toolCalls,
             usage: {
@@ -374,7 +441,8 @@ export class AgenticLoop {
             providerMetadata: providerMetadata,
             metadata: responseMetadata || defaultResponseMetadata,
           },
-          messages,
+          userMessages: userMessages,
+          messages: nonUserMessages,
         };
       },
     });
@@ -390,6 +458,7 @@ export class AgenticLoop {
     experimental_generateMessageId,
     _internal,
     toolCallStreaming,
+    onChunk,
   }: {
     controller: ReadableStreamDefaultController<any>;
     model: LanguageModel;
@@ -405,6 +474,7 @@ export class AgenticLoop {
       generateId: () => string;
     };
     toolCallStreaming?: boolean;
+    onChunk?: (chunk: ChunkType) => void;
   }) {
     const messageId = experimental_generateMessageId?.() || _internal.generateId?.();
 
@@ -418,6 +488,7 @@ export class AgenticLoop {
       messageId,
       _internal,
       toolCallStreaming,
+      onChunk,
     });
 
     const toolCallStep = this.createToolCallStep({ tools });
@@ -437,9 +508,9 @@ export class AgenticLoop {
 
         console.log('stepFinishPayload', initialResult.response.stepFinishPayload);
 
-        if (inputData?.every(toolCall => toolCall?.result === undefined)) {
-          console.log('bailing');
+        const messageList = this.toMessageList(initialResult.messages || []);
 
+        if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           await controller.enqueue({
             type: 'step-finish',
             payload: initialResult.response.stepFinishPayload,
@@ -448,19 +519,23 @@ export class AgenticLoop {
           return bail(initialResult);
         }
 
-        const messageList = this.toMessageList(initialResult.messages || []);
-
         if (inputData?.length) {
           for (const toolCall of inputData) {
-            await controller.enqueue({
+            const chunk = {
               type: 'tool-result',
+              runId: runId,
+              from: 'AGENT',
               payload: {
-                args: JSON.parse(toolCall.args),
+                args: toolCall.args,
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
                 result: toolCall.result,
               },
-            });
+            };
+
+            await controller.enqueue(chunk);
+
+            onChunk?.(chunk);
           }
 
           messageList.add(
@@ -469,7 +544,7 @@ export class AgenticLoop {
               content: inputData.map(toolCall => {
                 return {
                   type: 'tool-result',
-                  args: JSON.parse(toolCall.args),
+                  args: toolCall.args,
                   toolCallId: toolCall.toolCallId,
                   toolName: toolCall.toolName,
                   result: toolCall.result,
@@ -506,6 +581,7 @@ export class AgenticLoop {
     maxRetries = 3,
     providerMetadata,
     toolCallStreaming,
+    onChunk,
     experimental_generateMessageId,
     _internal = {
       currentDate: () => new Date(),
@@ -525,6 +601,7 @@ export class AgenticLoop {
     maxRetries?: number;
     toolCallStreaming?: boolean;
     providerMetadata?: Record<string, any>;
+    onChunk?: (chunk: ChunkType) => void;
     experimental_generateMessageId?: () => string;
     _internal?: {
       currentDate?: () => Date;
@@ -566,6 +643,7 @@ export class AgenticLoop {
           experimental_generateMessageId,
           _internal,
           toolCallStreaming,
+          onChunk,
         });
 
         const mainWorkflow = createWorkflow({
@@ -577,7 +655,7 @@ export class AgenticLoop {
           },
         })
           .dowhile(executionWorkflow, async ({ inputData }) => {
-            return !['stop', 'error'].includes(inputData.response.finishReason) && this.stepCount < maxSteps;
+            return !['stop', 'error'].includes(inputData.response.reason) && this.stepCount < maxSteps;
           })
           .map(({ inputData }) => {
             const toolCalls = inputData.messages.filter(message => message.role === 'tool');
@@ -592,6 +670,8 @@ export class AgenticLoop {
         const run = await mainWorkflow.createRunAsync({
           runId,
         });
+
+        console.log('TRIGGER DATA MESSAGES', messages);
 
         const executionResult = await run.start({
           inputData: {
@@ -610,16 +690,24 @@ export class AgenticLoop {
         //   throw new Error('Error in execution');
         // }
 
+        const finishPayload = {
+          logprobs: executionResult.result.response.logprobs,
+          totalUsage: executionResult.result.response.usage,
+          reason: executionResult.result.response.reason,
+          response: {
+            ...executionResult.result?.response?.metadata,
+            headers: executionResult.result?.response?.headers,
+          },
+          providerMetadata: executionResult.result?.response?.providerMetadata,
+          experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
+          messages: executionResult.result?.messages,
+        };
+
+        console.log('finishPayload', JSON.stringify(finishPayload, null, 2));
+
         await controller.enqueue({
           type: 'finish',
-          payload: {
-            logprobs: executionResult.result.response.logprobs,
-            totalUsage: executionResult.result.response.usage,
-            finishReason: executionResult.result.response.finishReason,
-            response: executionResult.result?.response?.metadata,
-            providerMetadata: executionResult.result?.response?.providerMetadata,
-            experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
-          },
+          payload: finishPayload,
         });
 
         // if (executionResult.result.response.finishReason === 'error') {

@@ -1,3 +1,5 @@
+import { TextEncoderStream } from 'stream/web';
+import type { ReadableStream } from 'stream/web';
 import {
   convertArrayToReadableStream,
   convertAsyncIterableToArray,
@@ -7,8 +9,8 @@ import {
 import { createDataStream } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it, vi } from 'vitest';
-import { createTestModel } from '../../test-utils';
-import type { AgenticLoop } from '../../vnext';
+import { createTestModel } from '../../../../test-utils';
+import type { AgenticLoop } from '../../../../vnext';
 
 export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
   describe('result.mergeIntoDataStream', () => {
@@ -179,38 +181,16 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      // const textStreamArray = await convertAsyncIterableToArray(textStream);
-
-      // console.log(textStreamArray);
-
-      const fullStream = result.aisdk.v4.fullStream;
-
-      for await (const chunk of fullStream) {
-        console.log(chunk);
-      }
-
-      const textStream = result.textStream;
-
-      for await (const chunk of textStream) {
-        console.log(chunk);
-      }
-
-      // const fullStreamArray = await convertAsyncIterableToArray(fullStream);
-
-      // console.log(fullStreamArray);
-
-      // expect({
-      //     textStream: textStreamArray,
-      //     fullStream: fullStreamArray,
-      // }).toMatchSnapshot();
-
-      // expect({
-      //     textStream: await convertAsyncIterableToArray(textStream),
-      //     fullStream: await convertAsyncIterableToArray(result.toFullStreamV4),
-      //     // dataStream: await convertReadableStreamToArray(
-      //     //     result.toFullStreamV4.pipeThrough(new TextEncoderStream()).pipeThrough(new TextDecoderStream()),
-      //     // ),
-      // }).toMatchSnapshot();
+      expect({
+        textStream: await convertAsyncIterableToArray(result.textStream),
+        fullStream: await convertAsyncIterableToArray(result.aisdk.v4.fullStream),
+        dataStream: await convertReadableStreamToArray(
+          result.aisdk.v4
+            .toDataStream()
+            .pipeThrough(new TextEncoderStream() as any)
+            .pipeThrough(new TextDecoderStream() as any) as any,
+        ),
+      }).toMatchSnapshot();
     });
   });
 }

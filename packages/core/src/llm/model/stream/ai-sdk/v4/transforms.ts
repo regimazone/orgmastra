@@ -1,26 +1,6 @@
-import { TransformStream } from 'stream/web';
-import type { ReadableStream } from 'stream/web';
-import { BaseModelStream, MastraModelOutput } from '../base';
-import type { ChunkType } from '../types';
-import type { RegisteredLogger } from '../../logger';
-import {
-  consumeStream,
-  getErrorMessage,
-  getErrorMessageV4,
-  mergeStreams,
-  prepareResponseHeaders,
-  type ConsumeStreamOptions,
-} from '../compat';
-import {
-  formatDataStreamPart,
-  StreamData,
-  type DataStreamOptions,
-  type DataStreamWriter,
-  type LanguageModelV1StreamPart,
-} from 'ai';
-import { DefaultGeneratedFileWithType } from '../generated-file';
+import { formatDataStreamPart } from 'ai';
 
-function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
+export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
   if (value.type === 'step-start') {
     return {
       type: 'step-start',
@@ -33,13 +13,14 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
       },
     };
   } else if (value.type === 'tool-call') {
+    console.log('tool-callzzzz', value);
     return {
       type: 'tool-call',
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
         toolCallId: value.toolCallId,
-        args: value.args,
+        args: value.args ? JSON.parse(value.args) : undefined,
         toolName: value.toolName,
       },
     };
@@ -56,6 +37,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
       },
     };
   } else if (value.type === 'tool-call-delta') {
+    console.log('tool-call-delta', value);
     return {
       type: 'tool-call-delta',
       runId: ctx.runId,
@@ -98,7 +80,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
       },
     };
   } else if (value.type === 'finish') {
-    const { finishReason, usage, providerMetadata, ...rest } = value;
+    const { finishReason, usage, providerMetadata, messages: _messages, ...rest } = value;
     console.log('finish raw chunk', value);
     return {
       type: 'finish',
@@ -178,30 +160,7 @@ function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
   }
 }
 
-export class AISDKV4InputStream extends BaseModelStream {
-  constructor({ component, name }: { component: RegisteredLogger; name: string }) {
-    super({ component, name });
-  }
-
-  async transform({
-    runId,
-    stream,
-    controller,
-  }: {
-    runId: string;
-    stream: ReadableStream<any>;
-    controller: ReadableStreamDefaultController<ChunkType>;
-  }) {
-    for await (const chunk of stream) {
-      const transformedChunk = convertFullStreamChunkToMastra(chunk, { runId });
-      if (transformedChunk) {
-        controller.enqueue(transformedChunk);
-      }
-    }
-  }
-}
-
-function convertFullStreamChunkToAISDKv4({
+export function convertFullStreamChunkToAISDKv4({
   chunk,
   client,
   sendReasoning,
@@ -274,7 +233,7 @@ function convertFullStreamChunkToAISDKv4({
     if (client) {
       if (experimental_sendFinish) {
         return formatDataStreamPart('finish_message', {
-          finishReason: chunk.payload.finishReason,
+          finishReason: chunk.payload.reason,
           usage: sendUsage
             ? {
                 promptTokens: chunk.payload.totalUsage.promptTokens,
@@ -286,7 +245,7 @@ function convertFullStreamChunkToAISDKv4({
       return;
     }
 
-    const { totalUsage, reason, ...rest } = chunk.payload;
+    const { totalUsage, reason, messages: _messages, ...rest } = chunk.payload;
 
     return {
       type: 'finish',
@@ -363,7 +322,7 @@ function convertFullStreamChunkToAISDKv4({
       return formatDataStreamPart('tool_call', {
         toolCallId: chunk.payload.toolCallId,
         toolName: chunk.payload.toolName,
-        args: JSON.parse(args),
+        args: args,
       });
     }
 
@@ -371,7 +330,7 @@ function convertFullStreamChunkToAISDKv4({
       type: 'tool-call',
       toolCallId: chunk.payload.toolCallId,
       toolName: chunk.payload.toolName,
-      args: JSON.parse(chunk.payload.args),
+      args: chunk.payload.args,
     };
   } else if (chunk.type === 'tool-call-streaming-start' && toolCallStreaming) {
     if (client) {
@@ -380,6 +339,7 @@ function convertFullStreamChunkToAISDKv4({
         toolName: chunk.payload.toolName,
       });
     }
+    console.log('tool-call-streaming-start SUHHHHH', chunk.payload);
     return {
       type: 'tool-call-streaming-start',
       toolCallId: chunk.payload.toolCallId,
@@ -396,6 +356,7 @@ function convertFullStreamChunkToAISDKv4({
       type: 'tool-call-delta',
       toolCallId: chunk.payload.toolCallId,
       argsTextDelta: chunk.payload.argsTextDelta,
+      toolName: chunk.payload.toolName,
     };
   } else if (chunk.type === 'tool-result') {
     if (client) {
@@ -422,187 +383,5 @@ function convertFullStreamChunkToAISDKv4({
     };
   } else {
     console.log('unknown chunk', chunk);
-  }
-}
-
-export class AISDKV4OutputStream {
-  #modelOutput: MastraModelOutput;
-  #options: { toolCallStreaming?: boolean };
-
-  constructor({ modelOutput, options }: { modelOutput: MastraModelOutput; options: { toolCallStreaming?: boolean } }) {
-    this.#modelOutput = modelOutput;
-    this.#options = options;
-  }
-
-  toTextStreamResponse(init?: ResponseInit): Response {
-    return new Response(this.#modelOutput.textStream.pipeThrough(new TextEncoderStream() as any) as any, {
-      status: init?.status ?? 200,
-      headers: prepareResponseHeaders(init?.headers, {
-        contentType: 'text/plain; charset=utf-8',
-      }),
-    });
-  }
-
-  toDataStreamResponse({
-    headers,
-    status,
-    statusText,
-    data,
-    getErrorMessage,
-    sendUsage,
-    sendReasoning,
-    sendSources,
-    experimental_sendFinish,
-  }: ResponseInit &
-    DataStreamOptions & {
-      data?: StreamData;
-      getErrorMessage?: (error: unknown) => string;
-    } = {}): Response {
-    let dataStream = this.toDataStream({
-      getErrorMessage,
-      sendUsage,
-      sendReasoning,
-      sendSources,
-      experimental_sendFinish,
-    }).pipeThrough(new TextEncoderStream() as any) as any;
-
-    if (data) {
-      dataStream = mergeStreams(data.stream, dataStream);
-    }
-
-    return new Response(dataStream, {
-      status,
-      statusText,
-      headers: prepareResponseHeaders(headers, {
-        contentType: 'text/plain; charset=utf-8',
-        dataStreamVersion: 'v1',
-      }),
-    });
-  }
-
-  toDataStream({
-    sendReasoning = false,
-    sendSources = false,
-    sendUsage = true,
-    experimental_sendFinish = true,
-    getErrorMessage = getErrorMessageV4,
-  }: {
-    sendReasoning?: boolean;
-    sendSources?: boolean;
-    sendUsage?: boolean;
-    experimental_sendFinish?: boolean;
-    getErrorMessage?: (error: string) => string;
-  } = {}) {
-    const self = this;
-    console.log('toDataStream toolCallStreaming', self.#options.toolCallStreaming);
-    return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
-        transform(chunk, controller) {
-          console.log('chunk', chunk);
-
-          const transformedChunk = convertFullStreamChunkToAISDKv4({
-            chunk,
-            client: true,
-            sendReasoning,
-            sendSources,
-            sendUsage,
-            experimental_sendFinish,
-            getErrorMessage: getErrorMessage,
-            toolCallStreaming: self.#options.toolCallStreaming,
-          });
-
-          console.log('transformedChunk', self.#options.toolCallStreaming, transformedChunk);
-
-          if (transformedChunk) {
-            controller.enqueue(transformedChunk);
-          }
-        },
-      }),
-    );
-  }
-
-  mergeIntoDataStream(writer: DataStreamWriter, options?: DataStreamOptions) {
-    writer.merge(
-      this.toDataStream({
-        getErrorMessage: writer.onError,
-        sendUsage: options?.sendUsage,
-        sendReasoning: options?.sendReasoning,
-        sendSources: options?.sendSources,
-        experimental_sendFinish: options?.experimental_sendFinish,
-      })
-        .pipeThrough(new TextEncoderStream() as any)
-        .pipeThrough(new TextDecoderStream() as any) as any,
-    );
-  }
-
-  async consumeStream(options?: ConsumeStreamOptions): Promise<void> {
-    try {
-      await consumeStream({
-        stream: this.fullStream.pipeThrough(
-          new TransformStream({
-            transform(chunk, controller) {
-              controller.enqueue(chunk);
-            },
-          }),
-        ) as any,
-        onError: options?.onError,
-      });
-    } catch (error) {
-      console.log('consumeStream error', error);
-      options?.onError?.(error);
-    }
-  }
-
-  get fullStream() {
-    let startEvent: ChunkType | undefined;
-    let hasStarted: boolean = false;
-    const self = this;
-    return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
-        transform(chunk, controller) {
-          if (chunk.type === 'start') {
-            return;
-          }
-
-          if (chunk.type === 'step-start' && !startEvent) {
-            startEvent = convertFullStreamChunkToAISDKv4({
-              chunk,
-              client: false,
-              sendReasoning: false,
-              sendSources: false,
-              sendUsage: false,
-              getErrorMessage: getErrorMessage,
-              toolCallStreaming: self.#options.toolCallStreaming,
-            });
-            return;
-          } else if (chunk.type !== 'error') {
-            hasStarted = true;
-          }
-
-          if (startEvent && hasStarted) {
-            controller.enqueue(startEvent as any);
-            startEvent = undefined;
-          }
-
-          const transformedChunk = convertFullStreamChunkToAISDKv4({
-            chunk,
-            client: false,
-            sendReasoning: false,
-            sendSources: false,
-            sendUsage: false,
-            getErrorMessage: getErrorMessage,
-            toolCallStreaming: self.#options.toolCallStreaming,
-          });
-
-          if (transformedChunk) {
-            controller.enqueue(transformedChunk);
-          }
-
-          if (chunk.type === 'error') {
-            controller.terminate();
-          }
-        },
-      }),
-    );
   }
 }

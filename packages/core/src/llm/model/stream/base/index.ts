@@ -1,7 +1,7 @@
 import { ReadableStream, TransformStream } from 'stream/web';
-import { MastraBase } from '../../base';
-import { AISDKV4OutputStream } from '../aisdk/v4';
-import type { ChunkType } from '../types';
+import { MastraBase } from '../../../../base';
+import type { ChunkType } from '../../../../stream/types';
+import { AISDKV4OutputStream } from '../ai-sdk/v4';
 
 type CreateStream = () => Promise<ReadableStream<any>> | ReadableStream<any>;
 export abstract class BaseModelStream extends MastraBase {
@@ -49,11 +49,19 @@ export abstract class BaseModelStream extends MastraBase {
 export class MastraModelOutput extends MastraBase {
   #aisdkv4: AISDKV4OutputStream;
   #baseStream: ReadableStream<any>;
+  #bufferedSteps: any[] = [];
   #bufferedText: string[] = [];
+  #bufferedSources: any[] = [];
+  #bufferedReasoning: string[] = [];
+  #bufferedFiles: any[] = [];
   #toolCallArgsDeltas: Record<string, string[]> = {};
   #toolCalls: any[] = [];
   #toolResults: any[] = [];
+  #warnings: any[] = [];
   #finishReason: string | undefined;
+  #providerMetadata: Record<string, any> | undefined;
+  #response: any | undefined;
+  #request: any | undefined;
   #usageCount: {
     promptTokens: number;
     completionTokens: number;
@@ -71,6 +79,9 @@ export class MastraModelOutput extends MastraBase {
       new TransformStream<ChunkType, ChunkType>({
         transform(chunk, controller) {
           switch (chunk.type) {
+            case 'source':
+              self.#bufferedSources.push(chunk.payload.source);
+              break;
             case 'text-delta':
               self.#bufferedText.push(chunk.payload.text);
               break;
@@ -83,26 +94,94 @@ export class MastraModelOutput extends MastraBase {
             case 'text-delta':
               self.#bufferedText.push(chunk.payload.text);
               break;
+            case 'file':
+              self.#bufferedFiles.push(chunk.payload);
+              break;
+            case 'reasoning':
+              self.#bufferedReasoning.push(chunk.payload.text);
+              break;
             case 'tool-call':
-              self.#toolCalls.push(chunk.payload);
+              self.#toolCalls.push({ type: 'tool-call', ...chunk.payload });
               if (chunk.payload?.output?.from === 'AGENT' && chunk.payload?.output?.type === 'finish') {
                 const finishPayload = chunk.payload?.output.payload;
                 self.updateUsageCount(finishPayload.usage);
               }
               break;
             case 'tool-result':
-              self.#toolResults.push(chunk.payload);
+              self.#toolResults.push({ type: 'tool-result', ...chunk.payload });
               break;
             case 'step-finish': {
-              console.log(chunk, '####');
+              console.log('step-finish zzzz', chunk);
               self.updateUsageCount(chunk.payload.totalUsage);
               chunk.payload.totalUsage = self.#usageCount;
+              self.#warnings = chunk.payload.warnings;
+
+              if (chunk.payload.request) {
+                self.#request = chunk.payload.request;
+              }
+
+              const reasoningDetails = chunk.payload.response?.messages
+                .flatMap((msg: any) => {
+                  return msg.content;
+                })
+                ?.filter((message: any) => message.type.includes('reasoning'))
+                ?.map((msg: any) => {
+                  let type;
+                  if (msg.type === 'reasoning') {
+                    type = 'text';
+                  } else if (msg.type === 'redacted-reasoning') {
+                    type = 'redacted';
+                  }
+
+                  return {
+                    ...msg,
+                    type,
+                  };
+                });
+
+              self.#bufferedSteps.push({
+                stepType: 'initial',
+                text: self.text,
+                reasoning: self.reasoning || undefined,
+                sources: self.sources,
+                files: self.files,
+                toolCalls: self.toolCalls,
+                toolResults: self.toolResults,
+                warnings: self.warnings,
+                reasoningDetails,
+                providerMetadata: chunk.payload.providerMetadata,
+                experimental_providerMetadata: chunk.payload.experimental_providerMetadata,
+                isContinued: chunk.payload.isContinued,
+                logprobs: chunk.payload.logprobs,
+                finishReason: chunk.payload.reason,
+                response: { ...chunk.payload.response },
+                request: chunk.payload.request,
+                usage: chunk.payload.totalUsage,
+              });
+
+              if (chunk.payload.response) {
+                delete chunk.payload.response.messages;
+              }
+
               break;
             }
             case 'finish':
+              console.log('finish zzzz', chunk.payload);
               if (chunk.payload.reason) {
                 self.#finishReason = chunk.payload.reason;
               }
+
+              if (chunk.payload.providerMetadata) {
+                self.#providerMetadata = chunk.payload.providerMetadata;
+              }
+
+              if (chunk.payload.response) {
+                self.#response = {
+                  ...chunk.payload.response,
+                  messages: chunk.payload.messages,
+                };
+              }
+
               self.#usageCount = chunk.payload.totalUsage;
               break;
           }
@@ -110,8 +189,6 @@ export class MastraModelOutput extends MastraBase {
         },
       }),
     );
-
-    console.log('options', options);
 
     this.#aisdkv4 = new AISDKV4OutputStream({
       modelOutput: this,
@@ -123,6 +200,22 @@ export class MastraModelOutput extends MastraBase {
 
   get text() {
     return this.#bufferedText.join('');
+  }
+
+  get reasoning() {
+    return this.#bufferedReasoning.join('');
+  }
+
+  get sources() {
+    return this.#bufferedSources;
+  }
+
+  get files() {
+    return this.#bufferedFiles;
+  }
+
+  get steps() {
+    return this.#bufferedSteps;
   }
 
   teeStream() {
@@ -167,6 +260,22 @@ export class MastraModelOutput extends MastraBase {
 
   get usage() {
     return this.#usageCount;
+  }
+
+  get warnings() {
+    return this.#warnings;
+  }
+
+  get providerMetadata() {
+    return this.#providerMetadata;
+  }
+
+  get response() {
+    return this.#response;
+  }
+
+  get request() {
+    return this.#request;
   }
 
   updateUsageCount(usage: {

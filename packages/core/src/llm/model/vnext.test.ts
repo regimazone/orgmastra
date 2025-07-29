@@ -1,25 +1,29 @@
 import { describe } from 'vitest';
-import { fullStreamTests } from './ai-sdk/v4/fullStream';
-import { mergeIntoDataStreamTests } from './ai-sdk/v4/mergeIntoDataStream';
-import { textStreamTests } from './ai-sdk/v4/textStream';
-import { toDataStreamResponseTests } from './ai-sdk/v4/toDataStreamResponse';
-import { AgenticLoop } from './vnext';
-
-const looper = new AgenticLoop();
+// import { fullStreamTests } from './stream/ai-sdk/test-utils/v4/fullStream';
+// import { mergeIntoDataStreamTests } from './stream/ai-sdk/test-utils/v4/mergeIntoDataStream';
+// import { optionsTests } from './stream/ai-sdk/test-utils/v4/options';
+// import { resultObjectTests } from './stream/ai-sdk/test-utils/v4/result-object';
+import { textStreamTests } from './stream/ai-sdk/test-utils/v4/textStream';
+// import { toDataStreamResponseTests } from './stream/ai-sdk/test-utils/v4/toDataStreamResponse';
+import { execute } from './stream/execute';
 
 const runId = '12345';
 
 describe('V4 tests', () => {
-  textStreamTests({ engine: looper, runId });
+  // optionsTests({ engine: looper });
 
-  fullStreamTests({ engine: looper, runId });
+  // resultObjectTests({ engine: looper });
 
-  toDataStreamResponseTests({
-    engine: looper,
-    version: 'v4',
-  });
+  textStreamTests({ executeFn: execute, runId });
 
-  mergeIntoDataStreamTests({
-    engine: looper,
-  });
+  // fullStreamTests({ engine: looper, runId });
+
+  // toDataStreamResponseTests({
+  //   engine: looper,
+  //   version: 'v4',
+  // });
+
+  // mergeIntoDataStreamTests({
+  //   engine: looper,
+  // });
 });

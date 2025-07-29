@@ -79,6 +79,7 @@ export class MessageList {
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
     if (!messages) return this;
     for (const message of Array.isArray(messages) ? messages : [messages]) {
+      console.log('ADDING message!!!!', message);
       this.addOne(
         typeof message === `string`
           ? {
@@ -968,5 +969,28 @@ export class MessageList {
 
     // default to it did change. we'll likely never reach this codepath
     return true;
+  }
+
+  static fromArray(messages: MessageInput[]) {
+    const messageList = new MessageList();
+
+    for (const message of messages) {
+      let role: MessageSource;
+
+      if (message.role === 'system') {
+        messageList.addSystem(message.content as string);
+        continue;
+      }
+
+      if (message.role === 'user') {
+        role = 'user';
+      } else {
+        role = 'response';
+      }
+
+      messageList.add(message, role);
+    }
+
+    return messageList;
   }
 }

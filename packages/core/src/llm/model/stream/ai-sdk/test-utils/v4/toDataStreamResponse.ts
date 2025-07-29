@@ -7,7 +7,7 @@ import { StreamData } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { mergeStreams, writeToServerResponse } from '../../../../stream/compat';
+import { mergeStreams, writeToServerResponse } from '../../../../../../stream/compat';
 import {
   createMockServerResponse,
   createTestModel,
@@ -15,8 +15,8 @@ import {
   modelWithFiles,
   modelWithReasoning,
   modelWithSources,
-} from '../../test-utils';
-import type { AgenticLoop } from '../../vnext';
+} from '../../../../test-utils';
+import type { AgenticLoop } from '../../../../vnext';
 
 export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; version: 'v4' }) {
   describe('result.toDataStreamResponse', () => {
