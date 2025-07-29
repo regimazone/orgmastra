@@ -143,8 +143,13 @@ export function createMessagesPaginatedTest({ storage }: { storage: MastraStorag
       // Verify order is maintained
       retrievedMessages.forEach((msg, idx) => {
         // Handle both flat content and array content formats
-        const retrievedContent = Array.isArray(msg.content) ? msg.content[0].text : msg.content;
-        const expectedContent = messages[idx].content[0].text;
+        const retrievedContent = Array.isArray(msg.content)
+          ? msg.content[0] && 'text' in msg.content[0]
+            ? msg.content[0].text
+            : ''
+          : msg.content;
+        const expectedContent =
+          messages[idx]?.content?.[0] && 'text' in messages[idx].content[0] ? messages[idx].content[0].text : '';
         expect(retrievedContent).toBe(expectedContent);
       });
     });
