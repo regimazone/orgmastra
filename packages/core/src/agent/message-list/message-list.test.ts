@@ -4003,4 +4003,118 @@ describe('MessageList', () => {
       }
     });
   });
+
+  describe('metadata hiding', () => {
+    it('should hide internal __originalContent metadata from V3 messages', () => {
+      const v2Message = {
+        id: 'test-1',
+        role: 'user' as const,
+        createdAt: new Date(),
+        content: {
+          format: 2 as const,
+          content: 'Custom content string',
+          parts: [{ type: 'text' as const, text: 'Different text' }],
+          metadata: { userField: 'value' },
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(v2Message, 'memory');
+
+      // V3 messages should not expose __originalContent
+      const v3Messages = list.get.all.v3();
+      expect(v3Messages[0].content.metadata).toEqual({ userField: 'value' });
+      expect(v3Messages[0].content.metadata).not.toHaveProperty('__originalContent');
+    });
+
+    it('should hide internal __originalContent metadata from V2 messages', () => {
+      const v2Message = {
+        id: 'test-2',
+        role: 'assistant' as const,
+        createdAt: new Date(),
+        content: {
+          format: 2 as const,
+          content: 'Hello world',
+          parts: [{ type: 'text' as const, text: 'Hello world' }],
+          metadata: { customField: 123 },
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(v2Message, 'memory');
+
+      // Get messages back as V2
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages[0].content.metadata).toEqual({ customField: 123 });
+      expect(v2Messages[0].content.metadata).not.toHaveProperty('__originalContent');
+    });
+
+    it('should not expose internal metadata when converting V1->V2->V1', () => {
+      const v1Message = {
+        id: 'test-3',
+        role: 'user' as const,
+        type: 'text' as const,
+        content: [
+          { type: 'text' as const, text: 'Hello' },
+          { type: 'file' as const, data: 'data:image/png;base64,abc', mimeType: 'image/png' as const },
+        ],
+        createdAt: new Date(),
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV1;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(v1Message, 'user');
+
+      // Get as V2 - should not have __originalContent exposed
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages[0].content.metadata).toBeUndefined();
+
+      // Get as V1 - should preserve original format
+      const v1Messages = list.get.all.v1();
+      expect(v1Messages[0].content).toEqual(v1Message.content);
+    });
+
+    it('should preserve user metadata while hiding internal fields', () => {
+      const v2Message = {
+        id: 'test-4',
+        role: 'assistant' as const,
+        createdAt: new Date(),
+        content: {
+          format: 2 as const,
+          content: '',
+          parts: [],
+          metadata: {
+            userField1: 'test',
+            userField2: { nested: true },
+            userField3: [1, 2, 3],
+          },
+        },
+        threadId,
+        resourceId,
+      } satisfies MastraMessageV2;
+
+      const list = new MessageList({ threadId, resourceId });
+      list.add(v2Message, 'response');
+
+      // All formats should preserve user metadata but not internal fields
+      const v3Messages = list.get.all.v3();
+      expect(v3Messages[0].content.metadata).toEqual({
+        userField1: 'test',
+        userField2: { nested: true },
+        userField3: [1, 2, 3],
+      });
+
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages[0].content.metadata).toEqual({
+        userField1: 'test',
+        userField2: { nested: true },
+        userField3: [1, 2, 3],
+      });
+    });
+  });
 });
