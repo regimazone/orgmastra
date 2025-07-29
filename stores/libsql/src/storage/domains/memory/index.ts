@@ -305,7 +305,7 @@ export class MemoryLibSQL extends MemoryStorage {
           args: [
             message.id,
             message.threadId!,
-            JSON.stringify(message.content),
+            typeof message.content === 'object' ? JSON.stringify(message.content) : message.content,
             message.role,
             message.type || 'v2',
             time instanceof Date ? time.toISOString() : time,
