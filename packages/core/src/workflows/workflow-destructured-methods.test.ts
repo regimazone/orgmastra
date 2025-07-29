@@ -4,7 +4,7 @@ import { Mastra } from '../mastra';
 import { createWorkflow, createStep } from './index';
 
 describe('Workflow Execution Engine Bug', () => {
-  it('should allow destructred start method', async () => {
+  it('should allow destructured start method', async () => {
     // Create a simple workflow
     const stepOne = createStep({
       id: 'stepOne',
