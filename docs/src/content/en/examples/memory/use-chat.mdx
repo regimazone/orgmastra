@@ -95,14 +95,14 @@ export async function POST(request: Request) {
   const agent = mastraClient.getAgent("ChatAgent"); // Use your agent's ID
 
   // Stream the response with memory context
-  const result = await agent.stream({
+  const response = await agent.stream({
     messages: [{ role: message.role || "user", content: message.content }],
     threadId,
     resourceId,
   });
 
   // Return the streaming response to the frontend
-  return new Response(result.body);
+  return new Response(response.body);
 }
 ```
 
@@ -113,10 +113,10 @@ If you've deployed your Mastra Server with a custom route handler for chat, you 
 ```typescript filename="components/Chat.tsx" showLineNumbers copy
 import { useChat } from "ai/react";
 
-export function Chat({ threadId, resourceId }) {
+export function Chat({ threadId, resourceId, agentId = "ChatAgent" }) {
   const { messages, input, handleInputChange, handleSubmit } = useChat({
     // Connect directly to your Mastra Server's stream endpoint
-    api: `${process.env.NEXT_PUBLIC_MASTRA_SERVER_URL}/api/agents/ChatAgent/stream`,
+    api: `${process.env.NEXT_PUBLIC_MASTRA_SERVER_URL}/api/agents/${agentId}/stream`,
     experimental_prepareRequestBody: (request) => {
       const lastMessage = request.messages.length > 0 ? request.messages[request.messages.length - 1] : null;
       // The Mastra Server expects the full messages array, not just a single message
@@ -206,7 +206,7 @@ function ChatApp() {
       />
       <div style={{ flexGrow: 1 }}>
         {currentThreadId ? (
-          <Chat threadId={currentThreadId} resourceId={userId} /> // Your useChat component
+          <Chat threadId={currentThreadId} resourceId={userId} agentId="your-agent-id" /> // Your useChat component
         ) : (
           <div>Select or start a conversation.</div>
         )}
