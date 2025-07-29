@@ -1,8 +1,17 @@
-import { AgentIcon, Breadcrumb, Crumb, Header, MainContentLayout, WorkflowIcon } from '@mastra/playground-ui';
+import {
+  AgentIcon,
+  Breadcrumb,
+  Crumb,
+  EntityPageHeader,
+  Header,
+  MainContentLayout,
+  Relations,
+  WorkflowIcon,
+} from '@mastra/playground-ui';
 import { useParams, Link } from 'react-router';
 import { useScorer, useScoresByScorerId } from '@mastra/playground-ui';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, XIcon } from 'lucide-react';
+import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GaugeIcon, XIcon } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { Fragment, useState } from 'react';
 import { useAgents } from '@/hooks/use-agents';
@@ -42,12 +51,30 @@ export default function Scorer() {
       return {
         id: workflowId,
         name: legacy[workflowId]?.name || current[workflowId]?.name,
+        description: current[workflowId]?.description || '',
       };
     }) || [];
+
+  console.log({ agents, workflows });
 
   const scorerEntities = [
     ...scorerAgents.map(agent => ({ id: agent.id, name: agent.name, type: 'AGENT' })),
     ...scorerWorkflows.map(workflow => ({ id: workflow.id, name: workflow.name, type: 'WORKFLOW' })),
+  ];
+
+  const scorerRelations = [
+    ...scorerAgents.map(agent => ({
+      id: agent.id,
+      name: agent.id,
+      path: `/agents/${agent.id}/chat`,
+      icon: <AgentIcon />,
+    })),
+    ...scorerWorkflows.map(workflow => ({
+      id: workflow.id,
+      name: workflow.id,
+      path: `/workflows/${workflow.id}/chat`,
+      icon: <WorkflowIcon />,
+    })),
   ];
 
   const [scoresPage, setScoresPage] = useState<number>(0);
@@ -139,8 +166,14 @@ export default function Scorer() {
       {scorer?.scorer ? (
         <>
           <div className={cn(`h-full overflow-y-scroll `)}>
-            <div className={cn('max-w-[100rem] px-[3rem] mx-auto')}>
-              <ScorerHeader scorer={scorer} agents={scorerAgents} workflows={scorerWorkflows} />
+            <div className={cn('max-w-[100rem] px-[3rem] mx-auto grid')}>
+              <EntityPageHeader
+                title={scorer.scorer?.name}
+                description={scorer.scorer?.description}
+                icon={<GaugeIcon />}
+              >
+                <Relations items={scorerRelations} LinkComponent={Link} title="Entities" />
+              </EntityPageHeader>
               <ScoreListHeader
                 filteredByEntity={filteredByEntity}
                 onFilterChange={handleFilterChange}
@@ -170,55 +203,6 @@ export default function Scorer() {
         </>
       ) : null}
     </MainContentLayout>
-  );
-}
-
-function ScorerHeader({
-  scorer,
-  agents,
-  workflows,
-}: {
-  scorer: any;
-  agents?: { id: string; name: string }[];
-  workflows?: { id: string; name: string }[];
-}) {
-  return (
-    <div
-      className={cn(
-        'grid z-[1] top-0 gap-y-[0.5rem] text-icon4 bg-surface2 py-[3rem]',
-        '3xl:h-full 3xl:content-start 3xl:grid-rows-[auto_1fr] h-full 3xl:overflow-y-auto',
-      )}
-    >
-      <div className="grid gap-[1rem] w">
-        <h1 className="text-icon6 text-[1.25rem]">{scorer.scorer.name}</h1>
-        <p className="m-0 text-[0.875rem]">{scorer.scorer.description}</p>
-        <div
-          className={cn(
-            'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center mb-[0.25rem]',
-            '[&>svg]:w-[1em] [&>svg]:h-[1em] [&>svg]:text-icon3',
-          )}
-        >
-          <span>Entities</span>
-          <ArrowRightIcon />
-          <div className="flex  gap-[1rem] [&>a]:text-icon4 [&>a:hover]:text-icon5 [&>a]:transition-colors [&>a]:flex [&>a]:items-center [&>a]:gap-[0.5rem] [&>a]:border [&>a]:border-border1 [&>a]:p-[0.25rem] [&>a]:px-[0.5rem] [&>a]:rounded-md [&>a]:text-[0.875rem]">
-            {agents?.map(agent => {
-              return (
-                <Link to={`/agents/${agent.id}/chat`} key={agent.id}>
-                  <AgentIcon /> {agent.name || agent.id}
-                </Link>
-              );
-            })}
-            {workflows?.map(workflow => {
-              return (
-                <Link to={`/workflows/${workflow.id}/graph`} key={workflow.id}>
-                  <WorkflowIcon /> {workflow.name || workflow.id}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 

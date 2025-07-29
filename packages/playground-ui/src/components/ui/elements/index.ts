@@ -5,3 +5,5 @@ export * from './dropdown-menu';
 export { Button as UiButton } from './button';
 export { Select as UiSelect } from './select';
 export * from './form-fields';
+export * from './relations';
+export * from './headers';

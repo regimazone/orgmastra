@@ -4,7 +4,7 @@ import {
   Header,
   MainContentLayout,
   DatasetItemDialog,
-  EntryListPageHeader,
+  EntityPageHeader,
   DatasetItemsTools,
   Tabs,
   TabsContent,
@@ -109,7 +109,7 @@ export default function Dataset() {
         <>
           <div className={cn(`h-full overflow-y-scroll `)}>
             <div className={cn('max-w-[100rem] px-[3rem] mx-auto grid')}>
-              <EntryListPageHeader title={dataset.name} description={dataset.description} icon={<DatabaseIcon />} />
+              <EntityPageHeader title={dataset.name} description={dataset.description} icon={<DatabaseIcon />} />
               <Tabs value={currentTab} onValueChange={setCurrentTab}>
                 <TabsList>
                   <TabsTrigger value="items">Data items</TabsTrigger>
