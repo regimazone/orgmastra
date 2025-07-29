@@ -820,13 +820,8 @@ export class MessageList {
       messageSource,
     );
 
-    // Preserve original V1 content format in metadata for round-trip preservation
-    if (message.content !== undefined) {
-      coreV2.content.metadata = {
-        ...(coreV2.content.metadata || {}),
-        __originalV1Content: message.content,
-      };
-    }
+    // For V1 messages, we don't need to preserve content in metadata
+    // The V1->V2->V1 conversion will reconstruct it properly from parts
 
     return {
       id: message.id,
@@ -927,7 +922,7 @@ export class MessageList {
     };
 
     if (v3Msg.content.metadata) {
-      v2Msg.content.metadata = v3Msg.content.metadata as any; // unknown here doesn't work, but we don't have actual metadata types right now anyway. It's any object.
+      v2Msg.content.metadata = v3Msg.content.metadata as any;
     }
 
     // Extract text content from parts and set as content.content
@@ -936,10 +931,13 @@ export class MessageList {
     if (originalContent !== undefined) {
       // Restore the original content.content value (could be string, array, etc)
       v2Msg.content.content = originalContent;
-      // Remove the internal metadata field from the returned message
+      // Remove the __originalContent from metadata after restoring
       if (v2Msg.content.metadata) {
-        const { __originalContent, ...cleanMetadata } = v2Msg.content.metadata as any;
-        v2Msg.content.metadata = cleanMetadata;
+        delete (v2Msg.content.metadata as any).__originalContent;
+        // Remove metadata entirely if it's now empty
+        if (Object.keys(v2Msg.content.metadata).length === 0) {
+          delete v2Msg.content.metadata;
+        }
       }
     } else {
       // Fall back to concatenating text parts
