@@ -249,9 +249,6 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
             parameters: z.object({ value: z.string() }),
             execute: async (args, options) => {
               expect(args).toStrictEqual({ value: 'value' });
-
-              console.log(JSON.stringify(options.messages, null, 2), 'MESSAGES YO');
-
               expect(options.messages).toStrictEqual([{ role: 'user', content: 'test-input' }]);
               return `${args.value}-result`;
             },
@@ -262,8 +259,6 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
       });
 
       const messages = await convertAsyncIterableToArray(result.aisdk.v4.fullStream);
-
-      console.log(JSON.stringify(messages, null, 2), 'MESSAGES RETURN');
 
       expect(messages).toMatchSnapshot();
     });

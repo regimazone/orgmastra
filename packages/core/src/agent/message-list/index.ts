@@ -79,7 +79,6 @@ export class MessageList {
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
     if (!messages) return this;
     for (const message of Array.isArray(messages) ? messages : [messages]) {
-      console.log('ADDING message!!!!', message);
       this.addOne(
         typeof message === `string`
           ? {

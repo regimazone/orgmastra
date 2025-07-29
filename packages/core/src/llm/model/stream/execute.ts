@@ -9,6 +9,7 @@ import { executeV4 } from './ai-sdk/v4';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, StreamExecutorProps } from './types';
+import { ConsoleLogger, type MastraLogger } from '../../../logger';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -101,11 +102,15 @@ function createAgentWorkflow({
         const messageList = MessageList.fromArray(inputData.messages);
 
         const runState = new AgenticRunState({
-          _internal,
+          _internal: _internal!,
           model,
         });
 
         let modelResult;
+
+        let warnings: any;
+        let request: any;
+        let rawResponse: any;
 
         switch (model.specificationVersion) {
           case 'v1': {
@@ -119,6 +124,30 @@ function createAgentWorkflow({
               activeTools,
               _internal,
               options,
+              onResult: ({
+                warnings: warningsFromStream,
+                request: requestFromStream,
+                rawResponse: rawResponseFromStream,
+              }) => {
+                console.log('warningsFromStream', warningsFromStream);
+                console.log('requestFromStream', requestFromStream);
+                console.log('rawResponseFromStream', rawResponseFromStream);
+
+                warnings = warningsFromStream;
+                request = requestFromStream || {};
+                rawResponse = rawResponseFromStream;
+
+                controller.enqueue({
+                  runId,
+                  from: 'AGENT',
+                  type: 'step-start',
+                  payload: {
+                    request: request || {},
+                    warnings: [],
+                    messageId: messageId,
+                  },
+                });
+              },
             });
             break;
           }
@@ -127,23 +156,10 @@ function createAgentWorkflow({
           }
         }
 
-        const { stream, warnings, request, rawResponse } = modelResult;
-
         const outputStream = new MastraModelOutput({
-          stream: stream!,
+          stream: modelResult!,
           options: {
             toolCallStreaming,
-          },
-        });
-
-        controller.enqueue({
-          runId,
-          from: 'AGENT',
-          type: 'step-start',
-          payload: {
-            request: request,
-            warnings: [],
-            messageId: messageId,
           },
         });
 
@@ -529,6 +545,7 @@ function createStreamExecutor({
   options,
   maxRetries = 2,
   maxSteps = 5,
+  logger,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -548,6 +565,7 @@ function createStreamExecutor({
         _internal,
         controller,
         options,
+        logger,
       });
 
       const mainWorkflow = createWorkflow({
@@ -619,9 +637,27 @@ export async function execute(
       'inputMessages'
     >,
 ) {
-  const { system, prompt, resourceId, threadId, runId, _internal, ...rest } = props;
+  const { system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
+
+  let loggerToUse =
+    logger ||
+    new ConsoleLogger({
+      level: 'debug',
+    });
 
   let runIdToUse = runId;
+
+  if (!runIdToUse) {
+    runIdToUse = crypto.randomUUID();
+  }
+
+  loggerToUse.debug('Running agentic execution', {
+    runId: runIdToUse,
+    system,
+    prompt,
+    resourceId,
+    threadId,
+  });
 
   const messageList = new MessageList({
     threadId,
@@ -638,10 +674,6 @@ export async function execute(
 
   const messages = messageList.get.all.core() as LanguageModelV1Prompt;
 
-  if (!runIdToUse) {
-    runIdToUse = crypto.randomUUID();
-  }
-
   if (_internal) {
     // We call this for no reason because of aisdk
     _internal.generateId?.();
@@ -655,6 +687,7 @@ export async function execute(
       generateId,
     },
     inputMessages: messages,
+    logger: loggerToUse,
     ...rest,
   };
 

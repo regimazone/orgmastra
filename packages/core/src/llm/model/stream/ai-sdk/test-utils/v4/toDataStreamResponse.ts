@@ -7,7 +7,6 @@ import { StreamData } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { mergeStreams, writeToServerResponse } from '../../../../../../stream/compat';
 import {
   createMockServerResponse,
   createTestModel,
@@ -16,12 +15,14 @@ import {
   modelWithReasoning,
   modelWithSources,
 } from '../../../../test-utils';
-import type { AgenticLoop } from '../../../../vnext';
+import type { execute } from '../../../execute';
+import { mergeStreams, writeToServerResponse } from '../../v4/compat';
 
-export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; version: 'v4' }) {
+export function toDataStreamResponseTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.toDataStreamResponse', () => {
     it('should create a Response with a data stream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
@@ -39,7 +40,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should create a Response with a data stream and custom headers', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
@@ -64,7 +66,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should support merging with existing stream data', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
@@ -82,7 +85,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should mask error messages by default', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
         }),
@@ -96,7 +100,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should support custom error messages', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
         }),
@@ -112,7 +117,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should suppress usage information when sendUsage is false', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             { type: 'text-delta', textDelta: 'Hello, World!' },
@@ -137,7 +143,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     it('should write data stream parts to a Node.js response-like object', async () => {
       const mockResponse = createMockServerResponse();
 
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
@@ -176,7 +183,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     it('should write text deltas to a Node.js response-like object', async () => {
       const mockResponse = createMockServerResponse();
 
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             { type: 'text-delta', textDelta: 'Hello' },
@@ -209,7 +217,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
 
   describe('result.toDataStream', () => {
     it('should create a data stream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         ...defaultSettings(),
       });
@@ -222,7 +231,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should support merging with existing stream data', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         ...defaultSettings(),
       });
@@ -239,7 +249,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should send tool call and tool result stream parts', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -291,7 +302,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should send tool call, tool call stream start, tool call deltas, and tool result stream parts when tool call delta flag is enabled', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -344,7 +356,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should mask error messages by default', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
         }),
@@ -359,7 +372,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should support custom error messages', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
         }),
@@ -378,7 +392,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should suppress usage information when sendUsage is false', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             { type: 'text-delta', textDelta: 'Hello, World!' },
@@ -400,7 +415,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should omit message finish event (d:) when sendFinish is false', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             { type: 'text-delta', textDelta: 'Hello, World!' },
@@ -426,7 +442,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should send reasoning content when sendReasoning is true', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: modelWithReasoning,
         ...defaultSettings(),
       });
@@ -441,7 +458,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should send source content when sendSources is true', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: modelWithSources,
         ...defaultSettings(),
       });
@@ -456,7 +474,8 @@ export function toDataStreamResponseTests({ engine }: { engine: AgenticLoop; ver
     });
 
     it('should send file content', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: modelWithFiles,
         ...defaultSettings(),
       });

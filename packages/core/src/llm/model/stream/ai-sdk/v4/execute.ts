@@ -10,7 +10,10 @@ export function executeV4({
   tools,
   activeTools,
   toolChoice,
-}: ExecutionProps) {
+  onResult,
+}: ExecutionProps & {
+  onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
+}) {
   const v4 = new AISDKV4InputStream({
     component: 'LLM',
     name: model.modelId,
@@ -22,16 +25,9 @@ export function executeV4({
     activeTools: activeTools,
   });
 
-  let warnings;
-  let request = {};
-  let rawResponse:
-    | {
-        headers?: Record<string, any>;
-      }
-    | undefined;
-
   const stream = v4.initialize({
     runId,
+    onResult,
     createStream: async () => {
       try {
         const stream = await model.doStream({
@@ -44,29 +40,25 @@ export function executeV4({
           prompt: inputMessages,
         });
 
-        warnings = stream.warnings;
-        request = stream.request || {};
-        rawResponse = stream.rawResponse;
-
-        return stream.stream as any;
+        return stream as any;
       } catch (error) {
-        return new ReadableStream({
-          start: async controller => {
-            controller.enqueue({
-              type: 'error',
-              error,
-            });
-            controller.close();
-          },
-        });
+        return {
+          stream: new ReadableStream({
+            start: async controller => {
+              controller.enqueue({
+                type: 'error',
+                error,
+              });
+              controller.close();
+            },
+          }),
+          warnings: [],
+          request: {},
+          rawResponse: {},
+        };
       }
     },
   });
 
-  return {
-    stream,
-    warnings,
-    request,
-    rawResponse,
-  };
+  return stream;
 }

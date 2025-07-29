@@ -1,5 +1,17 @@
 import type { IDGenerator, LanguageModelV1, LanguageModelV1Prompt, streamText, ToolChoice, ToolSet } from 'ai';
+import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
+
+export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
+
+export type CreateStream = () =>
+  | Promise<{
+      stream: ReadableStream<any>;
+      warnings: any;
+      request: any;
+      rawResponse: any;
+    }>
+  | ReadableStream<any>;
 
 export type StreamInternal = {
   now?: () => number;
@@ -20,6 +32,7 @@ export type ExecutionProps = {
   options?: {
     onChunk: (chunk: ChunkType) => void;
   };
+  logger?: MastraLogger;
 };
 
 export type AgentWorkflowProps = {

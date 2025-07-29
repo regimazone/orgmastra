@@ -1,4 +1,5 @@
 import { TransformStream } from 'stream/web';
+import type { ReadableStream } from 'node:stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
@@ -37,7 +38,7 @@ export class AISDKV4OutputStream {
   }: ResponseInit &
     DataStreamOptions & {
       data?: StreamData;
-      getErrorMessage?: (error: unknown) => string;
+      getErrorMessage?: (error: any) => string;
     } = {}): Response {
     let dataStream = this.toDataStream({
       getErrorMessage,
@@ -48,7 +49,7 @@ export class AISDKV4OutputStream {
     }).pipeThrough(new TextEncoderStream() as any) as any;
 
     if (data) {
-      dataStream = mergeStreams(data.stream, dataStream);
+      dataStream = mergeStreams(data.stream as any, dataStream);
     }
 
     return new Response(dataStream, {

@@ -82,7 +82,6 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
     };
   } else if (value.type === 'finish') {
     const { finishReason, usage, providerMetadata, messages: _messages, ...rest } = value;
-    console.log('finish raw chunk', value);
     return {
       type: 'finish',
       runId: ctx.runId,
@@ -182,8 +181,6 @@ export function convertFullStreamChunkToAISDKv4({
   toolCallStreaming?: boolean;
   getErrorMessage: (error: string) => string;
 }) {
-  console.log('convertFullStreamChunkToAISDKv4 toolCallStreaming', toolCallStreaming);
-  console.log('chunk', chunk);
   if (chunk.type === 'text-delta') {
     if (client) {
       return formatDataStreamPart('text', chunk.payload.text);

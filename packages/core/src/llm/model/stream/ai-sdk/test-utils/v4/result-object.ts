@@ -13,7 +13,7 @@ import { DefaultGeneratedFileWithType } from '../../v4/file';
 
 export function resultObjectTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.warnings', () => {
-    it.only('should resolve with warnings', async () => {
+    it('should resolve with warnings', async () => {
       const result = await executeFn({
         runId,
         model: createTestModel({

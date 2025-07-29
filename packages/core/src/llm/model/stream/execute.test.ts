@@ -1,7 +1,9 @@
 import { describe } from 'vitest';
 import { fullStreamTests } from './ai-sdk/test-utils/v4/fullStream';
+import { mergeIntoDataStreamTests } from './ai-sdk/test-utils/v4/mergeIntoDataStream';
 import { resultObjectTests } from './ai-sdk/test-utils/v4/result-object';
 import { textStreamTests } from './ai-sdk/test-utils/v4/textStream';
+import { toDataStreamResponseTests } from './ai-sdk/test-utils/v4/toDataStreamResponse';
 import { execute } from './execute';
 
 const runId = '12345';
@@ -18,12 +20,13 @@ describe('V4 tests', () => {
 
   fullStreamTests({ executeFn: execute, runId });
 
-  // toDataStreamResponseTests({
-  //     engine: looper,
-  //     version: 'v4',
-  // });
+  toDataStreamResponseTests({
+    executeFn: execute,
+    runId,
+  });
 
-  // mergeIntoDataStreamTests({
-  //     engine: looper,
-  // });
+  mergeIntoDataStreamTests({
+    executeFn: execute,
+    runId,
+  });
 });

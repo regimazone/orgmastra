@@ -1,5 +1,4 @@
 import { TextEncoderStream } from 'stream/web';
-import type { ReadableStream } from 'stream/web';
 import {
   convertArrayToReadableStream,
   convertAsyncIterableToArray,
@@ -10,12 +9,13 @@ import { createDataStream } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it, vi } from 'vitest';
 import { createTestModel } from '../../../../test-utils';
-import type { AgenticLoop } from '../../../../vnext';
+import type { execute } from '../../../execute';
 
-export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
+export function mergeIntoDataStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.mergeIntoDataStream', () => {
     it('should merge the result into a data stream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
@@ -35,7 +35,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
     });
 
     it('should use the onError handler from the data stream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
         }),
@@ -56,7 +57,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
   describe('result.toTextStreamResponse', () => {
     it('should create a Response with a text stream', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel(),
         prompt: 'test-input',
       });
@@ -73,7 +75,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
   describe.skip('result.consumeStream', () => {
     it('should ignore AbortError during stream consumption', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: new ReadableStream({
             start(controller) {
@@ -95,7 +98,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
     });
 
     it('should ignore ResponseAborted error during stream consumption', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: new ReadableStream({
             start(controller) {
@@ -117,7 +121,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
     });
 
     it('should ignore any errors during stream consumption', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: new ReadableStream({
             start(controller) {
@@ -136,7 +141,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
     it('should call the onError callback with the error', async () => {
       const onErrorCallback = vi.fn();
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: new ReadableStream({
             start(controller) {
@@ -157,7 +163,8 @@ export function mergeIntoDataStreamTests({ engine }: { engine: AgenticLoop }) {
 
   describe('multiple stream consumption', () => {
     it('should support text stream, ai stream, full stream on single result object', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
