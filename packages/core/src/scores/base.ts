@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '../workflows';
-import { scoreResultSchema, scoringExtractStepResultSchema } from './types';
+import { scoringExtractStepResultSchema } from './types';
 
 const analyzeStepResultSchema = z.object({
   result: z.record(z.string(), z.any()).optional(),
@@ -62,7 +62,7 @@ export class MastraScorer {
           return;
         }
 
-        const preprocessStepResult = await this.preprocess(inputData);
+        const preprocessStepResult = await this.preprocess({ run: inputData });
 
         return preprocessStepResult;
       },
@@ -74,7 +74,9 @@ export class MastraScorer {
       inputSchema: scoringExtractStepResultSchema,
       outputSchema: analyzeStepResultSchema,
       execute: async ({ inputData }) => {
-        const analyzeStepResult = await this.analyze({ ...input, runId, preprocessStepResult: inputData?.result });
+        const analyzeStepResult = await this.analyze({
+          run: { ...input, runId, preprocessStepResult: inputData?.result },
+        });
 
         return analyzeStepResult;
       },
@@ -90,11 +92,13 @@ export class MastraScorer {
         const analyzeStepRes = getStepResult(analyzeStep);
 
         const score = await this.generateScore({
-          ...input,
-          runId,
-          preprocessStepResult: preprocessStepRes?.result,
-          analyzeStepResult: analyzeStepRes?.result,
-          analyzePrompt: analyzeStepRes?.prompt,
+          run: {
+            ...input,
+            runId,
+            preprocessStepResult: preprocessStepRes?.result,
+            analyzeStepResult: analyzeStepRes?.result,
+            analyzePrompt: analyzeStepRes?.prompt,
+          },
         });
 
         return score;
@@ -122,11 +126,13 @@ export class MastraScorer {
         }
 
         const reasonResult = await this.reason({
-          ...input,
-          preprocessStepResult: preprocessStepResult?.result,
-          analyzeStepResult: analyzeStepRes?.result,
-          score: scoreResult,
-          runId,
+          run: {
+            ...input,
+            preprocessStepResult: preprocessStepResult?.result,
+            analyzeStepResult: analyzeStepRes?.result,
+            score: scoreResult,
+            runId,
+          },
         });
 
         return {

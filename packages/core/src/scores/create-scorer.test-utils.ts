@@ -1,18 +1,17 @@
+import { MockLanguageModelV1 } from 'ai/test';
 import { z } from 'zod';
 import { createScorer } from './create-scorer';
-import { openai } from '@ai-sdk/openai';
-import { MockLanguageModelV1 } from 'ai/test';
 
 // Function-based scorer builders
 export const FunctionBasedScorerBuilders = {
   basic: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       input: run.input?.[0]?.content,
       output: run.output.text,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.input.length;
       const outputLength = run.analyzeStepResult?.output.length;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -22,15 +21,15 @@ export const FunctionBasedScorerBuilders = {
   withPreprocess: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    preprocess: async run => ({
+    preprocess: async ({ run }) => ({
       reformattedInput: run.input?.[0]?.content.toUpperCase(),
       reformattedOutput: run.output.text.toUpperCase(),
     }),
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       inputFromAnalyze: run.preprocessStepResult?.reformattedInput + `!`,
       outputFromAnalyze: run.preprocessStepResult?.reformattedOutput + `!`,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const { analyzeStepResult, preprocessStepResult } = run;
       const lengths = [
         analyzeStepResult?.inputFromAnalyze.length,
@@ -45,31 +44,31 @@ export const FunctionBasedScorerBuilders = {
   withReason: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       input: run.input?.[0]?.content,
       output: run.output.text,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.input.length;
       const outputLength = run.analyzeStepResult?.output.length;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
     },
-    generateReason: async run =>
+    generateReason: async ({ run }) =>
       `the reason is because the input is ${run.analyzeStepResult?.input} and the output is ${run.analyzeStepResult?.output}`,
   }),
 
   allSteps: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    preprocess: async run => ({
+    preprocess: async ({ run }) => ({
       reformattedInput: run.input?.[0]?.content.toUpperCase(),
       reformattedOutput: run.output.text.toUpperCase(),
     }),
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       inputFromAnalyze: run.preprocessStepResult?.reformattedInput + `!`,
       outputFromAnalyze: run.preprocessStepResult?.reformattedOutput + `!`,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const { analyzeStepResult, preprocessStepResult } = run;
       const lengths = [
         analyzeStepResult?.inputFromAnalyze.length,
@@ -79,7 +78,7 @@ export const FunctionBasedScorerBuilders = {
       ];
       return lengths.every(len => len !== undefined) ? 1 : 0;
     },
-    generateReason: async run =>
+    generateReason: async ({ run }) =>
       `the reason the score is 1 is because the input is ${run.analyzeStepResult?.inputFromAnalyze} and the output is ${run.analyzeStepResult?.outputFromAnalyze}`,
   }),
 };
@@ -109,11 +108,11 @@ export const PromptBasedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -144,7 +143,7 @@ export const PromptBasedScorerBuilders = {
         reformattedInput: z.string(),
         reformattedOutput: z.string(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Preprocess prompt`;
       },
     },
@@ -154,7 +153,7 @@ export const PromptBasedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
       judge: {
@@ -173,7 +172,7 @@ export const PromptBasedScorerBuilders = {
         instructions: `Test instructions`,
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -189,7 +188,7 @@ export const PromptBasedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
       judge: {
@@ -208,7 +207,7 @@ export const PromptBasedScorerBuilders = {
         instructions: `Test instructions`,
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -229,7 +228,7 @@ export const PromptBasedScorerBuilders = {
         instructions: `Test instructions`,
       },
       description: 'Generate a reason for the score',
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Generate Reason prompt`;
       },
     },
@@ -259,7 +258,7 @@ export const PromptBasedScorerBuilders = {
         reformattedInput: z.string(),
         reformattedOutput: z.string(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Preprocess prompt`;
       },
     },
@@ -269,7 +268,7 @@ export const PromptBasedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
       judge: {
@@ -288,7 +287,7 @@ export const PromptBasedScorerBuilders = {
         instructions: `Test instructions`,
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -309,7 +308,7 @@ export const PromptBasedScorerBuilders = {
         instructions: `Test instructions`,
       },
       description: 'Generate a reason for the score',
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Generate Reason prompt`;
       },
     },
@@ -320,7 +319,7 @@ export const MixedScorerBuilders = {
   withPreprocessFunctionAnalzyePrompt: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    preprocess: async run => ({
+    preprocess: async ({ run }) => ({
       reformattedInput: run.input?.[0]?.content.toUpperCase() + ' from preprocess function!',
       reformattedOutput: run.output.text.toUpperCase() + ' from preprocess function!',
     }),
@@ -345,11 +344,11 @@ export const MixedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -380,15 +379,15 @@ export const MixedScorerBuilders = {
         reformattedInput: z.string(),
         reformattedOutput: z.string(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Preprocess prompt`;
       },
     },
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       inputFromAnalyze: run.preprocessStepResult?.reformattedInput + `!`,
       outputFromAnalyze: run.preprocessStepResult?.reformattedOutput + `!`,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const { analyzeStepResult, preprocessStepResult } = run;
       const lengths = [
         analyzeStepResult?.inputFromAnalyze.length,
@@ -409,7 +408,7 @@ export const MixedScorerBuilders = {
         inputLength: z.number(),
         outputLength: z.number(),
       }),
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Analyze prompt`;
       },
       judge: {
@@ -428,23 +427,23 @@ export const MixedScorerBuilders = {
         instructions: `Test instructions`,
       },
     },
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputLength;
       const outputLength = run.analyzeStepResult?.outputLength;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
     },
-    generateReason: async run =>
+    generateReason: async ({ run }) =>
       `the reason is because the input is ${run.analyzeStepResult?.inputLength} and the output is ${run.analyzeStepResult?.outputLength} from generateReason function`,
   }),
 
   withReasonPromptAnalyzeFunction: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-    analyze: async run => ({
+    analyze: async ({ run }) => ({
       inputFromAnalyze: run.input?.[0]?.content + ` from analyze function!`,
       outputFromAnalyze: run.output.text + ` from analyze function!`,
     }),
-    generateScore: async run => {
+    generateScore: async ({ run }) => {
       const inputLength = run.analyzeStepResult?.inputFromAnalyze.length;
       const outputLength = run.analyzeStepResult?.outputFromAnalyze.length;
       return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
@@ -465,7 +464,7 @@ export const MixedScorerBuilders = {
         instructions: `Test instructions`,
       },
       description: 'Generate a reason for the score',
-      createPrompt: ({ run }) => {
+      createPrompt: () => {
         return `Test Generate Reason prompt`;
       },
     },
