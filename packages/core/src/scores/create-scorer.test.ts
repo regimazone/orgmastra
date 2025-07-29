@@ -40,6 +40,20 @@ describe('createScorer', () => {
       expect(result).toMatchSnapshot();
     });
 
+    it('should create a scorer with synchronous functions', async () => {
+      const scorer = FunctionBasedScorerBuilders.basicSync;
+      const result = await scorer.run(testData.scoringInput);
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should create a scorer with mixed sync/async functions', async () => {
+      const scorer = FunctionBasedScorerBuilders.mixedSyncAsync;
+      const result = await scorer.run(testData.scoringInput);
+
+      expect(result).toMatchSnapshot();
+    });
+
     it('should create a scorer with preprocess step', async () => {
       const scorer = FunctionBasedScorerBuilders.withPreprocess;
       const result = await scorer.run(testData.scoringInput);

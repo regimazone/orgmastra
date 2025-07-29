@@ -61,9 +61,10 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
           };
         } else {
           // Function-based preprocessing
-          const result = await (opts.preprocess as PreprocessStepFn<TPreprocessOutput>)({ run });
+          const result = (opts.preprocess as PreprocessStepFn<TPreprocessOutput>)({ run });
+          const finalResult = result instanceof Promise ? await result : result;
           return {
-            result: result as TPreprocessOutput,
+            result: finalResult as TPreprocessOutput,
           };
         }
       },
@@ -104,9 +105,10 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
         };
       } else {
         // Function-based analysis - wrap result automatically
-        const result = await opts.analyze({ run });
+        const result = opts.analyze({ run });
+        const finalResult = result instanceof Promise ? await result : result;
         return {
-          result,
+          result: finalResult,
         };
       }
     },
@@ -148,8 +150,9 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
         return typeof result.object === 'number' ? result.object : (result.object as any).score || 0;
       } else {
         // Function-based scoring
-        const scoreResult = await opts.generateScore({ run });
-        return typeof scoreResult === 'number' ? scoreResult : await scoreResult;
+        const scoreResult = opts.generateScore({ run });
+        const finalScoreResult = scoreResult instanceof Promise ? await scoreResult : scoreResult;
+        return typeof finalScoreResult === 'number' ? finalScoreResult : await finalScoreResult;
       }
     },
 
@@ -194,8 +197,9 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
             };
           } else {
             // Function-based reasoning - wrap result automatically
-            const reasonText = await (opts.generateReason as ReasonStepFn<TPreprocessOutput, TAnalyzeOutput>)({ run });
-            return reasonText ? { reason: reasonText } : null;
+            const reasonText = (opts.generateReason as ReasonStepFn<TPreprocessOutput, TAnalyzeOutput>)({ run });
+            const finalReasonText = reasonText instanceof Promise ? await reasonText : reasonText;
+            return finalReasonText ? { reason: finalReasonText } : null;
           }
         }
       : undefined,

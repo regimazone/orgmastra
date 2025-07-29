@@ -87,7 +87,9 @@ export type ScoreRowData = ScoringInputWithPreprocessStepResultAndScoreAndReason
     updatedAt: Date;
   };
 
-export type PreprocessStepFn<TOutput = any> = (input: { run: ScoringInput }) => Promise<TOutput>;
+export type PreprocessStepFn<TOutput = any> = {
+  (input: { run: ScoringInput }): TOutput | Promise<TOutput>;
+};
 
 type LLMJudge = {
   model: MastraLanguageModel;
@@ -103,9 +105,9 @@ export type PreprocessStepConfig<TOutput = any> = {
 
 export type PreprocessStep<TOutput = any> = PreprocessStepFn<TOutput> | PreprocessStepConfig<TOutput>;
 
-export type AnalyzeStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (input: {
-  run: ScoringInputWithPreprocessStepResult<TPreprocessOutput>;
-}) => Promise<TAnalyzeOutput>;
+export type AnalyzeStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = {
+  (input: { run: ScoringInputWithPreprocessStepResult<TPreprocessOutput> }): TAnalyzeOutput | Promise<TAnalyzeOutput>;
+};
 
 export type AnalyzeStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
@@ -118,9 +120,11 @@ export type AnalyzeStep<TPreprocessOutput = any, TAnalyzeOutput = any> =
   | AnalyzeStepFn<TPreprocessOutput, TAnalyzeOutput>
   | AnalyzeStepConfig<TPreprocessOutput, TAnalyzeOutput>;
 
-export type GenerateScoreStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (input: {
-  run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>;
-}) => Promise<number> | number;
+export type GenerateScoreStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = {
+  (input: {
+    run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>;
+  }): number | Promise<number>;
+};
 
 export type GenerateScoreStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
@@ -137,9 +141,11 @@ export type GenerateScoreStep<TPreprocessOutput = any, TAnalyzeOutput = any> =
   | GenerateScoreStepFn<TPreprocessOutput, TAnalyzeOutput>
   | GenerateScoreStepConfig<TPreprocessOutput, TAnalyzeOutput>;
 
-export type ReasonStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (input: {
-  run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>;
-}) => Promise<string | null>;
+export type ReasonStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = {
+  (input: {
+    run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>;
+  }): string | null | Promise<string | null>;
+};
 
 export type ReasonStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;

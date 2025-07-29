@@ -18,6 +18,46 @@ export const FunctionBasedScorerBuilders = {
     },
   }),
 
+  // New: Sync examples
+  basicSync: createScorer({
+    name: 'test-scorer-sync',
+    description: 'A test scorer with sync functions',
+    analyze: ({ run }) => ({
+      input: run.input?.[0]?.content,
+      output: run.output.text,
+    }),
+    generateScore: ({ run }) => {
+      const inputLength = run.analyzeStepResult?.input.length;
+      const outputLength = run.analyzeStepResult?.output.length;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    },
+  }),
+
+  mixedSyncAsync: createScorer({
+    name: 'test-scorer-mixed',
+    description: 'A test scorer with mixed sync/async functions',
+    preprocess: ({ run }) => ({
+      reformattedInput: run.input?.[0]?.content.toUpperCase(),
+      reformattedOutput: run.output.text.toUpperCase(),
+    }),
+    analyze: async ({ run }) => ({
+      inputFromAnalyze: run.preprocessStepResult?.reformattedInput + `!`,
+      outputFromAnalyze: run.preprocessStepResult?.reformattedOutput + `!`,
+    }),
+    generateScore: ({ run }) => {
+      const { analyzeStepResult, preprocessStepResult } = run;
+      const lengths = [
+        analyzeStepResult?.inputFromAnalyze.length,
+        analyzeStepResult?.outputFromAnalyze.length,
+        preprocessStepResult?.reformattedInput.length,
+        preprocessStepResult?.reformattedOutput.length,
+      ];
+      return lengths.every(len => len !== undefined) ? 1 : 0;
+    },
+    generateReason: ({ run }) =>
+      `the reason the score is 1 is because the input is ${run.analyzeStepResult?.inputFromAnalyze} and the output is ${run.analyzeStepResult?.outputFromAnalyze}`,
+  }),
+
   withPreprocess: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',

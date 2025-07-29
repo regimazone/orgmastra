@@ -188,7 +188,7 @@ describe('MastraScorer', () => {
         analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
         score: 0.8,
       });
-      console.log(JSON.stringify(result, null, 2));
+
       expect(result).toMatchObject({
         preprocessStepResult: { extractedData: 'test' },
         score: 0.8,
