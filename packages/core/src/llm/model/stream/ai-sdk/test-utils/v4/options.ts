@@ -6,6 +6,7 @@ import { createTestModel, defaultSettings, modelWithFiles, modelWithSources } fr
 import type { execute } from '../../../execute';
 import { convertFullStreamChunkToAISDKv4 } from '../../v4';
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
+import { DefaultGeneratedFile, DefaultGeneratedFileWithType } from '../../v4/file';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe.skip('options.onChunk', () => {
@@ -237,6 +238,19 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
+
+            result.files = result.files.map((file: any) => {
+              return new DefaultGeneratedFileWithType(file);
+            });
+
+            result.steps = result.steps.map((step: any) => {
+              return {
+                ...step,
+                files: step.files.map((file: any) => {
+                  return new DefaultGeneratedFileWithType(file);
+                }),
+              };
+            });
           },
         },
         ...defaultSettings(),
@@ -261,7 +275,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         },
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toStrictEqual([
+      expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toStrictEqual([
         {
           type: 'error',
           error: new Error('test error'),
