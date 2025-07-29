@@ -135,7 +135,8 @@ export class MastraScorer {
           analyzePrompt: analyzeStepRes?.prompt,
           preprocessPrompt: preprocessStepResult?.prompt,
           score: scoreResult,
-          ...(reasonResult || {}),
+          ...(reasonResult?.reason ? { reason: reasonResult.reason } : {}),
+          ...(reasonResult?.prompt ? { reasonPrompt: reasonResult.prompt } : {}),
         };
       },
     });
