@@ -154,8 +154,30 @@ export class MessageList {
       },
     };
   }
+  private cleanV3Metadata(messages: MastraMessageV3[]): MastraMessageV3[] {
+    return messages.map(msg => {
+      if (
+        !msg.content.metadata ||
+        typeof msg.content.metadata !== 'object' ||
+        !('__originalContent' in msg.content.metadata)
+      ) {
+        return msg;
+      }
+
+      const { __originalContent, ...cleanMetadata } = msg.content.metadata as any;
+
+      if (Object.keys(cleanMetadata).length === 0) {
+        // Remove metadata entirely if it only had __originalContent
+        const { metadata, ...contentWithoutMetadata } = msg.content;
+        return { ...msg, content: contentWithoutMetadata };
+      }
+
+      return { ...msg, content: { ...msg.content, metadata: cleanMetadata } };
+    });
+  }
+
   private all = {
-    v3: () => this.messages,
+    v3: () => this.cleanV3Metadata(this.messages),
     v2: () => this.messages.map(MessageList.mastraMessageV3ToV2),
     v1: () => convertToV1Messages(this.all.v2()),
 
