@@ -229,21 +229,24 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
             const unprocessedToolInvocations = toolInvocations.filter(ti => !processedToolCallIds.has(ti.toolCallId));
 
             if (unprocessedToolInvocations.length > 0) {
-              // Process these tool invocations
-              const maxStep = unprocessedToolInvocations.reduce((max, toolInvocation) => {
-                return Math.max(max, toolInvocation.step ?? 0);
-              }, 0);
+              // Group by step, handling undefined steps
+              const invocationsByStep = new Map<number, typeof unprocessedToolInvocations>();
 
-              for (let i = 0; i <= maxStep; i++) {
-                const stepInvocations = unprocessedToolInvocations.filter(
-                  toolInvocation => (toolInvocation.step ?? 0) === i,
-                );
-
-                if (stepInvocations.length === 0) {
-                  continue;
+              for (const inv of unprocessedToolInvocations) {
+                const step = inv.step ?? 0;
+                if (!invocationsByStep.has(step)) {
+                  invocationsByStep.set(step, []);
                 }
+                invocationsByStep.get(step)!.push(inv);
+              }
 
-                // assistant message with tool calls
+              // Process each step
+              const sortedSteps = Array.from(invocationsByStep.keys()).sort((a, b) => a - b);
+
+              for (const step of sortedSteps) {
+                const stepInvocations = invocationsByStep.get(step)!;
+
+                // Create tool-call message for all invocations (calls and results)
                 pushOrCombine({
                   role: 'assistant',
                   ...fields,
@@ -258,14 +261,15 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                   ],
                 });
 
-                // tool message with tool results (only include those that have results)
-                const toolResultInvocations = stepInvocations.filter(ti => ti.state === 'result' && 'result' in ti);
-                if (toolResultInvocations.length > 0) {
+                // Only create tool-result message if there are actual results
+                const invocationsWithResults = stepInvocations.filter(ti => ti.state === 'result' && 'result' in ti);
+
+                if (invocationsWithResults.length > 0) {
                   pushOrCombine({
                     role: 'tool',
                     ...fields,
                     type: 'tool-result',
-                    content: toolResultInvocations.map((toolInvocation): ToolResultPart => {
+                    content: invocationsWithResults.map((toolInvocation): ToolResultPart => {
                       const { toolCallId, toolName, result } = toolInvocation;
                       return {
                         type: 'tool-result',
