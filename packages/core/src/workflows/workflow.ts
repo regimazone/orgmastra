@@ -1407,6 +1407,15 @@ export class Run<
     this.retryConfig = params.retryConfig;
     this.cleanup = params.cleanup;
     this.abortController = new AbortController();
+
+    // Bind methods to ensure they work when destructured
+    this.start = this.start.bind(this);
+    this.resume = this.resume.bind(this);
+    this.stream = this.stream.bind(this);
+    this.cancel = this.cancel.bind(this);
+    this.sendEvent = this.sendEvent.bind(this);
+    this.watch = this.watch.bind(this);
+    this.getState = this.getState.bind(this);
   }
 
   /**
