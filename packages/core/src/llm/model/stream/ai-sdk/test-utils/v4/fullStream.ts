@@ -11,12 +11,12 @@ import {
   modelWithReasoning,
   modelWithSources,
 } from '../../../../test-utils';
-import type { AgenticLoop } from '../../../../vnext';
+import type { execute } from '../../../execute';
 
-export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId: string }) {
+export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.fullStream', () => {
     it('should send text deltas', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model: new MockLanguageModelV1({
           doStream: async ({ prompt, mode }) => {
@@ -66,7 +66,7 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send reasoning deltas', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model: modelWithReasoning,
         system: 'You are a helpful assistant.',
@@ -80,7 +80,7 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send sources', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         runId,
         model: modelWithSources,
         system: 'You are a helpful assistant.',
@@ -93,7 +93,7 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send files', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
         model: modelWithFiles,
         ...defaultSettings(),
       });
@@ -102,7 +102,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should use fallback response metadata when response metadata is not provided', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV1({
           doStream: async ({ prompt, mode }) => {
             expect(mode).toStrictEqual({
@@ -148,7 +149,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send tool calls', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV1({
           doStream: async ({ prompt, mode }) => {
             expect(mode).toStrictEqual({
@@ -217,7 +219,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send tool results', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -266,7 +269,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should send delayed asynchronous tool results', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -307,7 +311,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should filter out empty text deltas', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -339,7 +344,8 @@ export function fullStreamTests({ engine, runId }: { engine: AgenticLoop; runId:
     });
 
     it('should forward error in doStream as error stream part', async () => {
-      const result = await engine.loop({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV1({
           doStream: async () => {
             throw new Error('test error');

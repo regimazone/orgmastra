@@ -1,4 +1,5 @@
 import { formatDataStreamPart } from 'ai';
+import { DefaultGeneratedFileWithType } from './file';
 
 export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
   if (value.type === 'step-start') {
