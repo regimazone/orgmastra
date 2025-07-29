@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { MastraLanguageModel } from '../memory';
 
 export type ScoringSamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
 
@@ -82,11 +83,58 @@ export type ScoreRowData = ScoringInputWithExtractStepResultAndScoreAndReason &
 
 export type ExtractionStepFn = (input: ScoringInput) => Promise<Record<string, any>>;
 
+type LLMJudge = {
+  model: MastraLanguageModel;
+  instructions: string;
+};
+
+export type PreprocessStepFn = (input: ScoringInput) => Promise<Record<string, any>>;
+export type PreprocessStepConfig = {
+  description: string;
+  judge?: LLMJudge;
+  outputSchema?: z.ZodType<any>;
+  createPrompt: ({ run }: { run: ScoringInput }) => string;
+};
+
+export type PreprocessStep = PreprocessStepFn | PreprocessStepConfig;
+
+// Type guard helper
+export function isPreprocessConfig(step: PreprocessStep): step is PreprocessStepConfig {
+  return typeof step === 'object' && step !== null && 'createPrompt' in step;
+}
+
 export type AnalyzeStepFn = (input: ScoringInputWithExtractStepResult) => Promise<ScoringAnalyzeStepResult>;
+
+export type AnalyzeStepConfig = {
+  description: string;
+  judge?: LLMJudge;
+  outputSchema?: z.ZodType<any>;
+  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResult }) => string;
+};
+
+export type AnalyzeStep = AnalyzeStepFn | AnalyzeStepConfig;
+
+// Type guard helper
+export function isAnalyzeConfig(step: AnalyzeStep): step is AnalyzeStepConfig {
+  return typeof step === 'object' && step !== null && 'createPrompt' in step;
+}
 
 export type ReasonStepFn = (
   input: ScoringInputWithExtractStepResultAndAnalyzeStepResult,
 ) => Promise<{ reason: string; reasonPrompt?: string } | null>;
+
+export type ReasonStepConfig = {
+  description: string;
+  judge?: LLMJudge;
+  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResultAndAnalyzeStepResult }) => string;
+};
+
+export type ReasonStep = ReasonStepFn | ReasonStepConfig;
+
+// Type guard helper
+export function isReasonConfig(step: ReasonStep): step is ReasonStepConfig {
+  return typeof step === 'object' && step !== null && 'createPrompt' in step;
+}
 
 export type ScorerOptions = {
   name: string;
