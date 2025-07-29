@@ -65,7 +65,7 @@ import type {
 } from './types';
 export type { ChunkType, MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
-
+export { TripWire };
 type IDGenerator = () => string;
 
 function resolveMaybePromise<T, R = void>(value: T | Promise<T>, cb: (value: T) => R) {
