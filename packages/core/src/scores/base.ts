@@ -2,30 +2,41 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '../workflows';
 import { scoreResultSchema, scoringExtractStepResultSchema } from './types';
+
+const analyzeStepResultSchema = z.object({
+  result: z.record(z.string(), z.any()).optional(),
+  prompt: z.string().optional(),
+});
+
+const scoreOnlySchema = z.number();
+
 import type {
-  ExtractionStepFn,
-  ReasonStepFn,
+  PreprocessStepFn,
+  InternalReasonStepFn,
+  InternalAnalyzeStepFn,
   ScorerOptions,
-  AnalyzeStepFn,
+  GenerateScoreStepFn,
   ScoringInput,
-  ScoringInputWithExtractStepResultAndScoreAndReason,
+  ScoringInputWithPreprocessStepResultAndScoreAndReason,
   ScoringSamplingConfig,
 } from './types';
 
 export class MastraScorer {
   name: string;
   description: string;
-  extract?: ExtractionStepFn;
-  analyze: AnalyzeStepFn;
-  reason?: ReasonStepFn;
+  preprocess?: PreprocessStepFn;
+  analyze: InternalAnalyzeStepFn;
+  generateScore: GenerateScoreStepFn;
+  reason?: InternalReasonStepFn;
   metadata?: Record<string, any>;
   isLLMScorer?: boolean;
 
   constructor(opts: ScorerOptions) {
     this.name = opts.name;
     this.description = opts.description;
-    this.extract = opts.extract;
+    this.preprocess = opts.preprocess;
     this.analyze = opts.analyze;
+    this.generateScore = opts.generateScore;
     this.reason = opts.reason;
     this.metadata = {};
     this.isLLMScorer = opts.isLLMScorer;
@@ -35,73 +46,96 @@ export class MastraScorer {
     }
   }
 
-  async run(input: ScoringInput): Promise<ScoringInputWithExtractStepResultAndScoreAndReason> {
+  async run(input: ScoringInput): Promise<ScoringInputWithPreprocessStepResultAndScoreAndReason> {
     let runId = input.runId;
     if (!runId) {
       runId = randomUUID();
     }
 
-    const extractStep = createStep({
-      id: 'extract',
-      description: 'Extract relevant element from the run',
+    const preprocessStep = createStep({
+      id: 'preprocess',
+      description: 'Preprocess relevant element from the run',
       inputSchema: z.any(),
       outputSchema: scoringExtractStepResultSchema,
       execute: async ({ inputData }) => {
-        if (!this.extract) {
+        if (!this.preprocess) {
           return;
         }
 
-        const extractStepResult = await this.extract(inputData);
+        const preprocessStepResult = await this.preprocess(inputData);
 
-        return extractStepResult;
+        return preprocessStepResult;
       },
     });
 
     const analyzeStep = createStep({
       id: 'analyze',
-      description: 'Score the extracted element',
+      description: 'Analyze the preprocessed element',
       inputSchema: scoringExtractStepResultSchema,
-      outputSchema: scoreResultSchema,
+      outputSchema: analyzeStepResultSchema,
       execute: async ({ inputData }) => {
-        const analyzeStepResult = await this.analyze({ ...input, runId, extractStepResult: inputData?.result });
+        const analyzeStepResult = await this.analyze({ ...input, runId, preprocessStepResult: inputData?.result });
 
         return analyzeStepResult;
+      },
+    });
+
+    const generateScoreStep = createStep({
+      id: 'generateScore',
+      description: 'Generate score from analysis',
+      inputSchema: analyzeStepResultSchema,
+      outputSchema: scoreOnlySchema,
+      execute: async ({ getStepResult }) => {
+        const preprocessStepRes = getStepResult(preprocessStep);
+        const analyzeStepRes = getStepResult(analyzeStep);
+
+        const score = await this.generateScore({
+          ...input,
+          runId,
+          preprocessStepResult: preprocessStepRes?.result,
+          analyzeStepResult: analyzeStepRes?.result,
+          analyzePrompt: analyzeStepRes?.prompt,
+        });
+
+        return score;
       },
     });
 
     const reasonStep = createStep({
       id: 'reason',
       description: 'Reason about the score',
-      inputSchema: scoreResultSchema,
+      inputSchema: z.number(),
       outputSchema: z.any(),
       execute: async ({ getStepResult }) => {
         const analyzeStepRes = getStepResult(analyzeStep);
-        const extractStepResult = getStepResult(extractStep);
+        const preprocessStepResult = getStepResult(preprocessStep);
+        const scoreResult = getStepResult(generateScoreStep);
 
         if (!this.reason) {
           return {
-            extractStepResult: extractStepResult?.result,
+            preprocessStepResult: preprocessStepResult?.result,
             analyzeStepResult: analyzeStepRes?.result,
             analyzePrompt: analyzeStepRes?.prompt,
-            extractPrompt: extractStepResult?.prompt,
-            score: analyzeStepRes?.score,
+            preprocessPrompt: preprocessStepResult?.prompt,
+            score: scoreResult,
           };
         }
 
         const reasonResult = await this.reason({
           ...input,
-          analyzeStepResult: analyzeStepRes.result,
-          score: analyzeStepRes.score,
+          preprocessStepResult: preprocessStepResult?.result,
+          analyzeStepResult: analyzeStepRes?.result,
+          score: scoreResult,
           runId,
         });
 
         return {
-          extractStepResult: extractStepResult?.result,
+          preprocessStepResult: preprocessStepResult?.result,
           analyzeStepResult: analyzeStepRes?.result,
           analyzePrompt: analyzeStepRes?.prompt,
-          extractPrompt: extractStepResult?.prompt,
-          score: analyzeStepRes?.score,
-          ...reasonResult,
+          preprocessPrompt: preprocessStepResult?.prompt,
+          score: scoreResult,
+          ...(reasonResult || {}),
         };
       },
     });
@@ -110,10 +144,11 @@ export class MastraScorer {
       id: `scoring-pipeline-${this.name}`,
       inputSchema: z.any(),
       outputSchema: z.any(),
-      steps: [extractStep, analyzeStep],
+      steps: [preprocessStep, analyzeStep, generateScoreStep, reasonStep],
     })
-      .then(extractStep)
+      .then(preprocessStep)
       .then(analyzeStep)
+      .then(generateScoreStep)
       .then(reasonStep)
       .commit();
 

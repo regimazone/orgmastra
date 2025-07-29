@@ -7,9 +7,9 @@ import {
   type PreprocessStepFn,
   type ReasonStepFn,
   type ScoringInput,
-  type ScoringInputWithExtractStepResult,
-  type ScoringInputWithExtractStepResultAndAnalyzeStepResult,
-  type ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore,
+  type ScoringInputWithPreprocessStepResult,
+  type ScoringInputWithPreprocessStepResultAndAnalyzeStepResult,
+  type ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore,
   type TypedScorerOptions,
 } from './types';
 import { MastraError } from '../error';
@@ -29,7 +29,7 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
 
     // Preprocess step (optional)
     ...(opts.preprocess && {
-      extract: async (run: ScoringInput) => {
+      preprocess: async (run: ScoringInput) => {
         if (isPreprocessConfig(opts.preprocess!)) {
           const config = opts.preprocess;
           const judge = config.judge || defaultJudge;
@@ -71,10 +71,8 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
       },
     }),
 
-    // Analyze step (required)
-    analyze: async (run: ScoringInputWithExtractStepResult<TPreprocessOutput>) => {
-      let analyzeResult: { result: TAnalyzeOutput; prompt?: string };
-
+    // Analyze step (required) - now only returns analysis, no score
+    analyze: async (run: ScoringInputWithPreprocessStepResult<TPreprocessOutput>) => {
       if (isAnalyzeConfig(opts.analyze)) {
         const config = opts.analyze;
         const judge = config.judge || defaultJudge;
@@ -102,26 +100,24 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
           output: config.outputSchema || z.record(z.any()),
         });
 
-        analyzeResult = {
+        return {
           result: result.object as TAnalyzeOutput,
           prompt,
         };
       } else {
-        // Function-based analysis
-        analyzeResult = await opts.analyze(run);
+        // Function-based analysis - wrap result automatically
+        const result = await opts.analyze(run);
+        return {
+          result,
+        };
       }
+    },
 
-      // Now generate the score
-      const runWithAnalyzeResult: ScoringInputWithExtractStepResultAndAnalyzeStepResult<
-        TPreprocessOutput,
-        TAnalyzeOutput
-      > = {
-        ...run,
-        analyzeStepResult: analyzeResult.result,
-        analyzePrompt: analyzeResult.prompt,
-      };
-
-      let score: number;
+    // Generate Score step (required) - separate from analysis
+    generateScore: async (
+      run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>,
+    ) => {
+      // TODO Confirm this is correct way to generate score for LLM scorer
       if (isGenerateScoreConfig(opts.generateScore)) {
         const config = opts.generateScore;
         const judge = config.judge || defaultJudge;
@@ -144,36 +140,23 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
           model: judge.model,
         });
 
-        const prompt = config.createPrompt({ run: runWithAnalyzeResult });
+        const prompt = config.createPrompt({ run });
         const result = await llm.generate(prompt, {
           output: config.outputSchema || z.number(),
         });
 
-        score = typeof result.object === 'number' ? result.object : (result.object as any).score || 0;
+        return typeof result.object === 'number' ? result.object : (result.object as any).score || 0;
       } else {
         // Function-based scoring
-        const scoreResult = await opts.generateScore(runWithAnalyzeResult);
-        score = typeof scoreResult === 'number' ? scoreResult : await scoreResult;
+        const scoreResult = await opts.generateScore(run);
+        return typeof scoreResult === 'number' ? scoreResult : await scoreResult;
       }
-
-      if (isAnalyzeConfig(opts.analyze)) {
-        return {
-          result: analyzeResult.result,
-          score: score,
-          prompt: analyzeResult.prompt,
-        };
-      }
-
-      return {
-        result: analyzeResult.result,
-        score: score,
-      };
     },
 
     // Reason step (optional)
     reason: opts.generateReason
       ? async (
-          run: ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>,
+          run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>,
         ) => {
           if (isReasonConfig(opts.generateReason!)) {
             const config = opts.generateReason;
@@ -207,8 +190,9 @@ export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
               reason: result.object.reason,
             };
           } else {
-            // Function-based reasoning
-            return await (opts.generateReason as ReasonStepFn<TPreprocessOutput, TAnalyzeOutput>)(run);
+            // Function-based reasoning - wrap result automatically
+            const reasonText = await (opts.generateReason as ReasonStepFn<TPreprocessOutput, TAnalyzeOutput>)(run);
+            return reasonText ? { reason: reasonText } : null;
           }
         }
       : undefined,
@@ -229,17 +213,13 @@ createScorer({
   },
   analyze: async run => {
     return {
-      result: {
-        a: 1,
-      },
+      a: 1,
     };
   },
   generateScore: run => {
     return run.analyzeStepResult?.a || 0;
   },
   generateReason: async run => {
-    return {
-      reason: 'wtf',
-    };
+    return 'wtf';
   },
 });

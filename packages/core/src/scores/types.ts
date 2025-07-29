@@ -51,34 +51,34 @@ export const scoreResultSchema = z.object({
 
 export type ScoringAnalyzeStepResult = z.infer<typeof scoreResultSchema>;
 
-export type ScoringInputWithExtractStepResult<TExtract = any> = ScoringInput & {
+export type ScoringInputWithPreprocessStepResult<TPreprocess = any> = ScoringInput & {
   runId: string;
-  extractStepResult?: TExtract;
-  extractPrompt?: string;
+  preprocessStepResult?: TPreprocess;
+  preprocessPrompt?: string;
 };
 
-export type ScoringInputWithExtractStepResultAndAnalyzeStepResult<
-  TExtract = any,
+export type ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<
+  TPreprocess = any,
   TAnalyze = any,
-> = ScoringInputWithExtractStepResult<TExtract> & {
+> = ScoringInputWithPreprocessStepResult<TPreprocess> & {
   analyzeStepResult?: TAnalyze;
   analyzePrompt?: string;
 };
 
-export type ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore<
-  TExtract = any,
+export type ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<
+  TPreprocess = any,
   TAnalyze = any,
-> = ScoringInputWithExtractStepResultAndAnalyzeStepResult<TExtract, TAnalyze> & {
+> = ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocess, TAnalyze> & {
   score: number;
 };
 
-export type ScoringInputWithExtractStepResultAndScoreAndReason =
-  ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore & {
+export type ScoringInputWithPreprocessStepResultAndScoreAndReason =
+  ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore & {
     reason?: string;
     reasonPrompt?: string;
   };
 
-export type ScoreRowData = ScoringInputWithExtractStepResultAndScoreAndReason &
+export type ScoreRowData = ScoringInputWithPreprocessStepResultAndScoreAndReason &
   ScoringHookInput & {
     id: string;
     entityId: string;
@@ -87,14 +87,13 @@ export type ScoreRowData = ScoringInputWithExtractStepResultAndScoreAndReason &
     updatedAt: Date;
   };
 
-export type ExtractionStepFn = (input: ScoringInput) => Promise<Record<string, any>>;
+export type PreprocessStepFn<TOutput = any> = (input: ScoringInput) => Promise<TOutput>;
 
 type LLMJudge = {
   model: MastraLanguageModel;
   instructions: string;
 };
 
-export type PreprocessStepFn<TOutput = any> = (input: ScoringInput) => Promise<TOutput>;
 export type PreprocessStepConfig<TOutput = any> = {
   description: string;
   judge?: LLMJudge;
@@ -112,14 +111,14 @@ export function isPreprocessConfig<TOutput = any>(
 }
 
 export type AnalyzeStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (
-  input: ScoringInputWithExtractStepResult<TPreprocessOutput>,
-) => Promise<{ result: TAnalyzeOutput; prompt?: string }>;
+  input: ScoringInputWithPreprocessStepResult<TPreprocessOutput>,
+) => Promise<TAnalyzeOutput>;
 
 export type AnalyzeStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
   judge?: LLMJudge;
   outputSchema?: z.ZodType<TAnalyzeOutput>;
-  createPrompt: ({ run }: { run: ScoringInputWithExtractStepResult<TPreprocessOutput> }) => string;
+  createPrompt: ({ run }: { run: ScoringInputWithPreprocessStepResult<TPreprocessOutput> }) => string;
 };
 
 export type AnalyzeStep<TPreprocessOutput = any, TAnalyzeOutput = any> =
@@ -134,7 +133,7 @@ export function isAnalyzeConfig<TPreprocessOutput = any, TAnalyzeOutput = any>(
 }
 
 export type GenerateScoreStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (
-  input: ScoringInputWithExtractStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>,
+  input: ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>,
 ) => Promise<number> | number;
 
 export type GenerateScoreStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
@@ -144,7 +143,7 @@ export type GenerateScoreStepConfig<TPreprocessOutput = any, TAnalyzeOutput = an
   createPrompt: ({
     run,
   }: {
-    run: ScoringInputWithExtractStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>;
+    run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TPreprocessOutput, TAnalyzeOutput>;
   }) => string;
 };
 
@@ -160,8 +159,8 @@ export function isGenerateScoreConfig<TPreprocessOutput = any, TAnalyzeOutput = 
 }
 
 export type ReasonStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> = (
-  input: ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>,
-) => Promise<{ reason: string } | null>;
+  input: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>,
+) => Promise<string | null>;
 
 export type ReasonStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
@@ -169,7 +168,7 @@ export type ReasonStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   createPrompt: ({
     run,
   }: {
-    run: ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>;
+    run: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TPreprocessOutput, TAnalyzeOutput>;
   }) => string;
 };
 
@@ -184,12 +183,22 @@ export function isReasonConfig<TPreprocessOutput = any, TAnalyzeOutput = any>(
   return typeof step === 'object' && step !== null && 'createPrompt' in step;
 }
 
+// Internal types for the base class (with proper wrapping)
+export type InternalAnalyzeStepFn = (
+  input: ScoringInputWithPreprocessStepResult,
+) => Promise<{ result: any; prompt?: string }>;
+
+export type InternalReasonStepFn = (
+  input: ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore,
+) => Promise<{ reason: string } | null>;
+
 export type ScorerOptions = {
   name: string;
   description: string;
-  extract?: ExtractionStepFn;
-  analyze: AnalyzeStepFn;
-  reason?: ReasonStepFn;
+  preprocess?: PreprocessStepFn;
+  analyze: InternalAnalyzeStepFn;
+  generateScore: GenerateScoreStepFn;
+  reason?: InternalReasonStepFn;
   metadata?: Record<string, any>;
   isLLMScorer?: boolean;
 };
@@ -205,3 +214,10 @@ export type TypedScorerOptions<TPreprocessOutput = any, TAnalyzeOutput = any> = 
   metadata?: Record<string, any>;
   judge?: LLMJudge;
 };
+
+// Backward compatibility aliases
+// export type ExtractionStepFn = PreprocessStepFn;
+// export type ScoringInputWithExtractStepResult<TExtract = any> = ScoringInputWithPreprocessStepResult<TExtract>;
+// export type ScoringInputWithExtractStepResultAndAnalyzeStepResult<TExtract = any, TAnalyze = any> = ScoringInputWithPreprocessStepResultAndAnalyzeStepResult<TExtract, TAnalyze>;
+// export type ScoringInputWithExtractStepResultAndAnalyzeStepResultAndScore<TExtract = any, TAnalyze = any> = ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore<TExtract, TAnalyze>;
+// export type ScoringInputWithExtractStepResultAndScoreAndReason = ScoringInputWithPreprocessStepResultAndScoreAndReason;
