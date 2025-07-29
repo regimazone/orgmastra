@@ -215,6 +215,68 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
 
           processBlock();
 
+          // Check if there are toolInvocations that weren't processed from parts
+          const toolInvocations = message.content.toolInvocations;
+          if (toolInvocations && toolInvocations.length > 0) {
+            // Find tool invocations that weren't already processed from parts
+            const processedToolCallIds = new Set<string>();
+            for (const part of message.content.parts) {
+              if (part.type === 'tool-invocation' && part.toolInvocation.toolCallId) {
+                processedToolCallIds.add(part.toolInvocation.toolCallId);
+              }
+            }
+
+            const unprocessedToolInvocations = toolInvocations.filter(ti => !processedToolCallIds.has(ti.toolCallId));
+
+            if (unprocessedToolInvocations.length > 0) {
+              // Process these tool invocations
+              const maxStep = unprocessedToolInvocations.reduce((max, toolInvocation) => {
+                return Math.max(max, toolInvocation.step ?? 0);
+              }, 0);
+
+              for (let i = 0; i <= maxStep; i++) {
+                const stepInvocations = unprocessedToolInvocations.filter(
+                  toolInvocation => (toolInvocation.step ?? 0) === i,
+                );
+
+                if (stepInvocations.length === 0) {
+                  continue;
+                }
+
+                // assistant message with tool calls
+                pushOrCombine({
+                  role: 'assistant',
+                  ...fields,
+                  type: 'tool-call',
+                  content: [
+                    ...stepInvocations.map(({ toolCallId, toolName, args }) => ({
+                      type: 'tool-call' as const,
+                      toolCallId,
+                      toolName,
+                      args,
+                    })),
+                  ],
+                });
+
+                // tool message with tool results
+                pushOrCombine({
+                  role: 'tool',
+                  ...fields,
+                  type: 'tool-result',
+                  content: stepInvocations.map((toolInvocation): ToolResultPart => {
+                    const { toolCallId, toolName, result } = toolInvocation;
+                    return {
+                      type: 'tool-result',
+                      toolCallId,
+                      toolName,
+                      result,
+                    };
+                  }),
+                });
+              }
+            }
+          }
+
           break;
         }
 
