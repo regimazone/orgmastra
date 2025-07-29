@@ -95,6 +95,7 @@ export async function POST(request: Request) {
   const agent = mastraClient.getAgent("ChatAgent"); // Use your agent's ID
 
   // Stream the response with memory context
+  // Convert single message to messages array for consistency
   const response = await agent.stream({
     messages: [{ role: message.role || "user", content: message.content }],
     threadId,
