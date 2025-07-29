@@ -1,6 +1,7 @@
 import { ReadableStream, TransformStream } from 'stream/web';
 import { MastraBase } from '../../base';
 import { AISDKV4OutputStream } from '../aisdk/v4';
+import { AISDKV5OutputStream } from '../aisdk/v5';
 import type { ChunkType } from '../types';
 
 type CreateStream = () => Promise<ReadableStream<any>> | ReadableStream<any>;
@@ -48,6 +49,7 @@ export abstract class BaseModelStream extends MastraBase {
 
 export class MastraModelOutput extends MastraBase {
   #aisdkv4: AISDKV4OutputStream;
+  #aisdkv5: AISDKV5OutputStream;
   #baseStream: ReadableStream<any>;
   #bufferedText: string[] = [];
   #toolCallArgsDeltas: Record<string, string[]> = {};
@@ -119,6 +121,13 @@ export class MastraModelOutput extends MastraBase {
         toolCallStreaming: options?.toolCallStreaming,
       },
     });
+
+    this.#aisdkv5 = new AISDKV5OutputStream({
+      modelOutput: this,
+      options: {
+        toolCallStreaming: options?.toolCallStreaming,
+      },
+    });
   }
 
   get text() {
@@ -183,6 +192,7 @@ export class MastraModelOutput extends MastraBase {
   get aisdk() {
     return {
       v4: this.#aisdkv4,
+      v5: this.#aisdkv5,
     };
   }
 }

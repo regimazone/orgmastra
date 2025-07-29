@@ -214,6 +214,10 @@ export function getErrorMessageV4() {
   return 'An error occurred.';
 }
 
+export function getErrorMessageV5(error: unknown): string {
+  return getErrorMessage(error);
+}
+
 export function prepareResponseHeaders(
   headers: HeadersInit | undefined,
   { contentType, dataStreamVersion }: { contentType: string; dataStreamVersion?: 'v1' | undefined },
