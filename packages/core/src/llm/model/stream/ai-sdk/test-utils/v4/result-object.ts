@@ -1,4 +1,4 @@
-import { convertArrayToReadableStream } from 'ai/test';
+import { convertArrayToReadableStream, mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import {
@@ -383,6 +383,67 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
           result: 'value-result',
         },
       ]);
+    });
+  });
+
+  describe('result.responseMessages', () => {
+    it('should contain assistant response message when there are no tool calls', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-delta', textDelta: 'Hello, ' },
+            { type: 'text-delta', textDelta: 'world!' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: { promptTokens: 3, completionTokens: 10 },
+            },
+          ]),
+        }),
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      await result.aisdk.v4.consumeStream();
+
+      expect(result.response.messages).toMatchSnapshot();
+    });
+
+    it('should contain assistant response message and tool message when there are tool calls with results', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-delta', textDelta: 'Hello, ' },
+            { type: 'text-delta', textDelta: 'world!' },
+            {
+              type: 'tool-call',
+              toolCallType: 'function',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              args: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: { promptTokens: 3, completionTokens: 10 },
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            parameters: z.object({ value: z.string() }),
+            execute: async () => 'result1',
+          },
+        },
+        prompt: 'test-input',
+        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+      });
+
+      await result.aisdk.v4.consumeStream();
+
+      expect(result.response.messages).toMatchSnapshot();
     });
   });
 }

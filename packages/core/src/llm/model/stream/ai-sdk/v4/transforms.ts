@@ -370,7 +370,6 @@ export function convertFullStreamChunkToAISDKv4({
       result: chunk.payload.result,
     };
   } else if (chunk.type === 'error') {
-    console.log('FROM MASTRA', chunk);
     if (client) {
       return formatDataStreamPart('error', getErrorMessage(chunk.payload.error));
     }

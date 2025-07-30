@@ -30,6 +30,7 @@ const llmIterationOutputSchema = z.object({
   response: z.any(),
   messages: z.array(z.any()),
   userMessages: z.array(z.any()),
+  allMessages: z.array(z.any()),
 });
 
 function createAgentWorkflow({
@@ -85,18 +86,27 @@ function createAgentWorkflow({
     });
   }
 
+  let counter = 0;
+
   function createLLMExecutionStep() {
     return createStep({
       id: 'generateText',
       inputSchema: z.object({
         response: z.any(),
         messages: z.array(z.any()),
+        allMessages: z.array(z.any()),
       }),
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
-        console.log(inputData.messages, 'RAW MESSAGES');
-        const messageList = MessageList.fromArray(inputData.messages);
-        console.log(messageList.get.all.v1(), 'MESSAGE LIST v1 AFTER CONVERSION');
+        counter++;
+
+        const messagesToUse = inputData.allMessages || inputData.messages;
+        console.log(JSON.stringify(inputData.allMessages, null, 2), 'INPUT DATA ALL MESSAGES');
+        console.log(JSON.stringify(inputData.messages, null, 2), 'INPUT DATA MESSAGES');
+
+        const messageList = MessageList.fromArray(messagesToUse);
+
+        console.log(JSON.stringify(messageList.get.all.v1(), null, 2), 'MESSAGE LIST V1');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -115,7 +125,7 @@ function createAgentWorkflow({
               model,
               runId,
               providerMetadata,
-              inputMessages: inputData.messages,
+              inputMessages: messageList.get.all.core() as any,
               tools,
               toolChoice,
               activeTools,
@@ -164,6 +174,27 @@ function createAgentWorkflow({
           for await (const chunk of outputStream.fullStream) {
             if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
               await options?.onChunk?.(chunk);
+            }
+
+            if (chunk.type !== 'reasoning' && chunk.type !== 'reasoning-signature' && runState.state.isReasoning) {
+              messageList.add(
+                {
+                  id: messageId,
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'reasoning',
+                      text: runState.state.reasoningDeltas.join(''),
+                      signature: chunk.payload.signature,
+                    },
+                  ],
+                },
+                'response',
+              );
+
+              runState.setState({
+                isReasoning: false,
+              });
             }
 
             switch (chunk.type) {
@@ -231,6 +262,7 @@ function createAgentWorkflow({
                 const reasoningDeltasFromState = runState.state.reasoningDeltas;
                 reasoningDeltasFromState.push(chunk.payload.text);
                 runState.setState({
+                  isReasoning: true,
                   reasoningDeltas: reasoningDeltasFromState,
                 });
                 controller.enqueue(chunk);
@@ -412,8 +444,6 @@ function createAgentWorkflow({
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
 
-        console.log('NON USER MESSAGES', JSON.stringify(nonUserMessages, null, 2));
-
         const stepFinishPayload = runState.state.stepFinishPayload;
 
         if (stepFinishPayload && stepFinishPayload.response) {
@@ -441,6 +471,7 @@ function createAgentWorkflow({
             metadata: responseMetadata,
           },
           steps: outputStream.steps,
+          allMessages: allMessages,
           userMessages: userMessages,
           messages: nonUserMessages,
         };
@@ -456,7 +487,7 @@ function createAgentWorkflow({
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
 
-        const messageList = MessageList.fromArray(initialResult.messages || []);
+        const messageList = MessageList.fromArray(initialResult.allMessages || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           controller.enqueue({
@@ -518,15 +549,15 @@ function createAgentWorkflow({
           });
         }
 
-        controller.enqueue({
-          type: 'step-finish',
-          runId,
-          from: 'AGENT',
-          payload: initialResult.response.stepFinishPayload,
-        });
-
         return {
           ...initialResult,
+          allMessages: messageList.get.all.v1().map(message => {
+            return {
+              id: message.id,
+              role: message.role,
+              content: message.content,
+            };
+          }),
           messages: messageList.get.all.v1().map(message => {
             return {
               id: message.id,
@@ -603,6 +634,21 @@ function createStreamExecutor({
         },
       })
         .dowhile(outerAgentWorkflow, async ({ inputData }) => {
+          const hasFinishedSteps = stepCount > maxSteps;
+
+          console.log({ inputData, hasFinishedSteps });
+
+          const payload = inputData.response.stepFinishPayload || {};
+          controller.enqueue({
+            type: 'step-finish',
+            runId,
+            from: 'AGENT',
+            payload: {
+              ...payload,
+              isContinued: hasFinishedSteps ? false : inputData.response.stepFinishPayload?.isContinued,
+            },
+          });
+
           return !['stop', 'error'].includes(inputData.response.reason) && stepCount < maxSteps;
         })
         .map(({ inputData }) => {
@@ -631,8 +677,6 @@ function createStreamExecutor({
       }
 
       // @TODO: CLEAN THIS SHIT UP BELOW
-
-      console.log('EXECUTION RESULT MESSAGES', JSON.stringify(executionResult.result.messages, null, 2));
 
       const finishPayload = {
         logprobs: executionResult.result.response.logprobs,

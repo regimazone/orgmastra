@@ -4316,7 +4316,7 @@ exports[`V4 tests > result.responseMessages > should contain assistant response 
         "type": "tool-result",
       },
     ],
-    "id": "msg-1",
+    "id": "msg-0",
     "role": "tool",
   },
 ]
