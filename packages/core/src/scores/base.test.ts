@@ -110,16 +110,21 @@ describe('MastraScorer', () => {
       const result = await scorer.run(baseScoringInput);
 
       expect(mockAnalyzeFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: undefined,
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: undefined,
+        },
       });
       expect(mockGenerateScoreFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: undefined,
-        analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
-        analyzePrompt: 'Analyze this content',
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: undefined,
+          analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
+          analyzePrompt: 'Analyze this content',
+        },
       });
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: undefined,
         score: 0.8,
         analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
@@ -138,18 +143,25 @@ describe('MastraScorer', () => {
 
       const result = await scorer.run(baseScoringInput);
 
-      expect(mockPreprocessFn).toHaveBeenCalledWith(baseScoringInput);
+      expect(mockPreprocessFn).toHaveBeenCalledWith({
+        run: baseScoringInput,
+      });
       expect(mockAnalyzeFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: { extractedData: 'test' },
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: { extractedData: 'test' },
+        },
       });
       expect(mockGenerateScoreFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: { extractedData: 'test' },
-        analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
-        analyzePrompt: 'Analyze this content',
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: { extractedData: 'test' },
+          analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
+          analyzePrompt: 'Analyze this content',
+        },
       });
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: { extractedData: 'test' },
         score: 0.8,
         analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
@@ -169,25 +181,34 @@ describe('MastraScorer', () => {
 
       const result = await scorer.run(baseScoringInput);
 
-      expect(mockPreprocessFn).toHaveBeenCalledWith(baseScoringInput);
+      expect(mockPreprocessFn).toHaveBeenCalledWith({
+        run: baseScoringInput,
+      });
       expect(mockAnalyzeFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: { extractedData: 'test' },
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: { extractedData: 'test' },
+        },
       });
       expect(mockGenerateScoreFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: { extractedData: 'test' },
-        analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
-        analyzePrompt: 'Analyze this content',
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: { extractedData: 'test' },
+          analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
+          analyzePrompt: 'Analyze this content',
+        },
       });
       expect(mockReasonFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: { extractedData: 'test' },
-        analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
-        score: 0.8,
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: { extractedData: 'test' },
+          analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
+          score: 0.8,
+        },
       });
 
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: { extractedData: 'test' },
         score: 0.8,
         analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
@@ -213,11 +234,14 @@ describe('MastraScorer', () => {
       const result = await scorer.run(baseScoringInput);
 
       expect(llmAnalyzeFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: undefined,
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: undefined,
+        },
       });
 
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: undefined,
         score: 0.8,
         analyzeStepResult: { analysis: 'detailed analysis' },
@@ -241,11 +265,14 @@ describe('MastraScorer', () => {
       const result = await scorer.run(baseScoringInput);
 
       expect(nonLlmAnalyzeFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: undefined,
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: undefined,
+        },
       });
 
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: undefined,
         score: 0.8,
         analyzeStepResult: { additionalInfo: 'some info' },
@@ -266,12 +293,15 @@ describe('MastraScorer', () => {
       const result = await scorer.run(baseScoringInput);
 
       expect(nullReasonFn).toHaveBeenCalledWith({
-        ...baseScoringInput,
-        preprocessStepResult: undefined,
-        analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
-        score: 0.8,
+        run: {
+          ...baseScoringInput,
+          preprocessStepResult: undefined,
+          analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
+          score: 0.8,
+        },
       });
       expect(result).toMatchObject({
+        runId: baseScoringInput.runId,
         preprocessStepResult: undefined,
         score: 0.8,
         analyzeStepResult: { results: [{ result: 'good', reason: 'quality analysis' }] },
