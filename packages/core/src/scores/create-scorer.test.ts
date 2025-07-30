@@ -74,6 +74,27 @@ describe('createScorer', () => {
 
       expect(result).toMatchSnapshot();
     });
+
+    it('should create a scorer with preprocess and generateScore, no analyze', async () => {
+      const scorer = FunctionBasedScorerBuilders.withPreprocessNoAnalyze;
+      const result = await scorer.run(testData.scoringInput);
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should create a scorer with generateScore and generateReason, no analyze', async () => {
+      const scorer = FunctionBasedScorerBuilders.withReasonNoAnalyze;
+      const result = await scorer.run(testData.scoringInput);
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should create a scorer with preprocess, generateScore, and generateReason, no analyze', async () => {
+      const scorer = FunctionBasedScorerBuilders.withPreprocessAndReasonNoAnalyze;
+      const result = await scorer.run(testData.scoringInput);
+
+      expect(result).toMatchSnapshot();
+    });
   });
 
   describe('Steps as prompt objects scorer', () => {

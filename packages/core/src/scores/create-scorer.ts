@@ -87,48 +87,50 @@ export function createScorer<
       },
     }),
 
-    // Analyze step (required) - now only returns analysis, no score
-    analyze: async ({ run }: { run: ScoringInputWithPreprocessStepResult<TPreprocessOutput> }) => {
-      if (isAnalyzeConfig(opts.analyze)) {
-        const config = opts.analyze;
-        const judge = config.judge || defaultJudge;
+    // Analyze step (now optional)
+    ...(opts.analyze && {
+      analyze: async ({ run }: { run: ScoringInputWithPreprocessStepResult<TPreprocessOutput> }) => {
+        if (isAnalyzeConfig(opts.analyze!)) {
+          const config = opts.analyze;
+          const judge = config.judge || defaultJudge;
 
-        if (!judge) {
-          throw new MastraError({
-            id: 'ANALYZE_STEP_NO_JUDGE_PROVIDED',
-            domain: 'SCORER',
-            category: 'USER',
-            text: 'No judge provided for analyze step when using LLM to analyze the input.',
-            details: {
-              name: opts.name,
-            },
+          if (!judge) {
+            throw new MastraError({
+              id: 'ANALYZE_STEP_NO_JUDGE_PROVIDED',
+              domain: 'SCORER',
+              category: 'USER',
+              text: 'No judge provided for analyze step when using LLM to analyze the input.',
+              details: {
+                name: opts.name,
+              },
+            });
+          }
+
+          const llm = new Agent({
+            name: `${opts.name}-analyze`,
+            instructions: judge.instructions,
+            model: judge.model,
           });
+
+          const prompt = config.createPrompt({ run });
+          const result = await llm.generate(prompt, {
+            output: config.outputSchema || z.record(z.any()),
+          });
+
+          return {
+            result: result.object as TAnalyzeOutput,
+            prompt,
+          };
+        } else {
+          // Function-based analysis - wrap result automatically
+          const result = opts.analyze!({ run });
+          const finalResult = result instanceof Promise ? await result : result;
+          return {
+            result: finalResult,
+          };
         }
-
-        const llm = new Agent({
-          name: `${opts.name}-analyze`,
-          instructions: judge.instructions,
-          model: judge.model,
-        });
-
-        const prompt = config.createPrompt({ run });
-        const result = await llm.generate(prompt, {
-          output: config.outputSchema || z.record(z.any()),
-        });
-
-        return {
-          result: result.object as TAnalyzeOutput,
-          prompt,
-        };
-      } else {
-        // Function-based analysis - wrap result automatically
-        const result = opts.analyze({ run });
-        const finalResult = result instanceof Promise ? await result : result;
-        return {
-          result: finalResult,
-        };
-      }
-    },
+      },
+    }),
 
     // Generate Score step (required) - separate from analysis
     generateScore: async ({

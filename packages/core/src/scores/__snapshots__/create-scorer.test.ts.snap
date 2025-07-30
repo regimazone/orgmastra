@@ -18,6 +18,18 @@ exports[`createScorer > Steps as functions scorer > should create a scorer with 
 }
 `;
 
+exports[`createScorer > Steps as functions scorer > should create a scorer with generateScore and generateReason, no analyze 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeStepResult": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessStepResult": undefined,
+  "reason": "Scored 21 characters total",
+  "runId": "test-uuid",
+  "score": 1,
+}
+`;
+
 exports[`createScorer > Steps as functions scorer > should create a scorer with minimum steps required (analyze and generateScore) as functions 1`] = `
 {
   "analyzePrompt": undefined,
@@ -50,6 +62,20 @@ exports[`createScorer > Steps as functions scorer > should create a scorer with 
 }
 `;
 
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess and generateScore, no analyze 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeStepResult": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessStepResult": {
+    "cleanedInput": "test input",
+    "cleanedOutput": "test output",
+  },
+  "runId": "test-uuid",
+  "score": 1,
+}
+`;
+
 exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess step 1`] = `
 {
   "analyzePrompt": undefined,
@@ -62,6 +88,21 @@ exports[`createScorer > Steps as functions scorer > should create a scorer with 
     "reformattedInput": "TEST INPUT",
     "reformattedOutput": "TEST OUTPUT",
   },
+  "runId": "test-uuid",
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess, generateScore, and generateReason, no analyze 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeStepResult": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessStepResult": {
+    "charCount": 11,
+    "wordCount": 2,
+  },
+  "reason": "Input has 2 words, output has 11 characters",
   "runId": "test-uuid",
   "score": 1,
 }

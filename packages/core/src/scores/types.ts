@@ -14,13 +14,16 @@ export type ScoringResult<
 > = {
   runId: string;
   score: number;
-  analyzeStepResult: TAnalyzeOutput;
 } & (TPreprocessStep extends undefined
   ? {}
   : { preprocessStepResult: TPreprocessOutput } & (IsLLMConfig<TPreprocessStep> extends true
       ? { preprocessPrompt: string }
       : {})) &
-  (IsLLMConfig<TAnalyzeStep> extends true ? { analyzePrompt: string } : {}) &
+  (TAnalyzeStep extends undefined
+    ? {}
+    : { analyzeStepResult: TAnalyzeOutput } & (IsLLMConfig<TAnalyzeStep> extends true
+        ? { analyzePrompt: string }
+        : {})) &
   (TReasonStep extends undefined
     ? {}
     : { reason: string } & (IsLLMConfig<TReasonStep> extends true ? { reasonPrompt: string } : {}));
@@ -62,6 +65,12 @@ export type ScoringHookInput = {
 };
 
 export type ScoringInputWithPreprocessStepResult<TPreprocess = any> = ScoringInput & {
+  runId: string;
+  preprocessStepResult?: TPreprocess;
+  preprocessPrompt?: string;
+};
+
+export type ScoringInputWithPreprocessStepResultOnly<TPreprocess = any> = ScoringInput & {
   runId: string;
   preprocessStepResult?: TPreprocess;
   preprocessPrompt?: string;
@@ -140,6 +149,10 @@ export type GenerateScoreStepFn<TPreprocessOutput = any, TAnalyzeOutput = any> =
   }): number | Promise<number>;
 };
 
+export type GenerateScoreStepFnWithoutAnalyze<TPreprocessOutput = any> = {
+  (input: { run: ScoringInputWithPreprocessStepResultOnly<TPreprocessOutput> }): number | Promise<number>;
+};
+
 export type GenerateScoreStepConfig<TPreprocessOutput = any, TAnalyzeOutput = any> = {
   description: string;
   judge?: LLMJudge;
@@ -190,7 +203,7 @@ export type ScorerOptions = {
   name: string;
   description: string;
   preprocess?: PreprocessStepFn;
-  analyze: InternalAnalyzeStepFn;
+  analyze?: InternalAnalyzeStepFn;
   generateScore: GenerateScoreStepFn;
   reason?: InternalReasonStepFn;
   metadata?: Record<string, any>;
@@ -202,7 +215,7 @@ export type TypedScorerOptions<TPreprocessOutput = any, TAnalyzeOutput = any> = 
   name: string;
   description: string;
   preprocess?: PreprocessStep<TPreprocessOutput>;
-  analyze: AnalyzeStep<TPreprocessOutput, TAnalyzeOutput>;
+  analyze?: AnalyzeStep<TPreprocessOutput, TAnalyzeOutput>;
   generateScore: GenerateScoreStep<TPreprocessOutput, TAnalyzeOutput>;
   generateReason?: ReasonStep<TPreprocessOutput, TAnalyzeOutput>;
   metadata?: Record<string, any>;

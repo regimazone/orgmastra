@@ -121,6 +121,50 @@ export const FunctionBasedScorerBuilders = {
     generateReason: async ({ run }) =>
       `the reason the score is 1 is because the input is ${run.analyzeStepResult?.inputFromAnalyze} and the output is ${run.analyzeStepResult?.outputFromAnalyze}`,
   }),
+
+  withPreprocessNoAnalyze: createScorer({
+    name: 'preprocess-only-scorer',
+    description: 'A scorer with preprocess and generateScore, no analyze',
+    preprocess: async ({ run }) => ({
+      cleanedInput: run.input?.[0]?.content?.trim() || '',
+      cleanedOutput: run.output?.text?.trim() || '',
+    }),
+    generateScore: async ({ run }) => {
+      if (run.preprocessStepResult?.cleanedInput.length > 0 && run.preprocessStepResult?.cleanedOutput.length > 0) {
+        return 1;
+      }
+      return 0;
+    },
+  }),
+
+  withReasonNoAnalyze: createScorer({
+    name: 'score-reason-scorer',
+    description: 'A scorer with generateScore and generateReason, no analyze',
+    generateScore: async () => 1,
+    generateReason: async ({ run }) => {
+      const inputText = run.input?.[0]?.content || '';
+      const outputText = run.output?.text || '';
+      return `Scored ${inputText.length + outputText.length} characters total`;
+    },
+  }),
+
+  withPreprocessAndReasonNoAnalyze: createScorer({
+    name: 'full-no-analyze-scorer',
+    description: 'A scorer with preprocess, generateScore, and generateReason, no analyze',
+    preprocess: async ({ run }) => ({
+      wordCount: run.input?.[0]?.content?.split(' ').length || 0,
+      charCount: run.output?.text?.length || 0,
+    }),
+    generateScore: async ({ run }) => {
+      if (run.preprocessStepResult?.wordCount > 0 && run.preprocessStepResult?.charCount > 0) {
+        return 1;
+      }
+      return 0;
+    },
+    generateReason: async ({ run }) => {
+      return `Input has ${run.preprocessStepResult?.wordCount} words, output has ${run.preprocessStepResult?.charCount} characters`;
+    },
+  }),
 };
 
 export const PromptBasedScorerBuilders = {

@@ -34,7 +34,7 @@ export class MastraScorer<TResult = any> {
   name: string;
   description: string;
   preprocess?: PreprocessStepFn;
-  analyze: InternalAnalyzeStepFn;
+  analyze?: InternalAnalyzeStepFn;
   generateScore: GenerateScoreStepFn;
   reason?: InternalReasonStepFn;
   metadata?: Record<string, any>;
@@ -81,6 +81,13 @@ export class MastraScorer<TResult = any> {
       inputSchema: scoringPreprocessStepResultSchema,
       outputSchema: analyzeStepResultSchema,
       execute: async ({ inputData }) => {
+        if (!this.analyze) {
+          return {
+            result: undefined,
+            prompt: undefined,
+          };
+        }
+
         const analyzeStepResult = await this.analyze({
           run: { ...input, runId, preprocessStepResult: inputData?.result },
         });
@@ -103,8 +110,11 @@ export class MastraScorer<TResult = any> {
             ...input,
             runId,
             preprocessStepResult: preprocessStepRes?.result,
-            analyzeStepResult: analyzeStepRes?.result,
-            analyzePrompt: analyzeStepRes?.prompt,
+            // Only include analyze results if analyze step was executed
+            ...(analyzeStepRes?.result !== undefined && {
+              analyzeStepResult: analyzeStepRes.result,
+              analyzePrompt: analyzeStepRes.prompt,
+            }),
           },
         });
 
