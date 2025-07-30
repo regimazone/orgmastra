@@ -1,4 +1,5 @@
 import type { IDGenerator, LanguageModelV1, LanguageModelV1Prompt, streamText, ToolChoice, ToolSet } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 
@@ -26,7 +27,7 @@ export type ExecuteOptions = {
 };
 
 export type ExecutionProps = {
-  model: LanguageModelV1;
+  model: LanguageModelV1 | LanguageModelV2;
   inputMessages: LanguageModelV1Prompt;
   runId: string;
   providerMetadata?: Record<string, any>;

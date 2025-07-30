@@ -1,4 +1,3 @@
-// V4 TESTS
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`V4 tests > multiple stream consumption > should support text stream, ai stream, full stream on single result object 1`] = `
@@ -5193,9 +5192,6 @@ exports[`V4 tests > tools with custom schema > should send tool calls 1`] = `
   },
 ]
 `;
-
-// V5 TESTS
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`V5 tests > options.stopWhen > 2 steps: initial, tool-result > should record telemetry data for each step 1`] = `
 [

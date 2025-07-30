@@ -158,6 +158,10 @@ function createAgentWorkflow({
             });
             break;
           }
+          case 'v2': {
+            console.log('V2 model', model);
+            break;
+          }
           default: {
             throw new Error(`Unsupported model version: ${model.specificationVersion}`);
           }

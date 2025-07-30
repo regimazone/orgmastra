@@ -1,7 +1,7 @@
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import { prepareToolsAndToolChoice } from '../../../prepare-tools';
 import type { ExecutionProps } from '../../types';
-import { AISDKV4InputStream } from './input';
+import { AISDKV4InputStream } from '../v4/input';
 
 export function executeV4({
   runId,
@@ -13,18 +13,12 @@ export function executeV4({
   toolChoice,
   onResult,
 }: ExecutionProps & {
-  model: LanguageModelV1;
+  model: LanguageModelV2;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
 }) {
   const v4 = new AISDKV4InputStream({
     component: 'LLM',
     name: model.modelId,
-  });
-
-  const preparedTools = prepareToolsAndToolChoice({
-    tools,
-    toolChoice: toolChoice,
-    activeTools: activeTools,
   });
 
   const stream = v4.initialize({
@@ -33,13 +27,17 @@ export function executeV4({
     createStream: async () => {
       try {
         const stream = await model.doStream({
-          inputFormat: 'messages',
-          mode: {
-            type: 'regular',
-            ...preparedTools,
-          },
-          providerMetadata,
-          prompt: inputMessages,
+          tools: Object.entries(tools ?? {}).map(([name, tool]) => {
+            return {
+              name,
+              description: tool.description,
+              parameters: tool.parameters,
+              type: 'function',
+              inputSchema: tool.parameters,
+            };
+          }),
+          toolChoice: toolChoice as any, // TODO: fix this?
+          prompt: inputMessages as any, // TODO: fix this?
         });
 
         return stream as any;
