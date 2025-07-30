@@ -164,8 +164,11 @@ export class CloudflareDeployer extends Deployer {
     };
 
     export default telemetry.enabled !== false ? instrument({
-      fetch: handler
-    }, config) : handler;
+      fetch: handler,
+      config,
+    }, config) : {
+      fetch: handler,
+    };
 `;
   }
   async prepare(outputDirectory: string): Promise<void> {
