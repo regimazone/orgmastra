@@ -7,6 +7,7 @@ import { optionsTests } from './ai-sdk/test-utils/v4/options';
 import { resultObjectTests } from './ai-sdk/test-utils/v4/result-object';
 import { textStreamTests } from './ai-sdk/test-utils/v4/textStream';
 import { toDataStreamResponseTests } from './ai-sdk/test-utils/v4/toDataStreamResponse';
+import { testUsage } from './ai-sdk/test-utils/v5/test-utils';
 import { execute } from './execute';
 import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 
@@ -61,13 +62,7 @@ describe('V5 tests', () => {
                 {
                   type: 'finish',
                   finishReason: 'stop',
-                  usage: {
-                    inputTokens: 10,
-                    outputTokens: 10,
-                    totalTokens: 20,
-                    promptTokens: 10,
-                    completionTokens: 10,
-                  },
+                  usage: testUsage,
                 },
               ]),
             };
@@ -110,13 +105,7 @@ describe('V5 tests', () => {
                 {
                   type: 'finish',
                   finishReason: 'stop',
-                  usage: {
-                    inputTokens: 10,
-                    outputTokens: 10,
-                    totalTokens: 20,
-                    promptTokens: 10,
-                    completionTokens: 10,
-                  },
+                  usage: testUsage,
                 },
               ]),
             };
