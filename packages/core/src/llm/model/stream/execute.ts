@@ -490,13 +490,6 @@ function createAgentWorkflow({
         const messageList = MessageList.fromArray(initialResult.allMessages || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
-          controller.enqueue({
-            type: 'step-finish',
-            runId,
-            from: 'AGENT',
-            payload: initialResult.response.stepFinishPayload,
-          });
-
           return bail(initialResult);
         }
 

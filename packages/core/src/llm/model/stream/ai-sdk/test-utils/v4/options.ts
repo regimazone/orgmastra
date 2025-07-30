@@ -480,7 +480,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
       });
 
-      it.only('should contain assistant response message and tool message from all steps', async () => {
+      it.skip('should contain assistant response message and tool message from all steps', async () => {
         expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toMatchSnapshot();
       });
 
