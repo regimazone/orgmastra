@@ -55,6 +55,20 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       from: 'AGENT',
       payload: value,
     };
+  } else if (value.type === 'text-start') {
+    return {
+      type: 'text-start',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: value,
+    };
+  } else if (value.type === 'text-end') {
+    return {
+      type: 'text-end',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: value,
+    };
   } else if (value.type === 'text-delta') {
     if (value.delta) {
       return {
@@ -188,6 +202,24 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'text-delta',
       textDelta: chunk.payload.text,
     };
+  } else if (chunk.type === 'text-start') {
+    // if (client) {
+    //   return formatDataStreamPart('text_start', {
+    //     text: chunk.payload.text,
+    //   });
+    // }
+    return {
+      type: 'text-start',
+    };
+  } else if (chunk.type === 'text-end') {
+    // if (client) {
+    //   return formatDataStreamPart('text_end', {
+    //     text: chunk.payload.text,
+    //   });
+    // }
+    return {
+      type: 'text-end',
+    };
   } else if (chunk.type === 'step-start') {
     if (client) {
       return formatDataStreamPart('start_step', {
@@ -195,7 +227,7 @@ export function convertFullStreamChunkToAISDKv5({
       });
     }
     return {
-      type: 'step-start',
+      type: 'start-step',
       ...(chunk.payload || {}),
     };
   } else if (chunk.type === 'step-finish') {
@@ -224,7 +256,7 @@ export function convertFullStreamChunkToAISDKv5({
       },
       ...rest,
       finishReason: reason,
-      type: 'step-finish',
+      type: 'finish-step',
     };
   } else if (chunk.type === 'finish') {
     if (client) {

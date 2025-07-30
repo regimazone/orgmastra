@@ -3,6 +3,7 @@ import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { AISDKV4OutputStream } from '../ai-sdk/v4';
 import type { CreateStream, OnResult } from '../types';
+import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
 export abstract class BaseModelStream extends MastraBase {
   abstract transform({
     runId,
@@ -54,6 +55,7 @@ export abstract class BaseModelStream extends MastraBase {
 
 export class MastraModelOutput extends MastraBase {
   #aisdkv4: AISDKV4OutputStream;
+  #aisdkv5: AISDKV5OutputStream;
   #baseStream: ReadableStream<any>;
   #bufferedSteps: any[] = [];
   #bufferedText: string[] = [];
@@ -229,6 +231,13 @@ export class MastraModelOutput extends MastraBase {
         toolCallStreaming: options?.toolCallStreaming,
       },
     });
+
+    this.#aisdkv5 = new AISDKV5OutputStream({
+      modelOutput: this,
+      options: {
+        toolCallStreaming: options?.toolCallStreaming,
+      },
+    });
   }
 
   get text() {
@@ -325,6 +334,7 @@ export class MastraModelOutput extends MastraBase {
   get aisdk() {
     return {
       v4: this.#aisdkv4,
+      v5: this.#aisdkv5,
     };
   }
 }
