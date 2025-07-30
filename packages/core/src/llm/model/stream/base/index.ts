@@ -114,15 +114,15 @@ export class MastraModelOutput extends MastraBase {
               self.#toolResults.push({ type: 'tool-result', ...chunk.payload });
               break;
             case 'step-finish': {
-              self.updateUsageCount(chunk.payload.totalUsage);
+              self.updateUsageCount(chunk.payload.output.usage);
               chunk.payload.totalUsage = self.totalUsage;
-              self.#warnings = chunk.payload.warnings;
+              self.#warnings = chunk.payload.stepResult.warnings;
 
-              if (chunk.payload.request) {
-                self.#request = chunk.payload.request;
+              if (chunk.payload.metadata.request) {
+                self.#request = chunk.payload.metadata.request;
               }
 
-              const reasoningDetails = chunk.payload.response?.messages
+              const reasoningDetails = chunk.payload.messages.all
                 ?.flatMap((msg: any) => {
                   return msg.content;
                 })
@@ -151,39 +151,36 @@ export class MastraModelOutput extends MastraBase {
                 toolResults: self.toolResults,
                 warnings: self.warnings,
                 reasoningDetails,
-                providerMetadata: chunk.payload.providerMetadata,
-                experimental_providerMetadata: chunk.payload.experimental_providerMetadata,
-                isContinued: chunk.payload.isContinued,
-                logprobs: chunk.payload.logprobs,
-                finishReason: chunk.payload.reason,
-                response: { ...chunk.payload.response },
-                request: chunk.payload.request,
-                usage: chunk.payload.totalUsage,
+                providerMetadata: chunk.payload.metadata.providerMetadata,
+                experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
+                isContinued: chunk.payload.stepResult.isContinued,
+                logprobs: chunk.payload.stepResult.logprobs,
+                finishReason: chunk.payload.stepResult.reason,
+                response: { ...chunk.payload.metadata },
+                request: chunk.payload.metadata.request,
+                usage: chunk.payload.output.usage,
               });
-
-              if (chunk.payload.response) {
-                delete chunk.payload.response.messages;
-              }
 
               break;
             }
             case 'finish':
-              if (chunk.payload.reason) {
-                self.#finishReason = chunk.payload.reason;
+              console.log('MY FINISH CHUNK', JSON.stringify(chunk, null, 2));
+              if (chunk.payload.stepResult.reason) {
+                self.#finishReason = chunk.payload.stepResult.reason;
               }
 
-              if (chunk.payload.providerMetadata) {
-                self.#providerMetadata = chunk.payload.providerMetadata;
+              if (chunk.payload.metadata.providerMetadata) {
+                self.#providerMetadata = chunk.payload.metadata.providerMetadata;
               }
 
-              if (chunk.payload.response) {
+              if (chunk.payload.metadata) {
                 self.#response = {
-                  ...chunk.payload.response,
-                  messages: chunk.payload.messages,
+                  ...chunk.payload.metadata,
+                  messages: chunk.payload.messages.all,
                 };
               }
 
-              self.#usageCount = chunk.payload.totalUsage;
+              self.#usageCount = chunk.payload.output.usage;
 
               const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
 
@@ -193,13 +190,12 @@ export class MastraModelOutput extends MastraBase {
                 console.log('FINISH CHUNK', JSON.stringify(chunk.payload.messages, null, 2));
 
                 await options?.onFinish?.({
-                  ...rest,
-                  finishReason: chunk.payload.reason,
+                  finishReason: chunk.payload.stepResult.reason,
                   steps: self.#bufferedSteps,
-                  experimental_providerMetadata: chunk.payload.providerMetadata,
+                  experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
                   response: {
-                    ...rest.response,
-                    messages: chunk.payload.messages,
+                    ...rest.metadata,
+                    messages: chunk.payload.messages.all,
                   },
                 });
               }

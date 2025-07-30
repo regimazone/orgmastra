@@ -2,8 +2,8 @@ import type { LanguageModelV1 } from 'ai';
 import type { StreamInternal } from './types';
 
 type State = {
+  stepResult: Record<string, any> | undefined;
   responseMetadata: Record<string, any> | undefined;
-  stepFinishPayload: Record<string, any> | undefined;
   hasToolCallStreaming: boolean;
   hasErrored: boolean;
   reasoningDeltas: string[];
@@ -21,10 +21,10 @@ export class AgenticRunState {
         headers: undefined,
       },
       isReasoning: false,
-      stepFinishPayload: undefined,
       hasToolCallStreaming: false,
       hasErrored: false,
       reasoningDeltas: [],
+      stepResult: undefined,
     };
   }
 

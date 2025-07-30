@@ -3,14 +3,14 @@ import type { LanguageModelV1Prompt } from 'ai';
 import { generateId } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../../agent';
+import { ConsoleLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 import { createStep, createWorkflow } from '../../../workflows';
 import { executeV4 } from './ai-sdk/v4';
+import { executeV5 } from './ai-sdk/v5/execute';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
-import type { AgentWorkflowProps, ExecuteOptions, StreamExecutorProps } from './types';
-import { ConsoleLogger, type MastraLogger } from '../../../logger';
-import { executeV5 } from './ai-sdk/v5/execute';
+import type { AgentWorkflowProps, StreamExecutorProps } from './types';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -18,20 +18,19 @@ const toolCallInpuSchema = z.object({
   args: z.any(),
 });
 
-const agenticLoopInputSchema = z.object({
-  messages: z.array(z.any()),
-  response: z.any(),
-});
-
 const toolCallOutputSchema = toolCallInpuSchema.extend({
   result: z.any(),
 });
 
 const llmIterationOutputSchema = z.object({
-  response: z.any(),
-  messages: z.array(z.any()),
-  userMessages: z.array(z.any()),
-  allMessages: z.array(z.any()),
+  messages: z.object({
+    all: z.array(z.any()),
+    user: z.array(z.any()),
+    nonUser: z.array(z.any()),
+  }),
+  output: z.any(),
+  metadata: z.any(),
+  stepResult: z.any(),
 });
 
 function createAgentWorkflow({
@@ -87,27 +86,23 @@ function createAgentWorkflow({
     });
   }
 
-  let counter = 0;
-
   function createLLMExecutionStep() {
     return createStep({
       id: 'generateText',
       inputSchema: z.object({
-        response: z.any(),
-        messages: z.array(z.any()),
-        allMessages: z.array(z.any()),
+        messages: z.object({
+          all: z.array(z.any()),
+          user: z.array(z.any()),
+          nonUser: z.array(z.any()),
+        }),
+        metadata: z.any(),
+        output: z.any(),
+        stepResult: z.any(),
       }),
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
-        counter++;
-
-        const messagesToUse = inputData.allMessages || inputData.messages;
-        console.log(JSON.stringify(inputData.allMessages, null, 2), 'INPUT DATA ALL MESSAGES');
-        console.log(JSON.stringify(inputData.messages, null, 2), 'INPUT DATA MESSAGES');
-
+        const messagesToUse = inputData.messages.all;
         const messageList = MessageList.fromArray(messagesToUse);
-
-        console.log(JSON.stringify(messageList.get.all.v1(), null, 2), 'MESSAGE LIST V1');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -252,7 +247,7 @@ function createAgentWorkflow({
                 controller.enqueue(chunk);
 
                 runState.setState({
-                  stepFinishPayload: {
+                  stepResult: {
                     isContinued: false,
                     reason: 'error',
                   },
@@ -274,16 +269,13 @@ function createAgentWorkflow({
               case 'finish':
                 providerMetadata = chunk.payload.providerMetadata;
                 runState.setState({
-                  stepFinishPayload: {
+                  stepResult: {
                     reason: chunk.payload.reason,
                     logprobs: chunk.payload.logprobs,
                     warnings: warnings,
                     totalUsage: chunk.payload.totalUsage,
-                    response: {
-                      ...(runState.state.responseMetadata || {}),
-                      headers: rawResponse?.headers,
-                      messages: [],
-                    },
+                    headers: rawResponse?.headers,
+                    metadata: runState.state.responseMetadata,
                     messageId,
                     isContinued: !['stop', 'error'].includes(chunk.payload.reason),
                     experimental_providerMetadata: chunk.payload.providerMetadata,
@@ -291,7 +283,6 @@ function createAgentWorkflow({
                     request,
                   },
                 });
-
                 break;
               case 'reasoning': {
                 const reasoningDeltasFromState = runState.state.reasoningDeltas;
@@ -403,7 +394,7 @@ function createAgentWorkflow({
 
           runState.setState({
             hasErrored: true,
-            stepFinishPayload: {
+            stepResult: {
               isContinued: false,
               reason: 'error',
             },
@@ -474,32 +465,32 @@ function createAgentWorkflow({
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
 
-        const stepFinishPayload = runState.state.stepFinishPayload;
-
-        if (stepFinishPayload && stepFinishPayload.response) {
-          stepFinishPayload.response.messages = nonUserMessages as any;
-        }
-
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
         const responseMetadata = runState.state.responseMetadata;
 
         return {
-          response: {
-            headers: rawResponse?.headers,
-            warnings,
-            stepFinishPayload,
+          stepResult: {
             reason: hasErrored ? 'error' : outputStream.finishReason,
+            warnings,
+          },
+          metadata: {
+            providerMetadata: providerMetadata,
+            ...responseMetadata,
+            headers: rawResponse?.headers,
+            request,
+          },
+          output: {
             text,
             toolCalls,
-            usage: usage ?? inputData.response?.usage,
-            providerMetadata: providerMetadata,
-            metadata: responseMetadata,
+            usage: usage ?? inputData.output?.usage,
+            steps: outputStream.steps,
           },
-          steps: outputStream.steps,
-          allMessages: allMessages,
-          userMessages: userMessages,
-          messages: nonUserMessages,
+          messages: {
+            all: allMessages,
+            user: userMessages,
+            nonUser: nonUserMessages,
+          },
         };
       },
     });
@@ -513,7 +504,7 @@ function createAgentWorkflow({
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
 
-        const messageList = MessageList.fromArray(initialResult.allMessages || []);
+        const messageList = MessageList.fromArray(initialResult.messages.all || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           return bail(initialResult);
@@ -558,32 +549,39 @@ function createAgentWorkflow({
             },
             'response',
           );
-
-          initialResult.response.stepFinishPayload.response.messages = messageList.get.all.v1().map(message => {
-            return {
-              id: message.id,
-              role: message.role,
-              content: message.content,
-            };
-          });
         }
 
         return {
           ...initialResult,
-          allMessages: messageList.get.all.v1().map(message => {
-            return {
-              id: message.id,
-              role: message.role,
-              content: message.content,
-            };
-          }),
-          messages: messageList.get.all.v1().map(message => {
-            return {
-              id: message.id,
-              role: message.role,
-              content: message.content,
-            };
-          }),
+          messages: {
+            all: messageList.get.all.v1().map(message => {
+              return {
+                id: message.id,
+                role: message.role,
+                content: message.content,
+              };
+            }),
+            user: messageList.get.all
+              .v1()
+              .filter(message => message.role === 'user')
+              .map(message => {
+                return {
+                  id: message.id,
+                  role: message.role,
+                  content: message.content,
+                };
+              }),
+            nonUser: messageList.get.all
+              .v1()
+              .filter(message => message.role !== 'user')
+              .map(message => {
+                return {
+                  id: message.id,
+                  role: message.role,
+                  content: message.content,
+                };
+              }),
+          },
         };
       },
     });
@@ -595,12 +593,12 @@ function createAgentWorkflow({
 
   return createWorkflow({
     id: 'executionWorkflow',
-    inputSchema: agenticLoopInputSchema,
+    inputSchema: llmIterationOutputSchema,
     outputSchema: z.any(),
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
-      return inputData.response.toolCalls || [];
+      return inputData.output.toolCalls || [];
     })
     .foreach(toolCallExecutionStep)
     .then(llmExecutionMappingStep)
@@ -646,7 +644,7 @@ function createStreamExecutor({
 
       const mainWorkflow = createWorkflow({
         id: 'agentic-loop',
-        inputSchema: agenticLoopInputSchema,
+        inputSchema: llmIterationOutputSchema,
         outputSchema: z.any(),
         retryConfig: {
           attempts: maxRetries,
@@ -658,27 +656,27 @@ function createStreamExecutor({
           console.log('dowhileing');
           console.log({ inputData, hasFinishedSteps });
 
-          const payload = inputData.response.stepFinishPayload || {};
+          inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
+
           controller.enqueue({
             type: 'step-finish',
             runId,
             from: 'AGENT',
-            payload: {
-              ...payload,
-              isContinued: hasFinishedSteps ? false : inputData.response.stepFinishPayload?.isContinued,
-            },
+            payload: inputData,
           });
 
-          if (inputData.response.reason === undefined) {
+          const reason = inputData.stepResult.reason;
+
+          if (reason === undefined) {
             return false;
           }
 
-          return !['stop', 'error'].includes(inputData.response.reason) && stepCount < maxSteps;
+          return !['stop', 'error'].includes(reason) && stepCount < maxSteps;
         })
         .map(({ inputData }) => {
-          const toolCalls = inputData.messages.filter(message => message.role === 'tool');
+          const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');
 
-          inputData.response.toolCalls = toolCalls;
+          inputData.output.toolCalls = toolCalls;
 
           return inputData;
         })
@@ -698,7 +696,11 @@ function createStreamExecutor({
 
       const executionResult = await run.start({
         inputData: {
-          messages: inputMessages,
+          messages: {
+            all: inputMessages,
+            user: inputMessages,
+            nonUser: [],
+          },
         },
       });
 
@@ -707,26 +709,13 @@ function createStreamExecutor({
         return;
       }
 
-      // @TODO: CLEAN THIS SHIT UP BELOW
-
-      const finishPayload = {
-        logprobs: executionResult.result.response.logprobs,
-        totalUsage: executionResult.result.response.usage,
-        reason: executionResult.result.response.reason,
-        response: {
-          ...executionResult.result?.response?.metadata,
-          headers: executionResult.result?.response?.headers,
-        },
-        providerMetadata: executionResult.result?.response?.providerMetadata,
-        experimental_providerMetadata: executionResult.result?.response?.providerMetadata,
-        messages: executionResult.result?.messages,
-      };
+      console.log('Execution Result', JSON.stringify(executionResult.result, null, 2));
 
       controller.enqueue({
         type: 'finish',
         runId,
         from: 'AGENT',
-        payload: finishPayload,
+        payload: executionResult.result,
       });
 
       controller.close();

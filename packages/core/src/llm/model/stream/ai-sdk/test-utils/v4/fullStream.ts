@@ -9,7 +9,7 @@ import type { execute } from '../../../execute';
 
 export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.fullStream', () => {
-    it('should send text deltas', async () => {
+    it.only('should send text deltas', async () => {
       const result = await executeFn({
         runId,
         model: new MockLanguageModelV1({

@@ -57,6 +57,7 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       payload: value,
     };
   } else if (value.type === 'text-delta') {
+    console.log('text-delta SIJ', value);
     if (value.textDelta) {
       return {
         type: 'text-delta',
@@ -211,37 +212,36 @@ export function convertFullStreamChunkToAISDKv4({
         return;
       }
       return formatDataStreamPart('finish_step', {
-        finishReason: chunk.payload?.reason,
+        finishReason: chunk.payload?.stepResult?.reason,
         usage: sendUsage
           ? {
-              promptTokens: chunk.payload.totalUsage.promptTokens ?? 0,
-              completionTokens: chunk.payload.totalUsage.completionTokens ?? 0,
+              promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+              completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
             }
           : undefined,
-        isContinued: chunk.payload.isContinued,
+        isContinued: chunk.payload.stepResult.isContinued,
       });
     }
-
-    const { totalUsage, reason, ...rest } = chunk.payload;
     return {
       usage: {
-        promptTokens: totalUsage.promptTokens,
-        completionTokens: totalUsage.completionTokens,
-        totalTokens: totalUsage.totalTokens || totalUsage.promptTokens + totalUsage.completionTokens,
+        promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+        completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+        totalTokens:
+          chunk.payload.output.usage.totalTokens ??
+          chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
       },
-      ...rest,
-      finishReason: reason,
+      finishReason: chunk.payload.stepResult.reason,
       type: 'step-finish',
     };
   } else if (chunk.type === 'finish') {
     if (client) {
       if (experimental_sendFinish) {
         return formatDataStreamPart('finish_message', {
-          finishReason: chunk.payload.reason,
+          finishReason: chunk.payload.stepResult.reason,
           usage: sendUsage
             ? {
-                promptTokens: chunk.payload.totalUsage.promptTokens ?? 0,
-                completionTokens: chunk.payload.totalUsage.completionTokens ?? 0,
+                promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+                completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
               }
             : undefined,
         });
@@ -249,17 +249,16 @@ export function convertFullStreamChunkToAISDKv4({
       return;
     }
 
-    const { totalUsage, reason, messages: _messages, ...rest } = chunk.payload;
-
     return {
       type: 'finish',
-      finishReason: reason,
+      finishReason: chunk.payload.stepResult.reason,
       usage: {
-        promptTokens: totalUsage.promptTokens ?? 0,
-        completionTokens: totalUsage.completionTokens ?? 0,
-        totalTokens: totalUsage.totalTokens ?? 0,
+        promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+        completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+        totalTokens:
+          chunk.payload.output.usage.totalTokens ??
+          chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
       },
-      ...rest,
     };
   } else if (chunk.type === 'reasoning') {
     if (client) {
