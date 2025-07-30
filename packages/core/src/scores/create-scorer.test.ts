@@ -108,7 +108,7 @@ describe('createScorer', () => {
 
   describe('scorers with both function and prompt objects steps', () => {
     it('should create a scorer with preprocess function and analyze prompt object', async () => {
-      const scorer = MixedScorerBuilders.withPreprocessFunctionAnalzyePrompt;
+      const scorer = MixedScorerBuilders.withPreprocessFunctionAnalyzePrompt;
       const result = await scorer.run(testData.scoringInput);
 
       expect(result).toMatchSnapshot();

@@ -356,7 +356,7 @@ export const PromptBasedScorerBuilders = {
 };
 
 export const MixedScorerBuilders = {
-  withPreprocessFunctionAnalzyePrompt: createScorer({
+  withPreprocessFunctionAnalyzePrompt: createScorer({
     name: 'test-scorer',
     description: 'A test scorer',
     preprocess: async ({ run }) => ({
