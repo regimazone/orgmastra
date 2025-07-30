@@ -218,23 +218,8 @@ export function convertFullStreamChunkToAISDKv4({
       ...(chunk.payload || {}),
     };
   } else if (chunk.type === 'step-finish') {
-    if (client) {
-      if (!chunk.payload) {
-        return;
-      }
-      return formatDataStreamPart('finish_step', {
-        finishReason: chunk.payload?.stepResult?.reason,
-        usage: sendUsage
-          ? {
-              promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
-              completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
-            }
-          : undefined,
-        isContinued: chunk.payload.stepResult.isContinued,
-      });
-    }
     const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
-    return {
+    const transformedChunk = {
       type: 'step-finish',
       request,
       messageId: chunk.payload.messageId,
@@ -253,7 +238,42 @@ export function convertFullStreamChunkToAISDKv4({
           chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
       },
     };
+
+    if (client) {
+      if (!chunk.payload) {
+        return;
+      }
+      return formatDataStreamPart('finish_step', {
+        finishReason: chunk.payload?.stepResult?.reason,
+        usage: sendUsage
+          ? {
+              promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+              completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+            }
+          : undefined,
+        isContinued: chunk.payload.stepResult.isContinued,
+      });
+    }
+
+    return transformedChunk;
   } else if (chunk.type === 'finish') {
+    const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
+    const transformedChunk = {
+      type: 'finish',
+      experimental_providerMetadata: providerMetadata,
+      finishReason: chunk.payload.stepResult.reason,
+      logprobs: chunk.payload.stepResult.logprobs,
+      providerMetadata: providerMetadata,
+      response: otherMetadata,
+      usage: {
+        promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+        completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+        totalTokens:
+          chunk.payload.output.usage.totalTokens ??
+          chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
+      },
+    };
+
     if (client) {
       if (experimental_sendFinish) {
         return formatDataStreamPart('finish_message', {
@@ -269,22 +289,7 @@ export function convertFullStreamChunkToAISDKv4({
       return;
     }
 
-    const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
-    return {
-      type: 'finish',
-      experimental_providerMetadata: providerMetadata,
-      finishReason: chunk.payload.stepResult.reason,
-      logprobs: chunk.payload.stepResult.logprobs,
-      providerMetadata: providerMetadata,
-      response: otherMetadata,
-      usage: {
-        promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
-        completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
-        totalTokens:
-          chunk.payload.output.usage.totalTokens ??
-          chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
-      },
-    };
+    return transformedChunk;
   } else if (chunk.type === 'reasoning') {
     if (client) {
       if (sendReasoning) {
