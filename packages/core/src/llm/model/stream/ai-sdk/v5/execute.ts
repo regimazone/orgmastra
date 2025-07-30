@@ -1,7 +1,7 @@
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import { prepareToolsAndToolChoice } from '../../../prepare-tools';
 import type { ExecutionProps } from '../../types';
-import { AISDKV4InputStream } from '../v4/input';
+import { AISDKV5InputStream } from './input';
 
 export function executeV5({
   runId,
@@ -16,12 +16,12 @@ export function executeV5({
   model: LanguageModelV2;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
 }) {
-  const v4 = new AISDKV4InputStream({
+  const v5 = new AISDKV5InputStream({
     component: 'LLM',
     name: model.modelId,
   });
 
-  const stream = v4.initialize({
+  const stream = v5.initialize({
     runId,
     onResult,
     createStream: async () => {
