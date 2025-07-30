@@ -84,8 +84,8 @@ export const FunctionBasedScorerBuilders = {
       }
       return 0;
     })
-    .generateReason(({ results }) => {
-      return `the reason the score is 1 is because the input is ${results.analyzeStepResult?.inputFromAnalyze} and the output is ${results.analyzeStepResult?.outputFromAnalyze}`;
+    .generateReason(({ score, results }) => {
+      return `the reason the score is ${score} is because the input is ${results.analyzeStepResult?.inputFromAnalyze} and the output is ${results.analyzeStepResult?.outputFromAnalyze}`;
     }),
 
   withPreprocessAndReason: createNewScorer({
@@ -107,8 +107,8 @@ export const FunctionBasedScorerBuilders = {
       }
       return 0;
     })
-    .generateReason(({ results }) => {
-      return `the reason the score is 1 is because the input is ${results.preprocessStepResult?.reformattedInput} and the output is ${results.preprocessStepResult?.reformattedOutput}`;
+    .generateReason(({ score, results }) => {
+      return `the reason the score is ${score} is because the input is ${results.preprocessStepResult?.reformattedInput} and the output is ${results.preprocessStepResult?.reformattedOutput}`;
     }),
 
   withAnalyze: createNewScorer({
@@ -150,8 +150,8 @@ export const FunctionBasedScorerBuilders = {
       }
       return 0;
     })
-    .generateReason(({ results }) => {
-      return `the reason the score is 1 is because the input is ${results.analyzeStepResult?.inputFromAnalyze} and the output is ${results.analyzeStepResult?.outputFromAnalyze}`;
+    .generateReason(({ score, results }) => {
+      return `the reason the score is ${score} is because the input is ${results.analyzeStepResult?.inputFromAnalyze} and the output is ${results.analyzeStepResult?.outputFromAnalyze}`;
     }),
 
   withReason: createNewScorer({
@@ -161,8 +161,8 @@ export const FunctionBasedScorerBuilders = {
     .generateScore(({ run }) => {
       return run.input ? 1 : 0;
     })
-    .generateReason(({ run }) => {
-      return `the reason the score is 1 is because the input is ${run.input?.[0]?.content} and the output is ${run.output.text}`;
+    .generateReason(({ score, run }) => {
+      return `the reason the score is ${score} is because the input is ${run.input?.[0]?.content} and the output is ${run.output.text}`;
     }),
 };
 
@@ -190,6 +190,13 @@ describe('createScorer', () => {
   describe('Steps as functions scorer', () => {
     it('should create a basic scorer with functions', async () => {
       const scorer = FunctionBasedScorerBuilders.basic;
+      const result = await scorer.run(testData.scoringInput);
+
+      console.log(JSON.stringify(result, null, 2));
+    });
+
+    it('should create a scorer with reason', async () => {
+      const scorer = FunctionBasedScorerBuilders.withReason;
       const result = await scorer.run(testData.scoringInput);
 
       console.log(JSON.stringify(result, null, 2));
