@@ -207,9 +207,10 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'text-end',
     };
   } else if (chunk.type === 'step-start') {
+    const { messageId: _messageId, ...rest } = chunk.payload;
     return {
       type: 'start-step',
-      ...(chunk.payload || {}),
+      ...(rest || {}),
     };
   } else if (chunk.type === 'step-finish') {
     const { totalUsage, reason, response } = chunk.payload;
