@@ -1,4 +1,5 @@
 // Unified Knowledge Graph + GraphRAG initial implementation
+import { randomUUID } from 'crypto';
 import type {
   KGNode,
   KGEdge,
@@ -9,6 +10,7 @@ import type {
   KGRagOptions,
   GraphChunk,
   RankedNode,
+  AddNodesFromChunksEdgeOptions,
 } from './types';
 
 export class KGRag {
@@ -35,6 +37,9 @@ export class KGRag {
   }
 
   addNode(node: KGNode) {
+    if (this.nodes.has(node.id)) {
+      throw new Error(`Node with id '${node.id}' already exists`);
+    }
     if (this.schema) this.validateNode(node);
     if (this.options.requireEmbedding) {
       if (!node.embedding) {
@@ -66,7 +71,15 @@ export class KGRag {
     }
   }
 
-  addEdge(edge: KGEdge) {
+  private shouldCreateReverseEdge(edge: KGEdge): boolean {
+    if (this.options.defaultDirected) return false;
+    return edge.directed === undefined || !edge.directed;
+  }
+
+  addEdge(edge: KGEdge, { skipReverse = false } = {}) {
+    if (this.edges.has(edge.id)) {
+      throw new Error(`Edge with id '${edge.id}' already exists`);
+    }
     if (this.schema) this.validateEdge(edge);
     // Source/target existence check
     if (!this.nodes.has(edge.source) || !this.nodes.has(edge.target)) {
@@ -74,8 +87,7 @@ export class KGRag {
     }
     this.edges.set(edge.id, edge);
     // Optional bidirectional edge
-    const isDirected = edge.directed ?? this.options.defaultDirected ?? false;
-    if (!isDirected) {
+    if (!skipReverse && this.shouldCreateReverseEdge(edge)) {
       // Only add reverse edge if it doesn't already exist
       const reverseId = `${edge.target}__${edge.source}__${edge.type}__reverse`;
       if (!this.edges.has(reverseId)) {
@@ -172,9 +184,9 @@ export class KGRag {
       .map(edge => ({ id: edge.target, weight: edge.weight ?? 1 }));
   }
 
-  addEdges(edges: KGEdge[]) {
+  addEdges(edges: KGEdge[], { skipReverse = false } = {}) {
     for (const edge of edges) {
-      this.addEdge(edge);
+      this.addEdge(edge, { skipReverse });
     }
   }
 
@@ -210,13 +222,13 @@ export class KGRag {
    */
   addNodesFromChunks({
     chunks,
-    edgeStrategy = 'cosine',
-    edgeOptions = {},
+    edgeOptions = {
+      strategy: 'cosine',
+    },
     nodeType = 'Document',
   }: {
     chunks: GraphChunk[];
-    edgeStrategy?: 'cosine' | 'explicit' | 'callback';
-    edgeOptions?: any;
+    edgeOptions?: AddNodesFromChunksEdgeOptions;
     nodeType?: string;
   }) {
     if (!chunks?.length) {
@@ -225,9 +237,9 @@ export class KGRag {
 
     let newNodes: KGNode[] = [];
     // Add nodes
-    chunks.forEach((chunk, idx) => {
+    chunks.forEach(chunk => {
       const node: KGNode = {
-        id: idx.toString(),
+        id: chunk.id ?? randomUUID(),
         type: nodeType,
         labels: [],
         properties: { text: chunk.text, ...chunk.metadata },
@@ -239,15 +251,15 @@ export class KGRag {
     this.addNodes(newNodes);
 
     // Add edges based on strategy
-    switch (edgeStrategy) {
+    switch (edgeOptions.strategy) {
       case 'cosine':
-        this.addEdgesByCosineSimilarity(newNodes, edgeOptions?.threshold ?? 0.7, edgeOptions?.edgeType ?? 'semantic');
+        this.addEdgesByCosineSimilarity(newNodes, edgeOptions.threshold ?? 0.7, edgeOptions.edgeType ?? 'semantic');
         break;
       case 'explicit':
-        this.addEdges(edgeOptions?.edges ?? []);
+        this.addEdges(edgeOptions.edges ?? []);
         break;
       case 'callback':
-        this.addEdgesByCallback(newNodes, edgeOptions?.callback);
+        this.addEdgesByCallback(newNodes, edgeOptions.callback);
         break;
       default:
         // No edges by default
@@ -418,6 +430,13 @@ export class KGRag {
       .map(item => ({ ...item.node, score: item.score }));
   }
 
+  getOptions(): KGRagOptions {
+    return this.options;
+  }
+  getSchema(): KGSchema | undefined {
+    return this.schema;
+  }
+
   getMetadata(): KGGraphMetadata {
     return this.metadata;
   }
@@ -428,40 +447,46 @@ export class KGRag {
       nodes: this.getNodes(),
       edges: this.getEdges(),
       metadata: this.metadata,
+      options: this.options,
+      schema: this.schema,
     };
     return JSON.stringify(graph);
   }
 
   static deserialize(json: string, schema?: KGSchema): KGRag {
     const obj = JSON.parse(json) as KGGraph;
-    const kg = new KGRag({ metadata: obj.metadata || { name: '', createdAt: new Date().toISOString() }, schema });
+    const kg = new KGRag({
+      metadata: obj.metadata || { name: '', createdAt: new Date().toISOString() },
+      schema: schema ?? obj.schema,
+      options: obj.options,
+    });
     kg.addNodes(obj.nodes || []);
-    kg.addEdges(obj.edges || []);
+    kg.addEdges(obj.edges || [], { skipReverse: true });
     return kg;
   }
 
   // --- Schema Validation ---
   private validateNode(node: KGNode) {
-    if (!this.schema) return;
+    if (!this.schema || !this.schema.nodeTypes) return;
     const typeDef = this.schema.nodeTypes.find(t => t.type === node.type);
     if (!typeDef) throw new Error(`Node type '${node.type}' not allowed by schema.`);
-    if (typeDef.requiredProperties) {
-      for (const prop of typeDef.requiredProperties) {
-        if (!(node.properties && prop in node.properties)) {
-          throw new Error(`Node '${node.id}' of type '${node.type}' missing required property '${prop}'.`);
+    if (typeDef.requiredFields) {
+      for (const field of typeDef.requiredFields) {
+        if (!this.hasField(node, field)) {
+          throw new Error(`Node '${node.id}' of type '${node.type}' missing required field '${field}'.`);
         }
       }
     }
   }
 
   private validateEdge(edge: KGEdge) {
-    if (!this.schema) return;
+    if (!this.schema || !this.schema.edgeTypes) return;
     const typeDef = this.schema.edgeTypes.find(t => t.type === edge.type);
     if (!typeDef) throw new Error(`Edge type '${edge.type}' not allowed by schema.`);
-    if (typeDef.requiredProperties) {
-      for (const prop of typeDef.requiredProperties) {
-        if (!(edge.properties && prop in edge.properties)) {
-          throw new Error(`Edge '${edge.id}' of type '${edge.type}' missing required property '${prop}'.`);
+    if (typeDef.requiredFields) {
+      for (const field of typeDef.requiredFields) {
+        if (!this.hasField(edge, field)) {
+          throw new Error(`Edge '${edge.id}' of type '${edge.type}' missing required field '${field}'.`);
         }
       }
     }
@@ -471,5 +496,15 @@ export class KGRag {
     if (typeDef.targetTypes && !typeDef.targetTypes.includes(this.nodes.get(edge.target)?.type || '')) {
       throw new Error(`Edge '${edge.id}' target node type not allowed for edge type '${edge.type}'.`);
     }
+  }
+
+  private hasField(obj: any, path: string): boolean {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+      if (!current || !(part in current)) return false;
+      current = current[part];
+    }
+    return true;
   }
 }

@@ -24,7 +24,7 @@ export interface KGEdge {
   source: NodeID;
   target: NodeID;
   type: string; // e.g., 'cites', 'related_to', 'parent_of', etc.
-  supportedEdgeType?: SupportedEdgeType; // For compatibility with GraphRAG logic
+  supportedEdgeType?: SupportedEdgeType;
   labels?: string[];
   properties?: Record<string, any>;
   weight?: number;
@@ -46,29 +46,32 @@ export interface KGGraph {
   nodes: KGNode[];
   edges: KGEdge[];
   metadata?: KGGraphMetadata;
+  options?: KGRagOptions;
+  schema?: KGSchema;
 }
 
 // --- Minimal Schema/Ontology Types ---
 
 export interface KGNodeTypeDef {
   type: string;
-  requiredProperties?: string[];
+  requiredFields?: string[];
 }
 
 export interface KGEdgeTypeDef {
   type: string;
-  requiredProperties?: string[];
+  requiredFields?: string[];
   sourceTypes?: string[]; // allowed source node types
   targetTypes?: string[]; // allowed target node types
 }
 
 export interface KGSchema {
-  nodeTypes: KGNodeTypeDef[];
-  edgeTypes: KGEdgeTypeDef[];
+  nodeTypes?: KGNodeTypeDef[];
+  edgeTypes?: KGEdgeTypeDef[];
 }
 
 // Utility types for graph construction/query
 export interface GraphChunk {
+  id?: string;
   text: string;
   metadata: Record<string, any>;
   embedding?: number[];
@@ -83,3 +86,19 @@ export interface KGRagOptions {
   embeddingDimension?: number;
   defaultDirected?: boolean;
 }
+
+type CosineEdgeOptions = {
+  strategy: 'cosine';
+  threshold?: number;
+  edgeType?: SupportedEdgeType;
+};
+type ExplicitEdgeOptions = {
+  strategy: 'explicit';
+  edges?: KGEdge[];
+};
+type CallbackEdgeOptions = {
+  strategy: 'callback';
+  callback: (a: KGNode, b: KGNode) => boolean | Partial<KGEdge> | undefined;
+};
+
+export type AddNodesFromChunksEdgeOptions = CosineEdgeOptions | ExplicitEdgeOptions | CallbackEdgeOptions;
