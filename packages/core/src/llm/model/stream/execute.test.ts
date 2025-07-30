@@ -42,13 +42,14 @@ describe('V5 tests', () => {
         runId: 'test',
         model: new MockLanguageModelV2({
           doStream: async ({ prompt }) => {
-            // expect(prompt).toStrictEqual([
-            //   {
-            //     role: 'user',
-            //     content: [{ type: 'text', text: 'test-input' }],
-            //     providerOptions: undefined,
-            //   },
-            // ]);
+            console.dir({ prompt }, { depth: null });
+            expect(prompt).toStrictEqual([
+              {
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
+                // providerOptions: undefined,
+              },
+            ]);
 
             return {
               stream: convertArrayToReadableStream([
