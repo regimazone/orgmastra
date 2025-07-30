@@ -31,7 +31,7 @@ const reasonStepResultSchema = z.object({
 
 export const scoringPreprocessStepResultSchema = z.record(z.string(), z.any()).optional();
 
-export class MastraScorer {
+export class MastraScorer<TResult = any> {
   name: string;
   description: string;
   preprocess?: PreprocessStepFn;
@@ -39,7 +39,6 @@ export class MastraScorer {
   generateScore: GenerateScoreStepFn;
   reason?: InternalReasonStepFn;
   metadata?: Record<string, any>;
-  isLLMScorer?: boolean;
 
   constructor(opts: ScorerOptions) {
     this.name = opts.name;
@@ -49,14 +48,13 @@ export class MastraScorer {
     this.generateScore = opts.generateScore;
     this.reason = opts.reason;
     this.metadata = {};
-    this.isLLMScorer = opts.isLLMScorer;
 
     if (opts.metadata) {
       this.metadata = opts.metadata;
     }
   }
 
-  async run(input: ScoringInput): Promise<ScoringInputWithPreprocessStepResultAndScoreAndReason> {
+  async run(input: ScoringInput): Promise<TResult> {
     let runId = input.runId;
     if (!runId) {
       runId = randomUUID();
@@ -186,7 +184,7 @@ export class MastraScorer {
   }
 }
 export type MastraScorerEntry = {
-  scorer: MastraScorer;
+  scorer: MastraScorer<any>;
   sampling?: ScoringSamplingConfig;
 };
 

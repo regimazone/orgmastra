@@ -10,13 +10,30 @@ import type {
   ScoringInputWithPreprocessStepResult,
   ScoringInputWithPreprocessStepResultAndAnalyzeStepResult,
   ScoringInputWithPreprocessStepResultAndAnalyzeStepResultAndScore,
+  ScoringResult,
   TypedScorerOptions,
 } from './types';
 import { isAnalyzeConfig, isGenerateScoreConfig, isPreprocessConfig, isReasonConfig } from './utils';
 
-export function createScorer<TPreprocessOutput = any, TAnalyzeOutput = any>(
-  opts: TypedScorerOptions<TPreprocessOutput, TAnalyzeOutput>,
-) {
+// Enhanced type inference with conditional prompt fields
+export function createScorer<
+  TPreprocessOutput = any,
+  TAnalyzeOutput = any,
+  TOptions extends TypedScorerOptions<TPreprocessOutput, TAnalyzeOutput> = TypedScorerOptions<
+    TPreprocessOutput,
+    TAnalyzeOutput
+  >,
+>(
+  opts: TOptions,
+): MastraScorer<
+  ScoringResult<
+    TOptions['preprocess'],
+    TOptions['analyze'],
+    TOptions['generateReason'],
+    TPreprocessOutput,
+    TAnalyzeOutput
+  >
+> {
   // Default judge for LLM steps
   const defaultJudge = opts.judge;
 

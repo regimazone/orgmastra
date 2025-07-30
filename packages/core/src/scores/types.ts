@@ -1,6 +1,30 @@
 import { z } from 'zod';
 import type { MastraLanguageModel } from '../memory';
 
+// Helper types for conditional prompt fields
+type IsLLMConfig<T> = T extends { createPrompt: any } ? true : false;
+
+// Enhanced result type with conditional prompt fields
+export type ScoringResult<
+  TPreprocessStep = any,
+  TAnalyzeStep = any,
+  TReasonStep = any,
+  TPreprocessOutput = any,
+  TAnalyzeOutput = any,
+> = {
+  runId: string;
+  score: number;
+  analyzeStepResult: TAnalyzeOutput;
+} & (TPreprocessStep extends undefined
+  ? {}
+  : { preprocessStepResult: TPreprocessOutput } & (IsLLMConfig<TPreprocessStep> extends true
+      ? { preprocessPrompt: string }
+      : {})) &
+  (IsLLMConfig<TAnalyzeStep> extends true ? { analyzePrompt: string } : {}) &
+  (TReasonStep extends undefined
+    ? {}
+    : { reason: string } & (IsLLMConfig<TReasonStep> extends true ? { reasonPrompt: string } : {}));
+
 export type ScoringSamplingConfig = { type: 'none' } | { type: 'ratio'; rate: number };
 
 export type ScoringSource = 'LIVE' | 'TEST';

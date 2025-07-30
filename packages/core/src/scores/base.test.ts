@@ -59,7 +59,6 @@ describe('MastraScorer', () => {
       expect(scorer.preprocess).toBeUndefined();
       expect(scorer.reason).toBeUndefined();
       expect(scorer.metadata).toEqual({});
-      expect(scorer.isLLMScorer).toBeUndefined();
     });
 
     it('should initialize with all optional properties', () => {
@@ -83,7 +82,6 @@ describe('MastraScorer', () => {
       expect(scorer.generateScore).toBe(mockGenerateScoreFn);
       expect(scorer.reason).toBe(mockReasonFn);
       expect(scorer.metadata).toEqual({ custom: 'data' });
-      expect(scorer.isLLMScorer).toBe(true);
     });
 
     it('should initialize metadata as empty object when not provided', () => {
