@@ -91,12 +91,21 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
-        reason: value.finishReason,
-        totalUsage: {
-          ...(value.usage ?? {}),
-          totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
+        stepResult: {
+          reason: value.finishReason,
+          totalUsage: {
+            ...(value.usage ?? {}),
+            totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
+          },
         },
-        providerMetadata: value.providerMetadata,
+        metadata: {
+          providerMetadata: value.providerMetadata,
+        },
+        messages: {
+          all: [],
+          user: [],
+          nonUser: [],
+        },
         ...rest,
       },
     };
