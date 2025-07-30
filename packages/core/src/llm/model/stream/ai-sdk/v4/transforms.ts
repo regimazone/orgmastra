@@ -93,7 +93,9 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       payload: {
         stepResult: {
           reason: value.finishReason,
-          totalUsage: {
+        },
+        output: {
+          usage: {
             ...(value.usage ?? {}),
             totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
           },
@@ -231,7 +233,18 @@ export function convertFullStreamChunkToAISDKv4({
         isContinued: chunk.payload.stepResult.isContinued,
       });
     }
+    const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
     return {
+      type: 'step-finish',
+      request,
+      messageId: chunk.payload.messageId,
+      experimental_providerMetadata: providerMetadata,
+      finishReason: chunk.payload.stepResult.reason,
+      logprobs: chunk.payload.stepResult.logprobs,
+      providerMetadata: providerMetadata,
+      response: otherMetadata,
+      warnings: chunk.payload.stepResult.warnings,
+      isContinued: chunk.payload.stepResult.isContinued,
       usage: {
         promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
         completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
@@ -239,8 +252,6 @@ export function convertFullStreamChunkToAISDKv4({
           chunk.payload.output.usage.totalTokens ??
           chunk.payload.output.usage.promptTokens + chunk.payload.output.usage.completionTokens,
       },
-      finishReason: chunk.payload.stepResult.reason,
-      type: 'step-finish',
     };
   } else if (chunk.type === 'finish') {
     if (client) {
@@ -258,9 +269,14 @@ export function convertFullStreamChunkToAISDKv4({
       return;
     }
 
+    const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
     return {
       type: 'finish',
+      experimental_providerMetadata: providerMetadata,
       finishReason: chunk.payload.stepResult.reason,
+      logprobs: chunk.payload.stepResult.logprobs,
+      providerMetadata: providerMetadata,
+      response: otherMetadata,
       usage: {
         promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
         completionTokens: chunk.payload.output.usage.completionTokens ?? 0,

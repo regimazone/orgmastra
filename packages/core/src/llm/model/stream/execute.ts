@@ -23,6 +23,7 @@ const toolCallOutputSchema = toolCallInpuSchema.extend({
 });
 
 const llmIterationOutputSchema = z.object({
+  messageId: z.string(),
   messages: z.object({
     all: z.array(z.any()),
     user: z.array(z.any()),
@@ -90,6 +91,7 @@ function createAgentWorkflow({
     return createStep({
       id: 'generateText',
       inputSchema: z.object({
+        messageId: z.string(),
         messages: z.object({
           all: z.array(z.any()),
           user: z.array(z.any()),
@@ -470,9 +472,11 @@ function createAgentWorkflow({
         const responseMetadata = runState.state.responseMetadata;
 
         return {
+          messageId,
           stepResult: {
             reason: hasErrored ? 'error' : outputStream.finishReason,
             warnings,
+            isContinued: !['stop', 'error'].includes(outputStream.finishReason || ''),
           },
           metadata: {
             providerMetadata: providerMetadata,

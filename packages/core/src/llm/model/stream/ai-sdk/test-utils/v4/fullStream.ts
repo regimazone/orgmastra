@@ -9,7 +9,7 @@ import type { execute } from '../../../execute';
 
 export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.fullStream', () => {
-    it.only('should send text deltas', async () => {
+    it('should send text deltas', async () => {
       const result = await executeFn({
         runId,
         model: new MockLanguageModelV1({
@@ -55,6 +55,7 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
       });
 
       const messages = await convertAsyncIterableToArray(result.aisdk.v4.fullStream);
+      console.dir({ messages }, { depth: null });
 
       expect(messages).toMatchSnapshot();
     });
