@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { MastraLanguageModel } from '../memory';
 
 // Helper types for conditional prompt fields

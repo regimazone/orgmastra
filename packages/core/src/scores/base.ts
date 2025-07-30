@@ -8,7 +8,6 @@ import type {
   ScorerOptions,
   GenerateScoreStepFn,
   ScoringInput,
-  ScoringInputWithPreprocessStepResultAndScoreAndReason,
   ScoringSamplingConfig,
 } from './types';
 
