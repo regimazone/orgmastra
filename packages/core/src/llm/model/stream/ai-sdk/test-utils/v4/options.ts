@@ -154,7 +154,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   });
 
   describe('options.onFinish', () => {
-    it.only('should send correct information', async () => {
+    it('should send correct information', async () => {
       let result!: any;
 
       const resultObject = await executeFn({
