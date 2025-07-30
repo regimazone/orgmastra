@@ -214,8 +214,8 @@ export function convertFullStreamChunkToAISDKv4({
         finishReason: chunk.payload?.reason,
         usage: sendUsage
           ? {
-              promptTokens: chunk.payload.totalUsage.promptTokens,
-              completionTokens: chunk.payload.totalUsage.completionTokens,
+              promptTokens: chunk.payload.totalUsage.promptTokens ?? 0,
+              completionTokens: chunk.payload.totalUsage.completionTokens ?? 0,
             }
           : undefined,
         isContinued: chunk.payload.isContinued,
@@ -240,8 +240,8 @@ export function convertFullStreamChunkToAISDKv4({
           finishReason: chunk.payload.reason,
           usage: sendUsage
             ? {
-                promptTokens: chunk.payload.totalUsage.promptTokens,
-                completionTokens: chunk.payload.totalUsage.completionTokens,
+                promptTokens: chunk.payload.totalUsage.promptTokens ?? 0,
+                completionTokens: chunk.payload.totalUsage.completionTokens ?? 0,
               }
             : undefined,
         });
@@ -254,7 +254,11 @@ export function convertFullStreamChunkToAISDKv4({
     return {
       type: 'finish',
       finishReason: reason,
-      usage: totalUsage,
+      usage: {
+        promptTokens: totalUsage.promptTokens ?? 0,
+        completionTokens: totalUsage.completionTokens ?? 0,
+        totalTokens: totalUsage.totalTokens ?? 0,
+      },
       ...rest,
     };
   } else if (chunk.type === 'reasoning') {
