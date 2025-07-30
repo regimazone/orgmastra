@@ -100,9 +100,23 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
-        reason: value.finishReason,
-        totalUsage: value.usage,
-        providerMetadata: value.providerMetadata,
+        stepResult: {
+          reason: value.finishReason,
+        },
+        output: {
+          usage: {
+            ...(value.usage ?? {}),
+            totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
+          },
+        },
+        metadata: {
+          providerMetadata: value.providerMetadata,
+        },
+        messages: {
+          all: [],
+          user: [],
+          nonUser: [],
+        },
         ...rest,
       },
     };
@@ -213,12 +227,12 @@ export function convertFullStreamChunkToAISDKv5({
       ...(rest || {}),
     };
   } else if (chunk.type === 'step-finish') {
-    const { totalUsage, reason, response } = chunk.payload;
+    const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
     return {
-      usage: totalUsage,
-      response: response,
-      providerMetadata: undefined,
-      finishReason: reason,
+      usage: chunk.payload.output.usage,
+      response: otherMetadata,
+      providerMetadata: providerMetadata,
+      finishReason: chunk.payload.stepResult.reason,
       type: 'finish-step',
     };
   } else if (chunk.type === 'start') {
@@ -226,12 +240,10 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'start',
     };
   } else if (chunk.type === 'finish') {
-    const { totalUsage, reason, messages: _messages } = chunk.payload;
-
     return {
       type: 'finish',
-      finishReason: reason,
-      totalUsage: totalUsage,
+      finishReason: chunk.payload.stepResult.reason,
+      totalUsage: chunk.payload.output.usage,
     };
   } else if (chunk.type === 'reasoning') {
     return {

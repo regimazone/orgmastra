@@ -163,10 +163,10 @@ describe('V5 tests', () => {
               },
               "type": "finish-step",
               "usage": {
-                "cachedInputTokens": 0,
+                "cachedInputTokens": undefined,
                 "inputTokens": 3,
                 "outputTokens": 10,
-                "reasoningTokens": 0,
+                "reasoningTokens": undefined,
                 "totalTokens": 13,
               },
             },
