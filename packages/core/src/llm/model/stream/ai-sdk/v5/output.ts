@@ -170,7 +170,7 @@ export class AISDKV5OutputStream {
           });
 
           if (transformedChunk) {
-            if (transformedChunk.type !== 'start' && transformedChunk.type !== 'finish') {
+            if (!['start', 'finish', 'finish-step'].includes(transformedChunk.type)) {
               console.log('step counter', stepCounter);
               transformedChunk.id = stepCounter.toString();
             }
