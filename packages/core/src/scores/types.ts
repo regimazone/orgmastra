@@ -95,6 +95,10 @@ export type ScoreRowData = ScoringInputWithPreprocessStepResultAndScoreAndReason
     scorerId: string;
     createdAt: Date;
     updatedAt: Date;
+    /** @deprecated Use preprocessStepResult instead */
+    extractStepResult?: any;
+    /** @deprecated Use preprocessPrompt instead */
+    extractPrompt?: string;
   };
 
 export type PreprocessStepFn<TOutput = any> = {
