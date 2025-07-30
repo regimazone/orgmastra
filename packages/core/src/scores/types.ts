@@ -101,7 +101,7 @@ export type PreprocessStepFn<TOutput = any> = {
   (input: { run: ScoringInput }): TOutput | Promise<TOutput>;
 };
 
-type LLMJudge = {
+export type LLMJudge = {
   model: MastraLanguageModel;
   instructions: string;
 };
