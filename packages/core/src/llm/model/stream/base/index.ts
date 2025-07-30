@@ -135,7 +135,7 @@ export class MastraModelOutput extends MastraBase {
               }
 
               const reasoningDetails = chunk.payload.response?.messages
-                .flatMap((msg: any) => {
+                ?.flatMap((msg: any) => {
                   return msg.content;
                 })
                 ?.filter((message: any) => message.type.includes('reasoning'))
