@@ -125,7 +125,9 @@ describe('V5 tests', () => {
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
+      const data = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+      console.dir({ data }, { depth: null });
+      expect(data).toMatchInlineSnapshot(`
           [
             {
               "type": "start",

@@ -138,13 +138,10 @@ export class AISDKV5OutputStream {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
     const self = this;
+    let stepCounter = 0;
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
-          if (chunk.type === 'start') {
-            return;
-          }
-
           if (chunk.type === 'step-start' && !startEvent) {
             startEvent = convertFullStreamChunkToAISDKv5({
               chunk,
@@ -155,6 +152,7 @@ export class AISDKV5OutputStream {
               getErrorMessage: getErrorMessage,
               toolCallStreaming: self.#options.toolCallStreaming,
             });
+            stepCounter++;
             return;
           } else if (chunk.type !== 'error') {
             hasStarted = true;
@@ -176,6 +174,11 @@ export class AISDKV5OutputStream {
           });
 
           if (transformedChunk) {
+            if (transformedChunk.type !== 'start' && transformedChunk.type !== 'finish') {
+              console.log('step counter', stepCounter);
+              transformedChunk.id = stepCounter.toString();
+            }
+
             controller.enqueue(transformedChunk);
           }
 

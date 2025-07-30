@@ -200,7 +200,8 @@ export function convertFullStreamChunkToAISDKv5({
     }
     return {
       type: 'text-delta',
-      textDelta: chunk.payload.text,
+      text: chunk.payload.text,
+      providerMetadata: undefined,
     };
   } else if (chunk.type === 'text-start') {
     // if (client) {
@@ -257,6 +258,13 @@ export function convertFullStreamChunkToAISDKv5({
       ...rest,
       finishReason: reason,
       type: 'finish-step',
+    };
+  } else if (chunk.type === 'start') {
+    // if (client) {
+    //   return formatDataStreamPart('start', {});
+    // }
+    return {
+      type: 'start',
     };
   } else if (chunk.type === 'finish') {
     if (client) {

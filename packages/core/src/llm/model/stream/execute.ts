@@ -700,6 +700,13 @@ function createStreamExecutor({
 
         .commit();
 
+      controller.enqueue({
+        type: 'start',
+        runId,
+        from: 'AGENT',
+        payload: {},
+      });
+
       const run = await mainWorkflow.createRunAsync({
         runId,
       });

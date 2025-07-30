@@ -2,8 +2,9 @@ import { ReadableStream, TransformStream } from 'stream/web';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { AISDKV4OutputStream } from '../ai-sdk/v4';
-import type { CreateStream, OnResult } from '../types';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
+import type { CreateStream, OnResult } from '../types';
+
 export abstract class BaseModelStream extends MastraBase {
   abstract transform({
     runId,
@@ -20,13 +21,6 @@ export abstract class BaseModelStream extends MastraBase {
 
     const stream = new ReadableStream<ChunkType>({
       async start(controller) {
-        controller.enqueue({
-          type: 'start',
-          runId,
-          from: 'AGENT',
-          payload: {},
-        });
-
         try {
           const stream = (await createStream()) as any;
 
