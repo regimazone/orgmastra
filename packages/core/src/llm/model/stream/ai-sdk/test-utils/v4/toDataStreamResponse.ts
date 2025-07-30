@@ -14,7 +14,7 @@ import {
   modelWithFiles,
   modelWithReasoning,
   modelWithSources,
-} from '../../../../test-utils';
+} from './test-utils';
 import type { execute } from '../../../execute';
 import { mergeStreams, writeToServerResponse } from '../../v4/compat';
 

@@ -1,13 +1,7 @@
 import { convertArrayToReadableStream, mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
-import {
-  createTestModel,
-  defaultSettings,
-  modelWithFiles,
-  modelWithReasoning,
-  modelWithSources,
-} from '../../../../test-utils';
+import { createTestModel, defaultSettings, modelWithFiles, modelWithReasoning, modelWithSources } from './test-utils';
 import type { execute } from '../../../execute';
 import { DefaultGeneratedFileWithType } from '../../v4/file';
 

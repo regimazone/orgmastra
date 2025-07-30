@@ -8,7 +8,7 @@ import {
 import { createDataStream } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it, vi } from 'vitest';
-import { createTestModel } from '../../../../test-utils';
+import { createTestModel } from './test-utils';
 import type { execute } from '../../../execute';
 
 export function mergeIntoDataStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {

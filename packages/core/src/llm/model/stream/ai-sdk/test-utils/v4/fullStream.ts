@@ -4,13 +4,7 @@ import { MockLanguageModelV1, mockId, mockValues } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { delay } from '../../../../../../utils';
-import {
-  createTestModel,
-  defaultSettings,
-  modelWithFiles,
-  modelWithReasoning,
-  modelWithSources,
-} from '../../../../test-utils';
+import { createTestModel, defaultSettings, modelWithFiles, modelWithReasoning, modelWithSources } from './test-utils';
 import type { execute } from '../../../execute';
 
 export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {

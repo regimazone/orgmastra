@@ -3,7 +3,7 @@ import type { TextStreamPart } from 'ai';
 import { convertArrayToReadableStream, MockLanguageModelV1, mockValues } from 'ai/test';
 import { describe, beforeEach, expect, it } from 'vitest';
 import { z } from 'zod';
-import { createTestModel, defaultSettings, modelWithFiles, modelWithSources } from '../../../../test-utils';
+import { createTestModel, defaultSettings, modelWithFiles, modelWithSources } from './test-utils';
 import type { execute } from '../../../execute';
 import { convertFullStreamChunkToAISDKv4 } from '../../v4';
 import { DefaultGeneratedFileWithType } from '../../v4/file';
@@ -154,7 +154,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   });
 
   describe('options.onFinish', () => {
-    it('should send correct information', async () => {
+    it.only('should send correct information', async () => {
       let result!: any;
 
       const resultObject = await executeFn({

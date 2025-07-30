@@ -1,7 +1,7 @@
 import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 import { MockLanguageModelV1 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
-import { createTestModel, defaultSettings, modelWithReasoning } from '../../../../test-utils';
+import { createTestModel, defaultSettings, modelWithReasoning } from './test-utils';
 import type { execute } from '../../../execute';
 
 export function textStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
