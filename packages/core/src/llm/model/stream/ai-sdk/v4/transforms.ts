@@ -243,7 +243,14 @@ export function convertFullStreamChunkToAISDKv4({
       if (!chunk.payload) {
         return;
       }
-      return formatDataStreamPart('finish_step', transformedChunk);
+      return formatDataStreamPart('finish_step', {
+        finishReason: transformedChunk.finishReason,
+        usage: {
+          promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+          completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+        },
+        isContinued: transformedChunk.isContinued,
+      });
     }
 
     return transformedChunk;
@@ -267,7 +274,13 @@ export function convertFullStreamChunkToAISDKv4({
 
     if (client) {
       if (experimental_sendFinish) {
-        return formatDataStreamPart('finish_message', transformedChunk);
+        return formatDataStreamPart('finish_message', {
+          finishReason: transformedChunk.finishReason,
+          usage: {
+            promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+            completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+          },
+        });
       }
       return;
     }
