@@ -121,7 +121,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.log('result.response.messages', result.response.messages);
+      console.log('result.response.messages', JSON.stringify(result.response.messages, null, 2));
 
       expect(result.response.messages).toMatchSnapshot();
     });

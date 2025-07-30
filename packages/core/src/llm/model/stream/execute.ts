@@ -176,7 +176,12 @@ function createAgentWorkflow({
               await options?.onChunk?.(chunk);
             }
 
-            if (chunk.type !== 'reasoning' && chunk.type !== 'reasoning-signature' && runState.state.isReasoning) {
+            if (
+              chunk.type !== 'reasoning' &&
+              chunk.type !== 'reasoning-signature' &&
+              chunk.type !== 'redacted-reasoning' &&
+              runState.state.isReasoning
+            ) {
               messageList.add(
                 {
                   id: messageId,
