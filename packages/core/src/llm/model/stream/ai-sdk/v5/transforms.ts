@@ -248,14 +248,15 @@ export function convertFullStreamChunkToAISDKv5({
       });
     }
 
-    const { totalUsage, reason, ...rest } = chunk.payload;
+    const { totalUsage, reason, response } = chunk.payload;
     return {
       usage: {
         promptTokens: totalUsage.promptTokens,
         completionTokens: totalUsage.completionTokens,
         totalTokens: totalUsage.totalTokens || totalUsage.promptTokens + totalUsage.completionTokens,
       },
-      ...rest,
+      response: response,
+      providerMetadata: undefined,
       finishReason: reason,
       type: 'finish-step',
     };
@@ -282,13 +283,12 @@ export function convertFullStreamChunkToAISDKv5({
       return;
     }
 
-    const { totalUsage, reason, messages: _messages, ...rest } = chunk.payload;
+    const { totalUsage, reason, messages: _messages } = chunk.payload;
 
     return {
       type: 'finish',
       finishReason: reason,
       usage: totalUsage,
-      ...rest,
     };
   } else if (chunk.type === 'reasoning') {
     if (client) {
