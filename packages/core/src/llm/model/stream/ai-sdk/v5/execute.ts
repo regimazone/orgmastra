@@ -3,7 +3,7 @@ import { prepareToolsAndToolChoice } from '../../../prepare-tools';
 import type { ExecutionProps } from '../../types';
 import { AISDKV4InputStream } from '../v4/input';
 
-export function executeV4({
+export function executeV5({
   runId,
   model,
   providerMetadata,

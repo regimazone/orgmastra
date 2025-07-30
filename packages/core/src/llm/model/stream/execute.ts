@@ -10,6 +10,7 @@ import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, ExecuteOptions, StreamExecutorProps } from './types';
 import { ConsoleLogger, type MastraLogger } from '../../../logger';
+import { executeV5 } from './ai-sdk/v5/execute';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -159,10 +160,46 @@ function createAgentWorkflow({
             break;
           }
           case 'v2': {
-            console.log('V2 model', model);
+            modelResult = executeV5({
+              model,
+              runId,
+              providerMetadata,
+              inputMessages: messageList.get.all.core() as any,
+              tools,
+              toolChoice,
+              activeTools,
+              _internal,
+              options,
+              onResult: ({
+                warnings: warningsFromStream,
+                request: requestFromStream,
+                rawResponse: rawResponseFromStream,
+              }) => {
+                console.log('warningsFromStream', warningsFromStream);
+                console.log('requestFromStream', requestFromStream);
+                console.log('rawResponseFromStream', rawResponseFromStream);
+
+                warnings = warningsFromStream;
+                request = requestFromStream || {};
+                rawResponse = rawResponseFromStream;
+
+                controller.enqueue({
+                  runId,
+                  from: 'AGENT',
+                  type: 'step-start',
+                  payload: {
+                    request: request || {},
+                    warnings: [],
+                    messageId: messageId,
+                  },
+                });
+              },
+            });
+
             break;
           }
           default: {
+            //@ts-ignore
             throw new Error(`Unsupported model version: ${model.specificationVersion}`);
           }
         }
