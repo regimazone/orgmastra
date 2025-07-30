@@ -1,5 +1,4 @@
 import { TransformStream } from 'stream/web';
-import type { ReadableStream } from 'node:stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
@@ -81,9 +80,8 @@ export class AISDKV5OutputStream {
         transform(chunk, controller) {
           console.log('chunk', chunk);
 
-          const transformedChunk = convertFullStreamChunkToAISDKv4({
+          const transformedChunk = convertFullStreamChunkToAISDKv5({
             chunk,
-            client: true,
             sendReasoning,
             sendSources,
             sendUsage,
@@ -145,7 +143,6 @@ export class AISDKV5OutputStream {
           if (chunk.type === 'step-start' && !startEvent) {
             startEvent = convertFullStreamChunkToAISDKv5({
               chunk,
-              client: false,
               sendReasoning: false,
               sendSources: false,
               sendUsage: false,
@@ -165,7 +162,6 @@ export class AISDKV5OutputStream {
 
           const transformedChunk = convertFullStreamChunkToAISDKv5({
             chunk,
-            client: false,
             sendReasoning: false,
             sendSources: false,
             sendUsage: false,

@@ -175,7 +175,6 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
 
 export function convertFullStreamChunkToAISDKv5({
   chunk,
-  client,
   sendReasoning,
   sendSources,
   sendUsage = true,
@@ -185,7 +184,6 @@ export function convertFullStreamChunkToAISDKv5({
   getErrorMessage,
 }: {
   chunk: any;
-  client: boolean;
   sendReasoning: boolean;
   sendSources: boolean;
   sendUsage: boolean;
@@ -195,59 +193,25 @@ export function convertFullStreamChunkToAISDKv5({
   getErrorMessage: (error: string) => string;
 }) {
   if (chunk.type === 'text-delta') {
-    if (client) {
-      return formatDataStreamPart('text', chunk.payload.text);
-    }
     return {
       type: 'text-delta',
       text: chunk.payload.text,
       providerMetadata: undefined,
     };
   } else if (chunk.type === 'text-start') {
-    // if (client) {
-    //   return formatDataStreamPart('text_start', {
-    //     text: chunk.payload.text,
-    //   });
-    // }
     return {
       type: 'text-start',
     };
   } else if (chunk.type === 'text-end') {
-    // if (client) {
-    //   return formatDataStreamPart('text_end', {
-    //     text: chunk.payload.text,
-    //   });
-    // }
     return {
       type: 'text-end',
     };
   } else if (chunk.type === 'step-start') {
-    if (client) {
-      return formatDataStreamPart('start_step', {
-        messageId: chunk.payload.messageId,
-      });
-    }
     return {
       type: 'start-step',
       ...(chunk.payload || {}),
     };
   } else if (chunk.type === 'step-finish') {
-    if (client) {
-      if (!chunk.payload) {
-        return;
-      }
-      return formatDataStreamPart('finish_step', {
-        finishReason: chunk.payload?.reason,
-        usage: sendUsage
-          ? {
-              promptTokens: chunk.payload.totalUsage.promptTokens,
-              completionTokens: chunk.payload.totalUsage.completionTokens,
-            }
-          : undefined,
-        isContinued: chunk.payload.isContinued,
-      });
-    }
-
     const { totalUsage, reason, response } = chunk.payload;
     return {
       usage: {
@@ -261,28 +225,10 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'finish-step',
     };
   } else if (chunk.type === 'start') {
-    // if (client) {
-    //   return formatDataStreamPart('start', {});
-    // }
     return {
       type: 'start',
     };
   } else if (chunk.type === 'finish') {
-    if (client) {
-      if (experimental_sendFinish) {
-        return formatDataStreamPart('finish_message', {
-          finishReason: chunk.payload.reason,
-          usage: sendUsage
-            ? {
-                promptTokens: chunk.payload.totalUsage.promptTokens,
-                completionTokens: chunk.payload.totalUsage.completionTokens,
-              }
-            : undefined,
-        });
-      }
-      return;
-    }
-
     const { totalUsage, reason, messages: _messages } = chunk.payload;
 
     return {
@@ -291,78 +237,31 @@ export function convertFullStreamChunkToAISDKv5({
       usage: totalUsage,
     };
   } else if (chunk.type === 'reasoning') {
-    if (client) {
-      if (sendReasoning) {
-        return formatDataStreamPart('reasoning', chunk.payload.text);
-      }
-      return;
-    }
     return {
       type: 'reasoning',
       textDelta: chunk.payload.text,
     };
   } else if (chunk.type === 'reasoning-signature') {
-    if (client) {
-      if (sendReasoning) {
-        return formatDataStreamPart('reasoning_signature', {
-          signature: chunk.payload.signature,
-        });
-      }
-      return;
-    }
     return {
       type: 'reasoning-signature',
       signature: chunk.payload.signature,
     };
   } else if (chunk.type === 'redacted-reasoning') {
-    if (client) {
-      if (sendReasoning) {
-        return formatDataStreamPart('redacted_reasoning', {
-          data: chunk.payload.data,
-        });
-      }
-      return;
-    }
     return {
       type: 'redacted-reasoning',
       data: chunk.payload.data,
     };
   } else if (chunk.type === 'source') {
-    if (client && sendSources) {
-      return formatDataStreamPart('source', chunk.payload.source);
-    }
     return {
       type: 'source',
       source: chunk.payload.source,
     };
   } else if (chunk.type === 'file') {
-    if (client) {
-      return formatDataStreamPart('file', {
-        mimeType: chunk.payload.mimeType,
-        data: chunk.payload.data,
-      });
-    }
     return new DefaultGeneratedFileWithType({
       data: chunk.payload.data,
       mimeType: chunk.payload.mimeType,
     });
   } else if (chunk.type === 'tool-call') {
-    if (client) {
-      let args;
-
-      if (!chunk.payload.args) {
-        args = toolCallArgsDeltas?.[chunk.payload.toolCallId]?.join('') ?? '';
-      } else {
-        args = chunk.payload.args;
-      }
-
-      return formatDataStreamPart('tool_call', {
-        toolCallId: chunk.payload.toolCallId,
-        toolName: chunk.payload.toolName,
-        args: args,
-      });
-    }
-
     return {
       type: 'tool-call',
       toolCallId: chunk.payload.toolCallId,
@@ -370,12 +269,6 @@ export function convertFullStreamChunkToAISDKv5({
       args: chunk.payload.args,
     };
   } else if (chunk.type === 'tool-call-streaming-start' && toolCallStreaming) {
-    if (client) {
-      return formatDataStreamPart('tool_call_streaming_start', {
-        toolCallId: chunk.payload.toolCallId,
-        toolName: chunk.payload.toolName,
-      });
-    }
     console.log('tool-call-streaming-start SUHHHHH', chunk.payload);
     return {
       type: 'tool-call-streaming-start',
@@ -383,12 +276,6 @@ export function convertFullStreamChunkToAISDKv5({
       toolName: chunk.payload.toolName,
     };
   } else if (chunk.type === 'tool-call-delta' && toolCallStreaming) {
-    if (client) {
-      return formatDataStreamPart('tool_call_delta', {
-        toolCallId: chunk.payload.toolCallId,
-        argsTextDelta: chunk.payload.argsTextDelta,
-      });
-    }
     return {
       type: 'tool-call-delta',
       toolCallId: chunk.payload.toolCallId,
@@ -396,12 +283,6 @@ export function convertFullStreamChunkToAISDKv5({
       toolName: chunk.payload.toolName,
     };
   } else if (chunk.type === 'tool-result') {
-    if (client) {
-      return formatDataStreamPart('tool_result', {
-        toolCallId: chunk.payload.toolCallId,
-        result: chunk.payload.result,
-      });
-    }
     return {
       type: 'tool-result',
       args: chunk.payload.args,
@@ -410,9 +291,6 @@ export function convertFullStreamChunkToAISDKv5({
       result: chunk.payload.result,
     };
   } else if (chunk.type === 'error') {
-    if (client) {
-      return formatDataStreamPart('error', getErrorMessage(chunk.payload.error));
-    }
     return {
       type: 'error',
       error: chunk.payload.error,
