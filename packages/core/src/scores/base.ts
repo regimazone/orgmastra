@@ -1,15 +1,6 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '../workflows';
-import { scoringExtractStepResultSchema } from './types';
-
-const analyzeStepResultSchema = z.object({
-  result: z.record(z.string(), z.any()).optional(),
-  prompt: z.string().optional(),
-});
-
-const scoreOnlySchema = z.number();
-
 import type {
   PreprocessStepFn,
   InternalReasonStepFn,
@@ -20,6 +11,25 @@ import type {
   ScoringInputWithPreprocessStepResultAndScoreAndReason,
   ScoringSamplingConfig,
 } from './types';
+
+const analyzeStepResultSchema = z.object({
+  result: z.record(z.string(), z.any()).optional(),
+  prompt: z.string().optional(),
+});
+
+const scoreOnlySchema = z.number();
+
+const reasonStepResultSchema = z.object({
+  preprocessStepResult: z.any().optional(),
+  analyzeStepResult: z.any().optional(),
+  analyzePrompt: z.string().optional(),
+  preprocessPrompt: z.string().optional(),
+  score: z.number(),
+  reason: z.string().optional(),
+  reasonPrompt: z.string().optional(),
+});
+
+export const scoringPreprocessStepResultSchema = z.record(z.string(), z.any()).optional();
 
 export class MastraScorer {
   name: string;
@@ -56,7 +66,7 @@ export class MastraScorer {
       id: 'preprocess',
       description: 'Preprocess relevant element from the run',
       inputSchema: z.any(),
-      outputSchema: scoringExtractStepResultSchema,
+      outputSchema: scoringPreprocessStepResultSchema,
       execute: async ({ inputData }) => {
         if (!this.preprocess) {
           return;
@@ -71,7 +81,7 @@ export class MastraScorer {
     const analyzeStep = createStep({
       id: 'analyze',
       description: 'Analyze the preprocessed element',
-      inputSchema: scoringExtractStepResultSchema,
+      inputSchema: scoringPreprocessStepResultSchema,
       outputSchema: analyzeStepResultSchema,
       execute: async ({ inputData }) => {
         const analyzeStepResult = await this.analyze({
@@ -109,7 +119,7 @@ export class MastraScorer {
       id: 'reason',
       description: 'Reason about the score',
       inputSchema: z.number(),
-      outputSchema: z.any(),
+      outputSchema: reasonStepResultSchema,
       execute: async ({ getStepResult }) => {
         const analyzeStepRes = getStepResult(analyzeStep);
         const preprocessStepResult = getStepResult(preprocessStep);

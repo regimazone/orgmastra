@@ -37,20 +37,6 @@ export type ScoringHookInput = {
   threadId?: string;
 };
 
-export const scoringExtractStepResultSchema = z.record(z.string(), z.any()).optional();
-
-export type ScoringExtractStepResult = z.infer<typeof scoringExtractStepResultSchema>;
-
-export const scoringValueSchema = z.number();
-
-export const scoreResultSchema = z.object({
-  result: z.record(z.string(), z.any()).optional(),
-  score: scoringValueSchema,
-  prompt: z.string().optional(),
-});
-
-export type ScoringAnalyzeStepResult = z.infer<typeof scoreResultSchema>;
-
 export type ScoringInputWithPreprocessStepResult<TPreprocess = any> = ScoringInput & {
   runId: string;
   preprocessStepResult?: TPreprocess;
