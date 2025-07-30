@@ -2,6 +2,7 @@ import { formatDataStreamPart } from 'ai';
 import { DefaultGeneratedFileWithType } from './file';
 
 export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
+  console.log('convert v4', value);
   if (value.type === 'step-start') {
     return {
       type: 'step-start',
@@ -73,7 +74,10 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       from: 'AGENT',
       payload: {
         reason: value.finishReason,
-        totalUsage: value.usage,
+        totalUsage: {
+          ...(value.usage ?? {}),
+          totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
+        },
         response: value.response,
         messageId: value.messageId,
         providerMetadata: value.providerMetadata,
@@ -87,7 +91,10 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       from: 'AGENT',
       payload: {
         reason: value.finishReason,
-        totalUsage: value.usage,
+        totalUsage: {
+          ...(value.usage ?? {}),
+          totalTokens: value?.usage?.totalTokens ?? value.usage?.promptTokens + value.usage?.completionTokens,
+        },
         providerMetadata: value.providerMetadata,
         ...rest,
       },

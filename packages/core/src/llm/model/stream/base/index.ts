@@ -64,15 +64,7 @@ export class MastraModelOutput extends MastraBase {
   #providerMetadata: Record<string, any> | undefined;
   #response: any | undefined;
   #request: any | undefined;
-  #usageCount: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  } = {
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-  };
+  #usageCount: Record<string, number> = {};
 
   constructor({
     stream,
@@ -123,7 +115,7 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'step-finish': {
               self.updateUsageCount(chunk.payload.totalUsage);
-              chunk.payload.totalUsage = self.#usageCount;
+              chunk.payload.totalUsage = self.totalUsage;
               self.#warnings = chunk.payload.warnings;
 
               if (chunk.payload.request) {
@@ -315,14 +307,27 @@ export class MastraModelOutput extends MastraBase {
     return this.#request;
   }
 
-  updateUsageCount(usage: {
-    promptTokens?: `${number}` | number;
-    completionTokens?: `${number}` | number;
-    totalTokens?: `${number}` | number;
-  }) {
-    this.#usageCount.promptTokens += parseInt(usage.promptTokens?.toString() ?? '0', 10);
-    this.#usageCount.completionTokens += parseInt(usage.completionTokens?.toString() ?? '0', 10);
-    this.#usageCount.totalTokens += parseInt(usage.totalTokens?.toString() ?? '0', 10);
+  updateUsageCount(usage: Record<string, number>) {
+    if (!usage) {
+      return;
+    }
+
+    for (const [key, value] of Object.entries(usage)) {
+      this.#usageCount[key] = (this.#usageCount[key] ?? 0) + (value ?? 0);
+    }
+  }
+
+  get totalUsage() {
+    let total = 0;
+    for (const [key, value] of Object.entries(this.#usageCount)) {
+      if (key !== 'totalTokens') {
+        total += value;
+      }
+    }
+    return {
+      ...this.#usageCount,
+      totalTokens: total,
+    };
   }
 
   get aisdk() {

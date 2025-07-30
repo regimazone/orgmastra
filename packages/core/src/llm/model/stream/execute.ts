@@ -255,11 +255,6 @@ function createAgentWorkflow({
                   stepFinishPayload: {
                     isContinued: false,
                     reason: 'error',
-                    totalUsage: {
-                      promptTokens: 0,
-                      completionTokens: 0,
-                      totalTokens: 0,
-                    },
                   },
                 });
 
@@ -283,13 +278,7 @@ function createAgentWorkflow({
                     reason: chunk.payload.reason,
                     logprobs: chunk.payload.logprobs,
                     warnings: warnings,
-                    totalUsage: {
-                      promptTokens: chunk.payload.totalUsage.promptTokens,
-                      completionTokens: chunk.payload.totalUsage.completionTokens,
-                      totalTokens:
-                        chunk.payload.totalUsage.totalTokens ||
-                        chunk.payload.totalUsage.promptTokens + chunk.payload.totalUsage.completionTokens,
-                    },
+                    totalUsage: chunk.payload.totalUsage,
                     response: {
                       ...(runState.state.responseMetadata || {}),
                       headers: rawResponse?.headers,
@@ -417,11 +406,6 @@ function createAgentWorkflow({
             stepFinishPayload: {
               isContinued: false,
               reason: 'error',
-              totalUsage: {
-                promptTokens: 0,
-                completionTokens: 0,
-                totalTokens: 0,
-              },
             },
           });
         }
@@ -508,11 +492,7 @@ function createAgentWorkflow({
             reason: hasErrored ? 'error' : outputStream.finishReason,
             text,
             toolCalls,
-            usage: {
-              promptTokens: usage.promptTokens + (inputData.response?.usage?.promptTokens || 0),
-              completionTokens: usage.completionTokens + (inputData.response?.usage?.completionTokens || 0),
-              totalTokens: usage.promptTokens + usage.completionTokens + (inputData.response?.usage?.totalTokens || 0),
-            },
+            usage: usage ?? inputData.response?.usage,
             providerMetadata: providerMetadata,
             metadata: responseMetadata,
           },
@@ -675,6 +655,7 @@ function createStreamExecutor({
         .dowhile(outerAgentWorkflow, async ({ inputData }) => {
           const hasFinishedSteps = stepCount > maxSteps;
 
+          console.log('dowhileing');
           console.log({ inputData, hasFinishedSteps });
 
           const payload = inputData.response.stepFinishPayload || {};
@@ -687,6 +668,10 @@ function createStreamExecutor({
               isContinued: hasFinishedSteps ? false : inputData.response.stepFinishPayload?.isContinued,
             },
           });
+
+          if (inputData.response.reason === undefined) {
+            return false;
+          }
 
           return !['stop', 'error'].includes(inputData.response.reason) && stepCount < maxSteps;
         })

@@ -215,11 +215,7 @@ export function convertFullStreamChunkToAISDKv5({
   } else if (chunk.type === 'step-finish') {
     const { totalUsage, reason, response } = chunk.payload;
     return {
-      usage: {
-        promptTokens: totalUsage.promptTokens,
-        completionTokens: totalUsage.completionTokens,
-        totalTokens: totalUsage.totalTokens || totalUsage.promptTokens + totalUsage.completionTokens,
-      },
+      usage: totalUsage,
       response: response,
       providerMetadata: undefined,
       finishReason: reason,
@@ -235,7 +231,7 @@ export function convertFullStreamChunkToAISDKv5({
     return {
       type: 'finish',
       finishReason: reason,
-      usage: totalUsage,
+      totalUsage: totalUsage,
     };
   } else if (chunk.type === 'reasoning') {
     return {

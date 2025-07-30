@@ -7,6 +7,8 @@ import { StreamData } from 'ai';
 import { mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import type { execute } from '../../../execute';
+import { mergeStreams, writeToServerResponse } from '../../v4/compat';
 import {
   createMockServerResponse,
   createTestModel,
@@ -15,8 +17,6 @@ import {
   modelWithReasoning,
   modelWithSources,
 } from './test-utils';
-import type { execute } from '../../../execute';
-import { mergeStreams, writeToServerResponse } from '../../v4/compat';
 
 export function toDataStreamResponseTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.toDataStreamResponse', () => {
@@ -150,7 +150,7 @@ export function toDataStreamResponseTests({ executeFn, runId }: { executeFn: typ
         experimental_generateMessageId: mockId({ prefix: 'msg' }),
       });
 
-      writeToServerResponse({
+      await writeToServerResponse({
         response: mockResponse,
         stream: result.aisdk.v4
           .toDataStream({ sendReasoning: false, sendSources: false })
@@ -195,7 +195,7 @@ export function toDataStreamResponseTests({ executeFn, runId }: { executeFn: typ
         prompt: 'test-input',
       });
 
-      writeToServerResponse({
+      await writeToServerResponse({
         response: mockResponse,
         headers: {
           'X-Vercel-AI-Data-Stream': 'v1',
