@@ -18,8 +18,8 @@ interface ScorerConfig {
 // Standardized input type for all pipelines
 interface ScorerRun {
   runId?: string;
-  input?: Record<string, any>[];
-  output: Record<string, any>;
+  input?: any; // TODO: Add type
+  output: any; // TODO: Add type
   runtimeContext?: Record<string, any>;
 }
 
