@@ -111,7 +111,7 @@ function getNewVersion(packageName, currentVersion) {
   if (AI_SDK_PACKAGES.includes(packageName)) {
     return 'latest';
   }
-  
+
   // Should not reach here, but keep unchanged if not an AI SDK package
   return currentVersion;
 }
