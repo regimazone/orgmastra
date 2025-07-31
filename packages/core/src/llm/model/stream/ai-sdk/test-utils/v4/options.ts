@@ -211,7 +211,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       expect(result).toMatchSnapshot();
     });
 
-    it.only('should send sources', async () => {
+    it('should send sources', async () => {
       let result!: any;
 
       const resultObject = await executeFn({
