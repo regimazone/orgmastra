@@ -713,7 +713,7 @@ export function createStep<
 
         for await (const chunk of fullStream) {
           switch (chunk.type) {
-            case 'text':
+            case 'text-delta':
               await emitter.emit('watch-v2', {
                 type: 'tool-call-delta',
                 ...toolData,
