@@ -76,7 +76,10 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       type: 'text-start',
       runId: ctx.runId,
       from: 'AGENT',
-      payload: value,
+      payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
+      },
     };
   } else if (value.type === 'text-end') {
     return {
@@ -208,6 +211,8 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
         id: value.id,
         sourceType: value.sourceType,
         title: value.title,
+        mimeType: value.mediaType,
+        filename: value.filename,
         url: value.url,
         providerMetadata: value.providerMetadata,
       },
@@ -222,7 +227,7 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
         providerMetadata: value.providerMetadata,
         data: value.data,
         base64: value.base64,
-        mediaType: value.mediaType,
+        mimeType: value.mediaType,
       },
     };
   } else if (value.type === 'error') {
@@ -262,17 +267,19 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'text-delta',
       id: chunk.payload.id,
       text: chunk.payload.text,
-      providerMetadata: undefined,
+      providerMetadata: chunk.payload.providerMetadata,
     };
   } else if (chunk.type === 'text-start') {
     return {
       type: 'text-start',
       id: chunk.payload.id,
+      ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
     };
   } else if (chunk.type === 'text-end') {
     return {
       type: 'text-end',
       id: chunk.payload.id,
+      ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
     };
   } else if (chunk.type === 'step-start') {
     const { messageId: _messageId, ...rest } = chunk.payload;
@@ -334,8 +341,10 @@ export function convertFullStreamChunkToAISDKv5({
     return {
       type: 'source',
       id: chunk.payload.id,
-      sourceType: chunk.payload.sourceType,
-      title: chunk.payload.title,
+      ...(chunk.payload.sourceType ? { sourceType: chunk.payload.sourceType } : {}),
+      ...(chunk.payload.mimeType ? { mediaType: chunk.payload.mimeType } : {}),
+      ...(chunk.payload.filename ? { filename: chunk.payload.filename } : {}),
+      ...(chunk.payload.title ? { title: chunk.payload.title } : {}),
       url: chunk.payload.url,
       ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
     };
@@ -344,7 +353,7 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'file',
       file: new DefaultGeneratedFileWithType({
         data: chunk.payload.data,
-        mediaType: chunk.payload.mediaType,
+        mediaType: chunk.payload.mimeType,
       }),
     };
   } else if (chunk.type === 'tool-call') {

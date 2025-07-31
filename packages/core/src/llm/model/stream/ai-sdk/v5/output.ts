@@ -15,7 +15,7 @@ import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from '../v4/compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
-import { convertFullStreamChunkToUIMessageStream, getResponseUIMessageId } from './compat';
+import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
 
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
@@ -78,7 +78,7 @@ export class AISDKV5OutputStream {
     sendFinish = true,
     sendReasoning = true,
     sendSources = false,
-    onError = getErrorMessageV4,
+    onError = getErrorMessageV5,
     sendStart = true,
     messageMetadata,
     onFinish,
@@ -196,8 +196,6 @@ export class AISDKV5OutputStream {
             getErrorMessage: getErrorMessage,
           });
 
-          console.log('transformedChunkZZZZZ', transformedChunk);
-
           if (transformedChunk) {
             // if (!['start', 'finish', 'finish-step'].includes(transformedChunk.type)) {
             //   console.log('step counter', stepCounter);
@@ -205,10 +203,6 @@ export class AISDKV5OutputStream {
             // }
 
             controller.enqueue(transformedChunk);
-          }
-
-          if (chunk.type === 'error') {
-            controller.terminate();
           }
         },
       }),

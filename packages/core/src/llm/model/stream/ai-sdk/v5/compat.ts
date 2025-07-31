@@ -240,3 +240,15 @@ export function getResponseUIMessageId({
       ? responseMessageId()
       : responseMessageId;
 }
+
+export function getErrorMessageV5(error: Error | string) {
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return JSON.stringify(error);
+}

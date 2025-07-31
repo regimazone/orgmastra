@@ -14,7 +14,7 @@ import {
 } from './test-utils';
 
 export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
-  describe.skip('result.toUIMessageStream', () => {
+  describe('result.toUIMessageStream', () => {
     it('should create a ui message stream', async () => {
       const result = await executeFn({
         runId,
