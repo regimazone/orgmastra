@@ -86,7 +86,8 @@ interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepN
     instructions: string;
   };
 
-  createPrompt: (context: PromptObjectContext<TAccumulated, TStepName>) => string;
+  // Support both sync and async createPrompt
+  createPrompt: (context: PromptObjectContext<TAccumulated, TStepName>) => string | Promise<string>;
 }
 
 // Special prompt object type for generateScore that always returns a number
@@ -96,7 +97,8 @@ interface GenerateScorePromptObject<TAccumulated extends Record<string, any>> {
     model: MastraLanguageModel;
     instructions: string;
   };
-  createPrompt: (context: StepContext<TAccumulated, ScorerRun>) => string;
+  // Support both sync and async createPrompt
+  createPrompt: (context: StepContext<TAccumulated, ScorerRun>) => string | Promise<string>;
 }
 
 // Special prompt object type for generateReason that always returns a string
@@ -106,7 +108,8 @@ interface GenerateReasonPromptObject<TAccumulated extends Record<string, any>> {
     model: MastraLanguageModel;
     instructions: string;
   };
-  createPrompt: (context: GenerateReasonContext<TAccumulated>) => string;
+  // Support both sync and async createPrompt
+  createPrompt: (context: GenerateReasonContext<TAccumulated>) => string | Promise<string>;
 }
 
 // Step definition types that support both function and prompt object steps
@@ -358,7 +361,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         if (step.isPromptObject) {
           const originalStep = this.originalPromptObjects.get(step.name);
           if (originalStep) {
-            const prompt = originalStep.createPrompt(context);
+            const prompt = await originalStep.createPrompt(context);
 
             generatedPrompts.push({
               stepName: step.name,
@@ -485,19 +488,20 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   }
 
   private createPromptExecutor<T>(promptObj: PromptObject<T, any, any>) {
-    return (context: any): T => {
+    return async (context: any): Promise<T> => {
+      // This is for mock execution, so we don't actually call createPrompt
       return this.generateMockResponse(promptObj.outputSchema, 'mock');
     };
   }
 
   private createGenerateScoreExecutor(promptObj: GenerateScorePromptObject<any>) {
-    return (context: any): number => {
+    return async (context: any): Promise<number> => {
       return 0.75; // Mock score
     };
   }
 
   private createGenerateReasonExecutor(promptObj: GenerateReasonPromptObject<any>) {
-    return (context: any): string => {
+    return async (context: any): Promise<string> => {
       return `Mock reason for ${promptObj.description}`;
     };
   }

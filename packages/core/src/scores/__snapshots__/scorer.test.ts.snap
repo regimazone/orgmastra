@@ -1,5 +1,120 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`createScorer > Async scorer > with async createPrompt in analyze 1`] = `
+{
+  "analyzePrompt": "Async analyze prompt: TEST INPUT and TEST OUTPUT",
+  "analyzeResult": {
+    "inputFromAnalyze": "ASYNC ANALYZE INPUT",
+    "outputFromAnalyze": "ASYNC ANALYZE OUTPUT",
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Async scorer > with async createPrompt in generateReason 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": "Async reason prompt: Score 1 for TEST INPUT and TEST OUTPUT",
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": "This is an async reason for the score",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Async scorer > with async createPrompt in generateScore 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": "Async score prompt: TEST INPUT and TEST OUTPUT",
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 0.85,
+}
+`;
+
+exports[`createScorer > Async scorer > with async createPrompt in preprocess 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": "Async prompt: test input and test output",
+  "preprocessResult": {
+    "reformattedInput": "ASYNC TEST INPUT",
+    "reformattedOutput": "ASYNC TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
 exports[`createScorer > Async scorer > with basic 1`] = `
 {
   "analyzePrompt": undefined,
