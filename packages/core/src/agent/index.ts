@@ -2410,8 +2410,18 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runId,
     });
 
+    // Extract onError separately and wrap it to ensure proper type
+    const { onError, ...restLlmOptions } = llmOptions;
+
     return llm.__streamObject({
-      ...llmOptions,
+      ...restLlmOptions,
+      ...(onError && {
+        onError: async event => {
+          const result = onError(event);
+          // Ensure we always return a Promise<void> for streamObject
+          return result instanceof Promise ? result : Promise.resolve(result);
+        },
+      }),
       onFinish: async result => {
         try {
           const outputText = JSON.stringify(result.object);
@@ -2484,8 +2494,18 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         const { onFinish, runId, output, experimental_output, ...llmOptions } = await before();
 
         if (output) {
+          // Extract onError separately and wrap it to ensure proper type
+          const { onError, ...restLlmOptions } = llmOptions;
+
           const streamResult = llm.__streamObject({
-            ...llmOptions,
+            ...restLlmOptions,
+            ...(onError && {
+              onError: async event => {
+                const result = onError(event);
+                // Ensure we always return a Promise<void> for streamObject
+                return result instanceof Promise ? result : Promise.resolve(result);
+              },
+            }),
             onFinish: async result => {
               onResult(result.object as ResolvedOutput);
               try {
