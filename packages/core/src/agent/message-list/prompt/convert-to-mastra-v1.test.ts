@@ -137,4 +137,184 @@ describe('convertToV1Messages', () => {
     );
     expect(hasToolCall).toBe(true);
   });
+
+  it('should handle mixed content with text, tool invocation, and more text', () => {
+    const testMessage: MastraMessageV2 = {
+      id: 'test-mixed-1',
+      createdAt: new Date(),
+      resourceId: 'resource-1',
+      threadId: 'thread-1',
+      role: 'assistant',
+      content: {
+        content: "Test content",
+        format: 2,
+        parts: [
+          {
+            type: 'text',
+            text: "Je vais d'abord chercher la météo à Istanbul..."
+          },
+          {
+            type: 'tool-invocation',
+            toolInvocation: {
+              state: 'result',
+              toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
+              toolName: 'generateAudioMessageTool',
+              args: {
+                text: "Salut ! Je viens de regarder la météo à Istanbul...",
+                message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
+                seed: "istanbul_weather_vocal"
+              },
+              result: {
+                id: 'placeholder-audio-id',
+                type: 'audio',
+                seed: 'istanbul_weather_vocal',
+                status: 'Audio Message has been generated and sent to the user.',
+                text: "Salut ! Je viens de regarder la météo à Istanbul...",
+                mediaId: '1094206962073368'
+              }
+            }
+          },
+          {
+            type: 'text',
+            text: "Voilà ! Tu as reçu les infos en texte et en audio 😊"
+          }
+        ]
+      }
+    };
+
+    const result = convertToV1Messages([testMessage]);
+    
+    // Should have 4 messages: text before, tool call, tool result, text after
+    expect(result.length).toBe(4);
+    
+    // First message should be assistant text
+    expect(result[0].role).toBe('assistant');
+    expect(result[0].type).toBe('text');
+    
+    // Second message should be assistant tool-call
+    expect(result[1].role).toBe('assistant');
+    expect(result[1].type).toBe('tool-call');
+    
+    // Third message should be tool result
+    expect(result[2].role).toBe('tool');
+    expect(result[2].type).toBe('tool-result');
+    
+    // Fourth message should be assistant text
+    expect(result[3].role).toBe('assistant');
+    expect(result[3].type).toBe('text');
+    
+    // Verify tool result is preserved
+    const toolResultMessage = result.find(msg => 
+      msg.role === 'tool' && msg.type === 'tool-result'
+    );
+    expect(toolResultMessage).toBeDefined();
+    
+    if (toolResultMessage && Array.isArray(toolResultMessage.content)) {
+      const toolResult = toolResultMessage.content[0];
+      if (toolResult.type === 'tool-result') {
+        expect(toolResult.result).toBeDefined();
+        expect(toolResult.result.mediaId).toBe('1094206962073368');
+      }
+    }
+  });
+
+  it('should handle the exact message structure from issue #6087', () => {
+    const testMessage: MastraMessageV2 = {
+      id: 'test-issue-6087',
+      createdAt: new Date(),
+      resourceId: 'resource-1',
+      threadId: 'thread-1',
+      role: 'assistant',
+      content: {
+        content: undefined,
+        format: 2,
+        parts: [
+          {
+            type: 'text',
+            text: "Je vais d'abord chercher la météo à Istanbul, puis je te ferai un message vocal avec l'info ! \n\nÀ Istanbul actuellement :\n🌡️ 14°C (ressenti 13°C)\n🌧️ Pluie légère\n💨 Vent à 14 km/h\n💧 Humidité : 82%\n\nMaintenant, je te fais un petit message vocal avec ces infos !"
+          },
+          {
+            type: 'tool-invocation',
+            toolInvocation: {
+              state: 'result',
+              toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
+              toolName: 'generateAudioMessageTool',
+              args: {
+                text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
+                message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
+                seed: "istanbul_weather_vocal"
+              },
+              result: {
+                id: "placeholder-audio-id",
+                type: "audio",
+                seed: "istanbul_weather_vocal",
+                status: "Audio Message has been generated and sent to the user.",
+                text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
+                mediaId: "1094206962073368"
+              }
+            }
+          },
+          {
+            type: 'text',
+            text: "Voilà ! Tu as reçu les infos en texte et en audio 😊 Tu prévois un voyage à Istanbul ?"
+          }
+        ],
+        toolInvocations: [
+          {
+            state: 'result',
+            toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
+            toolName: 'generateAudioMessageTool',
+            args: {
+              text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
+              message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
+              seed: "istanbul_weather_vocal"
+            },
+            result: {
+              id: "placeholder-audio-id",
+              type: "audio",
+              seed: "istanbul_weather_vocal",
+              status: "Audio Message has been generated and sent to the user.",
+              text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
+              mediaId: "1094206962073368"
+            }
+          }
+        ]
+      }
+    };
+
+    const result = convertToV1Messages([testMessage]);
+    
+    // Should have 4 messages: text before, tool call, tool result, text after
+    expect(result.length).toBe(4);
+    
+    // First message should be assistant text
+    expect(result[0].role).toBe('assistant');
+    expect(result[0].type).toBe('text');
+    
+    // Second message should be assistant tool-call
+    expect(result[1].role).toBe('assistant');
+    expect(result[1].type).toBe('tool-call');
+    
+    // Third message should be tool result
+    expect(result[2].role).toBe('tool');
+    expect(result[2].type).toBe('tool-result');
+    
+    // Fourth message should be assistant text
+    expect(result[3].role).toBe('assistant');
+    expect(result[3].type).toBe('text');
+    
+    // Verify tool result is preserved with all data
+    const toolResultMessage = result.find(msg => 
+      msg.role === 'tool' && msg.type === 'tool-result'
+    );
+    expect(toolResultMessage).toBeDefined();
+    
+    if (toolResultMessage && Array.isArray(toolResultMessage.content)) {
+      const toolResult = toolResultMessage.content[0];
+      if (toolResult.type === 'tool-result') {
+        expect(toolResult.result).toBeDefined();
+        expect(toolResult.result.mediaId).toBe('1094206962073368');
+      }
+    }
+  });
 });
