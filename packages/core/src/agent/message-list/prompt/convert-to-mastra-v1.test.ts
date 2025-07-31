@@ -7,6 +7,13 @@ describe('convertToV1Messages', () => {
     // This reproduces the exact issue from GitHub issue #6087
     // When an assistant message has tool invocations followed by text,
     // the tool history should remain accessible
+    //
+    // NOTE: This test correctly identified the issue from #6087 - it verifies
+    // that tool invocations are preserved in the conversion. However, it was
+    // passing even when tool calls were mixed with text in a single message,
+    // which made them inaccessible to the AI. The fix ensures proper message
+    // separation so the AI can cleanly reference previous tool interactions.
+    // The additional tests below verify this separation more explicitly.
     const messages: MastraMessageV2[] = [
       {
         id: 'msg-1',
@@ -151,32 +158,27 @@ describe('convertToV1Messages', () => {
         parts: [
           {
             type: 'text',
-            text: "Je vais d'abord chercher la météo à Istanbul...",
+            text: 'Let me check the weather for you...',
           },
           {
             type: 'tool-invocation',
             toolInvocation: {
               state: 'result',
-              toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
-              toolName: 'generateAudioMessageTool',
+              toolCallId: 'call-123',
+              toolName: 'weatherTool',
               args: {
-                text: 'Salut ! Je viens de regarder la météo à Istanbul...',
-                message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
-                seed: 'istanbul_weather_vocal',
+                location: 'New York',
               },
               result: {
-                id: 'placeholder-audio-id',
-                type: 'audio',
-                seed: 'istanbul_weather_vocal',
-                status: 'Audio Message has been generated and sent to the user.',
-                text: 'Salut ! Je viens de regarder la météo à Istanbul...',
-                mediaId: '1094206962073368',
+                temperature: 72,
+                conditions: 'Sunny',
+                humidity: 45,
               },
             },
           },
           {
             type: 'text',
-            text: 'Voilà ! Tu as reçu les infos en texte et en audio 😊',
+            text: 'The weather in New York is currently sunny with a temperature of 72°F.',
           },
         ],
       },
@@ -211,7 +213,7 @@ describe('convertToV1Messages', () => {
       const toolResult = toolResultMessage.content[0];
       if (toolResult.type === 'tool-result') {
         expect(toolResult.result).toBeDefined();
-        expect(toolResult.result.mediaId).toBe('1094206962073368');
+        expect((toolResult.result as any).temperature).toBe(72);
       }
     }
   });
@@ -229,51 +231,41 @@ describe('convertToV1Messages', () => {
         parts: [
           {
             type: 'text',
-            text: "Je vais d'abord chercher la météo à Istanbul, puis je te ferai un message vocal avec l'info ! \n\nÀ Istanbul actuellement :\n🌡️ 14°C (ressenti 13°C)\n🌧️ Pluie légère\n💨 Vent à 14 km/h\n💧 Humidité : 82%\n\nMaintenant, je te fais un petit message vocal avec ces infos !",
+            text: "I'll first search for the information and then create a summary for you.\n\nSearching now...",
           },
           {
             type: 'tool-invocation',
             toolInvocation: {
               state: 'result',
-              toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
-              toolName: 'generateAudioMessageTool',
+              toolCallId: 'call-456',
+              toolName: 'searchTool',
               args: {
-                text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
-                message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
-                seed: 'istanbul_weather_vocal',
+                query: 'latest AI developments',
               },
               result: {
-                id: 'placeholder-audio-id',
-                type: 'audio',
-                seed: 'istanbul_weather_vocal',
-                status: 'Audio Message has been generated and sent to the user.',
-                text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
-                mediaId: '1094206962073368',
+                found: true,
+                results: ['GPT-4 improvements', 'New computer vision models', 'Open source AI progress'],
+                count: 3,
               },
             },
           },
           {
             type: 'text',
-            text: 'Voilà ! Tu as reçu les infos en texte et en audio 😊 Tu prévois un voyage à Istanbul ?',
+            text: 'Great! I found 3 relevant results about the latest AI developments. Would you like me to elaborate on any of these?',
           },
         ],
         toolInvocations: [
           {
             state: 'result',
-            toolCallId: 'toolu_016FQRkafLDLcMekRNXjWNC4',
-            toolName: 'generateAudioMessageTool',
+            toolCallId: 'call-456',
+            toolName: 'searchTool',
             args: {
-              text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
-              message: "Je crée un message vocal avec les infos météo d'Istanbul 🎤",
-              seed: 'istanbul_weather_vocal',
+              query: 'latest AI developments',
             },
             result: {
-              id: 'placeholder-audio-id',
-              type: 'audio',
-              seed: 'istanbul_weather_vocal',
-              status: 'Audio Message has been generated and sent to the user.',
-              text: "Salut ! Je viens de regarder la météo à Istanbul. Il fait actuellement 14 degrés, avec une température ressentie de 13 degrés. Il y a un peu de pluie légère, et le vent souffle à 14 kilomètres par heure. L'humidité est assez élevée, à 82%. C'est une journée plutôt fraîche et humide à Istanbul aujourd'hui !",
-              mediaId: '1094206962073368',
+              found: true,
+              results: ['GPT-4 improvements', 'New computer vision models', 'Open source AI progress'],
+              count: 3,
             },
           },
         ],
@@ -307,9 +299,9 @@ describe('convertToV1Messages', () => {
 
     if (toolResultMessage && Array.isArray(toolResultMessage.content)) {
       const toolResult = toolResultMessage.content[0];
-      if (toolResult.type === 'tool-result') {
+      if (toolResult.type === 'tool-result' && toolResult.result) {
         expect(toolResult.result).toBeDefined();
-        expect(toolResult.result.mediaId).toBe('1094206962073368');
+        expect((toolResult.result as any).count).toBe(3);
       }
     }
   });

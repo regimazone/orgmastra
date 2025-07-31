@@ -208,7 +208,9 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
               }
               case 'tool-invocation': {
                 // If we have non-tool content (text/file/reasoning) in the block, process it first
-                const hasNonToolContent = block.some(p => p.type === 'text' || p.type === 'file' || p.type === 'reasoning');
+                const hasNonToolContent = block.some(
+                  p => p.type === 'text' || p.type === 'file' || p.type === 'reasoning',
+                );
                 if (hasNonToolContent || (part.toolInvocation.step ?? 0) !== currentStep) {
                   processBlock();
                 }
