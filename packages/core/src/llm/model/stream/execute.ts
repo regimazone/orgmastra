@@ -331,7 +331,7 @@ function createAgentWorkflow({
                   },
                   'response',
                 );
-                await controller.enqueue(chunk);
+                controller.enqueue(chunk);
                 break;
               case 'tool-call-delta':
                 const hasToolCallStreaming = runState.state.hasToolCallStreaming;
@@ -360,7 +360,7 @@ function createAgentWorkflow({
                     hasToolCallStreaming: true,
                   });
                 }
-                await controller.enqueue(chunk);
+                controller.enqueue(chunk);
                 break;
               case 'file':
                 messageList.add(
@@ -467,6 +467,7 @@ function createAgentWorkflow({
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
 
+        const finishReason = runState?.state?.stepResult?.reason ?? outputStream.finishReason;
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
         const responseMetadata = runState.state.responseMetadata;
@@ -474,9 +475,9 @@ function createAgentWorkflow({
         return {
           messageId,
           stepResult: {
-            reason: hasErrored ? 'error' : outputStream.finishReason,
+            reason: hasErrored ? 'error' : finishReason,
             warnings,
-            isContinued: !['stop', 'error'].includes(outputStream.finishReason || ''),
+            isContinued: !['stop', 'error'].includes(finishReason),
           },
           metadata: {
             providerMetadata: providerMetadata,
