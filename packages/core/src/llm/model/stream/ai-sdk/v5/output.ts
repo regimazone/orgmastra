@@ -180,6 +180,62 @@ export class AISDKV5OutputStream {
     }
   }
 
+  get sources() {
+    return this.#modelOutput.sources.map(source => {
+      return convertFullStreamChunkToAISDKv5({
+        chunk: source,
+        sendReasoning: false,
+        sendSources: true,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+      });
+    });
+  }
+
+  get files() {
+    return this.#modelOutput.files.map(file => {
+      return convertFullStreamChunkToAISDKv5({
+        chunk: file,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+      })?.file;
+    });
+  }
+
+  get toolCalls() {
+    return this.#modelOutput.toolCalls.map(toolCall => {
+      return convertFullStreamChunkToAISDKv5({
+        chunk: toolCall,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+      });
+    });
+  }
+
+  get toolResults() {
+    return this.#modelOutput.toolResults.map(toolResult => {
+      return convertFullStreamChunkToAISDKv5({
+        chunk: toolResult,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+      });
+    });
+  }
+
+  get reasoningText() {
+    return this.#modelOutput.reasoningText;
+  }
+
+  get reasoning() {
+    return this.#modelOutput.reasoningDetails;
+  }
+
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;

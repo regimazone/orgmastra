@@ -225,7 +225,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.sources).toMatchSnapshot();
+      expect(result.aisdk.v4.sources).toMatchSnapshot();
     });
   });
 
@@ -239,9 +239,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(
-        result.files.map(file => new DefaultGeneratedFileWithType({ data: file.data, mimeType: file.mimeType })),
-      ).toMatchSnapshot();
+      expect(result.aisdk.v4.files).toMatchSnapshot();
     });
   });
 
@@ -283,16 +281,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       console.dir({ steppies: result.steps }, { depth: null });
 
-      expect(
-        result.steps.map(step => {
-          return {
-            ...step,
-            files: step.files.map(
-              (file: any) => new DefaultGeneratedFileWithType({ data: file.data, mimeType: file.mimeType }),
-            ),
-          };
-        }),
-      ).toMatchSnapshot();
+      expect(result.steps).toMatchSnapshot();
     });
   });
 
@@ -327,7 +316,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.toolCalls).toStrictEqual([
+      expect(result.aisdk.v4.toolCalls).toStrictEqual([
         {
           type: 'tool-call',
           toolCallId: 'call-1',
@@ -370,7 +359,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.toolResults).toStrictEqual([
+      expect(result.aisdk.v4.toolResults).toStrictEqual([
         {
           type: 'tool-result',
           toolCallId: 'call-1',

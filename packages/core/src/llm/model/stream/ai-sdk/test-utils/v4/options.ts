@@ -237,19 +237,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
-
-            result.files = result.files.map((file: any) => {
-              return new DefaultGeneratedFileWithType(file);
-            });
-
-            result.steps = result.steps.map((step: any) => {
-              return {
-                ...step,
-                files: step.files.map((file: any) => {
-                  return new DefaultGeneratedFileWithType(file);
-                }),
-              };
-            });
           },
         },
         ...defaultSettings(),

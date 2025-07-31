@@ -188,4 +188,60 @@ export class AISDKV4OutputStream {
       }),
     );
   }
+
+  get sources() {
+    return this.#modelOutput.sources.map(chunk => {
+      return convertFullStreamChunkToAISDKv4({
+        chunk,
+        client: false,
+        sendReasoning: false,
+        sendSources: true,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+        toolCallStreaming: false,
+      }).source;
+    });
+  }
+
+  get toolCalls() {
+    return this.#modelOutput.toolCalls.map(chunk => {
+      return convertFullStreamChunkToAISDKv4({
+        chunk,
+        client: false,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+        toolCallStreaming: false,
+      });
+    });
+  }
+
+  get files() {
+    return this.#modelOutput.files.map(chunk => {
+      return convertFullStreamChunkToAISDKv4({
+        chunk,
+        client: false,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+        toolCallStreaming: false,
+      });
+    });
+  }
+
+  get toolResults() {
+    return this.#modelOutput.toolResults.map(chunk => {
+      return convertFullStreamChunkToAISDKv4({
+        chunk,
+        client: false,
+        sendReasoning: false,
+        sendSources: false,
+        sendUsage: false,
+        getErrorMessage: getErrorMessage,
+        toolCallStreaming: false,
+      });
+    });
+  }
 }

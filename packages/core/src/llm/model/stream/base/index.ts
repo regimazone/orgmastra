@@ -1,7 +1,7 @@
 import { ReadableStream, TransformStream } from 'stream/web';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
-import { AISDKV4OutputStream } from '../ai-sdk/v4';
+import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
 import type { CreateStream, OnResult } from '../types';
 
@@ -52,6 +52,14 @@ export class MastraModelOutput extends MastraBase {
   #aisdkv5: AISDKV5OutputStream;
   #baseStream: ReadableStream<any>;
   #bufferedSteps: any[] = [];
+  #bufferedReasoningDetails: Record<
+    string,
+    {
+      type: string;
+      text: string;
+      providerMetadata: any;
+    }
+  > = {};
   #bufferedText: string[] = [];
   #bufferedSources: any[] = [];
   #bufferedReasoning: string[] = [];
@@ -69,7 +77,9 @@ export class MastraModelOutput extends MastraBase {
   constructor({
     stream,
     options,
+    version,
   }: {
+    version: 'v1' | 'v2';
     stream: ReadableStream<ChunkType>;
     options: {
       toolCallStreaming?: boolean;
@@ -83,7 +93,7 @@ export class MastraModelOutput extends MastraBase {
         transform: async (chunk, controller) => {
           switch (chunk.type) {
             case 'source':
-              self.#bufferedSources.push(chunk.payload.source);
+              self.#bufferedSources.push(chunk);
               break;
             case 'text-delta':
               self.#bufferedText.push(chunk.payload.text);
@@ -98,20 +108,44 @@ export class MastraModelOutput extends MastraBase {
               self.#bufferedText.push(chunk.payload.text);
               break;
             case 'file':
-              self.#bufferedFiles.push(chunk.payload);
+              self.#bufferedFiles.push(chunk);
               break;
-            case 'reasoning-delta':
+            case 'reasoning-start':
+              self.#bufferedReasoningDetails[chunk.payload.id] = {
+                type: 'reasoning',
+                text: '',
+                providerMetadata: chunk.payload.providerMetadata,
+              };
+              break;
+            case 'reasoning-delta': {
               self.#bufferedReasoning.push(chunk.payload.text);
+
+              const bufferedReasoning = self.#bufferedReasoningDetails[chunk.payload.id];
+              if (bufferedReasoning) {
+                bufferedReasoning.text += chunk.payload.text;
+                if (chunk.payload.providerMetadata) {
+                  bufferedReasoning.providerMetadata = chunk.payload.providerMetadata;
+                }
+              }
+
               break;
+            }
+            case 'reasoning-end': {
+              const bufferedReasoning = self.#bufferedReasoningDetails[chunk.payload.id];
+              if (chunk.payload.providerMetadata && bufferedReasoning) {
+                bufferedReasoning.providerMetadata = chunk.payload.providerMetadata;
+              }
+              break;
+            }
             case 'tool-call':
-              self.#toolCalls.push({ type: 'tool-call', ...chunk.payload });
+              self.#toolCalls.push(chunk);
               if (chunk.payload?.output?.from === 'AGENT' && chunk.payload?.output?.type === 'finish') {
                 const finishPayload = chunk.payload?.output.payload;
                 self.updateUsageCount(finishPayload.usage);
               }
               break;
             case 'tool-result':
-              self.#toolResults.push({ type: 'tool-result', ...chunk.payload });
+              self.#toolResults.push(chunk);
               break;
             case 'step-finish': {
               self.updateUsageCount(chunk.payload.output.usage);
@@ -146,12 +180,49 @@ export class MastraModelOutput extends MastraBase {
                 stepType: 'initial',
                 text: self.text,
                 reasoning: self.reasoning || undefined,
-                sources: self.sources,
-                files: self.files,
-                toolCalls: self.toolCalls,
-                toolResults: self.toolResults,
+                sources: self.sources.map(source => {
+                  return convertFullStreamChunkToAISDKv4({
+                    chunk: source,
+                    client: false,
+                    sendReasoning: false,
+                    sendSources: true,
+                    sendUsage: false,
+                    getErrorMessage: (error: string) => error,
+                  }).source;
+                }),
+                files: self.files.map(file => {
+                  console.log('filezzzz', JSON.stringify(file, null, 2));
+                  return convertFullStreamChunkToAISDKv4({
+                    chunk: file,
+                    client: false,
+                    sendReasoning: false,
+                    sendSources: false,
+                    sendUsage: false,
+                    getErrorMessage: (error: string) => error,
+                  });
+                }),
+                toolCalls: self.toolCalls.map(toolCall => {
+                  return convertFullStreamChunkToAISDKv4({
+                    chunk: toolCall,
+                    client: false,
+                    sendReasoning: false,
+                    sendSources: false,
+                    sendUsage: false,
+                    getErrorMessage: (error: string) => error,
+                  });
+                }),
+                toolResults: self.toolResults.map(toolResult => {
+                  return convertFullStreamChunkToAISDKv4({
+                    chunk: toolResult,
+                    client: false,
+                    sendReasoning: false,
+                    sendSources: false,
+                    sendUsage: false,
+                    getErrorMessage: (error: string) => error,
+                  });
+                }),
                 warnings: self.warnings,
-                reasoningDetails,
+                reasoningDetails: reasoningDetails,
                 providerMetadata: providerMetadata,
                 experimental_providerMetadata: providerMetadata,
                 isContinued: chunk.payload.stepResult.isContinued,
@@ -188,17 +259,36 @@ export class MastraModelOutput extends MastraBase {
               if (baseFinishStep) {
                 const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
 
-                const { providerMetadata, request: _request, ...otherMetadata } = chunk.payload.metadata;
-                await options?.onFinish?.({
-                  ...rest,
-                  finishReason: chunk.payload.stepResult.reason,
-                  steps: self.#bufferedSteps,
-                  experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
-                  response: {
-                    ...otherMetadata,
-                    messages: chunk.payload.messages.all.slice(1),
-                  },
-                });
+                const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
+
+                let onFinishPayload: any = {};
+
+                if (version === 'v1') {
+                  onFinishPayload = {
+                    text: baseFinishStep.text,
+                    warnings: baseFinishStep.warnings,
+                    finishReason: chunk.payload.stepResult.reason,
+                    experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
+                    providerMetadata: chunk.payload.metadata.providerMetadata,
+                    files: baseFinishStep.files,
+                    toolCalls: baseFinishStep.toolCalls,
+                    toolResults: baseFinishStep.toolResults,
+                    logprobs: baseFinishStep.logprobs,
+                    reasoning: baseFinishStep.reasoning,
+                    reasoningDetails: baseFinishStep.reasoningDetails,
+                    sources: baseFinishStep.sources,
+                    request: request || {},
+                    response: {
+                      ...otherMetadata,
+                      messages: chunk.payload.messages.all.slice(1),
+                    },
+                    steps: self.#bufferedSteps,
+                    usage: baseFinishStep.usage,
+                  };
+                  console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
+                }
+
+                await options?.onFinish?.(onFinishPayload);
               }
 
               break;
@@ -229,6 +319,14 @@ export class MastraModelOutput extends MastraBase {
 
   get reasoning() {
     return this.#bufferedReasoning.join('');
+  }
+
+  get reasoningText() {
+    return this.reasoning;
+  }
+
+  get reasoningDetails() {
+    return Object.values(this.#bufferedReasoningDetails || {});
   }
 
   get sources() {

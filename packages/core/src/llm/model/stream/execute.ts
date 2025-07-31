@@ -207,6 +207,7 @@ function createAgentWorkflow({
         }
 
         const outputStream = new MastraModelOutput({
+          version: model.specificationVersion,
           stream: modelResult!,
           options: {
             toolCallStreaming,
@@ -407,7 +408,9 @@ function createAgentWorkflow({
           });
         }
 
-        const toolCalls = outputStream.toolCalls;
+        const toolCalls = outputStream.toolCalls?.map(chunk => {
+          return chunk.payload;
+        });
         const text = outputStream.text;
 
         /**
@@ -800,6 +803,7 @@ export async function execute(
   const executor = createStreamExecutor(streamExecutorProps);
 
   return new MastraModelOutput({
+    version: rest.model.specificationVersion,
     stream: executor,
     options: {
       toolCallStreaming: rest.toolCallStreaming,
