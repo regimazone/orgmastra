@@ -245,10 +245,12 @@ export function convertFullStreamChunkToAISDKv4({
       }
       return formatDataStreamPart('finish_step', {
         finishReason: transformedChunk.finishReason,
-        usage: {
-          promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
-          completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
-        },
+        usage: sendUsage
+          ? {
+              promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+              completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+            }
+          : undefined,
         isContinued: transformedChunk.isContinued,
       });
     }
@@ -276,10 +278,12 @@ export function convertFullStreamChunkToAISDKv4({
       if (experimental_sendFinish) {
         return formatDataStreamPart('finish_message', {
           finishReason: transformedChunk.finishReason,
-          usage: {
-            promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
-            completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
-          },
+          usage: sendUsage
+            ? {
+                promptTokens: chunk.payload.output.usage.promptTokens ?? 0,
+                completionTokens: chunk.payload.output.usage.completionTokens ?? 0,
+              }
+            : undefined,
         });
       }
       return;
