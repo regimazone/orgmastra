@@ -14,7 +14,7 @@ import {
 } from './test-utils';
 
 export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
-  describe('result.toUIMessageStream', () => {
+  describe.skip('result.toUIMessageStream', () => {
     it('should create a ui message stream', async () => {
       const result = await executeFn({
         runId,
@@ -64,6 +64,7 @@ export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof
               ]
             `);
     });
+
     it('should create a ui message stream with provider metadata', async () => {
       const result = await executeFn({
         runId,

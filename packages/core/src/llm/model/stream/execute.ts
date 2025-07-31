@@ -776,7 +776,9 @@ export async function execute(
   };
 
   // We call this for no reason because of aisdk
-  _internalToUse.generateId?.();
+  if (rest.model.specificationVersion === 'v1') {
+    _internalToUse.generateId?.();
+  }
 
   const streamExecutorProps: StreamExecutorProps = {
     runId,

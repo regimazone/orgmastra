@@ -165,7 +165,7 @@ export class AISDKV5OutputStream {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
     const self = this;
-    let stepCounter = 0;
+    let stepCounter = 1;
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, TextStreamPart<ToolSet>>({
         transform(chunk, controller) {
@@ -201,7 +201,7 @@ export class AISDKV5OutputStream {
           if (transformedChunk) {
             if (!['start', 'finish', 'finish-step'].includes(transformedChunk.type)) {
               console.log('step counter', stepCounter);
-              transformedChunk.id = stepCounter.toString();
+              transformedChunk.id = transformedChunk.id ?? stepCounter.toString();
             }
 
             controller.enqueue(transformedChunk);

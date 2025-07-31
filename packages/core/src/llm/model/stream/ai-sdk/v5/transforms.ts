@@ -19,6 +19,8 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         toolCallId: value.toolCallId,
         args: value.args ? JSON.parse(value.args) : undefined,
         toolName: value.toolName,
@@ -30,6 +32,8 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         toolCallId: value.toolCallId,
         toolName: value.toolName,
         args: value.args,
@@ -43,6 +47,8 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         argsTextDelta: value.argsTextDelta,
         toolCallId: value.toolCallId,
         toolName: value.toolName,
@@ -76,6 +82,8 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
         runId: ctx.runId,
         from: 'AGENT',
         payload: {
+          id: value.id,
+          providerMetadata: value.providerMetadata,
           text: value.delta,
         },
       };
@@ -86,11 +94,12 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         reason: value.finishReason,
         totalUsage: value.usage,
         response: value.response,
         messageId: value.messageId,
-        providerMetadata: value.providerMetadata,
       },
     };
   } else if (value.type === 'finish') {
@@ -127,13 +136,25 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       from: 'AGENT',
       payload: value,
     };
-  } else if (value.type === 'reasoning') {
+  } else if (value.type === 'reasoning-start') {
+    return {
+      type: 'reasoning-start',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
+      },
+    };
+  } else if (value.type === 'reasoning-delta') {
     return {
       type: 'reasoning',
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
-        text: value.textDelta,
+        id: value.id,
+        text: value.delta,
+        providerMetadata: value.providerMetadata,
       },
     };
   } else if (value.type === 'reasoning-signature') {
@@ -142,7 +163,9 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
         signature: value.signature,
+        providerMetadata: value.providerMetadata,
       },
     };
   } else if (value.type === 'redacted-reasoning') {
@@ -151,7 +174,19 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
         data: value.data,
+        providerMetadata: value.providerMetadata,
+      },
+    };
+  } else if (value.type === 'reasoning-end') {
+    return {
+      type: 'reasoning-end',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
       },
     };
   } else if (value.type === 'source') {
@@ -160,7 +195,11 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
-        source: value.source,
+        id: value.id,
+        sourceType: value.sourceType,
+        title: value.title,
+        url: value.url,
+        providerMetadata: value.providerMetadata,
       },
     };
   } else if (value.type === 'file') {
@@ -169,18 +208,21 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         data: value.data,
         base64: value.base64,
         mimeType: value.mimeType,
       },
     };
   } else if (value.type === 'error') {
-    console.log('error to MASTRA', value);
     return {
       type: 'error',
       runId: ctx.runId,
       from: 'AGENT',
       payload: {
+        id: value.id,
+        providerMetadata: value.providerMetadata,
         error: value.error,
       },
     };
@@ -209,16 +251,19 @@ export function convertFullStreamChunkToAISDKv5({
   if (chunk.type === 'text-delta') {
     return {
       type: 'text-delta',
+      id: chunk.payload.id,
       text: chunk.payload.text,
       providerMetadata: undefined,
     };
   } else if (chunk.type === 'text-start') {
     return {
       type: 'text-start',
+      id: chunk.payload.id,
     };
   } else if (chunk.type === 'text-end') {
     return {
       type: 'text-end',
+      id: chunk.payload.id,
     };
   } else if (chunk.type === 'step-start') {
     const { messageId: _messageId, ...rest } = chunk.payload;
@@ -245,25 +290,45 @@ export function convertFullStreamChunkToAISDKv5({
       finishReason: chunk.payload.stepResult.reason,
       totalUsage: chunk.payload.output.usage,
     };
+  } else if (chunk.type === 'reasoning-start') {
+    return {
+      type: 'reasoning-start',
+      id: chunk.payload.id,
+      ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
+    };
   } else if (chunk.type === 'reasoning') {
     return {
-      type: 'reasoning',
-      textDelta: chunk.payload.text,
+      type: 'reasoning-delta',
+      id: chunk.payload.id,
+      text: chunk.payload.text,
+      providerMetadata: chunk.payload.providerMetadata,
     };
   } else if (chunk.type === 'reasoning-signature') {
     return {
       type: 'reasoning-signature',
+      id: chunk.payload.id,
       signature: chunk.payload.signature,
     };
   } else if (chunk.type === 'redacted-reasoning') {
     return {
       type: 'redacted-reasoning',
+      id: chunk.payload.id,
       data: chunk.payload.data,
+    };
+  } else if (chunk.type === 'reasoning-end') {
+    return {
+      type: 'reasoning-end',
+      id: chunk.payload.id,
+      ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
     };
   } else if (chunk.type === 'source') {
     return {
       type: 'source',
-      source: chunk.payload.source,
+      id: chunk.payload.id,
+      sourceType: chunk.payload.sourceType,
+      title: chunk.payload.title,
+      url: chunk.payload.url,
+      ...(chunk.payload.providerMetadata ? { providerMetadata: chunk.payload.providerMetadata } : {}),
     };
   } else if (chunk.type === 'file') {
     return new DefaultGeneratedFileWithType({
@@ -278,7 +343,6 @@ export function convertFullStreamChunkToAISDKv5({
       args: chunk.payload.args,
     };
   } else if (chunk.type === 'tool-call-streaming-start' && toolCallStreaming) {
-    console.log('tool-call-streaming-start SUHHHHH', chunk.payload);
     return {
       type: 'tool-call-streaming-start',
       toolCallId: chunk.payload.toolCallId,
