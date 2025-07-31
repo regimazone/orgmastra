@@ -546,12 +546,18 @@ describe('Mastra ID Generator', () => {
       const agent = new Agent({
         name: 'testAgent',
         instructions: 'You are a test agent',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
-            rawCall: { rawPrompt: null, rawSettings: {} },
-            finishReason: 'stop',
-            usage: { promptTokens: 10, completionTokens: 20 },
-            text: 'Test response',
+            finishReason: 'stop' as const,
+            usage: {
+              promptTokens: 10,
+              completionTokens: 20,
+              inputTokens: 10,
+              outputTokens: 20,
+              totalTokens: 30,
+            },
+            content: [{ type: 'text', text: 'Test response' }],
+            warnings: [],
           }),
         }),
         memory: ({ runtimeContext, mastra: mastraInstance }) => {
@@ -595,12 +601,18 @@ describe('Mastra ID Generator', () => {
       const agent = new Agent({
         name: 'testAgent',
         instructions: 'You are a test agent',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
-            rawCall: { rawPrompt: null, rawSettings: {} },
-            finishReason: 'stop',
-            usage: { promptTokens: 10, completionTokens: 20 },
-            text: 'Test response',
+            finishReason: 'stop' as const,
+            usage: {
+              promptTokens: 10,
+              completionTokens: 20,
+              inputTokens: 10,
+              outputTokens: 20,
+              totalTokens: 30,
+            },
+            content: [{ type: 'text', text: 'Test response' }],
+            warnings: [],
           }),
         }),
         memory: ({ runtimeContext, mastra: mastraInstance }) => {
@@ -759,16 +771,22 @@ describe('Mastra ID Generator', () => {
       const agentMemory = await agent.getMemory();
       if (!agentMemory) throw new Error('Memory not found');
 
-      const message = await agentMemory.addMessage({
-        threadId: 'test-thread',
-        resourceId: 'test-resource',
-        content: 'Test message',
-        role: 'user',
-        type: 'text',
+      const messages = await agentMemory.saveMessages({
+        messages: [
+          {
+            id: agentMemory.generateId(),
+            threadId: 'test-thread',
+            resourceId: 'test-resource',
+            content: 'Test message',
+            role: 'user',
+            type: 'text',
+            createdAt: new Date(),
+          },
+        ],
       });
 
       expect(customIdGenerator).toHaveBeenCalled();
-      expect(message.id).toMatch(/^custom-id-\d+$/);
+      expect(messages[0].id).toMatch(/^custom-id-\d+$/);
     });
 
     it('should use custom ID generator when saving multiple messages', async () => {
@@ -946,12 +964,18 @@ describe('Mastra ID Generator', () => {
       const agent = new Agent({
         name: 'testAgent',
         instructions: 'You are a test agent',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
-            rawCall: { rawPrompt: null, rawSettings: {} },
-            finishReason: 'stop',
-            usage: { promptTokens: 10, completionTokens: 20 },
-            text: 'Test response',
+            finishReason: 'stop' as const,
+            usage: {
+              promptTokens: 10,
+              completionTokens: 20,
+              inputTokens: 10,
+              outputTokens: 20,
+              totalTokens: 30,
+            },
+            content: [{ type: 'text', text: 'Test response' }],
+            warnings: [],
           }),
         }),
         memory: ({ runtimeContext, mastra: _mastraInstance }) => {
