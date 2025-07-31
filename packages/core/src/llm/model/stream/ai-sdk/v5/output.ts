@@ -1,10 +1,21 @@
 import { TransformStream } from 'stream/web';
+import type { LanguageModelV2StreamPart } from '@ai-sdk/provider-v5';
+import {
+  createUIMessageStream,
+  type TextStreamPart,
+  type ToolSet,
+  type UIMessage,
+  type UIMessageChunk,
+  type UIMessageStreamOptions,
+} from 'ai-v5';
+
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from '../v4/compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
+import { convertFullStreamChunkToUIMessageStream, getResponseUIMessageId } from './compat';
 
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
@@ -61,43 +72,61 @@ export class AISDKV5OutputStream {
     });
   }
 
-  toUIMessageStream({
-    sendReasoning = false,
+  toUIMessageStream<UI_MESSAGE extends UIMessage>({
+    generateMessageId,
+    originalMessages,
+    sendFinish = true,
+    sendReasoning = true,
     sendSources = false,
-    sendUsage = true,
-    experimental_sendFinish = true,
-    getErrorMessage = getErrorMessageV4,
-  }: {
-    sendReasoning?: boolean;
-    sendSources?: boolean;
-    sendUsage?: boolean;
-    experimental_sendFinish?: boolean;
-    getErrorMessage?: (error: string) => string;
-  } = {}) {
-    const self = this;
-    return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
-        transform(chunk, controller) {
-          console.log('chunk', chunk);
+    onError = getErrorMessageV4,
+    sendStart = true,
+    messageMetadata,
+    onFinish,
+  }: UIMessageStreamOptions<UI_MESSAGE> = {}) {
+    const responseMessageId =
+      generateMessageId != null
+        ? getResponseUIMessageId({
+            originalMessages,
+            responseMessageId: generateMessageId,
+          })
+        : undefined;
 
-          const transformedChunk = convertFullStreamChunkToAISDKv5({
-            chunk,
+    return createUIMessageStream({
+      onError,
+      onFinish,
+      generateId: () => responseMessageId ?? generateMessageId?.(),
+      execute: async ({ writer }) => {
+        for await (const part of this.fullStream) {
+          const messageMetadataValue = messageMetadata?.({ part });
+
+          const partType = part.type;
+
+          const transformedChunk = convertFullStreamChunkToUIMessageStream({
+            part,
             sendReasoning,
+            messageMetadataValue,
             sendSources,
-            sendUsage,
-            experimental_sendFinish,
-            getErrorMessage: getErrorMessage,
-            toolCallStreaming: self.#options.toolCallStreaming,
+            sendStart,
+            sendFinish,
+            responseMessageId,
+            onError,
           });
 
-          console.log('transformedChunk', self.#options.toolCallStreaming, transformedChunk);
-
           if (transformedChunk) {
-            controller.enqueue(transformedChunk);
+            writer.write(transformedChunk as UIMessageChunk<any, any>);
           }
-        },
-      }),
-    );
+
+          // start and finish events already have metadata
+          // so we only need to send metadata for other parts
+          if (messageMetadataValue != null && partType !== 'start' && partType !== 'finish') {
+            writer.write({
+              type: 'message-metadata',
+              messageMetadata: messageMetadataValue,
+            });
+          }
+        }
+      },
+    });
   }
 
   mergeIntoDataStream(writer: DataStreamWriter, options?: DataStreamOptions) {
@@ -138,7 +167,7 @@ export class AISDKV5OutputStream {
     const self = this;
     let stepCounter = 0;
     return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
+      new TransformStream<ChunkType, TextStreamPart<ToolSet>>({
         transform(chunk, controller) {
           if (chunk.type === 'step-start' && !startEvent) {
             startEvent = convertFullStreamChunkToAISDKv5({

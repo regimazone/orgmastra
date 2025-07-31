@@ -189,6 +189,7 @@ describe('V5 tests', () => {
   describe('result.toUIMessageStream', () => {
     it('should create a ui message stream', async () => {
       const result = await execute({
+        runId,
         model: createTestModel(),
         ...defaultSettings(),
       });
