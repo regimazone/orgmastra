@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as AIV5 from 'ai';
-import type { CoreMessage, ToolCallPart } from 'ai';
+import type { CoreMessage, ToolCallPart, IDGenerator } from 'ai';
+import { convertToCoreMessages } from 'ai';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type * as AIV4 from './ai-sdk-4';
 import { getToolName } from './ai-sdk-5';
@@ -57,9 +58,16 @@ export type MastraMessageV1 = {
   type: 'text' | 'tool-call' | 'tool-result';
 };
 
+// Extend UIMessage to include optional metadata field
+export type UIMessageWithMetadata = AIV5.UIMessage & {
+  metadata?: Record<string, unknown>;
+};
+
 export type MessageInput =
   | AIV5.UIMessage
   | AIV5.ModelMessage
+  | UIMessageWithMetadata
+  | AIV5.Message
   // db messages in AIV4.CoreMessage format
   | MastraMessageV1
   // db messages in AIV4.UIMessage format
@@ -76,7 +84,6 @@ function isToolCallMessage(message: CoreMessage): boolean {
   }
   return false;
 }
-
 type MessageSource = 'memory' | 'response' | 'user' | 'system' | 'context';
 type MemoryInfo = { threadId: string; resourceId?: string };
 
@@ -194,11 +201,20 @@ export class MessageList {
       const coreMessages = this.all.aiV5.model();
 
       // Some LLM providers will throw an error if the first message is a tool call.
-      while (coreMessages[0] && isToolCallMessage(coreMessages[0])) {
-        coreMessages.shift();
-      }
 
       const messages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...coreMessages];
+
+      const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
+
+      if (needsDefaultUserMessage) {
+        const defaultMessage: CoreMessage = {
+          role: 'user',
+          content: '.',
+        };
+
+        messages.unshift(defaultMessage);
+      }
+
       return messages;
     },
   };
