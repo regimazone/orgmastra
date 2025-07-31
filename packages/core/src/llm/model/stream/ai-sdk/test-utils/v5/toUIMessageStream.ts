@@ -1,6 +1,12 @@
-import { convertArrayToReadableStream, convertReadableStreamToArray, mockId } from '@ai-sdk/provider-utils/test';
+import {
+  convertArrayToReadableStream,
+  convertAsyncIterableToArray,
+  convertReadableStreamToArray,
+  convertResponseStreamToArray,
+  mockId,
+} from '@ai-sdk/provider-utils/test';
 import { mockValues } from 'ai-v5/test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
 import {
@@ -966,6 +972,446 @@ export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof
                 },
               ]
             `);
+    });
+  });
+
+  describe('result.toUIMessageStreamResponse', () => {
+    it('should create a Response with a data stream', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel(),
+        ...defaultSettings(),
+      });
+
+      const response = result.aisdk.v5.toUIMessageStreamResponse();
+
+      expect(response.status).toStrictEqual(200);
+      expect(Object.fromEntries(response.headers.entries())).toMatchInlineSnapshot(`
+          {
+            "cache-control": "no-cache",
+            "connection": "keep-alive",
+            "content-type": "text/event-stream",
+            "x-accel-buffering": "no",
+            "x-vercel-ai-ui-message-stream": "v1",
+          }
+        `);
+
+      expect(await convertResponseStreamToArray(response)).toMatchInlineSnapshot(`
+        [
+          "data: {"type":"start"}
+
+        ",
+          "data: {"type":"start-step"}
+
+        ",
+          "data: {"type":"text-start","id":"1"}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":"Hello"}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":", "}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":"world!"}
+
+        ",
+          "data: {"type":"text-end","id":"1"}
+
+        ",
+          "data: {"type":"finish-step"}
+
+        ",
+          "data: {"type":"finish"}
+
+        ",
+          "data: [DONE]
+
+        ",
+        ]
+      `);
+    });
+
+    it('should create a Response with a data stream and custom headers', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel(),
+        prompt: 'test-input',
+        _internal: {
+          generateId: mockId({ prefix: 'id' }),
+        },
+      });
+
+      const response = result.aisdk.v5.toUIMessageStreamResponse({
+        status: 201,
+        statusText: 'foo',
+        headers: {
+          'custom-header': 'custom-value',
+        },
+      });
+
+      expect(response.status).toStrictEqual(201);
+      expect(response.statusText).toStrictEqual('foo');
+      expect(Object.fromEntries(response.headers.entries())).toMatchInlineSnapshot(`
+          {
+            "cache-control": "no-cache",
+            "connection": "keep-alive",
+            "content-type": "text/event-stream",
+            "custom-header": "custom-value",
+            "x-accel-buffering": "no",
+            "x-vercel-ai-ui-message-stream": "v1",
+          }
+        `);
+      expect(await convertResponseStreamToArray(response)).toMatchInlineSnapshot(`
+        [
+          "data: {"type":"start"}
+
+        ",
+          "data: {"type":"start-step"}
+
+        ",
+          "data: {"type":"text-start","id":"1"}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":"Hello"}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":", "}
+
+        ",
+          "data: {"type":"text-delta","id":"1","delta":"world!"}
+
+        ",
+          "data: {"type":"text-end","id":"1"}
+
+        ",
+          "data: {"type":"finish-step"}
+
+        ",
+          "data: {"type":"finish"}
+
+        ",
+          "data: [DONE]
+
+        ",
+        ]
+      `);
+    });
+
+    it('should mask error messages by default', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
+        }),
+        prompt: 'test-input',
+        _internal: {
+          generateId: mockId({ prefix: 'id' }),
+        },
+        options: {
+          onError: () => {},
+        },
+      });
+
+      const response = result.aisdk.v5.toUIMessageStreamResponse();
+
+      expect(await convertResponseStreamToArray(response)).toMatchSnapshot();
+    });
+
+    it('should support custom error messages', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([{ type: 'error', error: 'error' }]),
+        }),
+        prompt: 'test-input',
+        _internal: {
+          generateId: mockId({ prefix: 'id' }),
+        },
+        options: {
+          onError: () => {},
+        },
+      });
+
+      const response = result.aisdk.v5.toUIMessageStreamResponse({
+        onError: error => `custom error message: ${error}`,
+      });
+
+      expect(await convertResponseStreamToArray(response)).toMatchSnapshot();
+    });
+  });
+
+  describe('result.toTextStreamResponse', () => {
+    it('should create a Response with a text stream', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel(),
+        prompt: 'test-input',
+      });
+
+      const response = result.aisdk.v5.toTextStreamResponse();
+
+      expect(response.status).toStrictEqual(200);
+      expect(Object.fromEntries(response.headers.entries())).toStrictEqual({
+        'content-type': 'text/plain; charset=utf-8',
+      });
+      expect(await convertResponseStreamToArray(response)).toStrictEqual(['Hello', ', ', 'world!']);
+    });
+  });
+
+  describe.skip('result.consumeStream', () => {
+    it('should ignore AbortError during stream consumption', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-start', id: '1' });
+              controller.enqueue({
+                type: 'text-delta',
+                id: '1',
+                delta: 'Hello',
+              });
+              queueMicrotask(() => {
+                controller.error(
+                  Object.assign(new Error('Stream aborted'), {
+                    name: 'AbortError',
+                  }),
+                );
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.aisdk.v5.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should ignore ResponseAborted error during stream consumption', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-start', id: '1' });
+              controller.enqueue({
+                type: 'text-delta',
+                id: '1',
+                delta: 'Hello',
+              });
+              queueMicrotask(() => {
+                controller.error(
+                  Object.assign(new Error('Response aborted'), {
+                    name: 'ResponseAborted',
+                  }),
+                );
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.aisdk.v5.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should ignore any errors during stream consumption', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-start', id: '1' });
+              controller.enqueue({
+                type: 'text-delta',
+                id: '1',
+                delta: 'Hello',
+              });
+              queueMicrotask(() => {
+                controller.error(Object.assign(new Error('Some error')));
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.aisdk.v5.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should call the onError callback with the error', async () => {
+      const onErrorCallback = vi.fn();
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-start', id: '1' });
+              controller.enqueue({
+                type: 'text-delta',
+                id: '1',
+                delta: 'Hello',
+              });
+              queueMicrotask(() => {
+                controller.error(Object.assign(new Error('Some error')));
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.aisdk.v5.consumeStream({ onError: onErrorCallback })).resolves.not.toThrow();
+      expect(onErrorCallback).toHaveBeenCalledWith(new Error('Some error'));
+    });
+  });
+
+  describe('multiple stream consumption', () => {
+    it('should support text stream, ai stream, full stream on single result object', async () => {
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            { type: 'text-start', id: '1' },
+            { type: 'text-delta', id: '1', delta: 'Hello' },
+            { type: 'text-delta', id: '1', delta: ', ' },
+            { type: 'text-delta', id: '1', delta: 'world!' },
+            { type: 'text-end', id: '1' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage,
+            },
+          ]),
+        }),
+        prompt: 'test-input',
+        _internal: {
+          generateId: mockId({ prefix: 'id' }),
+        },
+      });
+
+      expect({
+        textStream: await convertAsyncIterableToArray(result.textStream),
+        fullStream: await convertAsyncIterableToArray(result.aisdk.v5.fullStream),
+        uiMessageStream: await convertReadableStreamToArray(result.aisdk.v5.toUIMessageStream()),
+      }).toMatchInlineSnapshot(`
+        {
+          "fullStream": [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "id": "1",
+              "type": "text-start",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "Hello",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": ", ",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "world!",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "type": "text-end",
+            },
+            {
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:00.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+            },
+            {
+              "finishReason": "stop",
+              "totalUsage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "type": "finish",
+            },
+          ],
+          "textStream": [
+            "Hello",
+            ", ",
+            "world!",
+          ],
+          "uiMessageStream": [
+            {
+              "type": "start",
+            },
+            {
+              "type": "start-step",
+            },
+            {
+              "id": "1",
+              "type": "text-start",
+            },
+            {
+              "delta": "Hello",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "delta": ", ",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "delta": "world!",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "type": "text-end",
+            },
+            {
+              "type": "finish-step",
+            },
+            {
+              "type": "finish",
+            },
+          ],
+        }
+      `);
     });
   });
 }

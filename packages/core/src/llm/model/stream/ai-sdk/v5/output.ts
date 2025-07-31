@@ -1,21 +1,14 @@
 import { TransformStream } from 'stream/web';
-import type { LanguageModelV2StreamPart } from '@ai-sdk/provider-v5';
-import {
-  createUIMessageStream,
-  type TextStreamPart,
-  type ToolSet,
-  type UIMessage,
-  type UIMessageChunk,
-  type UIMessageStreamOptions,
-} from 'ai-v5';
+import { createTextStreamResponse, createUIMessageStream, createUIMessageStreamResponse } from 'ai-v5';
+import type { TextStreamPart, ToolSet, UIMessage, UIMessageChunk, UIMessageStreamOptions } from 'ai-v5';
 
-import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
+import type { DataStreamOptions, DataStreamWriter, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
-import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from '../v4/compat';
-import { convertFullStreamChunkToAISDKv5 } from './transforms';
+import { consumeStream, getErrorMessage, mergeStreams, prepareResponseHeaders } from '../v4/compat';
 import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
+import { convertFullStreamChunkToAISDKv5 } from './transforms';
 
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
@@ -27,11 +20,9 @@ export class AISDKV5OutputStream {
   }
 
   toTextStreamResponse(init?: ResponseInit): Response {
-    return new Response(this.#modelOutput.textStream.pipeThrough(new TextEncoderStream() as any) as any, {
-      status: init?.status ?? 200,
-      headers: prepareResponseHeaders(init?.headers, {
-        contentType: 'text/plain; charset=utf-8',
-      }),
+    return createTextStreamResponse({
+      textStream: this.#modelOutput.textStream as any,
+      ...init,
     });
   }
 
@@ -69,6 +60,34 @@ export class AISDKV5OutputStream {
         contentType: 'text/plain; charset=utf-8',
         dataStreamVersion: 'v1',
       }),
+    });
+  }
+
+  toUIMessageStreamResponse<UI_MESSAGE extends UIMessage>({
+    generateMessageId,
+    originalMessages,
+    sendFinish,
+    sendReasoning,
+    sendSources,
+    onError,
+    sendStart,
+    messageMetadata,
+    onFinish,
+    ...init
+  }: UIMessageStreamOptions<UI_MESSAGE> & ResponseInit = {}) {
+    return createUIMessageStreamResponse({
+      stream: this.toUIMessageStream({
+        generateMessageId,
+        originalMessages,
+        sendFinish,
+        sendReasoning,
+        sendSources,
+        onError,
+        sendStart,
+        messageMetadata,
+        onFinish,
+      }),
+      ...init,
     });
   }
 

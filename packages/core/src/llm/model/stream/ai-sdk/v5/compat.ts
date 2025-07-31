@@ -241,7 +241,7 @@ export function getResponseUIMessageId({
       : responseMessageId;
 }
 
-export function getErrorMessageV5(error: Error | string) {
+export function getErrorMessageV5(error: unknown) {
   if (typeof error === 'string') {
     return error;
   }
