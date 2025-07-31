@@ -20,7 +20,6 @@ interface ScorerRun {
   runId?: string;
   input?: Record<string, any>[];
   output: Record<string, any>;
-  additionalContext?: Record<string, any>;
   runtimeContext?: Record<string, any>;
 }
 
@@ -218,6 +217,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     finalResult: any;
     generatedPrompts: Array<{ stepName: string; prompt: string; description: string }>;
     score: TAccumulatedResults extends Record<'generateScoreStepResult', infer TScore> ? TScore : never;
+    reason?: TAccumulatedResults extends Record<'generateReasonStepResult', infer TReason> ? TReason : undefined;
   } {
     // Runtime check: execute only allowed after generateScore
     if (!this.hasGenerateScore) {
@@ -299,6 +299,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       finalResult: lastStepResult,
       generatedPrompts: generatedPrompts,
       score: accumulatedResults.generateScoreStepResult,
+      reason: accumulatedResults.generateReasonStepResult,
     };
   }
 
