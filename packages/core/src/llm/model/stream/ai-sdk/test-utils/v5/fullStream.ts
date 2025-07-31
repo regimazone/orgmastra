@@ -1,8 +1,19 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
-import { convertArrayToReadableStream, MockLanguageModelV2 } from 'ai-v5/test';
+import { convertArrayToReadableStream, MockLanguageModelV2, mockValues } from 'ai-v5/test';
 import { describe, expect, it } from 'vitest';
 import type { execute } from '../../../execute';
-import { defaultSettings, modelWithReasoning, modelWithSources, testUsage } from './test-utils';
+import {
+  createTestModel,
+  defaultSettings,
+  modelWithFiles,
+  modelWithReasoning,
+  modelWithSources,
+  testUsage,
+  testUsage2,
+} from './test-utils';
+import { DefaultGeneratedFileWithType } from '../../v4/file';
+import { tool } from 'ai-v5';
+import z from 'zod';
 
 export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.fullStream', () => {
@@ -408,12 +419,15 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
     });
 
     it('should send files', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: modelWithFiles,
         ...defaultSettings(),
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+      const converted = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(converted).toMatchInlineSnapshot(`
           [
             {
               "type": "start",
@@ -489,14 +503,15 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
     });
 
     it('should use fallback response metadata when response metadata is not provided', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV2({
           doStream: async ({ prompt }) => {
             expect(prompt).toStrictEqual([
               {
                 role: 'user',
                 content: [{ type: 'text', text: 'test-input' }],
-                providerOptions: undefined,
+                // providerOptions: undefined,
               },
             ]);
 
@@ -523,7 +538,7 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         },
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
           [
             {
               "type": "start",
@@ -593,7 +608,8 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
     });
 
     it('should send tool calls', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: new MockLanguageModelV2({
           doStream: async ({ prompt, tools, toolChoice }) => {
             expect(tools).toStrictEqual([
@@ -618,9 +634,11 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
               {
                 role: 'user',
                 content: [{ type: 'text', text: 'test-input' }],
-                providerOptions: undefined,
+                // providerOptions: undefined,
               },
             ]);
+
+            console.log('prompt', prompt);
 
             return {
               stream: convertArrayToReadableStream([
@@ -659,11 +677,12 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchSnapshot();
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchSnapshot();
     });
 
     it('should send tool call deltas', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -738,7 +757,11 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      console.dir({ fullStream }, { depth: null });
+
+      expect(fullStream).toMatchInlineSnapshot(`
           [
             {
               "type": "start",

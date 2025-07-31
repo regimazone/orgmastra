@@ -176,7 +176,6 @@ export class AISDKV5OutputStream {
               sendSources: false,
               sendUsage: false,
               getErrorMessage: getErrorMessage,
-              toolCallStreaming: self.#options.toolCallStreaming,
             });
             stepCounter++;
             return;
@@ -195,14 +194,15 @@ export class AISDKV5OutputStream {
             sendSources: false,
             sendUsage: false,
             getErrorMessage: getErrorMessage,
-            toolCallStreaming: self.#options.toolCallStreaming,
           });
 
+          console.log('transformedChunkZZZZZ', transformedChunk);
+
           if (transformedChunk) {
-            if (!['start', 'finish', 'finish-step'].includes(transformedChunk.type)) {
-              console.log('step counter', stepCounter);
-              transformedChunk.id = transformedChunk.id ?? stepCounter.toString();
-            }
+            // if (!['start', 'finish', 'finish-step'].includes(transformedChunk.type)) {
+            //   console.log('step counter', stepCounter);
+            //   transformedChunk.id = transformedChunk.id ?? stepCounter.toString();
+            // }
 
             controller.enqueue(transformedChunk);
           }

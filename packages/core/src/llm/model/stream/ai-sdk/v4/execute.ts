@@ -1,7 +1,7 @@
-import type { LanguageModelV1 } from 'ai';
-import { prepareToolsAndToolChoice } from '../../../prepare-tools';
+import type { LanguageModelV1, ToolSet } from 'ai';
 import type { ExecutionProps } from '../../types';
 import { AISDKV4InputStream } from './input';
+import { prepareToolsAndToolChoice } from './prepare-tools';
 
 export function executeV4({
   runId,
@@ -22,7 +22,7 @@ export function executeV4({
   });
 
   const preparedTools = prepareToolsAndToolChoice({
-    tools,
+    tools: tools as ToolSet,
     toolChoice: toolChoice,
     activeTools: activeTools,
   });

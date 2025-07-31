@@ -510,6 +510,7 @@ function createAgentWorkflow({
         const messageList = MessageList.fromArray(initialResult.messages.all || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
+          initialResult.stepResult.isContinued = false;
           return bail(initialResult);
         }
 
@@ -674,7 +675,7 @@ function createStreamExecutor({
             return false;
           }
 
-          return !['stop', 'error'].includes(reason) && stepCount < maxSteps;
+          return inputData.stepResult.isContinued && stepCount < maxSteps;
         })
         .map(({ inputData }) => {
           const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');

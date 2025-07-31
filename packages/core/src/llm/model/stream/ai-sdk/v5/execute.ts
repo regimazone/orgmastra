@@ -1,6 +1,7 @@
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
-import { prepareToolsAndToolChoice } from '../../../prepare-tools';
+import type { ToolSet } from 'ai-v5';
 import type { ExecutionProps } from '../../types';
+import { prepareToolsAndToolChoice } from './prepare-tools';
 import { AISDKV5InputStream } from './input';
 
 export function executeV5({
@@ -21,22 +22,19 @@ export function executeV5({
     name: model.modelId,
   });
 
+  const toolsAndToolChoice = prepareToolsAndToolChoice({
+    tools: tools as ToolSet,
+    toolChoice,
+    activeTools,
+  });
+
   const stream = v5.initialize({
     runId,
     onResult,
     createStream: async () => {
       try {
         const stream = await model.doStream({
-          tools: Object.entries(tools ?? {}).map(([name, tool]) => {
-            return {
-              name,
-              description: tool.description,
-              parameters: tool.parameters,
-              type: 'function',
-              inputSchema: tool.parameters,
-            };
-          }),
-          toolChoice: toolChoice as any, // TODO: fix this?
+          ...toolsAndToolChoice,
           prompt: inputMessages as any, // TODO: fix this?
         });
 
