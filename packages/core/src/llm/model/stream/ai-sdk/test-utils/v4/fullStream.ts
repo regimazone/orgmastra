@@ -84,7 +84,9 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         ...defaultSettings(),
       });
 
-      expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toMatchSnapshot();
+      const messages = await convertAsyncIterableToArray(result.aisdk.v4.fullStream);
+      console.dir({ inputEvents: messages }, { depth: null });
+      expect(messages).toMatchSnapshot();
     });
 
     it('should send files', async () => {
@@ -92,8 +94,8 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         model: modelWithFiles,
         ...defaultSettings(),
       });
-
-      expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toMatchSnapshot();
+      const messages = await convertAsyncIterableToArray(result.aisdk.v4.fullStream);
+      expect(messages).toMatchSnapshot();
     });
 
     it('should use fallback response metadata when response metadata is not provided', async () => {

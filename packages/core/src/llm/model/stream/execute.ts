@@ -269,7 +269,7 @@ function createAgentWorkflow({
                 });
                 break;
               case 'finish':
-                providerMetadata = chunk.payload.providerMetadata;
+                providerMetadata = chunk.payload.metadata.providerMetadata;
                 runState.setState({
                   stepResult: {
                     reason: chunk.payload.reason,
@@ -280,8 +280,6 @@ function createAgentWorkflow({
                     metadata: runState.state.responseMetadata,
                     messageId,
                     isContinued: !['stop', 'error'].includes(chunk.payload.reason),
-                    experimental_providerMetadata: chunk.payload.providerMetadata,
-                    providerMetadata: chunk.payload.providerMetadata,
                     request,
                   },
                 });
