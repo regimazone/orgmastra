@@ -4,6 +4,8 @@
 
 import type { LanguageModel } from '../llm';
 import { z } from 'zod';
+import type { MastraLanguageModel } from '../memory';
+import { Agent } from '../agent';
 
 // Pipeline metadata
 interface ScorerConfig {
@@ -46,6 +48,11 @@ type PromptObjectContext<
 interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepName extends string = string> {
   description: string;
   outputSchema: z.ZodSchema<TOutput>;
+  judge: {
+    model: MastraLanguageModel;
+    instructions: string;
+  };
+
   createPrompt: (context: PromptObjectContext<TAccumulated, TStepName>) => string;
 }
 
@@ -57,6 +64,10 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       execute: (context: any) => any;
       isPromptObject: boolean;
       description?: string;
+      judge?: {
+        model: MastraLanguageModel;
+        instructions: string;
+      };
     }> = [],
     private originalPromptObjects: Map<string, PromptObject<any, any, any>> = new Map(),
   ) {}
@@ -69,6 +80,10 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   // Getter for pipeline description
   get description(): string {
     return this.metadata.description;
+  }
+
+  get judge() {
+    return this.metadata.judge;
   }
 
   // Check if generateScore exists
@@ -205,20 +220,29 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     );
   }
 
-  run(
+  async run(
     input: ScorerRun,
     options: {
       llmCall?: (prompt: string, schema: z.ZodSchema<any>) => any;
       logPrompts?: boolean;
     } = {},
-  ): {
-    input: ScorerRun;
-    results: TAccumulatedResults;
-    finalResult: any;
-    generatedPrompts: Array<{ stepName: string; prompt: string; description: string }>;
+  ): Promise<{
+    run: ScorerRun;
     score: TAccumulatedResults extends Record<'generateScoreStepResult', infer TScore> ? TScore : never;
     reason?: TAccumulatedResults extends Record<'generateReasonStepResult', infer TReason> ? TReason : undefined;
-  } {
+
+    // Prompts
+    preprocessPrompt?: string;
+    analyzePrompt?: string;
+    generateScorePrompt?: string;
+    generateReasonPrompt?: string;
+
+    // Results
+    preprocessResult?: TAccumulatedResults extends Record<'preprocessStepResult', infer TPreprocess>
+      ? TPreprocess
+      : undefined;
+    analyzeResult?: TAccumulatedResults extends Record<'analyzeStepResult', infer TAnalyze> ? TAnalyze : undefined;
+  }> {
     // Runtime check: execute only allowed after generateScore
     if (!this.hasGenerateScore) {
       throw new Error(
@@ -263,17 +287,19 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
               description: originalStep.description,
             });
 
-            if (options.logPrompts) {
-              console.log(`📝 Prompt for "${step.name}":\n${prompt}`);
-            }
+            const model = originalStep.judge?.model ?? this.metadata.judge?.model;
+            const instructions = originalStep.judge?.instructions ?? this.metadata.judge?.instructions;
+            const judge = new Agent({
+              name: 'judge',
+              model,
+              instructions,
+            });
 
-            if (options.llmCall) {
-              stepResult = options.llmCall(prompt, originalStep.outputSchema);
-            } else {
-              stepResult = this.generateMockResponse(originalStep.outputSchema, step.name);
-            }
+            const result = await judge.generate(prompt, {
+              output: originalStep.outputSchema,
+            });
 
-            stepResult = originalStep.outputSchema.parse(stepResult);
+            stepResult = originalStep.outputSchema.parse(result.object);
           }
         } else {
           stepResult = step.execute(context);
@@ -291,15 +317,21 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       }
     }
 
-    console.log(`🏁 Pipeline "${this.metadata.name}" completed`);
-
     return {
-      input: input,
-      results: accumulatedResults as TAccumulatedResults,
-      finalResult: lastStepResult,
-      generatedPrompts: generatedPrompts,
+      run: input,
+      // results: accumulatedResults as TAccumulatedResults,
       score: accumulatedResults.generateScoreStepResult,
       reason: accumulatedResults.generateReasonStepResult,
+
+      // Prompts
+      preprocessPrompt: generatedPrompts.find(p => p.stepName === 'preprocess')?.prompt,
+      analyzePrompt: generatedPrompts.find(p => p.stepName === 'analyze')?.prompt,
+      generateScorePrompt: generatedPrompts.find(p => p.stepName === 'generateScore')?.prompt,
+      generateReasonPrompt: generatedPrompts.find(p => p.stepName === 'generateReason')?.prompt,
+
+      // Results
+      preprocessResult: accumulatedResults.preprocessStepResult,
+      analyzeResult: accumulatedResults.analyzeStepResult,
     };
   }
 
