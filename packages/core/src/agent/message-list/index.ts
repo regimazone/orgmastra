@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
+import type { CoreMessage, IdGenerator } from 'ai';
 import * as AIV5 from 'ai';
-import type { CoreMessage, ToolCallPart, IDGenerator } from 'ai';
-import { convertToCoreMessages } from 'ai';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type * as AIV4 from './ai-sdk-4';
 import { getToolName } from './ai-sdk-5';
@@ -67,23 +66,13 @@ export type MessageInput =
   | AIV5.UIMessage
   | AIV5.ModelMessage
   | UIMessageWithMetadata
-  | AIV5.Message
+  | AIV5.UIMessage
   // db messages in AIV4.CoreMessage format
   | MastraMessageV1
   // db messages in AIV4.UIMessage format
   | MastraMessageV2
   // db messages in AIV5.UIMessage format
   | MastraMessageV3;
-
-function isToolCallMessage(message: CoreMessage): boolean {
-  if (message.role === 'tool') {
-    return true;
-  }
-  if (message.role === 'assistant' && Array.isArray(message.content)) {
-    return message.content.some((part): part is ToolCallPart => part.type === 'tool-call');
-  }
-  return false;
-}
 type MessageSource = 'memory' | 'response' | 'user' | 'system' | 'context';
 type MemoryInfo = { threadId: string; resourceId?: string };
 
@@ -103,7 +92,7 @@ export class MessageList {
   private newResponseMessages = new Set<MastraMessageV3>();
   private userContextMessages = new Set<MastraMessageV3>();
 
-  private generateMessageId?: AIV5.IdGenerator;
+  private generateMessageId?: IdGenerator;
   private _agentNetworkAppend = false;
 
   constructor({
@@ -112,7 +101,7 @@ export class MessageList {
     generateMessageId,
     // @ts-ignore Flag for agent network messages
     _agentNetworkAppend,
-  }: { threadId?: string; resourceId?: string; generateMessageId?: AIV5.IdGenerator } = {}) {
+  }: { threadId?: string; resourceId?: string; generateMessageId?: IdGenerator } = {}) {
     if (threadId) {
       this.memoryInfo = { threadId, resourceId };
       this.generateMessageId = generateMessageId;

@@ -1,9 +1,9 @@
 import { Mastra } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
-import { MockLanguageModelV1 } from 'ai/test';
+import { MockLanguageModelV2 } from 'ai/test';
 import { simulateReadableStream } from 'ai';
 
-const mockModel = new MockLanguageModelV1({
+const mockModel = new MockLanguageModelV2({
   doStream: async () => ({
     stream: simulateReadableStream({
       chunks: [
