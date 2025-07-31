@@ -1,13 +1,13 @@
 import type { ReadableStream } from 'stream/web';
 import { describe, expect, it } from 'vitest';
-import { MockLanguageModelV2 } from 'ai-v5/test';
+import { convertReadableStreamToArray, MockLanguageModelV2 } from 'ai-v5/test';
 import { fullStreamTests } from './ai-sdk/test-utils/v4/fullStream';
 import { mergeIntoDataStreamTests } from './ai-sdk/test-utils/v4/mergeIntoDataStream';
 import { optionsTests } from './ai-sdk/test-utils/v4/options';
 import { resultObjectTests } from './ai-sdk/test-utils/v4/result-object';
 import { textStreamTests } from './ai-sdk/test-utils/v4/textStream';
 import { toDataStreamResponseTests } from './ai-sdk/test-utils/v4/toDataStreamResponse';
-import { testUsage } from './ai-sdk/test-utils/v5/test-utils';
+import { createTestModel, defaultSettings, testUsage } from './ai-sdk/test-utils/v5/test-utils';
 import { execute } from './execute';
 import { convertArrayToReadableStream, convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 
@@ -179,6 +179,57 @@ describe('V5 tests', () => {
                 "reasoningTokens": undefined,
                 "totalTokens": 13,
               },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
+  });
+
+  describe('result.toUIMessageStream', () => {
+    it('should create a ui message stream', async () => {
+      const result = await execute({
+        model: createTestModel(),
+        ...defaultSettings(),
+      });
+
+      const uiMessageStream = result.aisdk.v5.toUIMessageStream();
+
+      expect(await convertReadableStreamToArray(uiMessageStream)).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "type": "start-step",
+            },
+            {
+              "id": "1",
+              "type": "text-start",
+            },
+            {
+              "delta": "Hello",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "delta": ", ",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "delta": "world!",
+              "id": "1",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "type": "text-end",
+            },
+            {
+              "type": "finish-step",
+            },
+            {
               "type": "finish",
             },
           ]

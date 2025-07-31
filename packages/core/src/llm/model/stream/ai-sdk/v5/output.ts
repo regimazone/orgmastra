@@ -61,7 +61,7 @@ export class AISDKV5OutputStream {
     });
   }
 
-  toDataStream({
+  toUIMessageStream({
     sendReasoning = false,
     sendSources = false,
     sendUsage = true,
