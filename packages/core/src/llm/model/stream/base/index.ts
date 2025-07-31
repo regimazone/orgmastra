@@ -177,7 +177,7 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#response = {
                   ...otherMetadata,
-                  messages: chunk.payload.messages.all,
+                  messages: chunk.payload.messages.all.slice(1),
                 };
               }
 
@@ -188,8 +188,6 @@ export class MastraModelOutput extends MastraBase {
               if (baseFinishStep) {
                 const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
 
-                console.log('uhhwhat', JSON.stringify(chunk.payload.metadata, null, 2));
-
                 const { providerMetadata, request: _request, ...otherMetadata } = chunk.payload.metadata;
                 await options?.onFinish?.({
                   ...rest,
@@ -198,7 +196,7 @@ export class MastraModelOutput extends MastraBase {
                   experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
                   response: {
                     ...otherMetadata,
-                    messages: chunk.payload.messages.all,
+                    messages: chunk.payload.messages.all.slice(1),
                   },
                 });
               }
@@ -242,7 +240,6 @@ export class MastraModelOutput extends MastraBase {
   }
 
   get steps() {
-    console.log('steps getter', this.#bufferedSteps);
     return this.#bufferedSteps;
   }
 

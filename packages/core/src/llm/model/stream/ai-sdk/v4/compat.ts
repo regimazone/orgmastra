@@ -250,7 +250,6 @@ export async function consumeStream({
       if (done) break;
     }
   } catch (error) {
-    console.log('HIIIII');
     console.log('consumeStream error', error);
     onError?.(error);
   } finally {

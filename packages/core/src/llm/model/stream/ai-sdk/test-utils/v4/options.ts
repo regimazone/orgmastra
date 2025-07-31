@@ -98,8 +98,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         toolCallStreaming: true,
         options: {
           onChunk(event) {
-            console.log('event', event);
-
             const transformed = convertFullStreamChunkToAISDKv4({
               chunk: event,
               client: false,
@@ -219,7 +217,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         model: modelWithSources,
         options: {
           onFinish: async event => {
-            console.log('onfinish_event', event);
             result = event as unknown as typeof result;
           },
         },
