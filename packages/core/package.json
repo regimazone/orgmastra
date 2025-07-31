@@ -50,6 +50,16 @@
         "default": "./dist/workflows/legacy/index.cjs"
       }
     },
+    "./test-utils": {
+      "import": {
+        "types": "./dist/test-utils/index.d.ts",
+        "default": "./dist/test-utils/index.js"
+      },
+      "require": {
+        "types": "./dist/test-utils/index.d.ts",
+        "default": "./dist/test-utils/index.cjs"
+      }
+    },
     "./workflows/_constants": {
       "import": {
         "types": "./dist/workflows/constants.d.ts",
