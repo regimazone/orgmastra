@@ -56,6 +56,16 @@ interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepN
   createPrompt: (context: PromptObjectContext<TAccumulated, TStepName>) => string;
 }
 
+// Special prompt object type for generateScore that always returns a number
+interface GenerateScorePromptObject<TAccumulated extends Record<string, any>> {
+  description: string;
+  judge?: {
+    model: MastraLanguageModel;
+    instructions: string;
+  };
+  createPrompt: (context: StepContext<TAccumulated, ScorerRun>) => string;
+}
+
 // Special prompt object type for generateReason that always returns a string
 interface GenerateReasonPromptObject<TAccumulated extends Record<string, any>> {
   description: string;
@@ -65,6 +75,11 @@ interface GenerateReasonPromptObject<TAccumulated extends Record<string, any>> {
   };
   createPrompt: (context: GenerateReasonContext<TAccumulated>) => string;
 }
+
+// Conditional type for generateScore step definition
+type GenerateScoreStepDef<TAccumulated extends Record<string, any>> =
+  | ((context: StepContext<TAccumulated, ScorerRun>) => number)
+  | GenerateScorePromptObject<TAccumulated>;
 
 // Conditional type for generateReason step definition
 type GenerateReasonStepDef<TAccumulated extends Record<string, any>> =
@@ -86,7 +101,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     }> = [],
     private originalPromptObjects: Map<
       string,
-      PromptObject<any, any, any> | GenerateReasonPromptObject<any>
+      PromptObject<any, any, any> | GenerateReasonPromptObject<any> | GenerateScorePromptObject<any>
     > = new Map(),
   ) {}
 
@@ -171,17 +186,19 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     );
   }
 
-  generateScore<TScoreOutput extends number>(
-    stepDef:
-      | ((context: StepContext<TAccumulatedResults, ScorerRun>) => TScoreOutput)
-      | PromptObject<TScoreOutput, TAccumulatedResults, 'generateScore'>,
+  generateScore<TScoreOutput extends number = number>(
+    stepDef: GenerateScoreStepDef<TAccumulatedResults>,
   ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateScore', TScoreOutput>> {
     const isPromptObj = this.isPromptObject(stepDef);
 
     if (isPromptObj) {
-      const promptObj = stepDef as PromptObject<TScoreOutput, TAccumulatedResults, 'generateScore'>;
+      const promptObj = stepDef as GenerateScorePromptObject<TAccumulatedResults>;
       this.originalPromptObjects.set('generateScore', promptObj);
     }
+
+    const executeFunction = isPromptObj
+      ? this.createGenerateScoreExecutor(stepDef as GenerateScorePromptObject<TAccumulatedResults>)
+      : (stepDef as (context: StepContext<any, ScorerRun>) => TScoreOutput);
 
     return new MastraNewScorer(
       this.metadata,
@@ -189,12 +206,10 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         ...this.steps,
         {
           name: 'generateScore',
-          execute: isPromptObj
-            ? this.createPromptExecutor(stepDef as PromptObject<TScoreOutput, TAccumulatedResults, 'generateScore'>)
-            : (stepDef as (context: StepContext<any, ScorerRun>) => TScoreOutput),
+          execute: executeFunction,
           isPromptObject: isPromptObj,
           description: isPromptObj
-            ? (stepDef as PromptObject<TScoreOutput, TAccumulatedResults, 'generateScore'>).description
+            ? (stepDef as GenerateScorePromptObject<TAccumulatedResults>).description
             : undefined,
         },
       ],
@@ -313,7 +328,29 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
               description: originalStep.description,
             });
 
-            if (step.name === 'generateReason') {
+            if (step.name === 'generateScore') {
+              // Handle generateScore prompt objects (predefined schema)
+              const generateScoreStep = originalStep as GenerateScorePromptObject<any>;
+              const model = generateScoreStep.judge?.model ?? this.metadata.judge?.model;
+              const instructions = generateScoreStep.judge?.instructions ?? this.metadata.judge?.instructions;
+
+              if (model && instructions) {
+                const judge = new Agent({
+                  name: 'judge',
+                  model,
+                  instructions,
+                });
+
+                const result = await judge.generate(prompt, {
+                  output: z.object({ score: z.number() }),
+                });
+
+                stepResult = result.object.score;
+              } else {
+                console.log(`MOCKINGGG SCORE`);
+                stepResult = 0.75; // Mock score
+              }
+            } else if (step.name === 'generateReason') {
               // Handle generateReason prompt objects (no output schema)
               const generateReasonStep = originalStep as GenerateReasonPromptObject<any>;
               const model = generateReasonStep.judge?.model ?? this.metadata.judge?.model;
@@ -388,14 +425,13 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   }
 
   private isPromptObject(stepDef: any): boolean {
-    // Check if it's a generateReason prompt object (has description and createPrompt, but no outputSchema)
+    // Check if it's a generateScore prompt object (has description and createPrompt, but no outputSchema)
     if (
       typeof stepDef === 'object' &&
       'description' in stepDef &&
       'createPrompt' in stepDef &&
       !('outputSchema' in stepDef)
     ) {
-      console.log('Detected generateReason prompt object');
       return true;
     }
 
@@ -412,10 +448,14 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     };
   }
 
+  private createGenerateScoreExecutor(promptObj: GenerateScorePromptObject<any>) {
+    return (context: any): number => {
+      return 0.75; // Mock score
+    };
+  }
+
   private createGenerateReasonExecutor(promptObj: GenerateReasonPromptObject<any>) {
-    console.log('Creating generateReason executor for:', promptObj.description);
     return (context: any): string => {
-      console.log('Executing generateReason mock function');
       return `Mock reason for ${promptObj.description}`;
     };
   }

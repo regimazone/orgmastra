@@ -155,24 +155,28 @@ export const PromptBasedScorerBuilders = {
   withGenerateScoreAsPromptObject: createNewScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-  }).generateScore({
-    description: 'Generate a score',
-    outputSchema: z.number(),
-    judge: {
-      model: new MockLanguageModelV1({
-        doGenerate: async () => ({
-          rawCall: { rawPrompt: null, rawSettings: {} },
-          finishReason: 'stop',
-          usage: { promptTokens: 10, completionTokens: 20 },
-          text: `1`,
+  })
+    .generateScore({
+      description: 'Generate a score',
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{"score": 1}`,
+          }),
         }),
-      }),
-      instructions: `Test instructions`,
-    },
-    createPrompt: () => {
-      return `Test Generate Score prompt`;
-    },
-  }),
+        instructions: `Test instructions`,
+      },
+      createPrompt: () => {
+        return `Test Generate Score prompt`;
+      },
+    })
+    .generateReason(({ score, run }) => {
+      return `the reason the score is ${score} is because the input is ${JSON.stringify(run.input)} and the output is ${JSON.stringify(run.output)}`;
+    }),
 
   // withAllSteps: createNewScorer({
   //   name: 'test-scorer',
