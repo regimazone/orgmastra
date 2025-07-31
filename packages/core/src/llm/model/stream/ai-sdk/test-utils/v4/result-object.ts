@@ -281,6 +281,8 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
+      console.dir({ steppies: result.steps }, { depth: null });
+
       expect(
         result.steps.map(step => {
           return {

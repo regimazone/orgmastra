@@ -141,6 +141,7 @@ export class MastraModelOutput extends MastraBase {
                   };
                 });
 
+              const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
               self.#bufferedSteps.push({
                 stepType: 'initial',
                 text: self.text,
@@ -151,13 +152,13 @@ export class MastraModelOutput extends MastraBase {
                 toolResults: self.toolResults,
                 warnings: self.warnings,
                 reasoningDetails,
-                providerMetadata: chunk.payload.metadata.providerMetadata,
-                experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
+                providerMetadata: providerMetadata,
+                experimental_providerMetadata: providerMetadata,
                 isContinued: chunk.payload.stepResult.isContinued,
                 logprobs: chunk.payload.stepResult.logprobs,
                 finishReason: chunk.payload.stepResult.reason,
-                response: { ...chunk.payload.metadata },
-                request: chunk.payload.metadata.request,
+                response: { ...otherMetadata, messages: chunk.payload.messages.nonUser },
+                request: request,
                 usage: chunk.payload.output.usage,
               });
 
