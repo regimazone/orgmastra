@@ -185,13 +185,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         ...this.steps,
         {
           name: 'preprocess',
-          execute: isPromptObj
-            ? this.createPromptExecutor(stepDef as PromptObject<TPreprocessOutput, TAccumulatedResults, 'preprocess'>)
-            : (stepDef as FunctionStep<any, ScorerRun, TPreprocessOutput>),
+          execute: stepDef as FunctionStep<any, ScorerRun, TPreprocessOutput>,
           isPromptObject: isPromptObj,
-          description: isPromptObj
-            ? (stepDef as PromptObject<TPreprocessOutput, TAccumulatedResults, 'preprocess'>).description
-            : undefined,
         },
       ],
       new Map(this.originalPromptObjects),
@@ -214,13 +209,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         ...this.steps,
         {
           name: 'analyze',
-          execute: isPromptObj
-            ? this.createPromptExecutor(stepDef as PromptObject<TAnalyzeOutput, TAccumulatedResults, 'analyze'>)
-            : (stepDef as FunctionStep<any, ScorerRun, TAnalyzeOutput>),
+          execute: stepDef as FunctionStep<any, ScorerRun, TAnalyzeOutput>,
           isPromptObject: isPromptObj,
-          description: isPromptObj
-            ? (stepDef as PromptObject<TAnalyzeOutput, TAccumulatedResults, 'analyze'>).description
-            : undefined,
         },
       ],
       new Map(this.originalPromptObjects),
@@ -237,9 +227,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       this.originalPromptObjects.set('generateScore', promptObj);
     }
 
-    const executeFunction = isPromptObj
-      ? this.createGenerateScoreExecutor(stepDef as GenerateScorePromptObject<TAccumulatedResults>)
-      : (stepDef as GenerateScoreFunctionStep<any>);
+    const executeFunction = stepDef as GenerateScoreFunctionStep<any>;
 
     return new MastraNewScorer(
       this.metadata,
@@ -249,9 +237,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
           name: 'generateScore',
           execute: executeFunction,
           isPromptObject: isPromptObj,
-          description: isPromptObj
-            ? (stepDef as GenerateScorePromptObject<TAccumulatedResults>).description
-            : undefined,
         },
       ],
       new Map(this.originalPromptObjects),
@@ -273,9 +258,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       this.originalPromptObjects.set('generateReason', promptObj);
     }
 
-    const executeFunction = isPromptObj
-      ? this.createGenerateReasonExecutor(stepDef as GenerateReasonPromptObject<TAccumulatedResults>)
-      : (stepDef as GenerateReasonFunctionStep<any>);
+    const executeFunction = stepDef as GenerateReasonFunctionStep<any>;
 
     return new MastraNewScorer(
       this.metadata,
@@ -285,9 +268,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
           name: 'generateReason',
           execute: executeFunction,
           isPromptObject: isPromptObj,
-          description: isPromptObj
-            ? (stepDef as GenerateReasonPromptObject<TAccumulatedResults>).description
-            : undefined,
         },
       ],
       new Map(this.originalPromptObjects),
@@ -326,14 +306,11 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     }
 
     let accumulatedResults: Record<string, any> = {};
-    let lastStepResult: any = null;
     const generatedPrompts: Array<{ stepName: string; prompt: string; description: string }> = [];
 
     console.log(`🚀 Starting pipeline "${this.metadata.name}" [${input.runId || 'no-id'}]`);
 
     for (const step of this.steps) {
-      const startTime = performance.now();
-
       try {
         // Create context based on step type
         let context: any;
@@ -360,94 +337,89 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
         if (step.isPromptObject) {
           const originalStep = this.originalPromptObjects.get(step.name);
-          if (originalStep) {
-            const prompt = await originalStep.createPrompt(context);
 
-            generatedPrompts.push({
-              stepName: step.name,
-              prompt: prompt,
-              description: originalStep.description,
+          if (!originalStep) {
+            throw new Error(`Pipeline "${this.metadata.name}": Step "${step.name}" is not a prompt object`);
+          }
+
+          const prompt = await originalStep.createPrompt(context);
+
+          generatedPrompts.push({
+            stepName: step.name,
+            prompt: prompt,
+            description: originalStep.description,
+          });
+
+          if (step.name === 'generateScore') {
+            // Handle generateScore prompt objects (predefined schema)
+            const generateScoreStep = originalStep as GenerateScorePromptObject<any>;
+            const model = generateScoreStep.judge?.model ?? this.metadata.judge?.model;
+            const instructions = generateScoreStep.judge?.instructions ?? this.metadata.judge?.instructions;
+
+            if (!model || !instructions) {
+              throw new Error(`Pipeline "${this.metadata.name}": ${step.name} step requires a model and instructions`);
+            }
+
+            const judge = new Agent({
+              name: 'judge',
+              model,
+              instructions,
             });
 
-            if (step.name === 'generateScore') {
-              // Handle generateScore prompt objects (predefined schema)
-              const generateScoreStep = originalStep as GenerateScorePromptObject<any>;
-              const model = generateScoreStep.judge?.model ?? this.metadata.judge?.model;
-              const instructions = generateScoreStep.judge?.instructions ?? this.metadata.judge?.instructions;
+            const result = await judge.generate(prompt, {
+              output: z.object({ score: z.number() }),
+            });
 
-              if (model && instructions) {
-                const judge = new Agent({
-                  name: 'judge',
-                  model,
-                  instructions,
-                });
+            stepResult = result.object.score;
+          } else if (step.name === 'generateReason') {
+            // Handle generateReason prompt objects (no output schema)
+            const generateReasonStep = originalStep as GenerateReasonPromptObject<any>;
+            const model = generateReasonStep.judge?.model ?? this.metadata.judge?.model;
+            const instructions = generateReasonStep.judge?.instructions ?? this.metadata.judge?.instructions;
 
-                const result = await judge.generate(prompt, {
-                  output: z.object({ score: z.number() }),
-                });
-
-                stepResult = result.object.score;
-              } else {
-                console.log(`MOCKINGGG SCORE`);
-                stepResult = 0.75; // Mock score
-              }
-            } else if (step.name === 'generateReason') {
-              // Handle generateReason prompt objects (no output schema)
-              const generateReasonStep = originalStep as GenerateReasonPromptObject<any>;
-              const model = generateReasonStep.judge?.model ?? this.metadata.judge?.model;
-              const instructions = generateReasonStep.judge?.instructions ?? this.metadata.judge?.instructions;
-
-              if (!model || !instructions) {
-                throw new Error(
-                  `Pipeline "${this.metadata.name}": generateReason step requires a model and instructions`,
-                );
-              }
-
-              const judge = new Agent({
-                name: 'judge',
-                model,
-                instructions,
-              });
-
-              const result = await judge.generate(prompt);
-              stepResult = result.text;
-            } else {
-              // Handle other prompt objects (with output schema)
-              const promptStep = originalStep as PromptObject<any, any, any>;
-              const model = promptStep.judge?.model ?? this.metadata.judge?.model;
-              const instructions = promptStep.judge?.instructions ?? this.metadata.judge?.instructions;
-
-              if (model && instructions) {
-                const judge = new Agent({
-                  name: 'judge',
-                  model,
-                  instructions,
-                });
-
-                const result = await judge.generate(prompt, {
-                  output: promptStep.outputSchema,
-                });
-
-                stepResult = promptStep.outputSchema.parse(result.object);
-              } else {
-                stepResult = this.generateMockResponse(promptStep.outputSchema, step.name);
-              }
+            if (!model || !instructions) {
+              throw new Error(`Pipeline "${this.metadata.name}": ${step.name} step requires a model and instructions`);
             }
+
+            const judge = new Agent({
+              name: 'judge',
+              model,
+              instructions,
+            });
+
+            const result = await judge.generate(prompt);
+            stepResult = result.text;
+          } else {
+            // Handle other prompt objects (with output schema)
+            const promptStep = originalStep as PromptObject<any, any, any>;
+            const model = promptStep.judge?.model ?? this.metadata.judge?.model;
+            const instructions = promptStep.judge?.instructions ?? this.metadata.judge?.instructions;
+
+            if (!model || !instructions) {
+              throw new Error(`Pipeline "${this.metadata.name}": ${step.name} step requires a model and instructions`);
+            }
+
+            const judge = new Agent({
+              name: 'judge',
+              model,
+              instructions,
+            });
+
+            const result = await judge.generate(prompt, {
+              output: promptStep.outputSchema,
+            });
+
+            stepResult = promptStep.outputSchema.parse(result.object);
           }
         } else {
           // Handle both sync and async function steps
           stepResult = await step.execute(context);
         }
 
-        const duration = performance.now() - startTime;
         const resultKey = `${step.name}StepResult`;
         // Just let TypeScript infer naturally
         accumulatedResults[resultKey] = stepResult;
-        lastStepResult = stepResult;
-
-        console.log(`✅ ${step.name} (${duration.toFixed(1)}ms)`);
       } catch (error) {
-        console.error(`❌ Step "${step.name}" failed:`, error);
         throw new Error(`Pipeline execution failed at step: ${step.name}`);
       }
     }
@@ -485,55 +457,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       typeof stepDef === 'object' && 'description' in stepDef && 'outputSchema' in stepDef && 'createPrompt' in stepDef;
 
     return isOtherPromptObject;
-  }
-
-  private createPromptExecutor<T>(promptObj: PromptObject<T, any, any>) {
-    return async (context: any): Promise<T> => {
-      // This is for mock execution, so we don't actually call createPrompt
-      return this.generateMockResponse(promptObj.outputSchema, 'mock');
-    };
-  }
-
-  private createGenerateScoreExecutor(promptObj: GenerateScorePromptObject<any>) {
-    return async (context: any): Promise<number> => {
-      return 0.75; // Mock score
-    };
-  }
-
-  private createGenerateReasonExecutor(promptObj: GenerateReasonPromptObject<any>) {
-    return async (context: any): Promise<string> => {
-      return `Mock reason for ${promptObj.description}`;
-    };
-  }
-
-  private generateMockResponse(schema: z.ZodSchema<any>, stepName: string): any {
-    if (schema instanceof z.ZodObject) {
-      const shape = schema._def.shape();
-      const mockObj: any = {};
-
-      for (const [key, fieldSchema] of Object.entries(shape)) {
-        const field = fieldSchema as z.ZodTypeAny;
-
-        if (field instanceof z.ZodString) {
-          mockObj[key] = `Mock ${key}`;
-        } else if (field instanceof z.ZodNumber) {
-          mockObj[key] = Math.floor(Math.random() * 100);
-        } else if (field instanceof z.ZodBoolean) {
-          mockObj[key] = Math.random() > 0.5;
-        } else if (field instanceof z.ZodArray) {
-          mockObj[key] = [`Item 1`, `Item 2`];
-        } else if (field instanceof z.ZodEnum) {
-          const values = (field as any)._def.values;
-          mockObj[key] = values[Math.floor(Math.random() * values.length)];
-        } else {
-          mockObj[key] = `Mock ${key}`;
-        }
-      }
-
-      return mockObj;
-    }
-
-    return `Mock response for ${stepName}`;
   }
 
   getSteps(): Array<{ name: string; type: 'function' | 'prompt'; description?: string }> {
