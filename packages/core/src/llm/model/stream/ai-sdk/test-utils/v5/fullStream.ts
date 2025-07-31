@@ -1,6 +1,8 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
+import { tool } from 'ai-v5';
 import { convertArrayToReadableStream, MockLanguageModelV2, mockValues } from 'ai-v5/test';
 import { describe, expect, it } from 'vitest';
+import z from 'zod';
 import type { execute } from '../../../execute';
 import {
   createTestModel,
@@ -11,9 +13,7 @@ import {
   testUsage,
   testUsage2,
 } from './test-utils';
-import { DefaultGeneratedFileWithType } from '../../v4/file';
-import { tool } from 'ai-v5';
-import z from 'zod';
+import { delay } from '@ai-sdk/provider-utils';
 
 export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.fullStream', () => {
@@ -860,7 +860,8 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
     });
 
     it('should send tool results', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -886,6 +887,8 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
           tool1: tool({
             inputSchema: z.object({ value: z.string() }),
             execute: async (input, options) => {
+              console.log('TOOL 1', input, options);
+
               expect(input).toStrictEqual({ value: 'value' });
               expect(options.messages).toStrictEqual([{ role: 'user', content: 'test-input' }]);
               return `${input.value}-result`;
@@ -895,11 +898,16 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchSnapshot();
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      console.dir({ fullStream }, { depth: null });
+
+      expect(fullStream).toMatchSnapshot();
     });
 
     it('should send delayed asynchronous tool results', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -924,7 +932,7 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         tools: {
           tool1: {
             inputSchema: z.object({ value: z.string() }),
-            execute: async ({ value }) => {
+            execute: async ({ value }: { value: string }) => {
               await delay(50); // delay to show bug where step finish is sent before tool result
               return `${value}-result`;
             },
@@ -933,11 +941,14 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchSnapshot();
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(fullStream).toMatchSnapshot();
     });
 
     it('should filter out empty text deltas', async () => {
-      const result = streamText({
+      const result = await executeFn({
+        runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
             {
@@ -965,7 +976,9 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
         prompt: 'test-input',
       });
 
-      expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(fullStream).toMatchInlineSnapshot(`
           [
             {
               "type": "start",

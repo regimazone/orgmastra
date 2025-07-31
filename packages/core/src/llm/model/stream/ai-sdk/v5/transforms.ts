@@ -22,7 +22,7 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
         providerMetadata: value.providerMetadata,
         providerExecuted: value.providerExecuted,
         toolCallId: value.toolCallId,
-        input: value.input ? JSON.parse(value.input) : undefined,
+        args: value.input ? JSON.parse(value.input) : undefined,
         toolName: value.toolName,
       },
     };
@@ -354,7 +354,7 @@ export function convertFullStreamChunkToAISDKv5({
       providerMetadata: chunk.payload.providerMetadata,
       providerExecuted: chunk.payload.providerExecuted,
       toolName: chunk.payload.toolName,
-      input: chunk.payload.input,
+      input: chunk.payload.args,
     };
   } else if (chunk.type === 'tool-call-input-streaming-start') {
     console.log('tool-call-input-streaming-start', chunk.payload);
@@ -378,10 +378,12 @@ export function convertFullStreamChunkToAISDKv5({
   } else if (chunk.type === 'tool-result') {
     return {
       type: 'tool-result',
-      args: chunk.payload.args,
+      input: chunk.payload.args,
       toolCallId: chunk.payload.toolCallId,
+      providerMetadata: chunk.payload.providerMetadata,
+      providerExecuted: chunk.payload.providerExecuted,
       toolName: chunk.payload.toolName,
-      result: chunk.payload.result,
+      output: chunk.payload.result,
     };
   } else if (chunk.type === 'error') {
     return {

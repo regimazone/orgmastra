@@ -54,6 +54,9 @@ function createAgentWorkflow({
       inputSchema: toolCallInpuSchema,
       outputSchema: toolCallOutputSchema,
       execute: async ({ inputData, getStepResult }) => {
+        console.log('TOOLS', tools);
+        console.log({ inputData }, 'TOOL CALL STEP');
+
         const tool =
           tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.name === inputData.toolName);
 
@@ -70,6 +73,8 @@ function createAgentWorkflow({
         } as any);
 
         const messageList = MessageList.fromArray(initialResult.messages.user);
+
+        console.log(inputData, 'INPUT DATA');
 
         const result = await tool.execute(inputData.args, {
           toolCallId: inputData.toolCallId,
@@ -602,6 +607,7 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
+      console.log('TOOL CALLS', inputData.output.toolCalls);
       return inputData.output.toolCalls || [];
     })
     .foreach(toolCallExecutionStep)
