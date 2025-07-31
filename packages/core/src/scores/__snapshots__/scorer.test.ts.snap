@@ -1,0 +1,340 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`createScorer > Steps as functions scorer > should create a basic scorer with functions 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with analyze and reason 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": {
+    "inputFromAnalyze": "test input!",
+    "outputFromAnalyze": "test output!",
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": "the reason the score is 1 is because the input is test input! and the output is test output!",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with analyze only 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": {
+    "inputFromAnalyze": "test input!",
+    "outputFromAnalyze": "test output!",
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess and analyze 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": {
+    "inputFromAnalyze": "TEST INPUT!",
+    "outputFromAnalyze": "TEST OUTPUT!",
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess and reason 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": "the reason the score is 1 is because the input is TEST INPUT and the output is TEST OUTPUT",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess only 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with preprocess, analyze, and reason 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": {
+    "inputFromAnalyze": "TEST INPUT!",
+    "outputFromAnalyze": "TEST OUTPUT!",
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": "the reason the score is 1 is because the input is TEST INPUT! and the output is TEST OUTPUT!",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as functions scorer > should create a scorer with reason 1`] = `
+{
+  "analyzePrompt": undefined,
+  "analyzeResult": undefined,
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": "the reason the score is 1 is because the input is test input and the output is test output",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as prompt objects scorer > should create a scorer with analyze prompt object 1`] = `
+{
+  "analyzePrompt": "Test Analyze prompt",
+  "analyzeResult": {
+    "inputLength": 27,
+    "outputLength": 86,
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as prompt objects scorer > with analyze and reason prompt object 1`] = `
+{
+  "analyzePrompt": "Test Analyze prompt",
+  "analyzeResult": {
+    "inputLength": 10,
+    "outputLength": 11,
+  },
+  "generateReasonPrompt": "Test Generate Reason prompt",
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": "This is a test reason",
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as prompt objects scorer > with analyze prompt object 1`] = `
+{
+  "analyzePrompt": "Test Analyze prompt",
+  "analyzeResult": {
+    "inputLength": 10,
+    "outputLength": 11,
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": undefined,
+  "preprocessResult": undefined,
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;
+
+exports[`createScorer > Steps as prompt objects scorer > with preprocess and analyze prompt object 1`] = `
+{
+  "analyzePrompt": "Test Analyze prompt",
+  "analyzeResult": {
+    "inputLength": 10,
+    "outputLength": 11,
+  },
+  "generateReasonPrompt": undefined,
+  "generateScorePrompt": undefined,
+  "preprocessPrompt": "Test Preprocess prompt",
+  "preprocessResult": {
+    "reformattedInput": "TEST INPUT",
+    "reformattedOutput": "TEST OUTPUT",
+  },
+  "reason": undefined,
+  "run": {
+    "input": [
+      {
+        "content": "test input",
+        "role": "user",
+      },
+    ],
+    "output": {
+      "role": "assistant",
+      "text": "test output",
+    },
+  },
+  "score": 1,
+}
+`;

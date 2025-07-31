@@ -56,6 +56,21 @@ interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepN
   createPrompt: (context: PromptObjectContext<TAccumulated, TStepName>) => string;
 }
 
+// Special prompt object type for generateReason that always returns a string
+interface GenerateReasonPromptObject<TAccumulated extends Record<string, any>> {
+  description: string;
+  judge?: {
+    model: MastraLanguageModel;
+    instructions: string;
+  };
+  createPrompt: (context: GenerateReasonContext<TAccumulated>) => string;
+}
+
+// Conditional type for generateReason step definition
+type GenerateReasonStepDef<TAccumulated extends Record<string, any>> =
+  | ((context: GenerateReasonContext<TAccumulated>) => any)
+  | GenerateReasonPromptObject<TAccumulated>;
+
 class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   constructor(
     private metadata: ScorerConfig,
@@ -69,7 +84,10 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         instructions: string;
       };
     }> = [],
-    private originalPromptObjects: Map<string, PromptObject<any, any, any>> = new Map(),
+    private originalPromptObjects: Map<
+      string,
+      PromptObject<any, any, any> | GenerateReasonPromptObject<any>
+    > = new Map(),
   ) {}
 
   // Getter for pipeline name
@@ -184,10 +202,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     );
   }
 
-  generateReason<TReasonOutput>(
-    stepDef:
-      | ((context: GenerateReasonContext<TAccumulatedResults>) => TReasonOutput)
-      | PromptObject<TReasonOutput, TAccumulatedResults, 'generateReason'>,
+  generateReason<TReasonOutput = string>(
+    stepDef: GenerateReasonStepDef<TAccumulatedResults>,
   ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateReason', TReasonOutput>> {
     // Runtime check: generateReason only allowed after generateScore
     if (!this.hasGenerateScore) {
@@ -197,9 +213,13 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     const isPromptObj = this.isPromptObject(stepDef);
 
     if (isPromptObj) {
-      const promptObj = stepDef as PromptObject<TReasonOutput, TAccumulatedResults, 'generateReason'>;
+      const promptObj = stepDef as GenerateReasonPromptObject<TAccumulatedResults>;
       this.originalPromptObjects.set('generateReason', promptObj);
     }
+
+    const executeFunction = isPromptObj
+      ? this.createGenerateReasonExecutor(stepDef as GenerateReasonPromptObject<TAccumulatedResults>)
+      : (stepDef as (context: GenerateReasonContext<any>) => TReasonOutput);
 
     return new MastraNewScorer(
       this.metadata,
@@ -207,12 +227,10 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         ...this.steps,
         {
           name: 'generateReason',
-          execute: isPromptObj
-            ? this.createPromptExecutor(stepDef as PromptObject<TReasonOutput, TAccumulatedResults, 'generateReason'>)
-            : (stepDef as (context: GenerateReasonContext<any>) => TReasonOutput),
+          execute: executeFunction,
           isPromptObject: isPromptObj,
           description: isPromptObj
-            ? (stepDef as PromptObject<TReasonOutput, TAccumulatedResults, 'generateReason'>).description
+            ? (stepDef as GenerateReasonPromptObject<TAccumulatedResults>).description
             : undefined,
         },
       ],
@@ -262,17 +280,25 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
       try {
         // Create context based on step type
-        const context =
-          step.name === 'generateReason'
-            ? {
-                run: input,
-                results: accumulatedResults,
-                score: accumulatedResults.generateScoreStepResult,
-              }
-            : {
-                run: input,
-                results: accumulatedResults,
-              };
+        let context: any;
+        if (step.name === 'generateReason') {
+          const score = accumulatedResults.generateScoreStepResult;
+          if (score === undefined) {
+            throw new Error(
+              `Pipeline "${this.metadata.name}": generateReason step requires a score from generateScore step`,
+            );
+          }
+          context = {
+            run: input,
+            results: accumulatedResults,
+            score: score,
+          };
+        } else {
+          context = {
+            run: input,
+            results: accumulatedResults,
+          };
+        }
 
         let stepResult: any;
 
@@ -287,19 +313,46 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
               description: originalStep.description,
             });
 
-            const model = originalStep.judge?.model ?? this.metadata.judge?.model;
-            const instructions = originalStep.judge?.instructions ?? this.metadata.judge?.instructions;
-            const judge = new Agent({
-              name: 'judge',
-              model,
-              instructions,
-            });
+            if (step.name === 'generateReason') {
+              // Handle generateReason prompt objects (no output schema)
+              const generateReasonStep = originalStep as GenerateReasonPromptObject<any>;
+              const model = generateReasonStep.judge?.model ?? this.metadata.judge?.model;
+              const instructions = generateReasonStep.judge?.instructions ?? this.metadata.judge?.instructions;
 
-            const result = await judge.generate(prompt, {
-              output: originalStep.outputSchema,
-            });
+              if (model && instructions) {
+                const judge = new Agent({
+                  name: 'judge',
+                  model,
+                  instructions,
+                });
 
-            stepResult = originalStep.outputSchema.parse(result.object);
+                const result = await judge.generate(prompt);
+                stepResult = result.text;
+              } else {
+                stepResult = `Mock reason for ${generateReasonStep.description}`;
+              }
+            } else {
+              // Handle other prompt objects (with output schema)
+              const promptStep = originalStep as PromptObject<any, any, any>;
+              const model = promptStep.judge?.model ?? this.metadata.judge?.model;
+              const instructions = promptStep.judge?.instructions ?? this.metadata.judge?.instructions;
+
+              if (model && instructions) {
+                const judge = new Agent({
+                  name: 'judge',
+                  model,
+                  instructions,
+                });
+
+                const result = await judge.generate(prompt, {
+                  output: promptStep.outputSchema,
+                });
+
+                stepResult = promptStep.outputSchema.parse(result.object);
+              } else {
+                stepResult = this.generateMockResponse(promptStep.outputSchema, step.name);
+              }
+            }
           }
         } else {
           stepResult = step.execute(context);
@@ -319,7 +372,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
     return {
       run: input,
-      // results: accumulatedResults as TAccumulatedResults,
       score: accumulatedResults.generateScoreStepResult,
       reason: accumulatedResults.generateReasonStepResult,
 
@@ -336,14 +388,35 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   }
 
   private isPromptObject(stepDef: any): boolean {
-    return (
-      typeof stepDef === 'object' && 'description' in stepDef && 'outputSchema' in stepDef && 'createPrompt' in stepDef
-    );
+    // Check if it's a generateReason prompt object (has description and createPrompt, but no outputSchema)
+    if (
+      typeof stepDef === 'object' &&
+      'description' in stepDef &&
+      'createPrompt' in stepDef &&
+      !('outputSchema' in stepDef)
+    ) {
+      console.log('Detected generateReason prompt object');
+      return true;
+    }
+
+    // For other steps, check for description, outputSchema, and createPrompt
+    const isOtherPromptObject =
+      typeof stepDef === 'object' && 'description' in stepDef && 'outputSchema' in stepDef && 'createPrompt' in stepDef;
+
+    return isOtherPromptObject;
   }
 
   private createPromptExecutor<T>(promptObj: PromptObject<T, any, any>) {
     return (context: any): T => {
       return this.generateMockResponse(promptObj.outputSchema, 'mock');
+    };
+  }
+
+  private createGenerateReasonExecutor(promptObj: GenerateReasonPromptObject<any>) {
+    console.log('Creating generateReason executor for:', promptObj.description);
+    return (context: any): string => {
+      console.log('Executing generateReason mock function');
+      return `Mock reason for ${promptObj.description}`;
     };
   }
 
