@@ -102,7 +102,7 @@ export class ScoresPG extends ScoresStorage {
   async saveScore(score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }> {
     try {
       // Generate ID like other storage implementations
-      const scoreId = `score-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const scoreId = crypto.randomUUID();
 
       const { input, ...rest } = score;
       await this.operations.insert({
@@ -142,8 +142,6 @@ export class ScoresPG extends ScoresStorage {
         `SELECT COUNT(*) FROM ${TABLE_SCORERS} WHERE "runId" = $1`,
         [runId],
       );
-      console.log(`total: ${total?.count}`);
-      console.log(`typeof total: ${typeof total?.count}`);
       if (total?.count === '0' || !total?.count) {
         return {
           pagination: {
