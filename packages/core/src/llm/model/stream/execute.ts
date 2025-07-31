@@ -215,12 +215,12 @@ function createAgentWorkflow({
 
         try {
           for await (const chunk of outputStream.fullStream) {
-            if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
+            if (['text-delta', 'reasoning-delta', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
               await options?.onChunk?.(chunk);
             }
 
             if (
-              chunk.type !== 'reasoning' &&
+              chunk.type !== 'reasoning-delta' &&
               chunk.type !== 'reasoning-signature' &&
               chunk.type !== 'redacted-reasoning' &&
               runState.state.isReasoning
@@ -288,7 +288,7 @@ function createAgentWorkflow({
                   },
                 });
                 break;
-              case 'reasoning': {
+              case 'reasoning-delta': {
                 const reasoningDeltasFromState = runState.state.reasoningDeltas;
                 reasoningDeltasFromState.push(chunk.payload.text);
                 runState.setState({
@@ -337,9 +337,11 @@ function createAgentWorkflow({
                 break;
               case 'tool-call-delta':
                 const hasToolCallStreaming = runState.state.hasToolCallStreaming;
-                if (!hasToolCallStreaming) {
+                if (!hasToolCallStreaming && model.specificationVersion === 'v1') {
+                  // @TODO:
+                  // This needs to go to src/llm/model/stream/ai-sdk/v4/input.ts as an input stream transform, to add events
                   controller.enqueue({
-                    type: 'tool-call-streaming-start',
+                    type: 'tool-call-input-streaming-start',
                     from: 'AGENT',
                     runId: chunk.runId,
                     payload: {
@@ -349,7 +351,7 @@ function createAgentWorkflow({
                   });
 
                   await options?.onChunk?.({
-                    type: 'tool-call-streaming-start',
+                    type: 'tool-call-input-streaming-start',
                     from: 'AGENT',
                     runId: chunk.runId,
                     payload: {

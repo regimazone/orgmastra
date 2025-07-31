@@ -100,7 +100,7 @@ export class MastraModelOutput extends MastraBase {
             case 'file':
               self.#bufferedFiles.push(chunk.payload);
               break;
-            case 'reasoning':
+            case 'reasoning-delta':
               self.#bufferedReasoning.push(chunk.payload.text);
               break;
             case 'tool-call':

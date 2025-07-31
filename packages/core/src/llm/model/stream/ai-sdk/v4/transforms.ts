@@ -38,7 +38,6 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
       },
     };
   } else if (value.type === 'tool-call-delta') {
-    console.log('tool-call-delta', value);
     return {
       type: 'tool-call-delta',
       runId: ctx.runId,
@@ -51,7 +50,7 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
     };
   } else if (value.type === 'tool-call-streaming-start') {
     return {
-      type: 'tool-call-input-streaming-start ',
+      type: 'tool-call-input-streaming-start',
       runId: ctx.runId,
       from: 'AGENT',
       payload: value,
@@ -199,6 +198,7 @@ export function convertFullStreamChunkToAISDKv4({
   toolCallStreaming?: boolean;
   getErrorMessage: (error: string) => string;
 }) {
+  console.log('convert v4', chunk, toolCallStreaming);
   if (chunk.type === 'text-delta') {
     if (client) {
       return formatDataStreamPart('text', chunk.payload.text);
@@ -370,6 +370,7 @@ export function convertFullStreamChunkToAISDKv4({
       args: chunk.payload.args,
     };
   } else if (chunk.type === 'tool-call-input-streaming-start' && toolCallStreaming) {
+    console.log('tool-call-input-streaming-start', chunk);
     if (client) {
       return formatDataStreamPart('tool_call_streaming_start', {
         toolCallId: chunk.payload.toolCallId,
