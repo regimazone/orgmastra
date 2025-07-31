@@ -11,8 +11,8 @@
     "db:migrate": "npx tsx ./db/migrate.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "2.0.0-beta.6",
-    "@ai-sdk/react": "^1.2.12",
+    "@ai-sdk/openai": "latest",
+    "@ai-sdk/react": "latest",
     "@mastra/core": "latest",
     "@mastra/loggers": "latest",
     "@mastra/memory": "latest",

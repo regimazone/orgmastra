@@ -7,55 +7,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// AI SDK package version mappings from current beta to latest beta
+// AI SDK package version mappings - all packages now use latest tag
 const VERSION_MAPPINGS = {
-  ai: {
-    '5.0.0-beta.5': '5.0.0-beta.14',
-  },
-  '@ai-sdk/provider': {
-    '2.0.0-alpha.15': '2.0.0-beta.5',
-    '2.0.0-beta.5': '2.0.0-beta.1',
-  },
-  '@ai-sdk/openai': {
-    '2.0.0-beta.5': '2.0.0-beta.6',
-  },
-  '@ai-sdk/react': {
-    '2.0.0-alpha.15': '2.0.0-beta.5',
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
-  },
-  '@ai-sdk/anthropic': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
-  },
-  '@ai-sdk/google': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '1.0.0': '2.0.0-beta.5', // Major upgrade
-  },
-  '@ai-sdk/provider-utils': {
-    '^3.0.0-alpha.14': '3.0.0-beta.5',
-    '3.0.0-beta.1': '3.0.0-beta.5',
-    '3.0.0-beta.2': '3.0.0-beta.5',
-    '3.0.0-beta.3': '3.0.0-beta.5',
-    '3.0.0-beta.4': '3.0.0-beta.5',
-    '2.2.8': '3.0.0-beta.5', // Major upgrade
-  },
-  '@ai-sdk/ui-utils': {
-    '2.0.0-beta.1': '2.0.0-beta.5',
-    '2.0.0-beta.2': '2.0.0-beta.5',
-    '2.0.0-beta.3': '2.0.0-beta.5',
-    '2.0.0-beta.4': '2.0.0-beta.5',
-    '^1.2.11': '2.0.0-beta.5', // Major upgrade
-  },
+  // All packages now use 'latest' tag
 };
 
 // AI SDK packages to look for
@@ -153,38 +107,12 @@ async function updatePackageJson(filePath, updates) {
 }
 
 function getNewVersion(packageName, currentVersion) {
-  const mappings = VERSION_MAPPINGS[packageName];
-  if (!mappings) {
-    // Default beta version for unmapped packages
-    if (packageName === 'ai') return '5.0.0-beta.5';
-    if (packageName.startsWith('@ai-sdk/')) {
-      return '2.0.0-beta.5'; // Most @ai-sdk packages are on 2.x
-    }
-    return currentVersion; // Keep unchanged if no mapping
+  // All AI SDK packages now use 'latest' tag
+  if (AI_SDK_PACKAGES.includes(packageName)) {
+    return 'latest';
   }
-
-  // Exact match first
-  if (mappings[currentVersion]) {
-    return mappings[currentVersion];
-  }
-
-  // Handle caret/tilde prefixes
-  const cleanVersion = currentVersion.replace(/^[\^~]/, '');
-  if (mappings[cleanVersion]) {
-    const newVersion = mappings[cleanVersion];
-    // For beta versions, always use exact version (no caret/tilde)
-    if (newVersion.includes('-beta.')) {
-      return newVersion;
-    }
-    return currentVersion.startsWith('^')
-      ? newVersion.replace(/^[\^~]/, '^')
-      : currentVersion.startsWith('~')
-        ? newVersion.replace(/^[\^~]/, '~')
-        : newVersion;
-  }
-
-  // Default fallback
-  console.warn(`  Warning: No mapping found for ${packageName}@${currentVersion}, skipping`);
+  
+  // Should not reach here, but keep unchanged if not an AI SDK package
   return currentVersion;
 }
 
@@ -239,7 +167,7 @@ async function removeOverrides() {
 }
 
 async function main() {
-  console.log('🔍 AI SDK Alpha → Beta Upgrade Script');
+  console.log('🔍 AI SDK Upgrade to Latest Version Script');
   console.log('=====================================\n');
 
   // Step 1: Find all package.json files
@@ -333,7 +261,7 @@ async function main() {
   console.log('1. Run: pnpm install');
   console.log('2. Run: pnpm build');
   console.log('3. Test your application');
-  console.log('\n✨ AI SDK beta upgrade complete!');
+  console.log('\n✨ AI SDK upgrade to latest complete!');
 }
 
 // Run the script

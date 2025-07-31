@@ -30,9 +30,9 @@
     "dev": "mastra dev"
   },
   "dependencies": {
-    "@ai-sdk/google": "2.0.0-beta.5",
-    "@ai-sdk/openai": "2.0.0-beta.6",
-    "@ai-sdk/react": "2.0.0-beta.5",
+    "@ai-sdk/google": "latest",
+    "@ai-sdk/openai": "latest",
+    "@ai-sdk/react": "latest",
     "@mastra/fastembed": "workspace:*",
     "@mastra/libsql": "workspace:*",
     "@mastra/memory": "workspace:*",
@@ -48,7 +48,7 @@
     "@testing-library/react": "^16.2.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^20.17.27",
-    "ai": "5.0.0-beta.14",
+    "ai": "latest",
     "jsdom": "^26.0.0",
     "mastra": "workspace:*",
     "next": "^15.2.4",

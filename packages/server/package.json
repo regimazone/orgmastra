@@ -56,7 +56,7 @@
     "zod": "^3.0.0"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "2.0.0-beta.6",
+    "@ai-sdk/openai": "latest",
     "@internal/lint": "workspace:*",
     "@internal/storage-test-utils": "workspace:*",
     "@mastra/core": "workspace:*",
