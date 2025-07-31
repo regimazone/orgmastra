@@ -27,11 +27,18 @@ interface ScorerRun {
 
 // Helper types
 type StepResultKey<T extends string> = `${T}StepResult`;
-type AccumulatedResults<T extends Record<string, any>, K extends string, V> = T & Record<StepResultKey<K>, V>;
+
+// Simple utility type to extract resolved types from potentially async functions
+type Awaited<T> = T extends Promise<infer U> ? U : T;
+
+// Simplified context type
 type StepContext<TAccumulated extends Record<string, any>, TRun> = {
   run: TRun;
   results: TAccumulated;
 };
+
+// Simplified AccumulatedResults - don't try to resolve Promise types here
+type AccumulatedResults<T extends Record<string, any>, K extends string, V> = T & Record<StepResultKey<K>, V>;
 
 // Special context type for generateReason that includes the score
 type GenerateReasonContext<TAccumulated extends Record<string, any>> = StepContext<TAccumulated, ScorerRun> & {
@@ -43,6 +50,32 @@ type PromptObjectContext<
   TAccumulated extends Record<string, any>,
   TStepName extends string,
 > = TStepName extends 'generateReason' ? GenerateReasonContext<TAccumulated> : StepContext<TAccumulated, ScorerRun>;
+
+// Function step types that support both sync and async
+type FunctionStep<TAccumulated extends Record<string, any>, TRun, TOutput> =
+  | ((context: StepContext<TAccumulated, TRun>) => TOutput)
+  | ((context: StepContext<TAccumulated, TRun>) => Promise<TOutput>);
+
+type GenerateReasonFunctionStep<TAccumulated extends Record<string, any>> =
+  | ((context: GenerateReasonContext<TAccumulated>) => any)
+  | ((context: GenerateReasonContext<TAccumulated>) => Promise<any>);
+
+type GenerateScoreFunctionStep<TAccumulated extends Record<string, any>> =
+  | ((context: StepContext<TAccumulated, ScorerRun>) => number)
+  | ((context: StepContext<TAccumulated, ScorerRun>) => Promise<number>);
+
+// Utility types to extract resolved types from function steps
+type ResolvedFunctionStep<TAccumulated extends Record<string, any>, TRun, TOutput> = Awaited<
+  ReturnType<FunctionStep<TAccumulated, TRun, TOutput>>
+>;
+
+type ResolvedGenerateScoreFunctionStep<TAccumulated extends Record<string, any>> = Awaited<
+  ReturnType<GenerateScoreFunctionStep<TAccumulated>>
+>;
+
+type ResolvedGenerateReasonFunctionStep<TAccumulated extends Record<string, any>> = Awaited<
+  ReturnType<GenerateReasonFunctionStep<TAccumulated>>
+>;
 
 // Prompt object definition with conditional typing
 interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepName extends string = string> {
@@ -76,14 +109,23 @@ interface GenerateReasonPromptObject<TAccumulated extends Record<string, any>> {
   createPrompt: (context: GenerateReasonContext<TAccumulated>) => string;
 }
 
+// Step definition types that support both function and prompt object steps
+type PreprocessStepDef<TAccumulated extends Record<string, any>, TOutput> =
+  | FunctionStep<TAccumulated, ScorerRun, TOutput>
+  | PromptObject<TOutput, TAccumulated, 'preprocess'>;
+
+type AnalyzeStepDef<TAccumulated extends Record<string, any>, TOutput> =
+  | FunctionStep<TAccumulated, ScorerRun, TOutput>
+  | PromptObject<TOutput, TAccumulated, 'analyze'>;
+
 // Conditional type for generateScore step definition
 type GenerateScoreStepDef<TAccumulated extends Record<string, any>> =
-  | ((context: StepContext<TAccumulated, ScorerRun>) => number)
+  | GenerateScoreFunctionStep<TAccumulated>
   | GenerateScorePromptObject<TAccumulated>;
 
 // Conditional type for generateReason step definition
 type GenerateReasonStepDef<TAccumulated extends Record<string, any>> =
-  | ((context: GenerateReasonContext<TAccumulated>) => any)
+  | GenerateReasonFunctionStep<TAccumulated>
   | GenerateReasonPromptObject<TAccumulated>;
 
 class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
@@ -91,7 +133,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     private metadata: ScorerConfig,
     private steps: Array<{
       name: string;
-      execute: (context: any) => any;
+      execute: (context: any) => any | Promise<any>;
       isPromptObject: boolean;
       description?: string;
       judge?: {
@@ -125,10 +167,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   }
 
   preprocess<TPreprocessOutput>(
-    stepDef:
-      | ((context: StepContext<TAccumulatedResults, ScorerRun>) => TPreprocessOutput)
-      | PromptObject<TPreprocessOutput, TAccumulatedResults, 'preprocess'>,
-  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'preprocess', TPreprocessOutput>> {
+    stepDef: PreprocessStepDef<TAccumulatedResults, TPreprocessOutput>,
+  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'preprocess', Awaited<TPreprocessOutput>>> {
     const isPromptObj = this.isPromptObject(stepDef);
 
     if (isPromptObj) {
@@ -144,7 +184,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
           name: 'preprocess',
           execute: isPromptObj
             ? this.createPromptExecutor(stepDef as PromptObject<TPreprocessOutput, TAccumulatedResults, 'preprocess'>)
-            : (stepDef as (context: StepContext<any, ScorerRun>) => TPreprocessOutput),
+            : (stepDef as FunctionStep<any, ScorerRun, TPreprocessOutput>),
           isPromptObject: isPromptObj,
           description: isPromptObj
             ? (stepDef as PromptObject<TPreprocessOutput, TAccumulatedResults, 'preprocess'>).description
@@ -156,10 +196,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   }
 
   analyze<TAnalyzeOutput>(
-    stepDef:
-      | ((context: StepContext<TAccumulatedResults, ScorerRun>) => TAnalyzeOutput)
-      | PromptObject<TAnalyzeOutput, TAccumulatedResults, 'analyze'>,
-  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'analyze', TAnalyzeOutput>> {
+    stepDef: AnalyzeStepDef<TAccumulatedResults, TAnalyzeOutput>,
+  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'analyze', Awaited<TAnalyzeOutput>>> {
     const isPromptObj = this.isPromptObject(stepDef);
 
     if (isPromptObj) {
@@ -175,7 +213,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
           name: 'analyze',
           execute: isPromptObj
             ? this.createPromptExecutor(stepDef as PromptObject<TAnalyzeOutput, TAccumulatedResults, 'analyze'>)
-            : (stepDef as (context: StepContext<any, ScorerRun>) => TAnalyzeOutput),
+            : (stepDef as FunctionStep<any, ScorerRun, TAnalyzeOutput>),
           isPromptObject: isPromptObj,
           description: isPromptObj
             ? (stepDef as PromptObject<TAnalyzeOutput, TAccumulatedResults, 'analyze'>).description
@@ -188,7 +226,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
   generateScore<TScoreOutput extends number = number>(
     stepDef: GenerateScoreStepDef<TAccumulatedResults>,
-  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateScore', TScoreOutput>> {
+  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateScore', Awaited<TScoreOutput>>> {
     const isPromptObj = this.isPromptObject(stepDef);
 
     if (isPromptObj) {
@@ -198,7 +236,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
     const executeFunction = isPromptObj
       ? this.createGenerateScoreExecutor(stepDef as GenerateScorePromptObject<TAccumulatedResults>)
-      : (stepDef as (context: StepContext<any, ScorerRun>) => TScoreOutput);
+      : (stepDef as GenerateScoreFunctionStep<any>);
 
     return new MastraNewScorer(
       this.metadata,
@@ -219,7 +257,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
   generateReason<TReasonOutput = string>(
     stepDef: GenerateReasonStepDef<TAccumulatedResults>,
-  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateReason', TReasonOutput>> {
+  ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateReason', Awaited<TReasonOutput>>> {
     // Runtime check: generateReason only allowed after generateScore
     if (!this.hasGenerateScore) {
       throw new Error(`Pipeline "${this.metadata.name}": generateReason() can only be called after generateScore()`);
@@ -234,7 +272,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
     const executeFunction = isPromptObj
       ? this.createGenerateReasonExecutor(stepDef as GenerateReasonPromptObject<TAccumulatedResults>)
-      : (stepDef as (context: GenerateReasonContext<any>) => TReasonOutput);
+      : (stepDef as GenerateReasonFunctionStep<any>);
 
     return new MastraNewScorer(
       this.metadata,
@@ -356,18 +394,20 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
               const model = generateReasonStep.judge?.model ?? this.metadata.judge?.model;
               const instructions = generateReasonStep.judge?.instructions ?? this.metadata.judge?.instructions;
 
-              if (model && instructions) {
-                const judge = new Agent({
-                  name: 'judge',
-                  model,
-                  instructions,
-                });
-
-                const result = await judge.generate(prompt);
-                stepResult = result.text;
-              } else {
-                stepResult = `Mock reason for ${generateReasonStep.description}`;
+              if (!model || !instructions) {
+                throw new Error(
+                  `Pipeline "${this.metadata.name}": generateReason step requires a model and instructions`,
+                );
               }
+
+              const judge = new Agent({
+                name: 'judge',
+                model,
+                instructions,
+              });
+
+              const result = await judge.generate(prompt);
+              stepResult = result.text;
             } else {
               // Handle other prompt objects (with output schema)
               const promptStep = originalStep as PromptObject<any, any, any>;
@@ -392,11 +432,13 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
             }
           }
         } else {
-          stepResult = step.execute(context);
+          // Handle both sync and async function steps
+          stepResult = await step.execute(context);
         }
 
         const duration = performance.now() - startTime;
         const resultKey = `${step.name}StepResult`;
+        // Just let TypeScript infer naturally
         accumulatedResults[resultKey] = stepResult;
         lastStepResult = stepResult;
 
@@ -519,3 +561,25 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 export function createNewScorer({ name, description, judge }: ScorerConfig): MastraNewScorer<{}> {
   return new MastraNewScorer<{}>({ name, description, judge });
 }
+
+// Export types and interfaces for use in test files
+export type {
+  ScorerConfig,
+  ScorerRun,
+  StepContext,
+  GenerateReasonContext,
+  PromptObject,
+  GenerateScorePromptObject,
+  GenerateReasonPromptObject,
+  FunctionStep,
+  GenerateScoreFunctionStep,
+  GenerateReasonFunctionStep,
+  PreprocessStepDef,
+  AnalyzeStepDef,
+  GenerateScoreStepDef,
+  GenerateReasonStepDef,
+  AccumulatedResults,
+  Awaited,
+};
+
+export { MastraNewScorer };

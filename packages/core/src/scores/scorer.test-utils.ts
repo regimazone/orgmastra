@@ -1,4 +1,6 @@
 import { createNewScorer } from './scorer';
+import { MockLanguageModelV1 } from 'ai/test';
+import z from 'zod';
 
 // Function-based scorer builders
 export const FunctionBasedScorerBuilders = {
@@ -162,5 +164,413 @@ export const FunctionBasedScorerBuilders = {
     })
     .generateReason(({ score, run }) => {
       return `the reason the score is ${score} is because the input is ${run.input?.[0]?.content} and the output is ${run.output.text}`;
+    }),
+};
+
+export const PromptBasedScorerBuilders = {
+  withAnalyze: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .analyze({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                        "inputLength": 10,
+                        "outputLength": 11
+                    }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    }),
+
+  withPreprocessAndAnalyze: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .preprocess({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                              "reformattedInput": "TEST INPUT",
+                              "reformattedOutput": "TEST OUTPUT"
+                          }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Preprocess the input and output',
+      outputSchema: z.object({
+        reformattedInput: z.string(),
+        reformattedOutput: z.string(),
+      }),
+      createPrompt: () => {
+        return `Test Preprocess prompt`;
+      },
+    })
+    .analyze({
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                          "inputLength": 10,
+                          "outputLength": 11
+                      }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    }),
+
+  withAnalyzeAndReason: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .analyze({
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                          "inputLength": 10,
+                          "outputLength": 11
+                      }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    })
+    .generateReason({
+      judge: {
+        model: new MockLanguageModelV1({
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `This is a test reason`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Generate a reason for the score',
+      createPrompt: () => {
+        return `Test Generate Reason prompt`;
+      },
+    }),
+
+  withGenerateScoreAsPromptObject: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .generateScore({
+      description: 'Generate a score',
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{"score": 1}`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      createPrompt: () => {
+        return `Test Generate Score prompt`;
+      },
+    })
+    .generateReason(({ score, run }) => {
+      return `the reason the score is ${score} is because the input is ${JSON.stringify(run.input)} and the output is ${JSON.stringify(run.output)}`;
+    }),
+
+  withAllSteps: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .preprocess({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                              "reformattedInput": "TEST INPUT",
+                              "reformattedOutput": "TEST OUTPUT"
+                          }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Preprocess the input and output',
+      outputSchema: z.object({
+        reformattedInput: z.string(),
+        reformattedOutput: z.string(),
+      }),
+      createPrompt: () => {
+        return `Test Preprocess prompt`;
+      },
+    })
+    .analyze({
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                          "inputLength": 10,
+                          "outputLength": 11
+                      }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    })
+    .generateReason({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `this is a reason.`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Generate a reason for the score',
+      createPrompt: () => {
+        return `Test Generate Reason prompt`;
+      },
+    }),
+};
+
+export const MixedScorerBuilders = {
+  withPreprocessFunctionAnalyzePrompt: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .preprocess(({ run }) => ({
+      reformattedInput: run.input?.[0]?.content.toUpperCase() + ' from preprocess function!',
+      reformattedOutput: run.output.text.toUpperCase() + ' from preprocess function!',
+    }))
+    .analyze({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                          "inputLength": 10,
+                          "outputLength": 11
+                      }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    }),
+
+  withPreprocessPromptAnalyzeFunction: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .preprocess({
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                              "reformattedInput": "TEST INPUT from preprocess prompt!",
+                              "reformattedOutput": "TEST OUTPUT from preprocess prompt!"
+                          }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Preprocess the input and output',
+      outputSchema: z.object({
+        reformattedInput: z.string(),
+        reformattedOutput: z.string(),
+      }),
+      createPrompt: () => {
+        return `Test Preprocess prompt`;
+      },
+    })
+    .analyze(({ results }) => ({
+      inputFromAnalyze: results.preprocessStepResult?.reformattedInput + `!`,
+      outputFromAnalyze: results.preprocessStepResult?.reformattedOutput + `!`,
+    }))
+    .generateScore(({ results }) => {
+      const { analyzeStepResult, preprocessStepResult } = results;
+      const lengths = [
+        analyzeStepResult?.inputFromAnalyze.length,
+        results.analyzeStepResult?.outputFromAnalyze.length,
+        preprocessStepResult?.reformattedInput.length,
+        preprocessStepResult?.reformattedOutput.length,
+      ];
+      return lengths.every(len => len !== undefined) ? 1 : 0;
+    }),
+
+  withReasonFunctionAnalyzePrompt: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .analyze({
+      description: 'Analyze the input and output',
+      outputSchema: z.object({
+        inputLength: z.number(),
+        outputLength: z.number(),
+      }),
+      createPrompt: () => {
+        return `Test Analyze prompt`;
+      },
+      judge: {
+        model: new MockLanguageModelV1({
+          defaultObjectGenerationMode: 'json',
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `{
+                          "inputLength": 10,
+                          "outputLength": 11
+                      }`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+    })
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputLength;
+      const outputLength = results.analyzeStepResult?.outputLength;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    })
+    .generateReason(
+      ({ results }) =>
+        `the reason is because the input is ${results.analyzeStepResult?.inputLength} and the output is ${results.analyzeStepResult?.outputLength} from generateReason function`,
+    ),
+
+  withReasonPromptAnalyzeFunction: createNewScorer({
+    name: 'test-scorer',
+    description: 'A test scorer',
+  })
+    .analyze(({ run }) => ({
+      inputFromAnalyze: run.input?.[0]?.content + ` from analyze function!`,
+      outputFromAnalyze: run.output.text + ` from analyze function!`,
+    }))
+    .generateScore(({ results }) => {
+      const inputLength = results.analyzeStepResult?.inputFromAnalyze.length;
+      const outputLength = results.analyzeStepResult?.outputFromAnalyze.length;
+      return inputLength !== undefined && outputLength !== undefined ? 1 : 0;
+    })
+    .generateReason({
+      judge: {
+        model: new MockLanguageModelV1({
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `This is the reason.`,
+          }),
+        }),
+        instructions: `Test instructions`,
+      },
+      description: 'Generate a reason for the score',
+      createPrompt: () => {
+        return `Test Generate Reason prompt`;
+      },
     }),
 };
