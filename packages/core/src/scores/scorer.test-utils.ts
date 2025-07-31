@@ -1,6 +1,6 @@
-import { createNewScorer } from './scorer';
 import { MockLanguageModelV1 } from 'ai/test';
 import z from 'zod';
+import { createNewScorer } from './scorer';
 
 // Function-based scorer builders
 export const FunctionBasedScorerBuilders = {

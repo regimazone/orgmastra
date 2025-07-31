@@ -1,7 +1,7 @@
-import type { LanguageModel } from '../llm';
 import { z } from 'zod';
-import type { MastraLanguageModel } from '../memory';
 import { Agent } from '../agent';
+import type { LanguageModel } from '../llm';
+import type { MastraLanguageModel } from '../memory';
 import { createWorkflow, createStep } from '../workflows';
 
 interface ScorerStepDefinition {
@@ -84,19 +84,6 @@ type GenerateReasonFunctionStep<TAccumulated extends Record<string, any>> =
 type GenerateScoreFunctionStep<TAccumulated extends Record<string, any>> =
   | ((context: StepContext<TAccumulated, ScorerRun>) => number)
   | ((context: StepContext<TAccumulated, ScorerRun>) => Promise<number>);
-
-// Utility types to extract resolved types from function steps
-type ResolvedFunctionStep<TAccumulated extends Record<string, any>, TRun, TOutput> = Awaited<
-  ReturnType<FunctionStep<TAccumulated, TRun, TOutput>>
->;
-
-type ResolvedGenerateScoreFunctionStep<TAccumulated extends Record<string, any>> = Awaited<
-  ReturnType<GenerateScoreFunctionStep<TAccumulated>>
->;
-
-type ResolvedGenerateReasonFunctionStep<TAccumulated extends Record<string, any>> = Awaited<
-  ReturnType<GenerateReasonFunctionStep<TAccumulated>>
->;
 
 // Prompt object definition with conditional typing
 interface PromptObject<TOutput, TAccumulated extends Record<string, any>, TStepName extends string = string> {

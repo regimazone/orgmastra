@@ -1,14 +1,14 @@
+import { MockLanguageModelV1 } from 'ai/test';
+import { describe, it, expect, beforeEach } from 'vitest';
 import z from 'zod';
 import { createNewScorer } from './scorer';
 import { FunctionBasedScorerBuilders, MixedScorerBuilders, PromptBasedScorerBuilders } from './scorer.test-utils';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MockLanguageModelV1 } from 'ai/test';
 
 export const AsyncFunctionBasedScorerBuilders = {
   basic: createNewScorer({
     name: 'test-scorer',
     description: 'A test scorer',
-  }).generateScore(async ({ run }) => {
+  }).generateScore(async () => {
     return 1;
   }),
 
@@ -197,7 +197,7 @@ export const AsyncFunctionBasedScorerBuilders = {
         }),
         instructions: 'Analyze the input and output',
       },
-      createPrompt: async ({ run, results }) => {
+      createPrompt: async ({ results }) => {
         // Simulate async operation
         await new Promise(resolve => setTimeout(resolve, 5));
         const preprocessResult = results.preprocessStepResult as {
@@ -242,7 +242,7 @@ export const AsyncFunctionBasedScorerBuilders = {
         }),
         instructions: 'Generate a score',
       },
-      createPrompt: async ({ run, results }) => {
+      createPrompt: async ({ results }) => {
         // Simulate async operation
         await new Promise(resolve => setTimeout(resolve, 5));
         const preprocessResult = results.preprocessStepResult as {
@@ -286,7 +286,7 @@ export const AsyncFunctionBasedScorerBuilders = {
         }),
         instructions: 'Generate a reason',
       },
-      createPrompt: async ({ run, results, score }) => {
+      createPrompt: async ({ results, score }) => {
         // Simulate async operation
         await new Promise(resolve => setTimeout(resolve, 5));
         const preprocessResult = results.preprocessStepResult as {
