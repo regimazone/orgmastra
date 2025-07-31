@@ -48,6 +48,24 @@ type GenerateReasonContext<TAccumulated extends Record<string, any>> = StepConte
   score: TAccumulated extends Record<'generateScoreStepResult', infer TScore> ? TScore : never;
 };
 
+type ScorerResult<TAccumulatedResults extends Record<string, any>> = Promise<{
+  run: ScorerRun;
+  score: TAccumulatedResults extends Record<'generateScoreStepResult', infer TScore> ? TScore : never;
+  reason?: TAccumulatedResults extends Record<'generateReasonStepResult', infer TReason> ? TReason : undefined;
+
+  // Prompts
+  preprocessPrompt?: string;
+  analyzePrompt?: string;
+  generateScorePrompt?: string;
+  generateReasonPrompt?: string;
+
+  // Results
+  preprocessResult?: TAccumulatedResults extends Record<'preprocessStepResult', infer TPreprocess>
+    ? TPreprocess
+    : undefined;
+  analyzeResult?: TAccumulatedResults extends Record<'analyzeStepResult', infer TAnalyze> ? TAnalyze : undefined;
+}>;
+
 // Conditional type for PromptObject context
 type PromptObjectContext<
   TAccumulated extends Record<string, any>,
@@ -156,10 +174,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     return this.metadata.judge;
   }
 
-  private get hasGenerateScore(): boolean {
-    return this.steps.some(step => step.name === 'generateScore');
-  }
-
   preprocess<TPreprocessOutput>(
     stepDef: PreprocessStepDef<TAccumulatedResults, TPreprocessOutput>,
   ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'preprocess', Awaited<TPreprocessOutput>>> {
@@ -237,7 +251,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
   generateReason<TReasonOutput = string>(
     stepDef: GenerateReasonStepDef<TAccumulatedResults>,
   ): MastraNewScorer<AccumulatedResults<TAccumulatedResults, 'generateReason', Awaited<TReasonOutput>>> {
-    // Runtime check: generateReason only allowed after generateScore
     if (!this.hasGenerateScore) {
       throw new Error(`Pipeline "${this.metadata.name}": generateReason() can only be called after generateScore()`);
     }
@@ -265,29 +278,11 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     );
   }
 
-  async run(
-    input: ScorerRun,
-    options: {
-      llmCall?: (prompt: string, schema: z.ZodSchema<any>) => any;
-      logPrompts?: boolean;
-    } = {},
-  ): Promise<{
-    run: ScorerRun;
-    score: TAccumulatedResults extends Record<'generateScoreStepResult', infer TScore> ? TScore : never;
-    reason?: TAccumulatedResults extends Record<'generateReasonStepResult', infer TReason> ? TReason : undefined;
+  private get hasGenerateScore(): boolean {
+    return this.steps.some(step => step.name === 'generateScore');
+  }
 
-    // Prompts
-    preprocessPrompt?: string;
-    analyzePrompt?: string;
-    generateScorePrompt?: string;
-    generateReasonPrompt?: string;
-
-    // Results
-    preprocessResult?: TAccumulatedResults extends Record<'preprocessStepResult', infer TPreprocess>
-      ? TPreprocess
-      : undefined;
-    analyzeResult?: TAccumulatedResults extends Record<'analyzeStepResult', infer TAnalyze> ? TAnalyze : undefined;
-  }> {
+  async run(input: ScorerRun): ScorerResult<TAccumulatedResults> {
     // Runtime check: execute only allowed after generateScore
     if (!this.hasGenerateScore) {
       throw new Error(
@@ -333,47 +328,24 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     }));
   }
 
-  // Get complete pipeline metadata including steps
-  getMetadata(): {
-    name: string;
-    description: string;
-    steps: Array<{ name: string; type: 'function' | 'prompt'; description?: string }>;
-    stepCount: number;
-    hasGenerateScore: boolean;
-  } {
-    return {
-      name: this.metadata.name,
-      description: this.metadata.description,
-      steps: this.getSteps(),
-      stepCount: this.steps.length,
-      hasGenerateScore: this.hasGenerateScore,
-    };
-  }
-
   private toMastraWorkflow() {
-    // Runtime validation (keep your existing logic)
     if (!this.hasGenerateScore) {
       throw new Error(`Cannot execute pipeline without generateScore() step`);
     }
 
     // Convert each scorer step to a workflow step
-    const workflowSteps = this.steps.map((scorerStep, index) => {
+    const workflowSteps = this.steps.map(scorerStep => {
       return createStep({
         id: scorerStep.name,
         description: `Scorer step: ${scorerStep.name}`,
-        // Input schema: first step gets initial data, others get accumulated results
         inputSchema: z.any(),
-        // Output schema: always return the step result
         outputSchema: z.any(),
         execute: async ({ inputData, getInitData }) => {
           const { accumulatedResults = {}, generatedPrompts = {} } = inputData;
           const { run } = getInitData();
 
-          // Create scorer-specific context (your existing logic)
           const context = this.createScorerContext(scorerStep.name, run, accumulatedResults);
 
-          console.log('context', JSON.stringify(context, null, 2));
-          // Execute using your existing logic
           let stepResult;
           let newGeneratedPrompts = generatedPrompts;
           if (scorerStep.isPromptObject) {
@@ -387,7 +359,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
             stepResult = await this.executeFunctionStep(scorerStep, context);
           }
 
-          // Update accumulated results
           const newAccumulatedResults = {
             ...accumulatedResults,
             [`${scorerStep.name}StepResult`]: stepResult,
@@ -402,7 +373,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       });
     });
 
-    // Create the workflow - based on the docs structure
     const workflow = createWorkflow({
       id: `scorer-${this.metadata.name}`,
       description: this.metadata.description,
@@ -422,18 +392,16 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       }),
     });
 
-    // Chain steps sequentially using .then() - from the docs
     let chainedWorkflow = workflow;
     for (const step of workflowSteps) {
+      // @ts-ignore - Complain about the type mismatch when we chain the steps
       chainedWorkflow = chainedWorkflow.then(step);
     }
 
-    // Must call .commit() to finalize - from the docs
     return chainedWorkflow.commit();
   }
 
   private createScorerContext(stepName: string, run: ScorerRun, accumulatedResults: Record<string, any>) {
-    // Your existing context creation logic
     if (stepName === 'generateReason') {
       const score = accumulatedResults.generateScoreStepResult;
       if (score === undefined) {
@@ -457,7 +425,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
 
     const prompt = await originalStep.createPrompt(context);
 
-    // Your existing prompt execution logic
+    // GenerateScore output must be a number
     if (scorerStep.name === 'generateScore') {
       const model = originalStep.judge?.model ?? this.metadata.judge?.model;
       const instructions = originalStep.judge?.instructions ?? this.metadata.judge?.instructions;
@@ -471,6 +439,8 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
         output: z.object({ score: z.number() }),
       });
       return { result: result.object.score, prompt };
+
+      // GenerateReason output must be a string
     } else if (scorerStep.name === 'generateReason') {
       const model = originalStep.judge?.model ?? this.metadata.judge?.model;
       const instructions = originalStep.judge?.instructions ?? this.metadata.judge?.instructions;
@@ -483,9 +453,9 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       const result = await judge.generate(prompt);
       return { result: result.text, prompt };
     } else {
-      // Handle other prompt steps
-      const model = originalStep.judge?.model ?? this.metadata.judge?.model;
-      const instructions = originalStep.judge?.instructions ?? this.metadata.judge?.instructions;
+      const promptStep = originalStep as PromptObject<any, any, any>;
+      const model = promptStep.judge?.model ?? this.metadata.judge?.model;
+      const instructions = promptStep.judge?.instructions ?? this.metadata.judge?.instructions;
 
       if (!model || !instructions) {
         throw new Error(`${scorerStep.name} step requires a model and instructions`);
@@ -494,7 +464,7 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
       const judge = new Agent({ name: 'judge', model, instructions });
 
       const result = await judge.generate(prompt, {
-        output: originalStep.outputSchema,
+        output: promptStep.outputSchema,
       });
       return { result: result.object, prompt };
     }
@@ -505,7 +475,6 @@ class MastraNewScorer<TAccumulatedResults extends Record<string, any> = {}> {
     const accumulatedResults = finalStepResult?.accumulatedResults || {};
     const generatedPrompts = finalStepResult?.generatedPrompts || {};
 
-    // Return in your existing format
     return {
       run: originalInput,
       score: accumulatedResults.generateScoreStepResult,
@@ -525,23 +494,6 @@ export function createNewScorer({ name, description, judge }: ScorerConfig): Mas
 }
 
 // Export types and interfaces for use in test files
-export type {
-  ScorerConfig,
-  ScorerRun,
-  StepContext,
-  GenerateReasonContext,
-  PromptObject,
-  GenerateScorePromptObject,
-  GenerateReasonPromptObject,
-  FunctionStep,
-  GenerateScoreFunctionStep,
-  GenerateReasonFunctionStep,
-  PreprocessStepDef,
-  AnalyzeStepDef,
-  GenerateScoreStepDef,
-  GenerateReasonStepDef,
-  AccumulatedResults,
-  Awaited,
-};
+export type { ScorerConfig, ScorerRun, StepContext, PromptObject };
 
 export { MastraNewScorer };
