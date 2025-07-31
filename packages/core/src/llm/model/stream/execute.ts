@@ -69,14 +69,14 @@ function createAgentWorkflow({
           id: 'generateText',
         } as any);
 
-        const messageList = MessageList.fromArray(initialResult.userMessages);
+        const messageList = MessageList.fromArray(initialResult.messages.user);
 
         const result = await tool.execute(inputData.args, {
           toolCallId: inputData.toolCallId,
           messages: messageList.get.all
-            .ui()
-            .filter(message => message.role === 'user')
-            .map(message => ({
+            ?.ui()
+            ?.filter(message => message.role === 'user')
+            ?.map(message => ({
               role: message.role,
               content: message.content,
             })) as any,

@@ -345,14 +345,16 @@ export function toDataStreamResponseTests({ executeFn, runId }: { executeFn: typ
         ...defaultSettings(),
       });
 
-      expect(
-        await convertReadableStreamToArray(
-          result.aisdk.v4
-            .toDataStream()
-            .pipeThrough(new TextEncoderStream() as any)
-            .pipeThrough(new TextDecoderStream() as any) as any,
-        ),
-      ).toMatchSnapshot();
+      const messages = await convertReadableStreamToArray(
+        result.aisdk.v4
+          .toDataStream()
+          .pipeThrough(new TextEncoderStream() as any)
+          .pipeThrough(new TextDecoderStream() as any) as any,
+      );
+
+      console.dir({ messages }, { depth: null });
+
+      expect(messages).toMatchSnapshot();
     });
 
     it('should mask error messages by default', async () => {
