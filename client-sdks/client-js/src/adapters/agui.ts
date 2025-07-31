@@ -16,7 +16,6 @@ import type {
 import { AbstractAgent, EventType } from '@ag-ui/client';
 import { Observable } from 'rxjs';
 import type { Agent } from '../resources/agent';
-import type { UIMessage, ToolInvocation } from '@ai-sdk/ui-utils';
 
 interface MastraAgentConfig extends AgentConfig {
   agent: Agent;
@@ -186,49 +185,66 @@ export function generateUUID(): string {
   });
 }
 
-export function convertMessagesToMastraMessages(messages: Message[]): UIMessage[] {
-  const result: UIMessage[] = [];
+export function convertMessagesToMastraMessages(messages: Message[]): any[] {
+  const result: any[] = [];
 
   for (const message of messages) {
     if (message.role === 'assistant') {
-      const toolInvocations: ToolInvocation[] = [];
-      const parts: UIMessage['parts'] = [];
+      const content: any[] = [];
 
       if (message.content) {
-        parts.push({ type: 'text', text: message.content });
+        content.push({ type: 'text', text: message.content });
       }
 
       for (const toolCall of message.toolCalls ?? []) {
-        const invocation: ToolInvocation = {
-          state: 'call',
+        content.push({
+          type: 'tool-call',
           toolCallId: toolCall.id,
           toolName: toolCall.function.name,
           args: JSON.parse(toolCall.function.arguments),
-        };
-        toolInvocations.push(invocation);
-        parts.push({
-          type: 'tool-invocation',
-          toolInvocation: invocation,
         });
       }
 
+      // Always add the assistant message
       result.push({
-        id: message.id,
         role: 'assistant',
-        content: message.content || '',
-        parts,
-        toolInvocations: toolInvocations.length > 0 ? toolInvocations : undefined,
+        content: content.length > 0 ? content : message.content || '',
       });
+
+      // If there are tool calls, add tool result messages for each
+      if (message.toolCalls?.length) {
+        for (const toolCall of message.toolCalls) {
+          result.push({
+            role: 'tool',
+            content: [
+              {
+                type: 'tool-result',
+                toolCallId: toolCall.id,
+                toolName: toolCall.function.name,
+                result: JSON.parse(toolCall.function.arguments),
+              },
+            ],
+          });
+        }
+      }
     } else if (message.role === 'user') {
       result.push({
-        id: message.id,
         role: 'user',
         content: message.content || '',
-        parts: [],
+      });
+    } else if (message.role === 'tool') {
+      result.push({
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: message.toolCallId,
+            toolName: 'unknown',
+            result: message.content || '',
+          },
+        ],
       });
     }
-    // Note: tool messages are not directly supported in UIMessage format
-    // They are handled as part of assistant messages with toolInvocations
   }
 
   return result;
