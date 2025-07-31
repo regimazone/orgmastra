@@ -184,6 +184,7 @@ export class MastraModelOutput extends MastraBase {
               self.#usageCount = chunk.payload.output.usage;
 
               const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
+              console.log('BASSE', baseFinishStep);
 
               if (baseFinishStep) {
                 const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
@@ -191,6 +192,7 @@ export class MastraModelOutput extends MastraBase {
                 console.log('FINISH CHUNK', JSON.stringify(chunk.payload.messages, null, 2));
 
                 await options?.onFinish?.({
+                  ...rest,
                   finishReason: chunk.payload.stepResult.reason,
                   steps: self.#bufferedSteps,
                   experimental_providerMetadata: chunk.payload.metadata.providerMetadata,

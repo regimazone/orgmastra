@@ -211,7 +211,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       expect(result).toMatchSnapshot();
     });
 
-    it('should send sources', async () => {
+    it.only('should send sources', async () => {
       let result!: any;
 
       const resultObject = await executeFn({
@@ -219,6 +219,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         model: modelWithSources,
         options: {
           onFinish: async event => {
+            console.log('onfinish_event', event);
             result = event as unknown as typeof result;
           },
         },
