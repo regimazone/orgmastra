@@ -170,13 +170,13 @@ export class MastraModelOutput extends MastraBase {
                 self.#finishReason = chunk.payload.stepResult.reason;
               }
 
-              if (chunk.payload.metadata.providerMetadata) {
-                self.#providerMetadata = chunk.payload.metadata.providerMetadata;
-              }
-
               if (chunk.payload.metadata) {
+                const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
+
+                self.#providerMetadata = chunk.payload.metadata.providerMetadata;
+
                 self.#response = {
-                  ...chunk.payload.metadata,
+                  ...otherMetadata,
                   messages: chunk.payload.messages.all,
                 };
               }
@@ -184,20 +184,20 @@ export class MastraModelOutput extends MastraBase {
               self.#usageCount = chunk.payload.output.usage;
 
               const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
-              console.log('BASSE', baseFinishStep);
 
               if (baseFinishStep) {
                 const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
 
-                console.log('FINISH CHUNK', JSON.stringify(chunk.payload.messages, null, 2));
+                console.log('uhhwhat', JSON.stringify(chunk.payload.metadata, null, 2));
 
+                const { providerMetadata, request: _request, ...otherMetadata } = chunk.payload.metadata;
                 await options?.onFinish?.({
                   ...rest,
                   finishReason: chunk.payload.stepResult.reason,
                   steps: self.#bufferedSteps,
                   experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
                   response: {
-                    ...rest.metadata,
+                    ...otherMetadata,
                     messages: chunk.payload.messages.all,
                   },
                 });

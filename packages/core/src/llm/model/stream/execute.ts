@@ -277,7 +277,6 @@ function createAgentWorkflow({
                     warnings: warnings,
                     totalUsage: chunk.payload.totalUsage,
                     headers: rawResponse?.headers,
-                    metadata: runState.state.responseMetadata,
                     messageId,
                     isContinued: !['stop', 'error'].includes(chunk.payload.reason),
                     request,
@@ -469,6 +468,7 @@ function createAgentWorkflow({
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
         const responseMetadata = runState.state.responseMetadata;
+        console.log('final_metadata', responseMetadata);
 
         return {
           messageId,
