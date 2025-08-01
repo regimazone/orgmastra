@@ -239,7 +239,7 @@ function createAgentWorkflow({
               });
             }
 
-            if (chunk.type !== 'text-delta' && runState.state.isStreaming) {
+            if (chunk.type !== 'text-delta' && chunk.type !== 'tool-call' && runState.state.isStreaming) {
               if (runState.state.textDeltas.length) {
                 messageList.add(
                   {
