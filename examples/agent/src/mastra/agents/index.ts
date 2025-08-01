@@ -8,8 +8,13 @@ import { cookingTool } from '../tools/index.js';
 import { myWorkflow } from '../workflows/index.js';
 import { PIIDetector, LanguageDetector, PromptInjectionDetector } from '@mastra/core/agent/input-processor/processors';
 import { MCPClient } from '@mastra/mcp';
+import { createAnswerRelevancyScorer } from '@mastra/evals/scorers/llm';
 
 const memory = new Memory();
+
+const model = openai('gpt-4o-mini');
+
+const answerRelevancyScorer = createAnswerRelevancyScorer({ model });
 
 // Define schema directly compatible with OpenAI's requirements
 const mySchema = jsonSchema({
@@ -83,6 +88,15 @@ export const dynamicAgent = new Agent({
     }
 
     return tools;
+  },
+  scorers: {
+    answerRelevancy: {
+      scorer: answerRelevancyScorer,
+      sampling: {
+        type: 'ratio',
+        rate: 1,
+      },
+    },
   },
 });
 

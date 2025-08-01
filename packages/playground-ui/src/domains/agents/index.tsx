@@ -10,3 +10,4 @@ export * from './components/agent-entity-header';
 export * from './components/chat-threads';
 export * from './components/agent-version-dialog';
 export * from './components/agent-trace-dialog';
+export * from './components/agent-details';

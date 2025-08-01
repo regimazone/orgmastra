@@ -4,12 +4,9 @@ import {
   Header,
   MainContentLayout,
   DatasetItemDialog,
-  EntityPageHeader,
   DatasetItemsTools,
+  EntityMainHeader,
   Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   EntryList,
   DatasetSettings,
 } from '@mastra/playground-ui';
@@ -109,9 +106,47 @@ export default function Dataset() {
         <>
           <div className={cn(`h-full overflow-y-scroll `)}>
             <div className={cn('max-w-[100rem] px-[3rem] mx-auto grid')}>
-              <EntityPageHeader title={dataset.name} description={dataset.description} icon={<DatabaseIcon />} />
-              <Tabs value={currentTab} onValueChange={setCurrentTab}>
-                <TabsList>
+              <EntityMainHeader title={dataset.name} description={dataset.description} icon={<DatabaseIcon />} />
+              <Tabs value={currentTab} defaultTab="items" onValueChange={setCurrentTab}>
+                <Tabs.List>
+                  <Tabs.Tab value="items">Data items</Tabs.Tab>
+                  <Tabs.Tab value="experiments">Experiments</Tabs.Tab>
+                  <Tabs.Tab value="settings">Settings</Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Content value="items">
+                  <DatasetItemsTools
+                    onAdd={handleOnAdd}
+                    currentVersion={currentVersion}
+                    onVersionChange={handleVersionChange}
+                    versionOptions={['ver. 07/23 10:30 AM', 'ver. 07/23 9:35 AM', 'ver. 07/23 9:30 AM']}
+                  />
+                  <EntryList
+                    items={items || []}
+                    selectedItem={selectedItem}
+                    onItemClick={handleOnListItem}
+                    columns={itemsListColumns}
+                    isLoading={isLoading}
+                  />
+                </Tabs.Content>
+                <Tabs.Content value="experiments">
+                  <EntryList
+                    items={[]}
+                    selectedItem={null}
+                    onItemClick={() => {}}
+                    columns={experimentsListColumns}
+                    isLoading={false}
+                  />
+                </Tabs.Content>
+                <Tabs.Content value="settings">
+                  <DatasetSettings
+                    dataset={dataset}
+                    onUpdate={handleUpdate}
+                    onRemove={handleRemove}
+                    onCancel={() => setCurrentTab('items')}
+                  />
+                </Tabs.Content>
+
+                {/* <TabsList>
                   <TabsTrigger value="items">Data items</TabsTrigger>
                   <TabsTrigger value="experiments">Experiments</TabsTrigger>
                   <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -147,7 +182,7 @@ export default function Dataset() {
                     onRemove={handleRemove}
                     onCancel={() => setCurrentTab('items')}
                   />
-                </TabsContent>
+                </TabsContent> */}
               </Tabs>
             </div>
           </div>

@@ -20,8 +20,8 @@ export function EntryList({
   searchTerm,
 }: {
   items: any[];
-  selectedItem: any;
-  onItemClick?: (item: any) => void;
+  selectedItem: Record<string, any> | null;
+  onItemClick?: (item: string) => void;
   isLoading?: boolean;
   total?: number;
   page?: number;
@@ -32,6 +32,8 @@ export function EntryList({
   columns?: Column[];
   searchTerm?: string;
 }) {
+  console.log('selectedItem', selectedItem);
+
   if (isLoading) {
     return (
       <div className="flex border border-border1 w-full h-[3.5rem] items-center justify-center text-[0.875rem] text-icon3 rounded-lg">
@@ -63,7 +65,7 @@ export function EntryList({
 
       {items?.length > 0 && (
         <>
-          <ul className="grid border border-border1 border-t-0 bg-surface3 rounded-xl rounded-t-none ">
+          <ul className="grid border border-border1 border-t-0 bg-surface3 rounded-xl rounded-t-none overflow-hidden">
             {items.map(item => {
               return (
                 <EntryListItem

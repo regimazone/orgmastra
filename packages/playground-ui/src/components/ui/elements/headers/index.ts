@@ -1,1 +1,1 @@
-export * from './entity-page-header';
+export * from './entity-main-header';

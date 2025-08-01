@@ -1,19 +1,21 @@
 import { cn } from '@/lib/utils';
 import { TriangleAlertIcon } from 'lucide-react';
 import * as React from 'react';
+import * as RadixSlider from '@radix-ui/react-slider';
 
-type InputFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
+type SliderFieldProps = React.ComponentProps<typeof RadixSlider.Root> & {
   name?: string;
   testId?: string;
   label?: React.ReactNode;
   required?: boolean;
   disabled?: boolean;
-  value?: string;
+  value?: number[];
   helpMsg?: string;
   errorMsg?: string;
+  className?: string;
 };
 
-export function InputField({
+export function SliderField({
   name,
   value,
   label,
@@ -23,8 +25,9 @@ export function InputField({
   disabled,
   helpMsg,
   errorMsg,
+  onChange,
   ...props
-}: InputFieldProps) {
+}: SliderFieldProps) {
   return (
     <div
       className={cn(
@@ -39,21 +42,20 @@ export function InputField({
         {label}
         {required && <i className="text-icon2">(required)</i>}
       </label>
-      <div className={cn('grid w-full items-center gap-[1rem]')}>
-        <input
+      <div className={cn('grid w-full items-center gap-[1rem] grid-cols-[1fr_auto]')}>
+        <RadixSlider.Root
           name={name}
+          className={cn('relative flex w-full touch-none select-none items-center ', className)}
           value={value}
-          className={cn(
-            'flex grow items-center cursor-pointer text-[0.875rem] text-[rgba(255,255,255,0.7)] border border-[rgba(255,255,255,0.15)] leading-none rounded-lg bg-transparent min-h-[2.25rem] px-[0.75rem] py-[0.5rem]',
-            'focus:outline-none focus:shadow-[inset_0_0_0_1px_#18fb6f]',
-            {
-              'cursor-not-allowed opacity-50': disabled,
-              'border-red-600': errorMsg,
-            },
-          )}
-          data-testid={testId}
+          disabled={disabled}
           {...props}
-        />
+        >
+          <RadixSlider.Track className="relative h-[4px] w-full grow overflow-hidden rounded-full">
+            <RadixSlider.Range className="absolute h-full bg-gray-400" />
+          </RadixSlider.Track>
+          <RadixSlider.Thumb className="block h-4 w-4 rounded-full bg-gray-400 shadow transition-colors focus:outline-none focus:bg-[#18fb6f] disabled:pointer-events-none disabled:opacity-50" />
+        </RadixSlider.Root>
+        <span className="text-icon4 text-[0.875rem] flex justify-end">{value}</span>
       </div>
       {helpMsg && <p className="text-icon3 text-[0.75rem]">{helpMsg}</p>}
       {errorMsg && (

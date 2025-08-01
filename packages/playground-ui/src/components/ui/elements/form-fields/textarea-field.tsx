@@ -7,6 +7,7 @@ type TextareaFieldProps = React.InputHTMLAttributes<HTMLTextAreaElement> & {
   helpText?: string;
   value?: string;
   disabled?: boolean;
+  className?: string;
 };
 
 export function TextareaField({
@@ -29,10 +30,11 @@ export function TextareaField({
         className,
       )}
     >
-      <label className={cn('text-[0.8125rem] text-icon3 flex justify-between items-center')}>{label}</label>
+      {label && <label className={cn('text-[0.8125rem] text-icon3 flex justify-between items-center')}>{label}</label>}
       <textarea
         className={cn(
           'flex w-full items-center leading-[1.6] text-[0.875rem] text-[rgba(255,255,255,0.7)] border border-[rgba(255,255,255,0.15)] rounded-lg bg-transparent py-[0.5rem] px-[0.75rem] min-h-[6rem]',
+          'focus:outline-none focus:shadow-[inset_0_0_0_1px_#18fb6f]',
           { 'cursor-not-allowed opacity-50': disabled },
         )}
         data-testid={testId}

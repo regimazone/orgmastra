@@ -5,6 +5,9 @@ module.exports = {
   content: ['./src/**/*.{html,js, tsx, ts, jsx}'],
   theme: {
     extend: {
+      screens: {
+        xs: '475px',
+      },
       animation: {
         'fade-in': 'fade-in 1s ease-out',
       },
@@ -27,4 +30,8 @@ module.exports = {
     require('@assistant-ui/react/tailwindcss'),
     require('@assistant-ui/react-markdown/tailwindcss'),
   ],
+  // Enable container queries
+  experimental: {
+    containerQueries: true,
+  },
 };

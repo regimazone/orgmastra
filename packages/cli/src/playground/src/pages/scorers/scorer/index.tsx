@@ -2,7 +2,8 @@ import {
   AgentIcon,
   Breadcrumb,
   Crumb,
-  EntityPageHeader,
+  EntityMainHeader,
+  EntryList,
   Header,
   MainContentLayout,
   Relations,
@@ -55,8 +56,6 @@ export default function Scorer() {
       };
     }) || [];
 
-  console.log({ agents, workflows });
-
   const scorerEntities = [
     ...scorerAgents.map(agent => ({ id: agent.id, name: agent.name, type: 'AGENT' })),
     ...scorerWorkflows.map(workflow => ({ id: workflow.id, name: workflow.name, type: 'WORKFLOW' })),
@@ -92,6 +91,27 @@ export default function Scorer() {
   const scoresHasMore = scoresData?.pagination.hasMore;
   const scoresPerPage = scoresData?.pagination.perPage;
 
+  const scoreListColumns = [
+    { name: 'day', label: 'Date', size: '7rem' },
+    { name: 'time', label: 'Time', size: '7rem' },
+    { name: 'input', label: 'Input', size: '1fr' },
+    { name: 'output', label: 'Output', size: '2fr' },
+    { name: 'entity', label: 'Entity', size: '10rem' },
+    { name: 'score', label: 'Score', size: '3rem' },
+  ];
+
+  const scoreListItems = (scores || []).map(score => {
+    return {
+      id: score.id,
+      day: format(new Date(score.createdAt), 'MMM d yyyy'),
+      time: format(new Date(score.createdAt), 'h:mm:ss bb'),
+      input: score?.input?.[0]?.content || score?.input?.[0]?.ingredient || '',
+      output: score?.output?.text || score?.output?.object?.result || '',
+      entity: score.entityId,
+      score: score?.score ? Math.round(score?.score * 100) / 100 : '0',
+    };
+  });
+
   const handleFilterChange = (value: string) => {
     if (value === 'all') {
       setFilteredByEntity('');
@@ -107,10 +127,17 @@ export default function Scorer() {
     }
   };
 
-  const handleOnListItemClick = (score: any) => {
-    if (score.id === selectedScore?.id) {
+  const handleOnListItemClick = (id: string) => {
+    if (id === selectedScore?.id) {
       setSelectedScore(null);
     } else {
+      const score = scores.find(score => score.id === id);
+
+      if (!score) {
+        console.warn('Score not found for id:', id);
+        return;
+      }
+
       setSelectedScore(score);
       setDetailsIsOpened(true);
     }
@@ -167,18 +194,28 @@ export default function Scorer() {
         <>
           <div className={cn(`h-full overflow-y-scroll `)}>
             <div className={cn('max-w-[100rem] px-[3rem] mx-auto grid')}>
-              <EntityPageHeader
+              <EntityMainHeader
                 title={scorer.scorer?.name}
                 description={scorer.scorer?.description}
                 icon={<GaugeIcon />}
               >
-                <Relations items={scorerRelations} LinkComponent={Link} title="Entities" />
-              </EntityPageHeader>
-              <ScoreListHeader
+                <Relations items={scorerRelations} LinkComponent={Link} title="Connected Entities" />
+              </EntityMainHeader>
+
+              <EntryList
+                items={scoreListItems}
+                selectedItem={selectedScore}
+                onItemClick={handleOnListItemClick}
+                columns={scoreListColumns}
+                isLoading={isLoading}
+              />
+
+              {/* <ScoreListHeader
                 filteredByEntity={filteredByEntity}
                 onFilterChange={handleFilterChange}
                 scorerEntities={scorerEntities}
-              />
+              /> */}
+
               <ScoreList
                 scores={scores || []}
                 selectedScore={selectedScore}

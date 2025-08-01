@@ -10,14 +10,16 @@ export function EntryListItem({
 }: {
   item: any;
   selectedItem: any | null;
-  onClick?: (score: any) => void;
+  onClick?: (score: string) => void;
   children?: React.ReactNode;
   columns?: Column[];
 }) {
-  const isSelected = selectedItem?.id === item.id;
+  const isSelected = selectedItem && selectedItem?.id === item.id;
+
+  console.log('selectedItem', selectedItem, item, isSelected);
 
   const handleClick = () => {
-    return onClick && onClick(item);
+    return onClick && onClick(item?.id);
   };
 
   return (

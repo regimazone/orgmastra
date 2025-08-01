@@ -8,17 +8,30 @@ import {
   TabContent,
   TabList,
   AgentMetadata,
-  AgentEntityHeader,
+  EntityMainHeader,
+  AgentIcon,
+  ToolsIcon,
+  WorkflowIcon,
+  KeyValueList,
+  Tabs,
+  AgentDetails,
+  MemoryIcon,
 } from '@mastra/playground-ui';
 
 import { useMemory } from '@/hooks/use-memory';
 import { AgentMemory } from './agent-memory';
 import { useState, useEffect } from 'react';
 import { AgentPromptEnhancer } from './agent-instructions-enhancer';
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
+import { Link } from 'react-router';
+import { ArrowRightIcon, BrainIcon, GaugeIcon, HashIcon } from 'lucide-react';
 
 export function AgentInformation({ agentId, chatInputValue }: { agentId: string; chatInputValue?: string }) {
   const { agent, isLoading } = useAgent(agentId);
   const { memory, isLoading: isMemoryLoading } = useMemory(agentId);
+  const isRedesignedForCMS = true;
+
+  console.log({ agent });
 
   // Persist tab selection
   const STORAGE_KEY = 'agent-info-selected-tab';
@@ -39,12 +52,98 @@ export function AgentInformation({ agentId, chatInputValue }: { agentId: string;
     }
   }, [isMemoryLoading, memory?.result, selectedTab]);
 
-  return (
-    <div className="grid grid-rows-[auto_1fr] h-full items-start overflow-y-auto border-l-sm border-border1">
-      <AgentEntityHeader agentId={agentId} isLoading={isMemoryLoading} agentName={agent?.name || ''} />
+  const entityData = [
+    {
+      label: 'ID',
+      value: <>{agentId}</>,
+      icon: <HashIcon />,
+    },
+    {
+      label: 'Model',
+      value: (
+        <>
+          {agent?.provider} / {agent?.modelId}
+        </>
+      ),
+      icon: <BrainIcon />,
+    },
+    {
+      label: 'Memory',
+      value: memory?.result ? 'Enabled' : 'Disabled',
+      icon: <MemoryIcon />,
+    },
+    {
+      label: 'Tools',
+      icon: <ToolsIcon />,
+      separator: <ArrowRightIcon />,
+      value: [
+        {
+          id: 'tool1',
+          name: 'cooking-tool',
+          description: 'Description for Tool 1',
+          path: '/tools/chefAgent/tool-a65397fb',
+          icon: <ToolsIcon />,
+        },
+        {
+          id: 'tool2',
+          name: 'tool-a65397fb',
+          description: 'Description for Tool 2',
+          path: '/tools/chefAgent/cooking-tool',
+          icon: <ToolsIcon />,
+        },
+      ],
+    },
+    {
+      label: 'Workflows',
+      icon: <WorkflowIcon />,
+      separator: <ArrowRightIcon />,
+      value: [
+        {
+          id: 'workflow1',
+          name: 'my-workflow',
+          description: 'Description for Workflow 1',
+          path: '/workflows/myWorkflow/graph',
+          icon: <WorkflowIcon />,
+        },
+      ],
+    },
+    {
+      label: 'Scorers',
+      icon: <GaugeIcon />,
+      value: 'n/a',
+    },
+  ];
 
-      <div className="flex-1 overflow-hidden border-t-sm border-border1 flex flex-col">
-        <PlaygroundTabs value={selectedTab} onValueChange={handleTabChange}>
+  return (
+    <div className="grid h-full relative items-start overflow-y-auto border-l border-border1 pl-[1.5rem] content-start grid-rows-[auto_1fr] ">
+      <EntityMainHeader title={agent?.name} icon={<AgentIcon />} placement="sidebar" />
+      <div className="grid overflow-y-auto h-full pr-[1.5rem] content-start">
+        <KeyValueList data={entityData} LinkComponent={Link} />
+
+        <Tabs value={selectedTab} onValueChange={handleTabChange} defaultTab="overview" className="mt-[2rem]">
+          <Tabs.List variant="buttons" className="sticky top-0 bg-surface2 z-[100]">
+            <Tabs.Tab value="overview">Settings</Tabs.Tab>
+            {memory?.result && <Tabs.Tab value="memory">Memory</Tabs.Tab>}
+            <Tabs.Tab value="logs">Log Drains</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Content value="overview">
+            <AgentDetails LinkComponent={Link} agentId={agentId} agent={agent} />
+          </Tabs.Content>
+          <TabContent value="memory">
+            {isLoading ? (
+              <Skeleton className="h-full" />
+            ) : (
+              <AgentMemory agentId={agentId} chatInputValue={selectedTab === 'memory' ? chatInputValue : undefined} />
+            )}
+          </TabContent>
+          <TabContent value="logs">
+            {isLoading ? <Skeleton className="h-full" /> : <AgentLogs agentId={agentId} />}
+          </TabContent>
+        </Tabs>
+      </div>
+
+      {/* <div className="flex-1 overflow-hidden border-t-sm border-border1 flex flex-col">
+        <PlaygroundTabs value={selectedTab} defaultTab="overview" onValueChange={handleTabChange}>
           <TabList>
             <Tab value="overview">Overview</Tab>
             <Tab value="model-settings">Model Settings</Tab>
@@ -78,7 +177,8 @@ export function AgentInformation({ agentId, chatInputValue }: { agentId: string;
             {isLoading ? <Skeleton className="h-full" /> : <AgentLogs agentId={agentId} />}
           </TabContent>
         </PlaygroundTabs>
-      </div>
+      </div> 
+      */}
     </div>
   );
 }
