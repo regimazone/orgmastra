@@ -1,4 +1,4 @@
-import type { UIMessage } from '@ai-sdk/ui-utils';
+import type { UIMessage } from 'ai';
 import type {
   MastraMessageV1,
   CoreMessage,
