@@ -3,10 +3,11 @@ import type {
   LanguageModelV2ProviderDefinedTool,
   LanguageModelV2ToolChoice,
 } from '@ai-sdk/provider-v5';
-import type { ToolChoice, ToolSet } from 'ai-v5';
-import { asSchema } from 'ai-v5';
+import type { ToolChoice } from 'ai-v5';
+import { asSchema, tool as toolFn } from 'ai-v5';
+import type { CoreTool, CoreToolV2 } from '../../../../../tools';
 
-export function prepareToolsAndToolChoice<TOOLS extends ToolSet>({
+export function prepareToolsAndToolChoice<TOOLS extends Record<string, CoreTool | CoreToolV2>>({
   tools,
   toolChoice,
   activeTools,
@@ -33,29 +34,48 @@ export function prepareToolsAndToolChoice<TOOLS extends ToolSet>({
 
   return {
     tools: filteredTools.map(([name, tool]) => {
-      const toolType = tool.type;
-      switch (toolType) {
-        case undefined:
-        case 'dynamic':
-        case 'function':
-          return {
-            type: 'function' as const,
-            name,
-            description: tool.description,
-            inputSchema: asSchema(tool.inputSchema).jsonSchema,
-            providerOptions: tool.providerOptions,
-          };
-        case 'provider-defined':
-          return {
-            type: 'provider-defined' as const,
-            name,
-            id: tool.id,
-            args: tool.args,
-          };
-        default: {
-          const exhaustiveCheck: never = toolType;
-          throw new Error(`Unsupported tool type: ${exhaustiveCheck}`);
+      try {
+        let inputSchema;
+        if ('inputSchema' in tool) {
+          inputSchema = tool.inputSchema;
+        } else {
+          inputSchema = tool.parameters;
         }
+
+        const sdkTool = toolFn({
+          type: 'function',
+          ...tool,
+          inputSchema,
+        } as any);
+
+        const toolType = sdkTool?.type ?? 'function';
+
+        switch (toolType) {
+          case undefined:
+          case 'dynamic':
+          case 'function':
+            return {
+              type: 'function' as const,
+              name,
+              description: sdkTool.description,
+              inputSchema: asSchema(sdkTool.inputSchema).jsonSchema,
+              providerOptions: sdkTool.providerOptions,
+            };
+          case 'provider-defined':
+            return {
+              type: 'provider-defined' as const,
+              name,
+              id: sdkTool.id,
+              args: sdkTool.args,
+            };
+          default: {
+            const exhaustiveCheck: never = toolType;
+            throw new Error(`Unsupported tool type: ${exhaustiveCheck}`);
+          }
+        }
+      } catch (e) {
+        console.error('Error preparing tool', e);
+        return null;
       }
     }),
     toolChoice:

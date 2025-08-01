@@ -3,6 +3,7 @@ import type { ToolSet as ToolSetV5 } from 'ai-v5';
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
+import type { CoreTool, CoreToolV2 } from '../../../tools';
 
 export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
 
@@ -32,7 +33,7 @@ export type ExecutionProps = {
   inputMessages: LanguageModelV1Prompt;
   runId: string;
   providerMetadata?: Record<string, any>;
-  tools?: ToolSet | ToolSetV5;
+  tools?: Record<string, CoreTool | CoreToolV2>;
   toolChoice?: ToolChoice<ToolSet> | undefined;
   activeTools?: Array<keyof ToolSet> | undefined;
   _internal?: StreamInternal;

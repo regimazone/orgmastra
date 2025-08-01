@@ -28,6 +28,10 @@ export type CoreTool = {
     }
 );
 
+export type CoreToolV2 = Omit<CoreTool, 'parameters'> & {
+  inputSchema: ZodSchema | JSONSchema7Type | Schema;
+};
+
 // Duplicate of CoreTool but with parameters as Schema to make it easier to work with internally
 export type InternalCoreTool = {
   id?: string;

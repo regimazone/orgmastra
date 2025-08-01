@@ -19,7 +19,9 @@ export class AISDKV5InputStream extends MastraModelInput {
     controller: ReadableStreamDefaultController<ChunkType>;
   }) {
     for await (const chunk of stream) {
+      console.log('transform chunk v5 input', chunk);
       const transformedChunk = convertFullStreamChunkToMastra(chunk, { runId });
+      console.log('transform transformedChunk v5', transformedChunk);
       if (transformedChunk) {
         controller.enqueue(transformedChunk);
       }

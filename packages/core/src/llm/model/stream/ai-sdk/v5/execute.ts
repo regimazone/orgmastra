@@ -35,10 +35,43 @@ export function executeV5({
       try {
         const stream = await model.doStream({
           ...toolsAndToolChoice,
-          prompt: inputMessages as any, // TODO: fix this?
+          prompt: inputMessages.map(m => {
+            if (m.role === 'tool') {
+              return {
+                ...m,
+                content: m.content.map(c => {
+                  return {
+                    toolCallId: c.toolCallId,
+                    output: {
+                      type: typeof c.result === 'string' ? 'text' : 'json',
+                      value: c.result,
+                    },
+                  };
+                }),
+              };
+            }
+
+            if (m.role === 'assistant') {
+              return {
+                ...m,
+                content: m.content.map(c => {
+                  if (c.type === 'tool-call') {
+                    return {
+                      ...c,
+                      input: c.args,
+                    };
+                  }
+                  return c;
+                }),
+              };
+            }
+
+            return m;
+          }),
         });
         return stream as any;
       } catch (error) {
+        console.error('Error creating stream', error);
         return {
           stream: new ReadableStream({
             start: async controller => {

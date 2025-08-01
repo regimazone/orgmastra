@@ -52,7 +52,7 @@ export const chefAgent = new Agent({
   workflows: {
     myWorkflow,
   },
-  memory,
+  // memory,
   voice: new OpenAIVoice(),
 });
 
@@ -91,10 +91,10 @@ export const chefAgentResponses = new Agent({
     You explain cooking steps clearly and offer substitutions when needed, maintaining a friendly and encouraging tone throughout.
     `,
   model: openai.responses('gpt-4o'),
-  tools: {
-    web_search_preview: openai.tools.webSearchPreview(),
-  },
-  workflows: {
-    myWorkflow,
-  },
+  // tools: {
+  //   web_search_preview: openai.tools.webSearchPreview(),
+  // },
+  // workflows: {
+  //   myWorkflow,
+  // },
 });
