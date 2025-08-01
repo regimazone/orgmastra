@@ -222,6 +222,7 @@ function createAgentWorkflow({
                       type: 'reasoning',
                       text: runState.state.reasoningDeltas.join(''),
                       signature: chunk.payload.signature,
+                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
                     },
                   ],
                 },
@@ -230,6 +231,7 @@ function createAgentWorkflow({
 
               runState.setState({
                 isReasoning: false,
+                reasoningDeltas: [],
               });
             }
 
@@ -282,6 +284,7 @@ function createAgentWorkflow({
                 runState.setState({
                   isReasoning: true,
                   reasoningDeltas: reasoningDeltasFromState,
+                  providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
                 });
                 controller.enqueue(chunk);
                 break;
@@ -298,6 +301,7 @@ function createAgentWorkflow({
                           type: 'reasoning',
                           text: reasoningDeltasFromState.join(''),
                           signature: chunk.payload.signature,
+                          providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
                         },
                       ],
                     },
@@ -306,9 +310,36 @@ function createAgentWorkflow({
 
                   runState.setState({
                     reasoningDeltas: [],
+                    providerOptions: undefined,
                   });
                 }
 
+                controller.enqueue(chunk);
+                break;
+              }
+              case 'reasoning-start': {
+                runState.setState({
+                  providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                });
+
+                if (Object.values(chunk.payload.providerMetadata || {}).find((v: any) => v?.redactedData)) {
+                  messageList.add(
+                    {
+                      id: messageId,
+                      role: 'assistant',
+                      content: [
+                        {
+                          type: 'reasoning',
+                          text: '',
+                          providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                        },
+                      ],
+                    },
+                    'response',
+                  );
+                  controller.enqueue(chunk);
+                  break;
+                }
                 controller.enqueue(chunk);
                 break;
               }
@@ -450,6 +481,7 @@ function createAgentWorkflow({
         /**
          * Assemble messages
          */
+
         const allMessages = messageList.get.all.v1().map(message => {
           return {
             id: message.id,

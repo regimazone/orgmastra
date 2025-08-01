@@ -127,7 +127,9 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      expect(result.response.messages).toMatchInlineSnapshot(`
+      const messages = result.aisdk.v5.response.messages;
+
+      expect(messages).toMatchInlineSnapshot(`
             [
               {
                 "content": [
@@ -177,11 +179,11 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     "type": "reasoning",
                   },
                   {
-                    "providerOptions": undefined,
                     "text": "Hi there!",
                     "type": "text",
                   },
                 ],
+                "id": "msg-0",
                 "role": "assistant",
               },
             ]

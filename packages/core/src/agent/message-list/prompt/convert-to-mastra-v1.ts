@@ -119,7 +119,8 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                         content.push({
                           type: 'reasoning' as const,
                           text: detail.text,
-                          signature: detail.signature,
+                          ...(detail.signature ? { signature: detail.signature } : {}),
+                          ...(detail.providerOptions ? { providerOptions: detail.providerOptions } : {}),
                         });
                         break;
                       case 'redacted':
@@ -283,6 +284,12 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
       }
     }
   }
+
+  console.log('BEFORE messages');
+  console.log(JSON.stringify(messages, null, 2));
+
+  console.log('AFTER v1Messages');
+  console.log(JSON.stringify(v1Messages, null, 2));
 
   return v1Messages;
 }

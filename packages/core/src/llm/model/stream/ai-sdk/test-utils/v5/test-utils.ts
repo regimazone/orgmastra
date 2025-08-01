@@ -235,6 +235,13 @@ export const modelWithReasoning = new MockLanguageModelV2({
         delta: ' this problem carefully.',
       },
       {
+        type: 'reasoning-end',
+        id: '4',
+        providerMetadata: {
+          testProvider: { signature: '0987654321' },
+        } as SharedV2ProviderMetadata,
+      },
+      {
         type: 'reasoning-start',
         id: '5',
         providerMetadata: {
@@ -255,13 +262,6 @@ export const modelWithReasoning = new MockLanguageModelV2({
         type: 'reasoning-delta',
         id: '5',
         delta: ' consideration of all factors.',
-      },
-      {
-        type: 'reasoning-end',
-        id: '4',
-        providerMetadata: {
-          testProvider: { signature: '0987654321' },
-        } as SharedV2ProviderMetadata,
       },
       {
         type: 'reasoning-end',

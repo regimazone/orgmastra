@@ -233,6 +233,15 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
               "type": "reasoning-delta",
             },
             {
+              "id": "4",
+              "providerMetadata": {
+                "testProvider": {
+                  "signature": "0987654321",
+                },
+              },
+              "type": "reasoning-end",
+            },
+            {
               "id": "5",
               "providerMetadata": {
                 "testProvider": {
@@ -258,15 +267,6 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
               "providerMetadata": undefined,
               "text": " consideration of all factors.",
               "type": "reasoning-delta",
-            },
-            {
-              "id": "4",
-              "providerMetadata": {
-                "testProvider": {
-                  "signature": "0987654321",
-                },
-              },
-              "type": "reasoning-end",
             },
             {
               "id": "5",

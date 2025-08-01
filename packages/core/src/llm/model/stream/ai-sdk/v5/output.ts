@@ -236,6 +236,10 @@ export class AISDKV5OutputStream {
     return this.#modelOutput.reasoningDetails;
   }
 
+  get response() {
+    return this.#modelOutput.response;
+  }
+
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;

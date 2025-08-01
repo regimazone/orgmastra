@@ -78,6 +78,8 @@ export class MessageList {
 
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
     if (!messages) return this;
+    console.log('add');
+    console.log(JSON.stringify(messages, null, 2));
     for (const message of Array.isArray(messages) ? messages : [messages]) {
       this.addOne(
         typeof message === `string`
@@ -343,7 +345,13 @@ export class MessageList {
       });
     }
 
+    console.log('message');
+    console.log(JSON.stringify(message, null, 2));
+
     const messageV2 = this.inputToMastraMessageV2(message, messageSource);
+
+    console.log('messageV2');
+    console.log(JSON.stringify(messageV2, null, 2));
 
     const { exists, shouldReplace, id } = this.shouldReplaceMessage(messageV2);
 
@@ -620,6 +628,8 @@ export class MessageList {
       return this.hydrateMastraMessageV2Fields(message);
     }
     if (MessageList.isVercelCoreMessage(message)) {
+      console.log('vercelCoreMessageToMastraMessageV2');
+      console.log(message);
       return this.vercelCoreMessageToMastraMessageV2(message, messageSource);
     }
     if (MessageList.isVercelUIMessage(message)) {
@@ -768,7 +778,9 @@ export class MessageList {
             parts.push({
               type: 'reasoning',
               reasoning: '', // leave this blank so we aren't double storing it in the db along with details
-              details: [{ type: 'text', text: part.text, signature: part.signature }],
+              details: [
+                { type: 'text', text: part.text, signature: part.signature, providerOptions: part.providerOptions },
+              ],
             });
             break;
           case 'redacted-reasoning':

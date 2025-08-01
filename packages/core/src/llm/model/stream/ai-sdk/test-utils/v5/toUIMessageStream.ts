@@ -624,6 +624,15 @@ export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof
                   "type": "reasoning-delta",
                 },
                 {
+                  "id": "4",
+                  "providerMetadata": {
+                    "testProvider": {
+                      "signature": "0987654321",
+                    },
+                  },
+                  "type": "reasoning-end",
+                },
+                {
                   "id": "5",
                   "providerMetadata": {
                     "testProvider": {
@@ -646,15 +655,6 @@ export function toUIMessageStreamTests({ executeFn, runId }: { executeFn: typeof
                   "delta": " consideration of all factors.",
                   "id": "5",
                   "type": "reasoning-delta",
-                },
-                {
-                  "id": "4",
-                  "providerMetadata": {
-                    "testProvider": {
-                      "signature": "0987654321",
-                    },
-                  },
-                  "type": "reasoning-end",
                 },
                 {
                   "id": "5",

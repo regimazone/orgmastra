@@ -238,4 +238,8 @@ export class AISDKV4OutputStream {
       });
     });
   }
+
+  get response() {
+    return this.#modelOutput.response;
+  }
 }

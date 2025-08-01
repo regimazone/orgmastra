@@ -8,6 +8,7 @@ type State = {
   hasErrored: boolean;
   reasoningDeltas: string[];
   isReasoning: boolean;
+  providerOptions: Record<string, any> | undefined;
 };
 
 export class AgenticRunState {
@@ -21,6 +22,7 @@ export class AgenticRunState {
         headers: undefined,
       },
       isReasoning: false,
+      providerOptions: undefined,
       hasToolCallStreaming: false,
       hasErrored: false,
       reasoningDeltas: [],
