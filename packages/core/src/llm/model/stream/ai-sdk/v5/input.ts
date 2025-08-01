@@ -20,7 +20,6 @@ export class AISDKV5InputStream extends BaseModelStream {
   }) {
     for await (const chunk of stream) {
       const transformedChunk = convertFullStreamChunkToMastra(chunk, { runId });
-      console.log('transformedChunk', transformedChunk);
       if (transformedChunk) {
         controller.enqueue(transformedChunk);
       }

@@ -171,8 +171,6 @@ export class AISDKV4OutputStream {
             toolCallStreaming: self.#options.toolCallStreaming,
           });
 
-          console.log('transformedChunk', self.#options.toolCallStreaming, transformedChunk);
-
           if (transformedChunk) {
             controller.enqueue(transformedChunk);
           }

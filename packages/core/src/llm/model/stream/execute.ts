@@ -736,14 +736,6 @@ export async function execute(
     runIdToUse = crypto.randomUUID();
   }
 
-  loggerToUse.debug('Running agentic execution', {
-    runId: runIdToUse,
-    system,
-    prompt,
-    resourceId,
-    threadId,
-  });
-
   const messageList = new MessageList({
     threadId,
     resourceId,
