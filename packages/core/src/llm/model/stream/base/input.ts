@@ -3,7 +3,7 @@ import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import type { CreateStream, OnResult } from '../types';
 
-export abstract class BaseModelStream extends MastraBase {
+export abstract class MastraModelInput extends MastraBase {
   abstract transform({
     runId,
     stream,

@@ -5,9 +5,9 @@ import { describe, beforeEach, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createTestModel, defaultSettings, modelWithFiles, modelWithSources } from './test-utils';
 import type { execute } from '../../../execute';
-import { convertFullStreamChunkToAISDKv4 } from '../../v4';
-import { DefaultGeneratedFileWithType } from '../../v4/file';
-import { MockTracer } from '../mockTracer';
+import { convertFullStreamChunkToAISDKv4 } from '..';
+import { DefaultGeneratedFileWithType } from '../file';
+import { MockTracer } from '../../test-utils/mockTracer';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe.skip('options.onChunk', () => {

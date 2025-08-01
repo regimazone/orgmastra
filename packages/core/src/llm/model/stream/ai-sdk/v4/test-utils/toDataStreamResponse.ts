@@ -8,7 +8,7 @@ import { mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { execute } from '../../../execute';
-import { mergeStreams, writeToServerResponse } from '../../v4/compat';
+import { mergeStreams, writeToServerResponse } from '../compat';
 import {
   createMockServerResponse,
   createTestModel,

@@ -2,7 +2,7 @@ import { convertArrayToReadableStream, mockId } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
-import { DefaultGeneratedFileWithType } from '../../v4/file';
+import { DefaultGeneratedFileWithType } from '../file';
 import { createTestModel, defaultSettings, modelWithFiles, modelWithReasoning, modelWithSources } from './test-utils';
 
 export function resultObjectTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {

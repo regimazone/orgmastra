@@ -1,10 +1,10 @@
 import type { ReadableStream } from 'stream/web';
 import type { RegisteredLogger } from '../../../../../logger';
 import type { ChunkType } from '../../../../../stream/types';
-import { BaseModelStream } from '../../base';
+import { MastraModelInput } from '../../base';
 import { convertFullStreamChunkToMastra } from './transforms';
 
-export class AISDKV4InputStream extends BaseModelStream {
+export class AISDKV4InputStream extends MastraModelInput {
   constructor({ component, name }: { component: RegisteredLogger; name: string }) {
     super({ component, name });
   }
