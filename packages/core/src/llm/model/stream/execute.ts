@@ -237,6 +237,28 @@ function createAgentWorkflow({
               });
             }
 
+            if (chunk.type !== 'text-delta' && runState.state.isStreaming) {
+              messageList.add(
+                {
+                  id: messageId,
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'text',
+                      text: runState.state.textDeltas.join(''),
+                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                    },
+                  ],
+                },
+                'response',
+              );
+
+              runState.setState({
+                isStreaming: false,
+                textDeltas: [],
+              });
+            }
+
             switch (chunk.type) {
               case 'error':
                 runState.setState({
@@ -404,6 +426,16 @@ function createAgentWorkflow({
                 );
                 controller.enqueue(chunk);
                 break;
+              case 'text-delta': {
+                const textDeltasFromState = runState.state.textDeltas;
+                textDeltasFromState.push(chunk.payload.text);
+                runState.setState({
+                  textDeltas: textDeltasFromState,
+                  isStreaming: true,
+                });
+                controller.enqueue(chunk);
+                break;
+              }
               default:
                 controller.enqueue(chunk);
             }
@@ -431,24 +463,13 @@ function createAgentWorkflow({
         const toolCalls = outputStream.toolCalls?.map(chunk => {
           return chunk.payload;
         });
-        const text = outputStream.text;
 
         /**
          * Update Message List piece
          */
 
         if (toolCalls.length > 0) {
-          const userContent = [] as any[];
-
-          if (text) {
-            userContent.push({
-              type: 'text',
-              text: text,
-            });
-          }
-
           const assistantContent = [
-            ...userContent,
             ...(toolCalls.map(toolCall => {
               return {
                 type: 'tool-call',
@@ -467,17 +488,6 @@ function createAgentWorkflow({
             },
             'response',
           );
-        } else {
-          if (text) {
-            messageList.add(
-              {
-                id: messageId,
-                role: 'assistant',
-                content: [{ type: 'text', text }],
-              },
-              'response',
-            );
-          }
         }
 
         /**
@@ -492,6 +502,8 @@ function createAgentWorkflow({
           };
         });
 
+        console.log('allMessages', JSON.stringify(allMessages, null, 2));
+
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
 
@@ -499,6 +511,7 @@ function createAgentWorkflow({
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
         const responseMetadata = runState.state.responseMetadata;
+        const text = outputStream.text;
 
         return {
           messageId,

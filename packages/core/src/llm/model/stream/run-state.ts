@@ -7,7 +7,9 @@ type State = {
   hasToolCallStreaming: boolean;
   hasErrored: boolean;
   reasoningDeltas: string[];
+  textDeltas: string[];
   isReasoning: boolean;
+  isStreaming: boolean;
   providerOptions: Record<string, any> | undefined;
 };
 
@@ -22,10 +24,12 @@ export class AgenticRunState {
         headers: undefined,
       },
       isReasoning: false,
+      isStreaming: false,
       providerOptions: undefined,
       hasToolCallStreaming: false,
       hasErrored: false,
       reasoningDeltas: [],
+      textDeltas: [],
       stepResult: undefined,
     };
   }

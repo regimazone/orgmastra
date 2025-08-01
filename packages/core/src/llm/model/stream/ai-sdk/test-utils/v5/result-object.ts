@@ -411,7 +411,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     "type": "reasoning",
                   },
                   {
-                    "providerMetadata": undefined,
                     "text": "Hi there!",
                     "type": "text",
                   },
@@ -471,11 +470,11 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "reasoning",
                         },
                         {
-                          "providerOptions": undefined,
                           "text": "Hi there!",
                           "type": "text",
                         },
                       ],
+                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],
@@ -598,7 +597,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     "type": "file",
                   },
                   {
-                    "providerMetadata": undefined,
                     "text": "Hello!",
                     "type": "text",
                   },
@@ -628,7 +626,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "file",
                         },
                         {
-                          "providerOptions": undefined,
                           "text": "Hello!",
                           "type": "text",
                         },
@@ -639,6 +636,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "file",
                         },
                       ],
+                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],

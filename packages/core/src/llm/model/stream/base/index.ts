@@ -201,7 +201,6 @@ export class MastraModelOutput extends MastraBase {
                 response: { ...otherMetadata, messages: chunk.payload.messages.nonUser },
                 request: request,
                 usage: chunk.payload.output.usage,
-                content: self.content,
               });
 
               break;

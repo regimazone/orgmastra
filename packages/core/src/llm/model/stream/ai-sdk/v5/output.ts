@@ -8,6 +8,7 @@ import type { ConsumeStreamOptions } from '../v4/compat';
 import { consumeStream, getErrorMessage } from '../v4/compat';
 import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
+import { DefaultGeneratedFileWithType } from './file';
 
 export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOLS> {
   readonly content: StepResult<TOOLS>['content'];
@@ -274,18 +275,72 @@ export class AISDKV5OutputStream {
     return this.#modelOutput.reasoningDetails;
   }
 
+  transformResponse(response: any, isMessages: boolean = false) {
+    const newResponse = { ...response };
+    newResponse.messages = response.messages.map((message: any) => {
+      const newContent = message.content.map((part: any) => {
+        if (part.type === 'file') {
+          if (isMessages) {
+            return {
+              type: 'file',
+              mediaType: part.mimeType,
+              data: part.data,
+              providerOptions: part.providerOptions,
+            };
+          }
+
+          console.log('inputFile', part);
+          const transformedFile = convertFullStreamChunkToAISDKv5({
+            chunk: {
+              type: 'file',
+              payload: {
+                data: part.data,
+                mimeType: part.mimeType,
+              },
+            },
+            sendReasoning: false,
+            sendSources: false,
+            sendUsage: false,
+            getErrorMessage: getErrorMessage,
+          });
+          console.log('transformedFile', transformedFile);
+
+          return transformedFile;
+        }
+
+        if (!isMessages) {
+          const { providerOptions, providerMetadata, ...rest } = part;
+          const providerMetadataValue = providerMetadata ?? providerOptions;
+          return {
+            ...rest,
+            ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
+          };
+        }
+
+        return part;
+      });
+
+      return {
+        ...message,
+        content: newContent,
+      };
+    });
+
+    return newResponse;
+  }
+
   get response() {
-    return this.#modelOutput.response;
+    return this.transformResponse(this.#modelOutput.response, true);
   }
 
   get steps() {
     return this.#modelOutput.steps.map(step => {
       return new DefaultStepResult({
-        content: this.response.messages[0]?.content ?? [],
+        content: this.transformResponse(step.response).messages[0]?.content ?? [],
         warnings: step.warnings ?? [],
         providerMetadata: step.providerMetadata,
         finishReason: step.finishReason,
-        response: step.response,
+        response: this.transformResponse(step.response, true),
         request: step.request,
         usage: step.usage,
       });
