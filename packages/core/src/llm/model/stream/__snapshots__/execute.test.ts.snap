@@ -2393,13 +2393,13 @@ exports[`V4 tests > options.onFinish > should send files 1`] = `
             "type": "file",
           },
           {
+            "text": "Hello!",
+            "type": "text",
+          },
+          {
             "data": "QkFVRw==",
             "mimeType": "image/jpeg",
             "type": "file",
-          },
-          {
-            "text": "Hello!",
-            "type": "text",
           },
         ],
         "id": "msg-0",
@@ -2446,13 +2446,13 @@ exports[`V4 tests > options.onFinish > should send files 1`] = `
                 "type": "file",
               },
               {
+                "text": "Hello!",
+                "type": "text",
+              },
+              {
                 "data": "QkFVRw==",
                 "mimeType": "image/jpeg",
                 "type": "file",
-              },
-              {
-                "text": "Hello!",
-                "type": "text",
               },
             ],
             "id": "msg-0",
@@ -4401,13 +4401,13 @@ exports[`V4 tests > result.steps > should add the files from the model response 
               "type": "file",
             },
             {
+              "text": "Hello!",
+              "type": "text",
+            },
+            {
               "data": "QkFVRw==",
               "mimeType": "image/jpeg",
               "type": "file",
-            },
-            {
-              "text": "Hello!",
-              "type": "text",
             },
           ],
           "id": "msg-0",

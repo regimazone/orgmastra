@@ -106,7 +106,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
   });
 
   describe('result.response.messages', () => {
-    it.only('should contain reasoning', async () => {
+    it('should contain reasoning', async () => {
       const result = await executeFn({
         runId,
         model: modelWithReasoning,

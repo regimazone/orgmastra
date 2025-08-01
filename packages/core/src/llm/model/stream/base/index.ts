@@ -291,7 +291,12 @@ export class MastraModelOutput extends MastraBase {
                     request: request || {},
                     response: {
                       ...otherMetadata,
-                      messages: chunk.payload.messages.all.slice(1),
+                      messages: chunk.payload.messages.all.slice(1).map((message: any) => {
+                        return {
+                          ...message,
+                          content: message.content.filter((part: any) => part.type !== 'source'),
+                        };
+                      }),
                     },
                     steps: self.aisdk.v4.steps,
                     usage: baseFinishStep.usage,
