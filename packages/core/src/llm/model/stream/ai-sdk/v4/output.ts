@@ -239,6 +239,66 @@ export class AISDKV4OutputStream {
     });
   }
 
+  get steps() {
+    return this.#modelOutput.steps.map(step => {
+      return {
+        stepType: 'initial',
+        text: step.text,
+        reasoning: step.reasoning || undefined,
+        sources: step.sources.map((source: any) => {
+          return convertFullStreamChunkToAISDKv4({
+            chunk: source,
+            client: false,
+            sendReasoning: false,
+            sendSources: true,
+            sendUsage: false,
+            getErrorMessage: (error: string) => error,
+          }).source;
+        }),
+        files: step.files.map((file: any) => {
+          return convertFullStreamChunkToAISDKv4({
+            chunk: file,
+            client: false,
+            sendReasoning: false,
+            sendSources: false,
+            sendUsage: false,
+            getErrorMessage: (error: string) => error,
+          });
+        }),
+        toolCalls: step.toolCalls.map((toolCall: any) => {
+          return convertFullStreamChunkToAISDKv4({
+            chunk: toolCall,
+            client: false,
+            sendReasoning: false,
+            sendSources: false,
+            sendUsage: false,
+            getErrorMessage: (error: string) => error,
+          });
+        }),
+        toolResults: step.toolResults.map((toolResult: any) => {
+          return convertFullStreamChunkToAISDKv4({
+            chunk: toolResult,
+            client: false,
+            sendReasoning: false,
+            sendSources: false,
+            sendUsage: false,
+            getErrorMessage: (error: string) => error,
+          });
+        }),
+        warnings: step.warnings,
+        reasoningDetails: step.reasoningDetails,
+        providerMetadata: step.providerMetadata,
+        experimental_providerMetadata: step.providerMetadata,
+        isContinued: step.isContinued,
+        logprobs: step.logprobs,
+        finishReason: step.finishReason,
+        response: step.response,
+        request: step.request,
+        usage: step.usage,
+      };
+    });
+  }
+
   get response() {
     return this.#modelOutput.response;
   }

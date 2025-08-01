@@ -348,7 +348,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
     });
   });
 
-  describe.skip('result.steps', () => {
+  describe('result.steps', () => {
     it('should add the reasoning from the model response to the step result', async () => {
       const result = await executeFn({
         runId,
@@ -358,7 +358,10 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      expect(result.steps).toMatchInlineSnapshot(`
+      const steps = result.aisdk.v5.steps;
+      console.log('test-steps', JSON.stringify(steps, null, 2));
+
+      expect(steps).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
                 "content": [
@@ -501,7 +504,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      expect(result.steps).toMatchInlineSnapshot(`
+      expect(result.aisdk.v5.steps).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
                 "content": [
@@ -578,7 +581,10 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      expect(result.steps).toMatchInlineSnapshot(`
+      const steps = result.aisdk.v5.steps;
+      console.log('test-steps', JSON.stringify(steps, null, 2));
+
+      expect(steps).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
                 "content": [

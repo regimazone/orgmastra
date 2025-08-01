@@ -253,9 +253,9 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.log('result.steps', JSON.stringify(result.steps, null, 2));
+      console.log('result.steps', JSON.stringify(result.aisdk.v4.steps, null, 2));
 
-      expect(result.steps).toMatchSnapshot();
+      expect(result.aisdk.v4.steps).toMatchSnapshot();
     });
 
     it('should add the sources from the model response to the step result', async () => {
@@ -267,7 +267,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.steps).toMatchSnapshot();
+      expect(result.aisdk.v4.steps).toMatchSnapshot();
     });
 
     it('should add the files from the model response to the step result', async () => {
@@ -279,9 +279,9 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.dir({ steppies: result.steps }, { depth: null });
+      console.dir({ steppies: result.aisdk.v4.steps }, { depth: null });
 
-      expect(result.steps).toMatchSnapshot();
+      expect(result.aisdk.v4.steps).toMatchSnapshot();
     });
   });
 

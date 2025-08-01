@@ -1,14 +1,100 @@
 import { TransformStream } from 'stream/web';
 import { createTextStreamResponse, createUIMessageStream, createUIMessageStreamResponse } from 'ai-v5';
-import type { TextStreamPart, ToolSet, UIMessage, UIMessageChunk, UIMessageStreamOptions } from 'ai-v5';
+import type { TextStreamPart, ToolSet, UIMessage, UIMessageStreamOptions, StepResult } from 'ai-v5';
 
-import type { DataStreamOptions, DataStreamWriter, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
-import { consumeStream, getErrorMessage, mergeStreams, prepareResponseHeaders } from '../v4/compat';
+import { consumeStream, getErrorMessage } from '../v4/compat';
 import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
+
+export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOLS> {
+  readonly content: StepResult<TOOLS>['content'];
+  readonly finishReason: StepResult<TOOLS>['finishReason'];
+  readonly usage: StepResult<TOOLS>['usage'];
+  readonly warnings: StepResult<TOOLS>['warnings'];
+  readonly request: StepResult<TOOLS>['request'];
+  readonly response: StepResult<TOOLS>['response'];
+  readonly providerMetadata: StepResult<TOOLS>['providerMetadata'];
+
+  constructor({
+    content,
+    finishReason,
+    usage,
+    warnings,
+    request,
+    response,
+    providerMetadata,
+  }: {
+    content: StepResult<TOOLS>['content'];
+    finishReason: StepResult<TOOLS>['finishReason'];
+    usage: StepResult<TOOLS>['usage'];
+    warnings: StepResult<TOOLS>['warnings'];
+    request: StepResult<TOOLS>['request'];
+    response: StepResult<TOOLS>['response'];
+    providerMetadata: StepResult<TOOLS>['providerMetadata'];
+  }) {
+    this.content = content;
+    this.finishReason = finishReason;
+    this.usage = usage;
+    this.warnings = warnings;
+    this.request = request;
+    this.response = response;
+    this.providerMetadata = providerMetadata;
+  }
+
+  get text() {
+    return this.content
+      .filter(part => part.type === 'text')
+      .map(part => part.text)
+      .join('');
+  }
+
+  get reasoning() {
+    return this.content.filter(part => part.type === 'reasoning');
+  }
+
+  get reasoningText() {
+    return this.reasoning.length === 0 ? undefined : this.reasoning.map(part => part.text).join('');
+  }
+
+  get files() {
+    return this.content.filter(part => part.type === 'file').map(part => part.file);
+  }
+
+  get sources() {
+    return this.content.filter(part => part.type === 'source');
+  }
+
+  get toolCalls() {
+    return this.content.filter(part => part.type === 'tool-call');
+  }
+
+  get staticToolCalls() {
+    // @ts-ignore
+    return this.toolCalls.filter((toolCall): toolCall is StaticToolCall<TOOLS> => toolCall.dynamic === false);
+  }
+
+  get dynamicToolCalls() {
+    // @ts-ignore
+    return this.toolCalls.filter((toolCall): toolCall is DynamicToolCall => toolCall.dynamic === true);
+  }
+
+  get toolResults() {
+    return this.content.filter(part => part.type === 'tool-result');
+  }
+
+  get staticToolResults() {
+    // @ts-ignore
+    return this.toolResults.filter((toolResult): toolResult is StaticToolResult<TOOLS> => toolResult.dynamic === false);
+  }
+
+  get dynamicToolResults() {
+    // @ts-ignore
+    return this.toolResults.filter((toolResult): toolResult is DynamicToolResult => toolResult.dynamic === true);
+  }
+}
 
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
@@ -26,44 +112,8 @@ export class AISDKV5OutputStream {
     });
   }
 
-  toDataStreamResponse({
-    headers,
-    status,
-    statusText,
-    data,
-    getErrorMessage,
-    sendUsage,
-    sendReasoning,
-    sendSources,
-    experimental_sendFinish,
-  }: ResponseInit &
-    DataStreamOptions & {
-      data?: StreamData;
-      getErrorMessage?: (error: any) => string;
-    } = {}): Response {
-    let dataStream = this.toDataStream({
-      getErrorMessage,
-      sendUsage,
-      sendReasoning,
-      sendSources,
-      experimental_sendFinish,
-    }).pipeThrough(new TextEncoderStream() as any) as any;
-
-    if (data) {
-      dataStream = mergeStreams(data.stream as any, dataStream);
-    }
-
-    return new Response(dataStream, {
-      status,
-      statusText,
-      headers: prepareResponseHeaders(headers, {
-        contentType: 'text/plain; charset=utf-8',
-        dataStreamVersion: 'v1',
-      }),
-    });
-  }
-
   toUIMessageStreamResponse<UI_MESSAGE extends UIMessage>({
+    // @ts-ignore
     generateMessageId,
     originalMessages,
     sendFinish,
@@ -77,6 +127,7 @@ export class AISDKV5OutputStream {
   }: UIMessageStreamOptions<UI_MESSAGE> & ResponseInit = {}) {
     return createUIMessageStreamResponse({
       stream: this.toUIMessageStream({
+        // @ts-ignore
         generateMessageId,
         originalMessages,
         sendFinish,
@@ -92,6 +143,7 @@ export class AISDKV5OutputStream {
   }
 
   toUIMessageStream<UI_MESSAGE extends UIMessage>({
+    // @ts-ignore
     generateMessageId,
     originalMessages,
     sendFinish = true,
@@ -132,7 +184,7 @@ export class AISDKV5OutputStream {
           });
 
           if (transformedChunk) {
-            writer.write(transformedChunk as UIMessageChunk<any, any>);
+            writer.write(transformedChunk as any);
           }
 
           // start and finish events already have metadata
@@ -146,20 +198,6 @@ export class AISDKV5OutputStream {
         }
       },
     });
-  }
-
-  mergeIntoDataStream(writer: DataStreamWriter, options?: DataStreamOptions) {
-    writer.merge(
-      this.toDataStream({
-        getErrorMessage: writer.onError,
-        sendUsage: options?.sendUsage,
-        sendReasoning: options?.sendReasoning,
-        sendSources: options?.sendSources,
-        experimental_sendFinish: options?.experimental_sendFinish,
-      })
-        .pipeThrough(new TextEncoderStream() as any)
-        .pipeThrough(new TextDecoderStream() as any) as any,
-    );
   }
 
   async consumeStream(options?: ConsumeStreamOptions): Promise<void> {
@@ -238,6 +276,20 @@ export class AISDKV5OutputStream {
 
   get response() {
     return this.#modelOutput.response;
+  }
+
+  get steps() {
+    return this.#modelOutput.steps.map(step => {
+      return new DefaultStepResult({
+        content: this.response.messages[0]?.content ?? [],
+        warnings: step.warnings ?? [],
+        providerMetadata: step.providerMetadata,
+        finishReason: step.finishReason,
+        response: step.response,
+        request: step.request,
+        usage: step.usage,
+      });
+    });
   }
 
   get fullStream() {

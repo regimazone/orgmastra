@@ -61,6 +61,7 @@ export class MastraModelOutput extends MastraBase {
     }
   > = {};
   #bufferedText: string[] = [];
+  #bufferedTextChunks: Record<string, string[]> = {};
   #bufferedSources: any[] = [];
   #bufferedReasoning: string[] = [];
   #bufferedFiles: any[] = [];
@@ -97,6 +98,11 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'text-delta':
               self.#bufferedText.push(chunk.payload.text);
+              if (chunk.payload.id) {
+                const ary = self.#bufferedTextChunks[chunk.payload.id] ?? [];
+                ary.push(chunk.payload.text);
+                self.#bufferedTextChunks[chunk.payload.id] = ary;
+              }
               break;
             case 'tool-call-delta':
               if (!self.#toolCallArgsDeltas[chunk.payload.toolCallId]) {
@@ -176,50 +182,15 @@ export class MastraModelOutput extends MastraBase {
                 });
 
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
+
               self.#bufferedSteps.push({
                 stepType: 'initial',
                 text: self.text,
                 reasoning: self.reasoning || undefined,
-                sources: self.sources.map(source => {
-                  return convertFullStreamChunkToAISDKv4({
-                    chunk: source,
-                    client: false,
-                    sendReasoning: false,
-                    sendSources: true,
-                    sendUsage: false,
-                    getErrorMessage: (error: string) => error,
-                  }).source;
-                }),
-                files: self.files.map(file => {
-                  return convertFullStreamChunkToAISDKv4({
-                    chunk: file,
-                    client: false,
-                    sendReasoning: false,
-                    sendSources: false,
-                    sendUsage: false,
-                    getErrorMessage: (error: string) => error,
-                  });
-                }),
-                toolCalls: self.toolCalls.map(toolCall => {
-                  return convertFullStreamChunkToAISDKv4({
-                    chunk: toolCall,
-                    client: false,
-                    sendReasoning: false,
-                    sendSources: false,
-                    sendUsage: false,
-                    getErrorMessage: (error: string) => error,
-                  });
-                }),
-                toolResults: self.toolResults.map(toolResult => {
-                  return convertFullStreamChunkToAISDKv4({
-                    chunk: toolResult,
-                    client: false,
-                    sendReasoning: false,
-                    sendSources: false,
-                    sendUsage: false,
-                    getErrorMessage: (error: string) => error,
-                  });
-                }),
+                sources: self.sources,
+                files: self.files,
+                toolCalls: self.toolCalls,
+                toolResults: self.toolResults,
                 warnings: self.warnings,
                 reasoningDetails: reasoningDetails,
                 providerMetadata: providerMetadata,
@@ -230,6 +201,7 @@ export class MastraModelOutput extends MastraBase {
                 response: { ...otherMetadata, messages: chunk.payload.messages.nonUser },
                 request: request,
                 usage: chunk.payload.output.usage,
+                content: self.content,
               });
 
               break;
@@ -269,19 +241,55 @@ export class MastraModelOutput extends MastraBase {
                     finishReason: chunk.payload.stepResult.reason,
                     experimental_providerMetadata: chunk.payload.metadata.providerMetadata,
                     providerMetadata: chunk.payload.metadata.providerMetadata,
-                    files: baseFinishStep.files,
-                    toolCalls: baseFinishStep.toolCalls,
-                    toolResults: baseFinishStep.toolResults,
+                    files: baseFinishStep.files.map((file: any) => {
+                      return convertFullStreamChunkToAISDKv4({
+                        chunk: file,
+                        client: false,
+                        sendReasoning: false,
+                        sendSources: false,
+                        sendUsage: false,
+                        getErrorMessage: (error: string) => error,
+                      });
+                    }),
+                    toolCalls: baseFinishStep.toolCalls.map((toolCall: any) => {
+                      return convertFullStreamChunkToAISDKv4({
+                        chunk: toolCall,
+                        client: false,
+                        sendReasoning: false,
+                        sendSources: false,
+                        sendUsage: false,
+                        getErrorMessage: (error: string) => error,
+                      });
+                    }),
+                    toolResults: baseFinishStep.toolResults.map((toolResult: any) => {
+                      return convertFullStreamChunkToAISDKv4({
+                        chunk: toolResult,
+                        client: false,
+                        sendReasoning: false,
+                        sendSources: false,
+                        sendUsage: false,
+                        getErrorMessage: (error: string) => error,
+                      });
+                    }),
                     logprobs: baseFinishStep.logprobs,
                     reasoning: baseFinishStep.reasoning,
                     reasoningDetails: baseFinishStep.reasoningDetails,
-                    sources: baseFinishStep.sources,
+                    sources: baseFinishStep.sources.map((source: any) => {
+                      return convertFullStreamChunkToAISDKv4({
+                        chunk: source,
+                        client: false,
+                        sendReasoning: false,
+                        sendSources: true,
+                        sendUsage: false,
+                        getErrorMessage: (error: string) => error,
+                      }).source;
+                    }),
                     request: request || {},
                     response: {
                       ...otherMetadata,
                       messages: chunk.payload.messages.all.slice(1),
                     },
-                    steps: self.#bufferedSteps,
+                    steps: self.aisdk.v4.steps,
                     usage: baseFinishStep.usage,
                   };
                   // console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
