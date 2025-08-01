@@ -215,21 +215,23 @@ function createAgentWorkflow({
               chunk.type !== 'redacted-reasoning' &&
               runState.state.isReasoning
             ) {
-              messageList.add(
-                {
-                  id: messageId,
-                  role: 'assistant',
-                  content: [
-                    {
-                      type: 'reasoning',
-                      text: runState.state.reasoningDeltas.join(''),
-                      signature: chunk.payload.signature,
-                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                    },
-                  ],
-                },
-                'response',
-              );
+              if (runState.state.reasoningDeltas.length) {
+                messageList.add(
+                  {
+                    id: messageId,
+                    role: 'assistant',
+                    content: [
+                      {
+                        type: 'reasoning',
+                        text: runState.state.reasoningDeltas.join(''),
+                        signature: chunk.payload.signature,
+                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                      },
+                    ],
+                  },
+                  'response',
+                );
+              }
 
               runState.setState({
                 isReasoning: false,
@@ -238,20 +240,22 @@ function createAgentWorkflow({
             }
 
             if (chunk.type !== 'text-delta' && runState.state.isStreaming) {
-              messageList.add(
-                {
-                  id: messageId,
-                  role: 'assistant',
-                  content: [
-                    {
-                      type: 'text',
-                      text: runState.state.textDeltas.join(''),
-                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                    },
-                  ],
-                },
-                'response',
-              );
+              if (runState.state.textDeltas.length) {
+                messageList.add(
+                  {
+                    id: messageId,
+                    role: 'assistant',
+                    content: [
+                      {
+                        type: 'text',
+                        text: runState.state.textDeltas.join(''),
+                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                      },
+                    ],
+                  },
+                  'response',
+                );
+              }
 
               runState.setState({
                 isStreaming: false,
