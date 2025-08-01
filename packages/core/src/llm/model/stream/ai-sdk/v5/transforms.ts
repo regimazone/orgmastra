@@ -261,7 +261,6 @@ export function convertFullStreamChunkToAISDKv5({
   toolCallArgsDeltas?: Record<string, string[]>;
   getErrorMessage: (error: string) => string;
 }) {
-  console.log('chunkzzz', chunk);
   if (chunk.type === 'text-delta') {
     return {
       type: 'text-delta',

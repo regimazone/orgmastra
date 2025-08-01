@@ -253,7 +253,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      expect(result.response).toMatchInlineSnapshot(`
+      expect(result.aisdk.v5.response).toMatchInlineSnapshot(`
             {
               "headers": {
                 "call": "2",
@@ -263,11 +263,11 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                 {
                   "content": [
                     {
-                      "providerOptions": undefined,
                       "text": "Hello",
                       "type": "text",
                     },
                   ],
+                  "id": "msg-0",
                   "role": "assistant",
                 },
               ],

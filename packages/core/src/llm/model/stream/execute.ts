@@ -172,6 +172,8 @@ function createAgentWorkflow({
                 request = requestFromStream || {};
                 rawResponse = rawResponseFromStream;
 
+                console.log('RAW', rawResponse);
+
                 controller.enqueue({
                   runId,
                   from: 'AGENT',

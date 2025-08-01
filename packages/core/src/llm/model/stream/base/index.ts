@@ -27,7 +27,7 @@ export abstract class BaseModelStream extends MastraBase {
           onResult({
             warnings: stream.warnings,
             request: stream.request,
-            rawResponse: stream.rawResponse,
+            rawResponse: stream.rawResponse || stream.response,
           });
 
           await self.transform({
@@ -244,6 +244,7 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#providerMetadata = chunk.payload.metadata.providerMetadata;
 
+                console.log('OTHER METADATA', JSON.stringify(otherMetadata, null, 2));
                 self.#response = {
                   ...otherMetadata,
                   messages: chunk.payload.messages.all.slice(1),
@@ -255,7 +256,7 @@ export class MastraModelOutput extends MastraBase {
               const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
 
               if (baseFinishStep) {
-                const { stepType: _stepType, isContinued: _isContinued, ...rest } = baseFinishStep;
+                const { stepType: _stepType, isContinued: _isContinued } = baseFinishStep;
 
                 const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 

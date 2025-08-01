@@ -37,7 +37,6 @@ export function executeV5({
           ...toolsAndToolChoice,
           prompt: inputMessages as any, // TODO: fix this?
         });
-
         return stream as any;
       } catch (error) {
         return {
