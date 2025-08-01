@@ -503,6 +503,8 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
+      console.log('result.aisdk.v5.steps', JSON.stringify(result.aisdk.v5.steps, null, 2));
+
       expect(result.aisdk.v5.steps).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
@@ -520,7 +522,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     "url": "https://example.com",
                   },
                   {
-                    "providerMetadata": undefined,
                     "text": "Hello!",
                     "type": "text",
                   },
@@ -547,11 +548,11 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     {
                       "content": [
                         {
-                          "providerOptions": undefined,
                           "text": "Hello!",
                           "type": "text",
                         },
                       ],
+                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],

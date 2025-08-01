@@ -426,6 +426,35 @@ function createAgentWorkflow({
                 );
                 controller.enqueue(chunk);
                 break;
+              case 'source':
+                console.log('source start', chunk.payload);
+                messageList.add(
+                  {
+                    id: messageId,
+                    role: 'assistant',
+                    content: {
+                      format: 2,
+                      parts: [
+                        {
+                          type: 'source',
+                          source: {
+                            sourceType: 'url',
+                            id: chunk.payload.id,
+                            url: chunk.payload.url,
+                            title: chunk.payload.title,
+                            providerMetadata: chunk.payload.providerMetadata,
+                          },
+                        },
+                      ],
+                    },
+                    createdAt: new Date(),
+                  },
+                  'response',
+                );
+
+                console.log('messageList after', JSON.stringify(messageList.get.all.v1(), null, 2));
+                controller.enqueue(chunk);
+                break;
               case 'text-delta': {
                 const textDeltasFromState = runState.state.textDeltas;
                 textDeltasFromState.push(chunk.payload.text);

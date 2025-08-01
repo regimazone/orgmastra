@@ -8,7 +8,6 @@ import type { ConsumeStreamOptions } from '../v4/compat';
 import { consumeStream, getErrorMessage } from '../v4/compat';
 import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
-import { DefaultGeneratedFileWithType } from './file';
 
 export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOLS> {
   readonly content: StepResult<TOOLS>['content'];
@@ -278,7 +277,9 @@ export class AISDKV5OutputStream {
   transformResponse(response: any, isMessages: boolean = false) {
     const newResponse = { ...response };
     newResponse.messages = response.messages.map((message: any) => {
-      const newContent = message.content.map((part: any) => {
+      console.log('transform message', JSON.stringify(message, null, 2));
+
+      let newContent = message.content.map((part: any) => {
         if (part.type === 'file') {
           if (isMessages) {
             return {
@@ -319,6 +320,10 @@ export class AISDKV5OutputStream {
 
         return part;
       });
+
+      if (isMessages) {
+        newContent = newContent.filter((part: any) => part.type !== 'source');
+      }
 
       return {
         ...message,

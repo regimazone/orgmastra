@@ -47,6 +47,26 @@ export abstract class BaseModelStream extends MastraBase {
   }
 }
 
+function reasoningDetailsFromMessages(messages: any[]) {
+  return messages
+    ?.flatMap((msg: any) => {
+      return msg.content;
+    })
+    ?.filter((message: any) => message.type.includes('reasoning'))
+    ?.map((msg: any) => {
+      let type;
+      if (msg.type === 'reasoning') {
+        type = 'text';
+      } else if (msg.type === 'redacted-reasoning') {
+        type = 'redacted';
+      }
+      return {
+        ...msg,
+        type,
+      };
+    });
+}
+
 export class MastraModelOutput extends MastraBase {
   #aisdkv4: AISDKV4OutputStream;
   #aisdkv5: AISDKV5OutputStream;
@@ -162,24 +182,9 @@ export class MastraModelOutput extends MastraBase {
                 self.#request = chunk.payload.metadata.request;
               }
 
-              const reasoningDetails = chunk.payload.messages.all
-                ?.flatMap((msg: any) => {
-                  return msg.content;
-                })
-                ?.filter((message: any) => message.type.includes('reasoning'))
-                ?.map((msg: any) => {
-                  let type;
-                  if (msg.type === 'reasoning') {
-                    type = 'text';
-                  } else if (msg.type === 'redacted-reasoning') {
-                    type = 'redacted';
-                  }
+              const reasoningDetails = reasoningDetailsFromMessages(chunk.payload.messages.all);
 
-                  return {
-                    ...msg,
-                    type,
-                  };
-                });
+              console.log('reasoningDetails', JSON.stringify(reasoningDetails, null, 2));
 
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 

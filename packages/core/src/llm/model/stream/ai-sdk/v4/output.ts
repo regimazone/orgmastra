@@ -292,7 +292,15 @@ export class AISDKV4OutputStream {
         isContinued: step.isContinued,
         logprobs: step.logprobs,
         finishReason: step.finishReason,
-        response: step.response,
+        response: {
+          ...step.response,
+          messages: step.response.messages.map((message: any) => {
+            return {
+              ...message,
+              content: message.content.filter((part: any) => part.type !== 'source'),
+            };
+          }),
+        },
         request: step.request,
         usage: step.usage,
       };

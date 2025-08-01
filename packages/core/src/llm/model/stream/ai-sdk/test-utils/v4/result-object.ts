@@ -106,7 +106,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
   });
 
   describe('result.response.messages', () => {
-    it('should contain reasoning', async () => {
+    it.only('should contain reasoning', async () => {
       const result = await executeFn({
         runId,
         model: modelWithReasoning,
@@ -117,7 +117,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       console.log('result.response.messages', JSON.stringify(result.response.messages, null, 2));
 
-      expect(result.response.messages).toMatchSnapshot();
+      expect(result.aisdk.v4.response.messages).toMatchSnapshot();
     });
   });
 

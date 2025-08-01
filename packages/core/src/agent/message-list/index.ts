@@ -78,8 +78,6 @@ export class MessageList {
 
   public add(messages: string | string[] | MessageInput | MessageInput[], messageSource: MessageSource) {
     if (!messages) return this;
-    console.log('add');
-    console.log(JSON.stringify(messages, null, 2));
     for (const message of Array.isArray(messages) ? messages : [messages]) {
       this.addOne(
         typeof message === `string`
@@ -345,13 +343,7 @@ export class MessageList {
       });
     }
 
-    console.log('message');
-    console.log(JSON.stringify(message, null, 2));
-
     const messageV2 = this.inputToMastraMessageV2(message, messageSource);
-
-    console.log('messageV2');
-    console.log(JSON.stringify(messageV2, null, 2));
 
     const { exists, shouldReplace, id } = this.shouldReplaceMessage(messageV2);
 
@@ -365,6 +357,9 @@ export class MessageList {
         }
       }
     }
+
+    console.log('messageV2', JSON.stringify(messageV2, null, 2));
+
     // If the last message is an assistant message and the new message is also an assistant message, merge them together and update tool calls with results
     const shouldAppendToLastAssistantMessage =
       latestMessage?.role === 'assistant' &&
@@ -425,15 +420,23 @@ export class MessageList {
             partsToAdd.set(index, part);
           }
         } else {
+          console.log('adding part', part, index);
           partsToAdd.set(index, part);
         }
       }
+
+      console.log('Adding parts to latest message');
+      console.log('partsToAdd', Array.from(partsToAdd.values()));
+
       this.addPartsToLatestMessage({
         latestMessage,
         messageV2,
         anchorMap: toolResultAnchorMap,
         partsToAdd,
       });
+
+      console.log('latestMessage.content.parts before', JSON.stringify(latestMessage.content.parts, null, 2));
+
       if (latestMessage.createdAt.getTime() < messageV2.createdAt.getTime()) {
         latestMessage.createdAt = messageV2.createdAt;
       }
@@ -448,6 +451,8 @@ export class MessageList {
         // Match what AI SDK does - content string is always the latest text part.
         latestMessage.content.content = messageV2.content.content;
       }
+
+      console.log('latestMessage.content.parts', JSON.stringify(latestMessage.content.parts, null, 2));
 
       // If latest message gets appended to, it should be added to the proper source
       this.pushMessageToSource(latestMessage, messageSource);
@@ -511,9 +516,11 @@ export class MessageList {
     const latestPartCount = latestMessage.content.parts.filter(
       p => MessageList.cacheKeyFromParts([p]) === partKey,
     ).length;
+
     const newPartCount = newMessage.content.parts.filter(p => MessageList.cacheKeyFromParts([p]) === partKey).length;
+
     // If the number of parts in the latest message is less than the number of parts in the new message, insert the part
-    if (latestPartCount < newPartCount) {
+    if (latestPartCount <= newPartCount) {
       if (typeof insertAt === 'number') {
         latestMessage.content.parts.splice(insertAt, 0, part);
       } else {
@@ -586,6 +593,7 @@ export class MessageList {
           }
         }
       } else {
+        console.log('I HOPE WE ARE HERE');
         this.pushNewMessagePart({
           latestMessage,
           newMessage: messageV2,
@@ -625,6 +633,8 @@ export class MessageList {
       return this.mastraMessageV1ToMastraMessageV2(message, messageSource);
     }
     if (MessageList.isMastraMessageV2(message)) {
+      console.log('mastraMessageV1ToMastraMessageV2');
+      console.log(message);
       return this.hydrateMastraMessageV2Fields(message);
     }
     if (MessageList.isVercelCoreMessage(message)) {

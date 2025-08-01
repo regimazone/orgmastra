@@ -112,6 +112,11 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                   content.push(part);
                   break;
                 }
+                case 'source': {
+                  console.log('sourcezzzz22', part);
+                  content.push({ type: part.type, ...part.source } as any);
+                  break;
+                }
                 case 'reasoning': {
                   for (const detail of part.details) {
                     switch (detail.type) {
@@ -203,6 +208,10 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
                 block.push(part);
                 break;
               }
+              case 'source': {
+                block.push(part);
+                break;
+              }
               case 'tool-invocation': {
                 if ((part.toolInvocation.step ?? 0) !== currentStep) {
                   processBlock();
@@ -213,6 +222,8 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
               }
             }
           }
+
+          console.log({ block });
 
           processBlock();
 
@@ -284,12 +295,6 @@ export function convertToV1Messages(messages: Array<MastraMessageV2>) {
       }
     }
   }
-
-  console.log('BEFORE messages');
-  console.log(JSON.stringify(messages, null, 2));
-
-  console.log('AFTER v1Messages');
-  console.log(JSON.stringify(v1Messages, null, 2));
 
   return v1Messages;
 }
