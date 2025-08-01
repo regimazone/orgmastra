@@ -303,6 +303,8 @@ export async function streamGenerateHandler({
       signal: abortSignal,
     });
 
+    console.log(streamResult);
+
     const streamResponse = rest.output
       ? streamResult.toTextStreamResponse({
           headers: {

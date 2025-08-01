@@ -54,9 +54,6 @@ function createAgentWorkflow({
       inputSchema: toolCallInpuSchema,
       outputSchema: toolCallOutputSchema,
       execute: async ({ inputData, getStepResult }) => {
-        console.log('TOOLS', tools);
-        console.log({ inputData }, 'TOOL CALL STEP');
-
         const tool =
           tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.name === inputData.toolName);
 
@@ -73,8 +70,6 @@ function createAgentWorkflow({
         } as any);
 
         const messageList = MessageList.fromArray(initialResult.messages.user);
-
-        console.log(inputData, 'INPUT DATA');
 
         const result = await tool.execute(inputData.args, {
           toolCallId: inputData.toolCallId,
@@ -139,10 +134,6 @@ function createAgentWorkflow({
                 request: requestFromStream,
                 rawResponse: rawResponseFromStream,
               }) => {
-                console.log('warningsFromStream', warningsFromStream);
-                console.log('requestFromStream', requestFromStream);
-                console.log('rawResponseFromStream', rawResponseFromStream);
-
                 warnings = warningsFromStream;
                 request = requestFromStream || {};
                 rawResponse = rawResponseFromStream;
@@ -177,10 +168,6 @@ function createAgentWorkflow({
                 request: requestFromStream,
                 rawResponse: rawResponseFromStream,
               }) => {
-                console.log('warningsFromStream', warningsFromStream);
-                console.log('requestFromStream', requestFromStream);
-                console.log('rawResponseFromStream', rawResponseFromStream);
-
                 warnings = warningsFromStream;
                 request = requestFromStream || {};
                 rawResponse = rawResponseFromStream;
@@ -478,7 +465,6 @@ function createAgentWorkflow({
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
         const responseMetadata = runState.state.responseMetadata;
-        console.log('final_metadata', responseMetadata);
 
         return {
           messageId,
@@ -526,8 +512,6 @@ function createAgentWorkflow({
 
         if (inputData?.length) {
           for (const toolCall of inputData) {
-            console.log('Returning tool result', toolCall);
-
             const chunk = {
               type: 'tool-result',
               runId: runId,
@@ -612,7 +596,6 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
-      console.log('TOOL CALLS', inputData.output.toolCalls);
       return inputData.output.toolCalls || [];
     })
     .foreach(toolCallExecutionStep)
@@ -668,9 +651,6 @@ function createStreamExecutor({
         .dowhile(outerAgentWorkflow, async ({ inputData }) => {
           const hasFinishedSteps = stepCount > maxSteps;
 
-          console.log('dowhileing');
-          console.log({ inputData, hasFinishedSteps });
-
           inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
 
           controller.enqueue({
@@ -723,8 +703,6 @@ function createStreamExecutor({
         controller.close();
         return;
       }
-
-      console.log('Execution Result', JSON.stringify(executionResult.result, null, 2));
 
       controller.enqueue({
         type: 'finish',

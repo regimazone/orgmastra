@@ -137,16 +137,18 @@ export class MockProvider extends MastraLLM {
   }
 
   // @ts-ignore
-  stream(...args: any): PromiseLike<StreamReturn<any, any, any>> {
+  async stream(...args: any): PromiseLike<StreamReturn<any, any, any>> {
     // @ts-ignore
-    const result = super.stream(...args);
+    const result = await super.stream(...args);
+
+    console.log({ result });
 
     return {
       ...result,
       // @ts-ignore on await read the stream
       then: (onfulfilled, onrejected) => {
         // @ts-ignore
-        return result.baseStream.pipeTo(new WritableStream()).then(onfulfilled, onrejected);
+        return result.fullStream.pipeTo(new WritableStream()).then(onfulfilled, onrejected);
       },
     };
   }

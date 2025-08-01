@@ -400,6 +400,6 @@ export function convertFullStreamChunkToAISDKv5({
       error: chunk.payload.error,
     };
   } else {
-    console.log('unknown chunk', chunk);
+    return;
   }
 }

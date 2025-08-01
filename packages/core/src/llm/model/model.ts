@@ -37,6 +37,7 @@ import type {
   StreamObjectResult,
   StreamReturn,
 } from './base.types';
+import { execute } from './stream/execute';
 
 export class MastraLLM extends MastraLLMBase {
   #model: LanguageModel;
@@ -319,7 +320,7 @@ export class MastraLLM extends MastraLLMBase {
     }
   }
 
-  __stream<Tools extends ToolSet, Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
+  async __stream<Tools extends ToolSet, Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
     messages,
     onStepFinish,
     onFinish,
@@ -464,7 +465,21 @@ export class MastraLLM extends MastraLLMBase {
     };
 
     try {
-      return streamText(argsForExecute);
+      console.log('argsForExecute', JSON.stringify(argsForExecute, null, 2));
+
+      const result = await execute({
+        runId: runId!,
+        model: argsForExecute.model,
+        prompt: argsForExecute.messages as any,
+        tools: argsForExecute.tools,
+        toolChoice: argsForExecute.toolChoice as any,
+        maxSteps: argsForExecute.maxSteps,
+        options: {
+          onFinish: argsForExecute.onFinish,
+        },
+      });
+
+      return result.aisdk.v4 as any;
     } catch (e: unknown) {
       const mastraError = new MastraError(
         {

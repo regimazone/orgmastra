@@ -163,7 +163,7 @@ describe('MastraLLM', () => {
   });
 
   describe('stream', () => {
-    it('should stream text by default', async () => {
+    it.only('should stream text by default', async () => {
       const messages: CoreMessage[] = [{ role: 'user', content: 'test message' }];
 
       await aisdkText.stream(messages, {

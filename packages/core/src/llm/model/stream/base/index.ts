@@ -191,7 +191,6 @@ export class MastraModelOutput extends MastraBase {
                   }).source;
                 }),
                 files: self.files.map(file => {
-                  console.log('filezzzz', JSON.stringify(file, null, 2));
                   return convertFullStreamChunkToAISDKv4({
                     chunk: file,
                     client: false,
@@ -236,7 +235,6 @@ export class MastraModelOutput extends MastraBase {
               break;
             }
             case 'finish':
-              console.log('MY FINISH CHUNK', JSON.stringify(chunk, null, 2));
               if (chunk.payload.stepResult.reason) {
                 self.#finishReason = chunk.payload.stepResult.reason;
               }
@@ -285,7 +283,7 @@ export class MastraModelOutput extends MastraBase {
                     steps: self.#bufferedSteps,
                     usage: baseFinishStep.usage,
                   };
-                  console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
+                  // console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
                 }
 
                 await options?.onFinish?.(onFinishPayload);
