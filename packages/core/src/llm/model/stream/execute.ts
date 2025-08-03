@@ -11,6 +11,13 @@ import { executeV5 } from './ai-sdk/v5/execute';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, StreamExecutorProps } from './types';
+import {
+  assembleOperationName,
+  getBaseTelemetryAttributes,
+  getTracer,
+  recordSpan,
+  selectTelemetryAttributes,
+} from './ai-sdk/telemetry';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -693,100 +700,132 @@ function createStreamExecutor({
   maxRetries = 2,
   maxSteps = 5,
   logger,
+  experimental_telemetry,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
-      const messageId = experimental_generateMessageId?.() || _internal?.generateId?.();
-
-      let stepCount = 0;
-
-      const outerAgentWorkflow = createAgentWorkflow({
-        messageId: messageId!,
-        model,
-        runId,
-        providerMetadata,
-        tools,
-        toolChoice,
-        inputMessages,
-        _internal,
-        experimental_generateMessageId,
-        controller,
-        options,
-        logger,
+      const tracer = getTracer({
+        isEnabled: experimental_telemetry?.isEnabled,
+        tracer: experimental_telemetry?.tracer,
       });
 
-      const mainWorkflow = createWorkflow({
-        id: 'agentic-loop',
-        inputSchema: llmIterationOutputSchema,
-        outputSchema: z.any(),
-        retryConfig: {
-          attempts: maxRetries,
-        },
-      })
-        .dowhile(outerAgentWorkflow, async ({ inputData }) => {
-          const hasFinishedSteps = stepCount > maxSteps;
+      const baseTelemetryAttributes = getBaseTelemetryAttributes({
+        model,
+        settings: {},
+        telemetry: experimental_telemetry,
+        headers: {},
+      });
 
-          inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
+      return recordSpan({
+        name: 'mastra.stream',
+        tracer,
+        attributes: selectTelemetryAttributes({
+          telemetry: experimental_telemetry,
+          attributes: {
+            ...assembleOperationName({ operationId: 'mastra.stream', telemetry: experimental_telemetry }),
+            ...baseTelemetryAttributes,
+            'stream.prompt': {
+              input: () => JSON.stringify({ inputMessages }),
+            },
+          },
+        }),
+        endWhenDone: false,
+        fn: async rootSpan => {
+          console.log('rootSpan', rootSpan);
 
-          controller.enqueue({
-            type: 'step-finish',
+          const messageId = experimental_generateMessageId?.() || _internal?.generateId?.();
+
+          let stepCount = 0;
+
+          const outerAgentWorkflow = createAgentWorkflow({
+            messageId: messageId!,
+            model,
             runId,
-            from: 'AGENT',
-            payload: inputData,
+            providerMetadata,
+            tools,
+            toolChoice,
+            inputMessages,
+            _internal,
+            experimental_generateMessageId,
+            controller,
+            options,
+            logger,
           });
 
-          const reason = inputData.stepResult.reason;
+          const mainWorkflow = createWorkflow({
+            id: 'agentic-loop',
+            inputSchema: llmIterationOutputSchema,
+            outputSchema: z.any(),
+            retryConfig: {
+              attempts: maxRetries,
+            },
+          })
+            .dowhile(outerAgentWorkflow, async ({ inputData }) => {
+              const hasFinishedSteps = stepCount > maxSteps;
 
-          if (reason === undefined) {
-            return false;
+              inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
+
+              controller.enqueue({
+                type: 'step-finish',
+                runId,
+                from: 'AGENT',
+                payload: inputData,
+              });
+
+              const reason = inputData.stepResult.reason;
+
+              if (reason === undefined) {
+                return false;
+              }
+
+              return inputData.stepResult.isContinued && stepCount < maxSteps;
+            })
+            .map(({ inputData }) => {
+              const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');
+
+              inputData.output.toolCalls = toolCalls;
+
+              return inputData;
+            })
+
+            .commit();
+
+          controller.enqueue({
+            type: 'start',
+            runId,
+            from: 'AGENT',
+            payload: {},
+          });
+
+          const run = await mainWorkflow.createRunAsync({
+            runId,
+          });
+
+          const executionResult = await run.start({
+            inputData: {
+              messages: {
+                all: inputMessages,
+                user: inputMessages,
+                nonUser: [],
+              },
+            },
+          });
+
+          if (executionResult.status !== 'success') {
+            controller.close();
+            return;
           }
 
-          return inputData.stepResult.isContinued && stepCount < maxSteps;
-        })
-        .map(({ inputData }) => {
-          const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');
+          controller.enqueue({
+            type: 'finish',
+            runId,
+            from: 'AGENT',
+            payload: executionResult.result,
+          });
 
-          inputData.output.toolCalls = toolCalls;
-
-          return inputData;
-        })
-
-        .commit();
-
-      controller.enqueue({
-        type: 'start',
-        runId,
-        from: 'AGENT',
-        payload: {},
-      });
-
-      const run = await mainWorkflow.createRunAsync({
-        runId,
-      });
-
-      const executionResult = await run.start({
-        inputData: {
-          messages: {
-            all: inputMessages,
-            user: inputMessages,
-            nonUser: [],
-          },
+          controller.close();
         },
       });
-
-      if (executionResult.status !== 'success') {
-        controller.close();
-        return;
-      }
-
-      controller.enqueue({
-        type: 'finish',
-        runId,
-        from: 'AGENT',
-        payload: executionResult.result,
-      });
-
-      controller.close();
     },
   });
 }
@@ -810,6 +849,13 @@ export async function execute(
   if (!runIdToUse) {
     runIdToUse = crypto.randomUUID();
   }
+
+  const traceSettings = rest.experimental_telemetry || {};
+
+  const tracer = getTracer({
+    isEnabled: traceSettings.isEnabled,
+    tracer: traceSettings.tracer,
+  });
 
   const messageList = new MessageList({
     threadId,

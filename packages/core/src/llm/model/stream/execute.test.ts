@@ -8,6 +8,7 @@ import { toDataStreamResponseTests } from './ai-sdk/v4/test-utils/toDataStreamRe
 import { fullStreamTests as fullStreamTestsV5 } from './ai-sdk/v5/test-utils/fullStream';
 import { optionsTests as optionsTestsV5 } from './ai-sdk/v5/test-utils/options';
 import { resultObjectTests as resultObjectTestsV5 } from './ai-sdk/v5/test-utils/result-object';
+import { telemetryTests as telemetryTestsV5 } from './ai-sdk/v5/test-utils/telemetry';
 import { textStreamTests as textStreamTestsV5 } from './ai-sdk/v5/test-utils/textStream';
 import { toUIMessageStreamTests } from './ai-sdk/v5/test-utils/toUIMessageStream';
 import { execute } from './execute';
@@ -38,6 +39,8 @@ describe('V4 tests', () => {
 });
 
 describe('V5 tests', () => {
+  telemetryTestsV5({ executeFn: execute, runId });
+
   optionsTestsV5({ executeFn: execute, runId });
 
   resultObjectTestsV5({ executeFn: execute, runId });
