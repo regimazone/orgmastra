@@ -6143,7 +6143,7 @@ exports[`V5 tests > telemetry > should record telemetry data when enabled 1`] = 
         "name": "ai.stream.finish",
       },
     ],
-    "name": "ai.streamText.doStream",
+    "name": "mastra.stream.aisdk.doStream",
   },
 ]
 `;

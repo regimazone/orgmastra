@@ -6,7 +6,7 @@ import { MessageList } from '../../../agent';
 import { ConsoleLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 import { createStep, createWorkflow } from '../../../workflows';
-import { assembleOperationName, getTracer, recordSpan, selectTelemetryAttributes } from './ai-sdk/telemetry';
+import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
 import { executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
 import { MastraModelOutput } from './base';
@@ -42,7 +42,7 @@ function createAgentWorkflow({
   providerMetadata,
   tools,
   toolChoice,
-  activeTools,
+  experimental_telemetry,
   toolCallStreaming,
   _internal,
   experimental_generateMessageId,
@@ -698,6 +698,7 @@ function createStreamExecutor({
   maxRetries = 2,
   maxSteps = 5,
   logger,
+  experimental_telemetry,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -720,6 +721,25 @@ function createStreamExecutor({
         logger,
       });
 
+      const tracer = getTracer({
+        isEnabled: experimental_telemetry?.isEnabled,
+        tracer: experimental_telemetry?.tracer,
+      });
+
+      const baseTelemetryAttributes = getBaseTelemetryAttributes({
+        model,
+        settings: {},
+        telemetry: experimental_telemetry,
+        headers: {},
+      });
+
+      const rootSpan = tracer.startSpan('mastra.stream.aisdk.doStream').setAttributes({
+        ...baseTelemetryAttributes,
+        ...assembleOperationName({
+          operationId: 'mastra.stream.aisdk.doStream',
+        }),
+      });
+
       const mainWorkflow = createWorkflow({
         id: 'agentic-loop',
         inputSchema: llmIterationOutputSchema,
@@ -739,6 +759,8 @@ function createStreamExecutor({
             from: 'AGENT',
             payload: inputData,
           });
+
+          rootSpan.end();
 
           const reason = inputData.stepResult.reason;
 
@@ -850,6 +872,29 @@ export async function execute(
     ...rest,
   };
 
+  const tracer = getTracer({
+    isEnabled: rest.experimental_telemetry?.isEnabled,
+    tracer: rest.experimental_telemetry?.tracer,
+  });
+
+  const baseTelemetryAttributes = getBaseTelemetryAttributes({
+    model: {
+      modelId: rest.model.modelId,
+      provider: rest.model.provider,
+    },
+    settings: {},
+    telemetry: rest.experimental_telemetry,
+    headers: {},
+  });
+
+  const rootSpan = tracer.startSpan('mastra.stream').setAttributes({
+    ...baseTelemetryAttributes,
+    ...assembleOperationName({
+      operationId: 'mastra.stream',
+      telemetry: rest.experimental_telemetry,
+    }),
+  });
+
   const executor = createStreamExecutor({
     ...streamExecutorProps,
   });
@@ -862,7 +907,7 @@ export async function execute(
     },
     stream: executor,
     options: {
-      telemetry: rest.experimental_telemetry,
+      rootSpan,
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,
     },
