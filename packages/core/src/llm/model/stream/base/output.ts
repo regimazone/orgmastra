@@ -1,5 +1,7 @@
+import type { TelemetrySettings } from 'ai-v5';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
+import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from '../ai-sdk/telemetry';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
 
@@ -54,17 +56,43 @@ export class MastraModelOutput extends MastraBase {
   constructor({
     stream,
     options,
-    version,
+    model,
   }: {
-    version: 'v1' | 'v2';
+    model: {
+      modelId: string;
+      provider: string;
+      version: 'v1' | 'v2';
+    };
     stream: ReadableStream<ChunkType>;
     options: {
+      telemetry?: TelemetrySettings;
       toolCallStreaming?: boolean;
       onFinish?: (event: any) => Promise<void> | void;
     };
   }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
     const self = this;
+
+    const tracer = getTracer({
+      isEnabled: options.telemetry?.isEnabled,
+      tracer: options.telemetry?.tracer,
+    });
+
+    const baseTelemetryAttributes = getBaseTelemetryAttributes({
+      model,
+      settings: {},
+      telemetry: options.telemetry,
+      headers: {},
+    });
+
+    const rootSpan = tracer.startSpan('mastra.stream').setAttributes({
+      ...baseTelemetryAttributes,
+      ...assembleOperationName({
+        operationId: 'mastra.stream',
+        telemetry: options.telemetry,
+      }),
+    });
+
     this.#baseStream = stream.pipeThrough(
       new TransformStream<ChunkType, ChunkType>({
         transform: async (chunk, controller) => {
@@ -191,7 +219,7 @@ export class MastraModelOutput extends MastraBase {
 
                 let onFinishPayload: any = {};
 
-                if (version === 'v1') {
+                if (model.version === 'v1') {
                   onFinishPayload = {
                     text: baseFinishStep.text,
                     warnings: baseFinishStep.warnings,
@@ -259,6 +287,42 @@ export class MastraModelOutput extends MastraBase {
 
                 await options?.onFinish?.(onFinishPayload);
               }
+
+              rootSpan.setAttributes({
+                ...(baseFinishStep?.usage.reasoningTokens
+                  ? {
+                      'stream.usage.reasoningTokens': baseFinishStep.usage.reasoningTokens,
+                    }
+                  : {}),
+
+                ...(baseFinishStep?.usage.totalTokens
+                  ? {
+                      'stream.usage.totalTokens': baseFinishStep.usage.totalTokens,
+                    }
+                  : {}),
+
+                ...(baseFinishStep?.usage.inputTokens
+                  ? {
+                      'stream.usage.inputTokens': baseFinishStep.usage.inputTokens,
+                    }
+                  : {}),
+                ...(baseFinishStep?.usage.outputTokens
+                  ? {
+                      'stream.usage.outputTokens': baseFinishStep.usage.outputTokens,
+                    }
+                  : {}),
+                ...(baseFinishStep?.usage.cachedInputTokens
+                  ? {
+                      'stream.usage.cachedInputTokens': baseFinishStep.usage.cachedInputTokens,
+                    }
+                  : {}),
+
+                'aisdk.response.providerMetadata': JSON.stringify(baseFinishStep?.providerMetadata),
+                'aisdk.response.finishReason': baseFinishStep?.finishReason,
+                'aisdk.response.text': baseFinishStep?.text,
+              });
+
+              rootSpan.end();
 
               break;
           }

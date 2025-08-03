@@ -4,6 +4,7 @@ import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 import type { CoreTool, CoreToolV2 } from '../../../tools';
+import type { Span } from '@opentelemetry/api';
 
 export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
 
