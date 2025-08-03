@@ -26,6 +26,7 @@ export type ExecuteOptions = {
   onChunk?: (chunk: ChunkType) => Promise<void> | void;
   onError?: ({ error }: { error: Error | string }) => Promise<void> | void;
   onFinish?: (event: any) => Promise<void> | void;
+  activeTools?: Array<keyof ToolSet> | undefined;
 };
 
 export type ExecutionProps = {
@@ -35,7 +36,6 @@ export type ExecutionProps = {
   providerMetadata?: Record<string, any>;
   tools?: Record<string, CoreTool | CoreToolV2>;
   toolChoice?: ToolChoice<ToolSet> | undefined;
-  activeTools?: Array<keyof ToolSet> | undefined;
   _internal?: StreamInternal;
   experimental_generateMessageId?: Pick<
     Parameters<typeof streamText>[0],

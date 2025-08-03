@@ -139,7 +139,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         prompt: 'test-input',
         options: {
           onError(event) {
-            console.log('ON ERROR FUNC', event);
             result.push(event);
           },
         },

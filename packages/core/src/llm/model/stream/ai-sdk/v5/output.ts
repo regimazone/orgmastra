@@ -355,7 +355,6 @@ export class AISDKV5OutputStream {
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
-    const self = this;
     let stepCounter = 1;
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, TextStreamPart<ToolSet>>({

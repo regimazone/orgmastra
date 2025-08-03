@@ -126,7 +126,6 @@ function createAgentWorkflow({
               inputMessages: messageList.get.all.core() as any,
               tools,
               toolChoice,
-              activeTools,
               _internal,
               options,
               onResult: ({
@@ -160,7 +159,6 @@ function createAgentWorkflow({
               inputMessages: messageList.get.all.core() as any,
               tools,
               toolChoice,
-              activeTools,
               _internal,
               options,
               onResult: ({
@@ -689,7 +687,6 @@ function createStreamExecutor({
   providerMetadata,
   tools,
   toolChoice,
-  activeTools,
   inputMessages,
   options,
   maxRetries = 2,
@@ -709,7 +706,6 @@ function createStreamExecutor({
         providerMetadata,
         tools,
         toolChoice,
-        activeTools,
         inputMessages,
         _internal,
         experimental_generateMessageId,

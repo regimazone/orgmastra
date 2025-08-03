@@ -1,5 +1,4 @@
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
-import type { ToolSet } from 'ai-v5';
 import { MessageList } from '../../../../../agent';
 import type { ExecutionProps } from '../../types';
 import { AISDKV5InputStream } from './input';
@@ -11,8 +10,8 @@ export function executeV5({
   providerMetadata,
   inputMessages,
   tools,
-  activeTools,
   toolChoice,
+  options,
   onResult,
 }: ExecutionProps & {
   model: LanguageModelV2;
@@ -24,9 +23,9 @@ export function executeV5({
   });
 
   const toolsAndToolChoice = prepareToolsAndToolChoice({
-    tools: tools as ToolSet,
+    tools,
     toolChoice,
-    activeTools,
+    activeTools: options?.activeTools,
   });
 
   const stream = v5.initialize({
@@ -39,6 +38,7 @@ export function executeV5({
         const stream = await model.doStream({
           ...toolsAndToolChoice,
           prompt: messages.get.all.model(),
+          providerOptions: providerMetadata,
         });
         return stream as any;
       } catch (error) {
