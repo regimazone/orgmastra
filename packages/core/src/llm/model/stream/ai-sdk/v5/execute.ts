@@ -3,6 +3,7 @@ import { MessageList } from '../../../../../agent';
 import type { ExecutionProps } from '../../types';
 import { AISDKV5InputStream } from './input';
 import { prepareToolsAndToolChoice } from './prepare-tools';
+import { isAbortError } from '@ai-sdk/provider-utils';
 
 export function executeV5({
   runId,
@@ -39,10 +40,15 @@ export function executeV5({
           ...toolsAndToolChoice,
           prompt: messages.get.all.model(),
           providerOptions: providerMetadata,
+          abortSignal: options?.abortSignal,
         });
         return stream as any;
       } catch (error) {
         console.error('Error creating stream', error);
+        if (isAbortError(error) && options?.abortSignal?.aborted) {
+          console.log('Abort error', error);
+        }
+
         return {
           stream: new ReadableStream({
             start: async controller => {

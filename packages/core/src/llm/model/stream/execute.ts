@@ -72,6 +72,7 @@ function createAgentWorkflow({
         const messageList = MessageList.fromArray(initialResult.messages.user);
 
         const result = await tool.execute(inputData.args, {
+          abortSignal: options?.abortSignal,
           toolCallId: inputData.toolCallId,
           messages: messageList.get.all
             ?.ui()

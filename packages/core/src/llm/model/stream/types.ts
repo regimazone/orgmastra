@@ -27,6 +27,7 @@ export type ExecuteOptions = {
   onError?: ({ error }: { error: Error | string }) => Promise<void> | void;
   onFinish?: (event: any) => Promise<void> | void;
   activeTools?: Array<keyof ToolSet> | undefined;
+  abortSignal?: AbortSignal;
 };
 
 export type ExecutionProps = {

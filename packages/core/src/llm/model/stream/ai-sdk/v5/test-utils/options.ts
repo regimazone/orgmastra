@@ -1,12 +1,61 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 import type { LanguageModelV2FunctionTool, LanguageModelV2ProviderDefinedTool } from '@ai-sdk/provider-v5';
 import { convertArrayToReadableStream, MockLanguageModelV2 } from 'ai-v5/test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
-import { testUsage } from './test-utils';
+import { createTestModel, testUsage } from './test-utils';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
+  describe('options.abortSignal', () => {
+    it('should forward abort signal to tool execution during streaming', async () => {
+      const abortController = new AbortController();
+      const toolExecuteMock = vi.fn().mockResolvedValue('tool result');
+
+      const result = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'tool-call',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              input: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage,
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            inputSchema: z.object({ value: z.string() }),
+            execute: toolExecuteMock,
+          },
+        },
+        prompt: 'test-input',
+        options: {
+          abortSignal: abortController.signal,
+        },
+      });
+
+      await convertAsyncIterableToArray(result.aisdk.v5.fullStream as any);
+
+      abortController.abort();
+
+      expect(toolExecuteMock).toHaveBeenCalledWith(
+        { value: 'value' },
+        {
+          abortSignal: abortController.signal,
+          toolCallId: 'call-1',
+          messages: expect.any(Array),
+        },
+      );
+    });
+  });
+
   describe('options.onError', () => {
     it('should invoke onError', async () => {
       const result: Array<{ error: unknown }> = [];
