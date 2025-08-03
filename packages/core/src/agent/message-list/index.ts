@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
 import { convertToCoreMessages } from 'ai';
 import type { CoreMessage, CoreSystemMessage, IDGenerator, Message, ToolCallPart, ToolInvocation, UIMessage } from 'ai';
+import type { UIMessage as UIMessageV5 } from 'ai-v5';
+import { convertToModelMessages } from 'ai-v5';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type { MastraMessageV1 } from '../../memory';
 import { isCoreMessage, isUiMessage } from '../../utils';
@@ -109,7 +111,12 @@ export class MessageList {
     v2: () => this.messages,
     v1: () => convertToV1Messages(this.messages),
     ui: () => this.messages.map(MessageList.toUIMessage),
+    aiV5: {
+      ui: () => this.messages.map(MessageList.toUIMessageV5),
+    },
+    model: () => convertToModelMessages(this.all.aiV5.ui()),
     core: () => this.convertToCoreMessages(this.all.ui()),
+
     prompt: () => {
       const coreMessages = this.all.core();
 
@@ -217,6 +224,33 @@ export class MessageList {
       m => MessageList.cacheKeyFromContent(m.content) === MessageList.cacheKeyFromContent(message.content),
     );
   }
+
+  private static toUIMessageV5(m: MastraMessageV2): UIMessageV5 {
+    const metadata: Record<string, any> = {
+      ...(m.content.metadata || {}),
+    };
+    if (m.createdAt) metadata.createdAt = m.createdAt;
+    if (m.threadId) metadata.threadId = m.threadId;
+    if (m.resourceId) metadata.resourceId = m.resourceId;
+    return {
+      id: m.id,
+      role: m.role,
+      metadata,
+      parts: m.content.parts.map(part => {
+        if (part.type === 'tool-invocation') {
+          return {
+            type: `tool-${part.toolInvocation.toolName}`,
+            toolCallId: part.toolInvocation.toolCallId,
+            input: part.toolInvocation.args,
+            state: part.toolInvocation.state === 'result' ? 'output-available' : 'input-available',
+            output: part.toolInvocation.state === 'result' ? part.toolInvocation.result : undefined,
+          };
+        }
+        return part;
+      }),
+    };
+  }
+
   private static toUIMessage(m: MastraMessageV2): UIMessage {
     const experimentalAttachments: UIMessage['experimental_attachments'] = m.content.experimental_attachments
       ? [...m.content.experimental_attachments]
@@ -418,7 +452,6 @@ export class MessageList {
             partsToAdd.set(index, part);
           }
         } else {
-          console.log('adding part', part, index);
           partsToAdd.set(index, part);
         }
       }
@@ -583,7 +616,6 @@ export class MessageList {
           }
         }
       } else {
-        console.log('I HOPE WE ARE HERE');
         this.pushNewMessagePart({
           latestMessage,
           newMessage: messageV2,

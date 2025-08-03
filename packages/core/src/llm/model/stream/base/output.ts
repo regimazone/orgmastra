@@ -140,8 +140,6 @@ export class MastraModelOutput extends MastraBase {
 
               const reasoningDetails = reasoningDetailsFromMessages(chunk.payload.messages.all);
 
-              console.log('reasoningDetails', JSON.stringify(reasoningDetails, null, 2));
-
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 
               self.#bufferedSteps.push({
@@ -176,7 +174,6 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#providerMetadata = chunk.payload.metadata.providerMetadata;
 
-                console.log('OTHER METADATA', JSON.stringify(otherMetadata, null, 2));
                 self.#response = {
                   ...otherMetadata,
                   messages: chunk.payload.messages.all.slice(1),

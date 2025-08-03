@@ -106,8 +106,6 @@ function createAgentWorkflow({
         const messagesToUse = inputData.messages.all;
         const messageList = MessageList.fromArray(messagesToUse);
 
-        console.log('messagesToUse', JSON.stringify(messagesToUse, null, 2));
-
         const runState = new AgenticRunState({
           _internal: _internal!,
           model,
@@ -173,8 +171,6 @@ function createAgentWorkflow({
                 warnings = warningsFromStream;
                 request = requestFromStream || {};
                 rawResponse = rawResponseFromStream;
-
-                console.log('RAW', rawResponse);
 
                 controller.enqueue({
                   runId,

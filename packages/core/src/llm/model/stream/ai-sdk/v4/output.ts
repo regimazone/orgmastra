@@ -78,8 +78,6 @@ export class AISDKV4OutputStream {
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
-          console.log('toDataStream chunk', chunk);
-
           const transformedChunk = convertFullStreamChunkToAISDKv4({
             chunk,
             client: true,
@@ -90,8 +88,6 @@ export class AISDKV4OutputStream {
             getErrorMessage: getErrorMessage,
             toolCallStreaming: self.#options.toolCallStreaming,
           });
-
-          console.log('toDataStream transformedChunk', transformedChunk);
 
           if (transformedChunk) {
             controller.enqueue(transformedChunk);
