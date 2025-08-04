@@ -49,6 +49,7 @@ function createAgentWorkflow({
   experimental_generateMessageId,
   controller,
   options,
+  doStreamSpan,
 }: AgentWorkflowProps) {
   function toolCallStep() {
     return createStep({
@@ -73,6 +74,21 @@ function createAgentWorkflow({
 
         const messageList = MessageList.fromArray(initialResult.messages.user);
 
+        const tracer = getTracer({
+          isEnabled: experimental_telemetry?.isEnabled,
+          tracer: experimental_telemetry?.tracer,
+        });
+
+        const span = tracer.startSpan('mastra.stream.toolCall').setAttributes({
+          'stream.toolCall.args': JSON.stringify(inputData.args),
+          ...assembleOperationName({
+            operationId: 'mastra.stream.toolCall',
+            telemetry: experimental_telemetry,
+          }),
+          'stream.toolCall.toolName': inputData.toolName,
+          'stream.toolCall.toolCallId': inputData.toolCallId,
+        });
+
         const result = await tool.execute(inputData.args, {
           abortSignal: options?.abortSignal,
           toolCallId: inputData.toolCallId,
@@ -84,6 +100,12 @@ function createAgentWorkflow({
               content: message.content,
             })) as any,
         });
+
+        span.setAttributes({
+          'stream.toolCall.result': JSON.stringify(result),
+        });
+
+        span.end();
 
         console.log('result before', result);
         return { result, ...inputData };
@@ -185,6 +207,7 @@ function createAgentWorkflow({
                   },
                 });
               },
+              doStreamSpan,
             });
 
             break;
@@ -676,6 +699,9 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
+      if (doStreamSpan) {
+        doStreamSpan.setAttribute('stream.response.toolCalls', JSON.stringify(inputData.output.toolCalls));
+      }
       return inputData.output.toolCalls || [];
     })
     .foreach(toolCallExecutionStep)
@@ -690,7 +716,7 @@ function createStreamExecutor({
   runId,
   providerMetadata,
   tools,
-  toolChoice,
+  toolChoice = 'auto',
   inputMessages,
   options,
   maxRetries = 2,
@@ -708,21 +734,6 @@ function createStreamExecutor({
       const messageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
       let stepCount = 0;
-
-      const outerAgentWorkflow = createAgentWorkflow({
-        messageId: messageId!,
-        model,
-        runId,
-        providerMetadata,
-        tools,
-        toolChoice,
-        inputMessages,
-        _internal,
-        experimental_generateMessageId,
-        controller,
-        options,
-        logger,
-      });
 
       const tracer = getTracer({
         isEnabled: experimental_telemetry?.isEnabled,
@@ -742,6 +753,24 @@ function createStreamExecutor({
           operationId: 'mastra.stream.aisdk.doStream',
           telemetry: experimental_telemetry,
         }),
+        'stream.prompt.toolChoice': toolChoice as string,
+      });
+
+      const outerAgentWorkflow = createAgentWorkflow({
+        messageId: messageId!,
+        model,
+        runId,
+        providerMetadata,
+        tools,
+        toolChoice,
+        inputMessages,
+        _internal,
+        experimental_generateMessageId,
+        experimental_telemetry,
+        controller,
+        options,
+        logger,
+        doStreamSpan: rootSpan,
       });
 
       const mainWorkflow = createWorkflow({

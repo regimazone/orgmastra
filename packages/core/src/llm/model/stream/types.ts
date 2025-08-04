@@ -49,6 +49,7 @@ export type ExecutionProps = {
   headers?: Record<string, string | undefined>;
   logger?: MastraLogger;
   experimental_telemetry?: TelemetrySettings;
+  doStreamSpan?: Span;
 };
 
 export type AgentWorkflowProps = {

@@ -1,9 +1,9 @@
+import { isAbortError } from '@ai-sdk/provider-utils';
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import { MessageList } from '../../../../../agent';
 import type { ExecutionProps } from '../../types';
 import { AISDKV5InputStream } from './input';
 import { prepareToolsAndToolChoice } from './prepare-tools';
-import { isAbortError } from '@ai-sdk/provider-utils';
 
 export function executeV5({
   runId,
@@ -14,6 +14,7 @@ export function executeV5({
   toolChoice,
   options,
   onResult,
+  doStreamSpan,
 }: ExecutionProps & {
   model: LanguageModelV2;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
@@ -28,6 +29,12 @@ export function executeV5({
     toolChoice,
     activeTools: options?.activeTools,
   });
+
+  if (doStreamSpan && toolsAndToolChoice?.tools?.length) {
+    doStreamSpan.setAttributes({
+      'stream.prompt.tools': toolsAndToolChoice?.tools?.map(tool => JSON.stringify(tool)),
+    });
+  }
 
   const stream = v5.initialize({
     runId,
