@@ -762,6 +762,7 @@ function createStreamExecutor({
           operationId: 'mastra.stream.aisdk.doStream',
           telemetry: experimental_telemetry,
         }),
+        'stream.prompt.toolChoice': toolChoice as string,
       });
 
       const outerAgentWorkflow = createAgentWorkflow({
@@ -984,7 +985,6 @@ export async function execute(
       operationId: 'mastra.stream',
       telemetry: rest.experimental_telemetry,
     }),
-    'stream.prompt.toolChoice': (props.toolChoice as string) ?? 'auto',
     'stream.prompt.messages': JSON.stringify(messages),
   });
 

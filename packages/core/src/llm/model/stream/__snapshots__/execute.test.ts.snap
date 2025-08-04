@@ -6047,7 +6047,6 @@ exports[`V5 tests > telemetry > should record telemetry data when enabled 1`] = 
       "operation.name": "mastra.stream test-function-id",
       "resource.name": "test-function-id",
       "stream.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
-      "stream.prompt.toolChoice": "auto",
       "stream.request.headers.header1": "value1",
       "stream.request.headers.header2": "value2",
       "stream.response.finishReason": "stop",
@@ -6097,6 +6096,7 @@ exports[`V5 tests > telemetry > should record telemetry data when enabled 1`] = 
       "stream.settings.stopSequences": [
         "stop",
       ],
+      "stream.prompt.toolChoice": "auto",
       "stream.settings.temperature": 0.5,
       "stream.settings.topK": 0.1,
       "stream.settings.topP": 0.2,
