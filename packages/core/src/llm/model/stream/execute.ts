@@ -703,6 +703,7 @@ function createStreamExecutor({
     maxRetries: 2,
   },
   headers,
+  startTimestamp,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -798,6 +799,16 @@ function createStreamExecutor({
 
         .commit();
 
+      const msToFirstChunk = _internal?.now?.()! - startTimestamp!;
+
+      rootSpan.addEvent('ai.stream.firstChunk', {
+        'ai.response.msToFirstChunk': msToFirstChunk,
+      });
+
+      rootSpan.setAttributes({
+        'stream.response.msToFirstChunk': msToFirstChunk,
+      });
+
       controller.enqueue({
         type: 'start',
         runId,
@@ -878,6 +889,8 @@ export async function execute(
     generateId,
   };
 
+  let startTimestamp = _internalToUse?.now?.();
+
   // We call this for no reason because of aisdk
   if (rest.model.specificationVersion === 'v1') {
     _internalToUse.generateId?.();
@@ -917,6 +930,7 @@ export async function execute(
 
   const executor = createStreamExecutor({
     ...streamExecutorProps,
+    startTimestamp,
   });
 
   return new MastraModelOutput({

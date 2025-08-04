@@ -59,4 +59,5 @@ export type AgentWorkflowProps = {
 export type StreamExecutorProps = {
   maxSteps?: number;
   maxRetries?: number;
+  startTimestamp: number;
 } & ExecutionProps;
