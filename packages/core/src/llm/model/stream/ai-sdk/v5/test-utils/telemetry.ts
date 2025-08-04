@@ -40,11 +40,12 @@ export function telemetryTests({ executeFn, runId }: { executeFn: typeof execute
           presencePenalty: 0.4,
           temperature: 0.5,
           stopSequences: ['stop'],
+          maxRetries: 2,
         },
-        // headers: {
-        //     header1: 'value1',
-        //     header2: 'value2',
-        // },
+        headers: {
+          header1: 'value1',
+          header2: 'value2',
+        },
         experimental_telemetry: {
           isEnabled: true,
           functionId: 'test-function-id',

@@ -299,9 +299,9 @@ export class MastraModelOutput extends MastraBase {
                       }
                     : {}),
 
-                  'aisdk.response.providerMetadata': JSON.stringify(baseFinishStep?.providerMetadata),
-                  'aisdk.response.finishReason': baseFinishStep?.finishReason,
-                  'aisdk.response.text': baseFinishStep?.text,
+                  'stream.response.providerMetadata': JSON.stringify(baseFinishStep?.providerMetadata),
+                  'stream.response.finishReason': baseFinishStep?.finishReason,
+                  'stream.response.text': baseFinishStep?.text,
                 });
 
                 options.rootSpan.end();

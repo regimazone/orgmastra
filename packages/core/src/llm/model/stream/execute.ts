@@ -699,7 +699,10 @@ function createStreamExecutor({
   maxSteps = 5,
   logger,
   experimental_telemetry,
-  modelSettings,
+  modelSettings = {
+    maxRetries: 2,
+  },
+  headers,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -731,13 +734,14 @@ function createStreamExecutor({
         model,
         settings: modelSettings ?? {},
         telemetry: experimental_telemetry,
-        headers: {},
+        headers,
       });
 
       const rootSpan = tracer.startSpan('mastra.stream.aisdk.doStream').setAttributes({
         ...baseTelemetryAttributes,
         ...assembleOperationName({
           operationId: 'mastra.stream.aisdk.doStream',
+          telemetry: experimental_telemetry,
         }),
       });
 
@@ -759,6 +763,13 @@ function createStreamExecutor({
             runId,
             from: 'AGENT',
             payload: inputData,
+          });
+
+          rootSpan.setAttributes({
+            'stream.response.model': model.modelId,
+            'stream.response.text': inputData.output.text,
+            'stream.response.finishReason': inputData.stepResult.reason,
+            'stream.usage.inputTokens': inputData.output.usage?.inputTokens,
           });
 
           rootSpan.end();
@@ -794,6 +805,7 @@ function createStreamExecutor({
 
       const executionResult = await run.start({
         inputData: {
+          messageId: messageId!,
           messages: {
             all: inputMessages,
             user: inputMessages,
@@ -883,9 +895,9 @@ export async function execute(
       modelId: rest.model.modelId,
       provider: rest.model.provider,
     },
-    settings: rest.modelSettings,
+    settings: rest.modelSettings ?? {},
     telemetry: rest.experimental_telemetry,
-    headers: {},
+    headers: rest.headers,
   });
 
   const rootSpan = tracer.startSpan('mastra.stream').setAttributes({

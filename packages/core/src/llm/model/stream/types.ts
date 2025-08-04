@@ -45,7 +45,8 @@ export type ExecutionProps = {
   >['experimental_generateMessageId'];
   toolCallStreaming?: boolean;
   options?: ExecuteOptions;
-  modelSettings?: Omit<CallSettings, 'abortSignal' | 'headers' | 'maxRetries'>;
+  modelSettings?: Omit<CallSettings, 'abortSignal' | 'headers'>;
+  headers?: Record<string, string | undefined>;
   logger?: MastraLogger;
   experimental_telemetry?: TelemetrySettings;
 };

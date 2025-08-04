@@ -231,7 +231,7 @@ export function getBaseTelemetryAttributes({
     // request headers
     ...Object.entries(headers ?? {}).reduce((attributes, [key, value]) => {
       if (value !== undefined) {
-        attributes[`aisdk.request.headers.${key}`] = value;
+        attributes[`stream.request.headers.${key}`] = value;
       }
       return attributes;
     }, {} as Attributes),
