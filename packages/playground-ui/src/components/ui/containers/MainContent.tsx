@@ -44,12 +44,12 @@ export function MainContentContent({
   return (
     <div
       className={cn(
-        `@container grid overflow-y-auto h-full `,
+        `grid overflow-y-auto h-full `,
         `overflow-x-auto min-w-[min-content]`,
         {
           'items-start content-start': !isCentered && !isDivided && !hasLeftServiceColumn,
           'grid place-items-center': isCentered,
-          'grid-cols-1 @min-[400px]:grid-cols-2': isDivided && !hasLeftServiceColumn,
+          'grid-cols-[1fr_1fr]': isDivided && !hasLeftServiceColumn,
           'grid-cols-[auto_1fr_1fr]': isDivided && hasLeftServiceColumn,
           'grid-cols-[auto_1fr]': !isDivided && hasLeftServiceColumn,
         },
