@@ -2162,6 +2162,10 @@ exports[`V4 tests > options.onChunk > should return events in order 1`] = `
     "type": "tool-call",
   },
   {
+    "textDelta": " World",
+    "type": "text-delta",
+  },
+  {
     "args": {
       "value": "test",
     },
@@ -2169,10 +2173,6 @@ exports[`V4 tests > options.onChunk > should return events in order 1`] = `
     "toolCallId": "1",
     "toolName": "tool1",
     "type": "tool-result",
-  },
-  {
-    "textDelta": " World",
-    "type": "text-delta",
   },
 ]
 `;

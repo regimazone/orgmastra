@@ -7,12 +7,13 @@ import { ConsoleLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 import { createStep, createWorkflow } from '../../../workflows';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
-import { executeV4 } from './ai-sdk/v4';
+import { convertFullStreamChunkToAISDKv4, executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, StreamExecutorProps } from './types';
 import type { MastraMessageV1 } from '../../../memory';
+import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -108,7 +109,6 @@ function createAgentWorkflow({
 
           span.end();
 
-          console.log('result before', result);
           return { result, ...inputData };
         } catch (error) {
           span.setStatus({
@@ -241,10 +241,6 @@ function createAgentWorkflow({
 
         try {
           for await (const chunk of outputStream.fullStream) {
-            if (['text-delta', 'reasoning-delta', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
-              await options?.onChunk?.(chunk);
-            }
-
             if (
               chunk.type !== 'reasoning-delta' &&
               chunk.type !== 'reasoning-signature' &&
@@ -418,12 +414,12 @@ function createAgentWorkflow({
                 );
                 controller.enqueue(chunk);
                 break;
-              case 'tool-call-delta':
+              case 'tool-call-delta': {
                 const hasToolCallStreaming = runState.state.hasToolCallStreaming;
                 if (!hasToolCallStreaming && model.specificationVersion === 'v1') {
                   // @TODO:
                   // This needs to go to src/llm/model/stream/ai-sdk/v4/input.ts as an input stream transform, to add events
-                  controller.enqueue({
+                  const streamingChunk = {
                     type: 'tool-call-input-streaming-start',
                     from: 'AGENT',
                     runId: chunk.runId,
@@ -431,17 +427,20 @@ function createAgentWorkflow({
                       toolCallId: chunk.payload.toolCallId,
                       toolName: chunk.payload.toolName,
                     },
-                  });
+                  };
+                  controller.enqueue(streamingChunk);
 
-                  await options?.onChunk?.({
-                    type: 'tool-call-input-streaming-start',
-                    from: 'AGENT',
-                    runId: chunk.runId,
-                    payload: {
-                      toolCallId: chunk.payload.toolCallId,
-                      toolName: chunk.payload.toolName,
-                    },
-                  });
+                  await options?.onChunk?.(
+                    convertFullStreamChunkToAISDKv4({
+                      chunk: streamingChunk,
+                      client: false,
+                      sendReasoning: true,
+                      sendSources: true,
+                      sendUsage: true,
+                      toolCallStreaming: true,
+                      getErrorMessage: (error: string) => error,
+                    }),
+                  );
 
                   runState.setState({
                     hasToolCallStreaming: true,
@@ -449,6 +448,7 @@ function createAgentWorkflow({
                 }
                 controller.enqueue(chunk);
                 break;
+              }
               case 'file':
                 messageList.add(
                   {
@@ -507,8 +507,37 @@ function createAgentWorkflow({
                 controller.enqueue(chunk);
             }
 
-            if (['text-delta', 'reasoning', 'source', 'tool-call', 'tool-call-delta'].includes(chunk.type)) {
-              await options?.onChunk?.(chunk);
+            if (
+              [
+                'text-delta',
+                'reasoning-delta',
+                'source',
+                'tool-call',
+                'tool-call-input-streaming-start',
+                'tool-call-delta',
+              ].includes(chunk.type)
+            ) {
+              if (model.specificationVersion === 'v1') {
+                const transformedChunk = convertFullStreamChunkToAISDKv4({
+                  chunk,
+                  client: false,
+                  sendReasoning: true,
+                  sendSources: true,
+                  sendUsage: true,
+                  toolCallStreaming: true,
+                  getErrorMessage: (error: string) => error,
+                });
+                await options?.onChunk?.(transformedChunk);
+              } else if (model.specificationVersion === 'v2') {
+                const transformedChunk = convertFullStreamChunkToAISDKv5({
+                  chunk,
+                  sendReasoning: true,
+                  sendSources: true,
+                  sendUsage: true,
+                  getErrorMessage: (error: string) => error,
+                });
+                await options?.onChunk?.(transformedChunk);
+              }
             }
 
             if (runState.state.hasErrored) {
@@ -638,7 +667,28 @@ function createAgentWorkflow({
 
             controller.enqueue(chunk);
 
-            await options?.onChunk?.(chunk);
+            if (model.specificationVersion === 'v1') {
+              await options?.onChunk?.(
+                convertFullStreamChunkToAISDKv4({
+                  chunk,
+                  client: false,
+                  sendReasoning: true,
+                  sendSources: true,
+                  sendUsage: true,
+                  getErrorMessage: (error: string) => error,
+                }),
+              );
+            } else if (model.specificationVersion === 'v2') {
+              await options?.onChunk?.(
+                convertFullStreamChunkToAISDKv5({
+                  chunk,
+                  sendReasoning: true,
+                  sendSources: true,
+                  sendUsage: true,
+                  getErrorMessage: (error: string) => error,
+                }),
+              );
+            }
           }
 
           const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
@@ -708,7 +758,6 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
-      console.log('huh', experimental_telemetry);
       if (doStreamSpan && experimental_telemetry?.recordOutputs !== false && inputData.output.toolCalls?.length) {
         doStreamSpan.setAttribute('stream.response.toolCalls', JSON.stringify(inputData.output.toolCalls));
       }

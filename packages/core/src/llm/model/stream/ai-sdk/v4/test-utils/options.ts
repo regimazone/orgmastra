@@ -10,7 +10,7 @@ import { DefaultGeneratedFileWithType } from '../file';
 import { MockTracer } from '../../test-utils/mockTracer';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
-  describe.skip('options.onChunk', () => {
+  describe('options.onChunk', () => {
     let result: Array<
       Extract<
         TextStreamPart<any>,
@@ -98,21 +98,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         toolCallStreaming: true,
         options: {
           onChunk(event) {
-            const transformed = convertFullStreamChunkToAISDKv4({
-              chunk: event,
-              client: false,
-              sendReasoning: true,
-              sendSources: true,
-              sendUsage: true,
-              getErrorMessage: (error: string) => error,
-              toolCallStreaming: true,
-            });
-
-            console.log('transformed', transformed);
-
-            if (transformed) {
-              result.push(transformed);
-            }
+            result.push(event as any);
           },
         },
       });
