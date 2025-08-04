@@ -80,13 +80,13 @@ function createAgentWorkflow({
         });
 
         const span = tracer.startSpan('mastra.stream.toolCall').setAttributes({
-          'stream.toolCall.args': JSON.stringify(inputData.args),
           ...assembleOperationName({
             operationId: 'mastra.stream.toolCall',
             telemetry: experimental_telemetry,
           }),
           'stream.toolCall.toolName': inputData.toolName,
           'stream.toolCall.toolCallId': inputData.toolCallId,
+          'stream.toolCall.args': JSON.stringify(inputData.args),
         });
 
         try {

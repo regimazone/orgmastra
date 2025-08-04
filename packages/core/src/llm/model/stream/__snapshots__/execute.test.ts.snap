@@ -5952,13 +5952,15 @@ exports[`V5 tests > telemetry > should not record telemetry inputs / outputs whe
   },
   {
     "attributes": {
-      "ai.operationId": "ai.toolCall",
-      "ai.toolCall.id": "call-1",
-      "ai.toolCall.name": "tool1",
-      "operation.name": "ai.toolCall",
+      "mastra.operationId": "mastra.stream.toolCall",
+      "operation.name": "mastra.stream.toolCall",
+      "stream.toolCall.args": "{"value":"value"}",
+      "stream.toolCall.result": ""value-result"",
+      "stream.toolCall.toolCallId": "call-1",
+      "stream.toolCall.toolName": "tool1",
     },
     "events": [],
-    "name": "ai.toolCall",
+    "name": "mastra.stream.toolCall",
   },
 ]
 `;
