@@ -1,10 +1,18 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
 import type { LanguageModelV2FunctionTool, LanguageModelV2ProviderDefinedTool } from '@ai-sdk/provider-v5';
-import { convertArrayToReadableStream, mockId, MockLanguageModelV2 } from 'ai-v5/test';
-import { describe, expect, it, vi } from 'vitest';
+import { convertArrayToReadableStream, MockLanguageModelV2 } from 'ai-v5/test';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
-import { createTestModel, testUsage, defaultSettings, modelWithSources, modelWithFiles } from './test-utils';
+import {
+  createTestModel,
+  testUsage,
+  defaultSettings,
+  modelWithSources,
+  modelWithFiles,
+  testUsage2,
+} from './test-utils';
+import type { TextStreamPart } from 'ai-v5';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('options.abortSignal', () => {
@@ -233,7 +241,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         },
         options: {
           onFinish: async event => {
-            console.log('hurr', event);
             result = event as unknown as typeof result;
           },
         },
@@ -874,6 +881,172 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           error: new Error('test error'),
         },
       ]);
+    });
+  });
+
+  describe('options.onChunk', () => {
+    let result: Array<
+      Extract<
+        TextStreamPart<any>,
+        {
+          type:
+            | 'text-delta'
+            | 'reasoning-delta'
+            | 'source'
+            | 'tool-call'
+            | 'tool-input-start'
+            | 'tool-input-delta'
+            | 'tool-result'
+            | 'raw';
+        }
+      >
+    >;
+
+    beforeEach(async () => {
+      result = [];
+
+      const resultObject = await executeFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            { type: 'text-start', id: '1' },
+            { type: 'text-delta', id: '1', delta: 'Hello' },
+            { type: 'text-end', id: '1' },
+            { type: 'tool-input-start', id: '2', toolName: 'tool1' },
+            { type: 'tool-input-delta', id: '2', delta: '{"value": "' },
+            { type: 'reasoning-start', id: '3' },
+            { type: 'reasoning-delta', id: '3', delta: 'Feeling clever' },
+            { type: 'reasoning-end', id: '3' },
+            { type: 'tool-input-delta', id: '2', delta: 'test' },
+            { type: 'tool-input-delta', id: '2', delta: '"}' },
+            {
+              type: 'source',
+              sourceType: 'url',
+              id: '123',
+              url: 'https://example.com',
+              title: 'Example',
+              providerMetadata: { provider: { custom: 'value' } },
+            },
+            { type: 'tool-input-end', id: '2' },
+            {
+              type: 'tool-call',
+              toolCallId: '2',
+              toolName: 'tool1',
+              input: `{ "value": "test" }`,
+              providerMetadata: { provider: { custom: 'value' } },
+            },
+            { type: 'text-start', id: '4' },
+            { type: 'text-delta', id: '4', delta: ' World' },
+            { type: 'text-end', id: '4' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage2,
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            inputSchema: z.object({ value: z.string() }),
+            execute: async ({ value }) => `${value}-result`,
+          },
+        },
+        prompt: 'test-input',
+        options: {
+          onChunk(event) {
+            result.push(event.chunk);
+          },
+        },
+      });
+
+      await resultObject.aisdk.v5.consumeStream();
+    });
+
+    it('should return events in order', async () => {
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "id": "1",
+            "providerMetadata": undefined,
+            "text": "Hello",
+            "type": "text-delta",
+          },
+          {
+            "dynamic": false,
+            "id": "2",
+            "toolName": "tool1",
+            "type": "tool-input-start",
+          },
+          {
+            "delta": "{"value": "",
+            "id": "2",
+            "type": "tool-input-delta",
+          },
+          {
+            "id": "3",
+            "providerMetadata": undefined,
+            "text": "Feeling clever",
+            "type": "reasoning-delta",
+          },
+          {
+            "delta": "test",
+            "id": "2",
+            "type": "tool-input-delta",
+          },
+          {
+            "delta": ""}",
+            "id": "2",
+            "type": "tool-input-delta",
+          },
+          {
+            "id": "123",
+            "providerMetadata": {
+              "provider": {
+                "custom": "value",
+              },
+            },
+            "sourceType": "url",
+            "title": "Example",
+            "type": "source",
+            "url": "https://example.com",
+          },
+          {
+            "input": {
+              "value": "test",
+            },
+            "providerExecuted": undefined,
+            "providerMetadata": {
+              "provider": {
+                "custom": "value",
+              },
+            },
+            "toolCallId": "2",
+            "toolName": "tool1",
+            "type": "tool-call",
+          },
+          {
+            "id": "4",
+            "providerMetadata": undefined,
+            "text": " World",
+            "type": "text-delta",
+          },
+          {
+            "input": {
+              "value": "test",
+            },
+            "output": "test-result",
+            "providerExecuted": undefined,
+            "providerMetadata": {
+              "provider": {
+                "custom": "value",
+              },
+            },
+            "toolCallId": "2",
+            "toolName": "tool1",
+            "type": "tool-result",
+          },
+        ]
+      `);
     });
   });
 }

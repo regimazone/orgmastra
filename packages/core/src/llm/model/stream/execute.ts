@@ -536,7 +536,7 @@ function createAgentWorkflow({
                   sendUsage: true,
                   getErrorMessage: (error: string) => error,
                 });
-                await options?.onChunk?.(transformedChunk);
+                await options?.onChunk?.({ chunk: transformedChunk } as any);
               }
             }
 
@@ -663,6 +663,7 @@ function createAgentWorkflow({
                 toolName: toolCall.toolName,
                 result: toolCall.result,
               },
+              providerMetadata: initialResult.metadata.providerMetadata,
             };
 
             controller.enqueue(chunk);
@@ -679,15 +680,15 @@ function createAgentWorkflow({
                 }),
               );
             } else if (model.specificationVersion === 'v2') {
-              await options?.onChunk?.(
-                convertFullStreamChunkToAISDKv5({
+              await options?.onChunk?.({
+                chunk: convertFullStreamChunkToAISDKv5({
                   chunk,
                   sendReasoning: true,
                   sendSources: true,
                   sendUsage: true,
                   getErrorMessage: (error: string) => error,
                 }),
-              );
+              } as any);
             }
           }
 
