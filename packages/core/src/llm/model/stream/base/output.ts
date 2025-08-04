@@ -264,6 +264,17 @@ export class MastraModelOutput extends MastraBase {
                     usage: baseFinishStep.usage,
                   };
                   // console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
+                } else if (model.version === 'v2') {
+                  onFinishPayload = {
+                    text: baseFinishStep.text,
+                    warnings: baseFinishStep.warnings,
+                    finishReason: chunk.payload.stepResult.reason,
+                    content: this.aisdk.v5.content,
+                    reasoning: this.aisdk.v5.reasoning,
+                    sources: this.aisdk.v5.sources,
+                    files: this.aisdk.v5.files,
+                    steps: this.aisdk.v5.steps,
+                  };
                 }
 
                 await options?.onFinish?.(onFinishPayload);

@@ -352,6 +352,10 @@ export class AISDKV5OutputStream {
     });
   }
 
+  get content() {
+    return this.transformResponse(this.response, true).messages[0]?.content ?? [];
+  }
+
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
