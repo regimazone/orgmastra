@@ -89,26 +89,35 @@ function createAgentWorkflow({
           'stream.toolCall.toolCallId': inputData.toolCallId,
         });
 
-        const result = await tool.execute(inputData.args, {
-          abortSignal: options?.abortSignal,
-          toolCallId: inputData.toolCallId,
-          messages: messageList.get.all
-            ?.ui()
-            ?.filter(message => message.role === 'user')
-            ?.map(message => ({
-              role: message.role,
-              content: message.content,
-            })) as any,
-        });
+        try {
+          const result = await tool.execute(inputData.args, {
+            abortSignal: options?.abortSignal,
+            toolCallId: inputData.toolCallId,
+            messages: messageList.get.all
+              ?.ui()
+              ?.filter(message => message.role === 'user')
+              ?.map(message => ({
+                role: message.role,
+                content: message.content,
+              })) as any,
+          });
 
-        span.setAttributes({
-          'stream.toolCall.result': JSON.stringify(result),
-        });
+          span.setAttributes({
+            'stream.toolCall.result': JSON.stringify(result),
+          });
 
-        span.end();
+          span.end();
 
-        console.log('result before', result);
-        return { result, ...inputData };
+          console.log('result before', result);
+          return { result, ...inputData };
+        } catch (error) {
+          span.setStatus({
+            code: 2,
+            message: (error as Error)?.message ?? error,
+          });
+          span.recordException(error as Error);
+          throw error;
+        }
       },
     });
   }
@@ -699,7 +708,7 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
-      if (doStreamSpan) {
+      if (doStreamSpan && inputData.output.toolCalls?.length) {
         doStreamSpan.setAttribute('stream.response.toolCalls', JSON.stringify(inputData.output.toolCalls));
       }
       return inputData.output.toolCalls || [];

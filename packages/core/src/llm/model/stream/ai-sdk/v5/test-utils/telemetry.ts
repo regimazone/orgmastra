@@ -145,9 +145,9 @@ export function telemetryTests({ executeFn, runId }: { executeFn: typeof execute
       expect(tracer.jsonSpans).toHaveLength(3);
 
       // Check that we have the expected spans
-      expect(tracer.jsonSpans?.[0]?.name).toBe('ai.streamText');
-      expect(tracer.jsonSpans?.[1]?.name).toBe('ai.streamText.doStream');
-      expect(tracer.jsonSpans?.[2]?.name).toBe('ai.toolCall');
+      expect(tracer.jsonSpans?.[0]?.name).toBe('mastra.stream');
+      expect(tracer.jsonSpans?.[1]?.name).toBe('mastra.stream.aisdk.doStream');
+      expect(tracer.jsonSpans?.[2]?.name).toBe('mastra.stream.toolCall');
 
       // Check that the tool call span has error status
       const toolCallSpan = tracer.jsonSpans?.[2];
