@@ -63,7 +63,7 @@ export function telemetryTests({ executeFn, runId }: { executeFn: typeof execute
       expect(tracer.jsonSpans).toMatchSnapshot();
     });
 
-    it.only('should record successful tool call', async () => {
+    it('should record successful tool call', async () => {
       const result = await executeFn({
         runId,
         model: createTestModel({
