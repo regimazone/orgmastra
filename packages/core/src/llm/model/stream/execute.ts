@@ -19,6 +19,7 @@ const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
   toolName: z.string(),
   args: z.any(),
+  providerMetadata: z.any(),
 });
 
 const toolCallOutputSchema = toolCallInpuSchema.extend({
@@ -662,8 +663,8 @@ function createAgentWorkflow({
                 toolCallId: toolCall.toolCallId,
                 toolName: toolCall.toolName,
                 result: toolCall.result,
+                providerMetadata: toolCall.providerMetadata,
               },
-              providerMetadata: initialResult.metadata.providerMetadata,
             };
 
             controller.enqueue(chunk);
