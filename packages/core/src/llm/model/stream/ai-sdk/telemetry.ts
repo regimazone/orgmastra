@@ -197,7 +197,7 @@ export function assembleOperationName({
   return {
     'mastra.operationId': operationId,
     'operation.name': `${operationId}${telemetry?.functionId != null ? ` ${telemetry.functionId}` : ''}`,
-    'resource.name': telemetry?.functionId,
+    ...(telemetry?.functionId ? { 'resource.name': telemetry?.functionId } : {}),
   };
 }
 

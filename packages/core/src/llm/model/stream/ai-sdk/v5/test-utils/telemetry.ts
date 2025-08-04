@@ -28,7 +28,7 @@ export function telemetryTests({ executeFn, runId }: { executeFn: typeof execute
       expect(tracer.jsonSpans).toMatchSnapshot();
     });
 
-    it.only('should record telemetry data when enabled', async () => {
+    it('should record telemetry data when enabled', async () => {
       const result = await executeFn({
         runId,
         model: createTestModel(),
@@ -63,7 +63,7 @@ export function telemetryTests({ executeFn, runId }: { executeFn: typeof execute
       expect(tracer.jsonSpans).toMatchSnapshot();
     });
 
-    it('should record successful tool call', async () => {
+    it.only('should record successful tool call', async () => {
       const result = await executeFn({
         runId,
         model: createTestModel({

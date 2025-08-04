@@ -299,9 +299,25 @@ export class MastraModelOutput extends MastraBase {
                       }
                     : {}),
 
-                  'stream.response.providerMetadata': JSON.stringify(baseFinishStep?.providerMetadata),
-                  'stream.response.finishReason': baseFinishStep?.finishReason,
+                  ...(baseFinishStep?.providerMetadata
+                    ? { 'stream.response.providerMetadata': JSON.stringify(baseFinishStep?.providerMetadata) }
+                    : {}),
+                  ...(baseFinishStep?.finishReason
+                    ? { 'stream.response.finishReason': baseFinishStep?.finishReason }
+                    : {}),
                   'stream.response.text': baseFinishStep?.text,
+                  ...(baseFinishStep?.toolCalls
+                    ? {
+                        'stream.response.toolCalls': JSON.stringify(
+                          baseFinishStep?.toolCalls?.map(chunk => {
+                            return {
+                              type: chunk.type,
+                              ...chunk.payload,
+                            };
+                          }),
+                        ),
+                      }
+                    : {}),
                 });
 
                 options.rootSpan.end();

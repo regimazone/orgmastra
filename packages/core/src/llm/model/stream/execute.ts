@@ -767,12 +767,12 @@ function createStreamExecutor({
             payload: inputData,
           });
 
-          console.log(inputData, '#######INPUT');
-
           rootSpan.setAttributes({
             'stream.response.id': inputData.metadata.id,
             'stream.response.model': model.modelId,
-            'stream.response.providerMetadata': JSON.stringify(inputData.metadata.providerMetadata),
+            ...(inputData.metadata.providerMetadata
+              ? { 'stream.response.providerMetadata': JSON.stringify(inputData.metadata.providerMetadata) }
+              : {}),
             'stream.response.text': inputData.output.text,
             'stream.response.finishReason': inputData.stepResult.reason,
             'stream.usage.inputTokens': inputData.output.usage?.inputTokens,
@@ -931,7 +931,9 @@ export async function execute(
       modelId: rest.model.modelId,
       provider: rest.model.provider,
     },
-    settings: rest.modelSettings ?? {},
+    settings: rest.modelSettings ?? {
+      maxRetries: 2,
+    },
     telemetry: rest.experimental_telemetry,
     headers: rest.headers,
   });
@@ -942,7 +944,7 @@ export async function execute(
       operationId: 'mastra.stream',
       telemetry: rest.experimental_telemetry,
     }),
-    'stream.input.messages': JSON.stringify(messages),
+    'stream.prompt.messages': JSON.stringify(messages),
   });
 
   const executor = createStreamExecutor({
