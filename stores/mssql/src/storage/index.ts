@@ -13,8 +13,10 @@ import {
   TABLE_RESOURCES,
   TABLE_WORKFLOW_SNAPSHOT,
   TABLE_EVALS,
+  TABLE_SCORERS,
 } from '@mastra/core/storage';
 import type {
+  StorageDomains,
   EvalRow,
   PaginationInfo,
   StorageColumn,
@@ -25,6 +27,7 @@ import type {
   WorkflowRuns,
   PaginationArgs,
   StoragePagination,
+  ThreadSortOptions,
 } from '@mastra/core/storage';
 import { parseSqlIdentifier, parseFieldKey } from '@mastra/core/utils';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -87,6 +90,58 @@ export class MSSQLStore extends MastraStorage {
               port: config.port,
               options: config.options || { encrypt: true, trustServerCertificate: true },
             });
+
+      // Initialize stores with operations that delegate to this instance
+      this.stores = {
+        operations: {
+          hasColumn: this.hasColumn.bind(this),
+          createTable: this.createTable.bind(this),
+          alterTable: this.alterTable.bind(this),
+          clearTable: this.clearTable.bind(this),
+          dropTable: this.dropTable.bind(this),
+          insert: this.insert.bind(this),
+          batchInsert: this.batchInsert.bind(this),
+          load: this.load.bind(this),
+        },
+        scores: {
+          getScoreById: this.getScoreById.bind(this),
+          saveScore: this.saveScore.bind(this),
+          getScoresByScorerId: this.getScoresByScorerId.bind(this),
+          getScoresByRunId: this.getScoresByRunId.bind(this),
+          getScoresByEntityId: this.getScoresByEntityId.bind(this),
+        },
+        traces: {
+          getTraces: this.getTraces.bind(this),
+          getTracesPaginated: this.getTracesPaginated.bind(this),
+          batchTraceInsert: this.batchTraceInsert.bind(this),
+        },
+        workflows: {
+          persistWorkflowSnapshot: this.persistWorkflowSnapshot.bind(this),
+          loadWorkflowSnapshot: this.loadWorkflowSnapshot.bind(this),
+          getWorkflowRuns: this.getWorkflowRuns.bind(this),
+          getWorkflowRunById: this.getWorkflowRunById.bind(this),
+        },
+        legacyEvals: {
+          getEvalsByAgentName: this.getEvalsByAgentName.bind(this),
+          getEvals: this.getEvals.bind(this),
+        },
+        memory: {
+          getThreadById: this.getThreadById.bind(this),
+          getThreadsByResourceId: this.getThreadsByResourceId.bind(this),
+          getThreadsByResourceIdPaginated: this.getThreadsByResourceIdPaginated.bind(this),
+          saveThread: this.saveThread.bind(this),
+          updateThread: this.updateThread.bind(this),
+          deleteThread: this.deleteThread.bind(this),
+          getMessages: this.getMessages.bind(this),
+          getMessagesPaginated: this.getMessagesPaginated.bind(this),
+          saveMessages: this.saveMessages.bind(this),
+          updateMessages: this.updateMessages.bind(this),
+          deleteMessages: this.deleteMessages.bind(this),
+          getResourceById: this.getResourceById.bind(this),
+          saveResource: this.saveResource.bind(this),
+          updateResource: this.updateResource.bind(this),
+        },
+      } as StorageDomains;
     } catch (e) {
       throw new MastraError(
         {
@@ -140,7 +195,7 @@ export class MSSQLStore extends MastraStorage {
       resourceWorkingMemory: true,
       hasColumn: true,
       createTable: true,
-      deleteMessages: false,
+      deleteMessages: true,
     };
   }
 
@@ -180,6 +235,24 @@ export class MSSQLStore extends MastraStorage {
       runId: row.run_id as string,
       createdAt: row.created_at as string,
     };
+  }
+
+  private transformScoreRow(row: Record<string, any>): ScoreRowData {
+    let input = undefined;
+
+    if (row.input) {
+      try {
+        input = JSON.parse(row.input);
+      } catch {
+        input = row.input;
+      }
+    }
+    return {
+      ...row,
+      input,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    } as ScoreRowData;
   }
 
   /** @deprecated use getEvals instead */
@@ -467,6 +540,8 @@ export class MSSQLStore extends MastraStorage {
         return 'INT';
       case 'bigint':
         return 'BIGINT';
+      case 'float':
+        return 'FLOAT';
       default:
         throw new MastraError({
           id: 'MASTRA_STORAGE_MSSQL_STORE_TYPE_NOT_SUPPORTED',
@@ -618,20 +693,17 @@ export class MSSQLStore extends MastraStorage {
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
     const fullTableName = this.getTableName(tableName);
     try {
-      const fkQuery = `
-        SELECT
-          OBJECT_SCHEMA_NAME(fk.parent_object_id) AS schema_name,
-          OBJECT_NAME(fk.parent_object_id) AS table_name
-        FROM sys.foreign_keys fk
-        WHERE fk.referenced_object_id = OBJECT_ID(@fullTableName)
-      `;
-      const fkResult = await this.pool.request().input('fullTableName', fullTableName).query(fkQuery);
-      const childTables: { schema_name: string; table_name: string }[] = fkResult.recordset || [];
-      for (const child of childTables) {
-        const childTableName = this.schema ? `[${child.schema_name}].[${child.table_name}]` : `[${child.table_name}]`;
-        await this.clearTable({ tableName: childTableName as TABLE_NAMES });
+      // First try TRUNCATE for better performance
+      try {
+        await this.pool.request().query(`TRUNCATE TABLE ${fullTableName}`);
+      } catch (truncateError: any) {
+        // If TRUNCATE fails due to foreign key constraints, fall back to DELETE
+        if (truncateError.message && truncateError.message.includes('foreign key')) {
+          await this.pool.request().query(`DELETE FROM ${fullTableName}`);
+        } else {
+          throw truncateError;
+        }
       }
-      await this.pool.request().query(`TRUNCATE TABLE ${fullTableName}`);
     } catch (error) {
       throw new MastraError(
         {
@@ -760,9 +832,10 @@ export class MSSQLStore extends MastraStorage {
   public async getThreadsByResourceIdPaginated(
     args: {
       resourceId: string;
-    } & PaginationArgs,
+    } & PaginationArgs &
+      ThreadSortOptions,
   ): Promise<PaginationInfo & { threads: StorageThreadType[] }> {
-    const { resourceId, page = 0, perPage: perPageInput } = args;
+    const { resourceId, page = 0, perPage: perPageInput, orderBy = 'createdAt', sortDirection = 'DESC' } = args;
     try {
       const perPage = perPageInput !== undefined ? perPageInput : 100;
       const currentOffset = page * perPage;
@@ -784,7 +857,8 @@ export class MSSQLStore extends MastraStorage {
         };
       }
 
-      const dataQuery = `SELECT id, [resourceId], title, metadata, [createdAt], [updatedAt] ${baseQuery} ORDER BY [seq_id] DESC OFFSET @offset ROWS FETCH NEXT @perPage ROWS ONLY`;
+      const orderByField = orderBy === 'createdAt' ? '[createdAt]' : '[updatedAt]';
+      const dataQuery = `SELECT id, [resourceId], title, metadata, [createdAt], [updatedAt] ${baseQuery} ORDER BY ${orderByField} ${sortDirection} OFFSET @offset ROWS FETCH NEXT @perPage ROWS ONLY`;
       const dataRequest = this.pool.request();
       dataRequest.input('resourceId', resourceId);
       dataRequest.input('perPage', perPage);
@@ -835,7 +909,6 @@ export class MSSQLStore extends MastraStorage {
             [resourceId] = @resourceId,
             title = @title,
             metadata = @metadata,
-            [createdAt] = @createdAt,
             [updatedAt] = @updatedAt
         WHEN NOT MATCHED THEN
           INSERT (id, [resourceId], title, metadata, [createdAt], [updatedAt])
@@ -845,9 +918,10 @@ export class MSSQLStore extends MastraStorage {
       req.input('resourceId', thread.resourceId);
       req.input('title', thread.title);
       req.input('metadata', thread.metadata ? JSON.stringify(thread.metadata) : null);
-      req.input('createdAt', thread.createdAt);
-      req.input('updatedAt', thread.updatedAt);
+      req.input('createdAt', sql.DateTime2, thread.createdAt);
+      req.input('updatedAt', sql.DateTime2, thread.updatedAt);
       await req.query(mergeSql);
+      // Return the exact same thread object to preserve timestamp precision
       return thread;
     } catch (error) {
       throw new MastraError(
@@ -867,11 +941,12 @@ export class MSSQLStore extends MastraStorage {
   /**
    * @deprecated use getThreadsByResourceIdPaginated instead
    */
-  public async getThreadsByResourceId(args: { resourceId: string }): Promise<StorageThreadType[]> {
-    const { resourceId } = args;
+  public async getThreadsByResourceId(args: { resourceId: string } & ThreadSortOptions): Promise<StorageThreadType[]> {
+    const { resourceId, orderBy = 'createdAt', sortDirection = 'DESC' } = args;
     try {
       const baseQuery = `FROM ${this.getTableName(TABLE_THREADS)} WHERE [resourceId] = @resourceId`;
-      const dataQuery = `SELECT id, [resourceId], title, metadata, [createdAt], [updatedAt] ${baseQuery} ORDER BY [seq_id] DESC`;
+      const orderByField = orderBy === 'createdAt' ? '[createdAt]' : '[updatedAt]';
+      const dataQuery = `SELECT id, [resourceId], title, metadata, [createdAt], [updatedAt] ${baseQuery} ORDER BY ${orderByField} ${sortDirection}`;
       const request = this.pool.request();
       request.input('resourceId', resourceId);
       const resultSet = await request.query(dataQuery);
@@ -931,7 +1006,7 @@ export class MSSQLStore extends MastraStorage {
       req.input('id', id);
       req.input('title', title);
       req.input('metadata', JSON.stringify(mergedMetadata));
-      req.input('updatedAt', new Date().toISOString());
+      req.input('updatedAt', new Date());
       const result = await req.query(sql);
       let thread = result.recordset && result.recordset[0];
       if (thread && 'seq_id' in thread) {
@@ -1102,7 +1177,7 @@ export class MSSQLStore extends MastraStorage {
     },
   ): Promise<MastraMessageV1[] | MastraMessageV2[]> {
     const { threadId, format, selectBy } = args;
-    const selectStatement = `SELECT seq_id, id, content, role, type, [createdAt], thread_id AS threadId`;
+    const selectStatement = `SELECT seq_id, id, content, role, type, [createdAt], thread_id AS threadId, resourceId`;
     const orderByStatement = `ORDER BY [seq_id] DESC`;
     const limit = this.resolveMessageLimit({ last: selectBy?.last, defaultLimit: 40 });
     try {
@@ -1138,34 +1213,7 @@ export class MSSQLStore extends MastraStorage {
         return timeDiff;
       });
       rows = rows.map(({ seq_id, ...rest }) => rest);
-      const fetchedMessages = (rows || []).map(message => {
-        if (typeof message.content === 'string') {
-          try {
-            message.content = JSON.parse(message.content);
-          } catch {}
-        }
-
-        if (format === 'v1') {
-          if (Array.isArray(message.content)) {
-          } else if (typeof message.content === 'object' && message.content && Array.isArray(message.content.parts)) {
-            message.content = message.content.parts;
-          } else {
-            message.content = [{ type: 'text', text: '' }];
-          }
-        } else {
-          if (typeof message.content !== 'object' || !message.content || !('parts' in message.content)) {
-            message.content = { format: 2, parts: [{ type: 'text', text: '' }] };
-          }
-        }
-        if (message.type === 'v2') delete message.type;
-        return message as MastraMessageV1;
-      });
-      return format === 'v2'
-        ? fetchedMessages.map(
-            m =>
-              ({ ...m, content: m.content || { format: 2, parts: [{ type: 'text', text: '' }] } }) as MastraMessageV2,
-          )
-        : fetchedMessages;
+      return this._parseAndFormatMessages(rows, format);
     } catch (error) {
       const mastraError = new MastraError(
         {
@@ -1205,7 +1253,7 @@ export class MSSQLStore extends MastraStorage {
       const fromDate = dateRange?.start;
       const toDate = dateRange?.end;
 
-      const selectStatement = `SELECT seq_id, id, content, role, type, [createdAt], thread_id AS threadId`;
+      const selectStatement = `SELECT seq_id, id, content, role, type, [createdAt], thread_id AS threadId, resourceId`;
       const orderByStatement = `ORDER BY [seq_id] DESC`;
 
       let messages: any[] = [];
@@ -1296,31 +1344,24 @@ export class MSSQLStore extends MastraStorage {
   }
 
   private _parseAndFormatMessages(messages: any[], format?: 'v1' | 'v2') {
-    const parsedMessages = messages.map(message => {
-      let parsed = message;
-      if (typeof parsed.content === 'string') {
+    // Parse content back to objects if they were stringified during storage
+    const messagesWithParsedContent = messages.map(message => {
+      if (typeof message.content === 'string') {
         try {
-          parsed = { ...parsed, content: JSON.parse(parsed.content) };
-        } catch {}
-      }
-
-      if (format === 'v1') {
-        if (Array.isArray(parsed.content)) {
-        } else if (parsed.content?.parts) {
-          parsed.content = parsed.content.parts;
-        } else {
-          parsed.content = [{ type: 'text', text: '' }];
-        }
-      } else {
-        if (!parsed.content?.parts) {
-          parsed = { ...parsed, content: { format: 2, parts: [{ type: 'text', text: '' }] } };
+          return { ...message, content: JSON.parse(message.content) };
+        } catch {
+          // If parsing fails, leave as string (V1 message)
+          return message;
         }
       }
-
-      return parsed;
+      return message;
     });
 
-    const list = new MessageList().add(parsedMessages, 'memory');
+    // Remove seq_id from all messages before formatting
+    const cleanMessages = messagesWithParsedContent.map(({ seq_id, ...rest }) => rest);
+
+    // Use MessageList to ensure proper structure for both v1 and v2
+    const list = new MessageList().add(cleanMessages, 'memory');
     return format === 'v2' ? list.get.all.v2() : list.get.all.v1();
   }
 
@@ -1376,7 +1417,7 @@ export class MSSQLStore extends MastraStorage {
             'content',
             typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
           );
-          request.input('createdAt', message.createdAt.toISOString() || new Date().toISOString());
+          request.input('createdAt', sql.DateTime2, message.createdAt);
           request.input('role', message.role);
           request.input('type', message.type || 'v2');
           request.input('resourceId', message.resourceId);
@@ -1395,7 +1436,7 @@ export class MSSQLStore extends MastraStorage {
           await request.query(mergeSql);
         }
         const threadReq = transaction.request();
-        threadReq.input('updatedAt', new Date().toISOString());
+        threadReq.input('updatedAt', sql.DateTime2, new Date());
         threadReq.input('id', threadId);
         await threadReq.query(`UPDATE ${tableThreads} SET [updatedAt] = @updatedAt WHERE id = @id`);
         await transaction.commit();
@@ -1445,8 +1486,8 @@ export class MSSQLStore extends MastraStorage {
       request.input('workflow_name', workflowName);
       request.input('run_id', runId);
       request.input('snapshot', JSON.stringify(snapshot));
-      request.input('createdAt', now);
-      request.input('updatedAt', now);
+      request.input('createdAt', sql.DateTime2, new Date(now));
+      request.input('updatedAt', sql.DateTime2, new Date(now));
       const mergeSql = `MERGE INTO ${table} AS target
         USING (SELECT @workflow_name AS workflow_name, @run_id AS run_id) AS src
         ON target.workflow_name = src.workflow_name AND target.run_id = src.run_id
@@ -1507,7 +1548,7 @@ export class MSSQLStore extends MastraStorage {
     }
   }
 
-  private async hasColumn(table: string, column: string): Promise<boolean> {
+  async hasColumn(table: string, column: string): Promise<boolean> {
     const schema = this.schema || 'dbo';
     const request = this.pool.request();
     request.input('schema', schema);
@@ -2051,86 +2092,381 @@ export class MSSQLStore extends MastraStorage {
   }
 
   async getScoreById({ id }: { id: string }): Promise<ScoreRowData | null> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_GET_SCORE_BY_ID_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: { id },
-      text: 'getScoreById is not implemented yet in MongoDBStore',
-    });
+    try {
+      const request = this.pool.request();
+      request.input('p1', id);
+      const result = await request.query(`SELECT * FROM ${this.getTableName(TABLE_SCORERS)} WHERE id = @p1`);
+
+      if (result.recordset.length === 0) {
+        return null;
+      }
+
+      return this.transformScoreRow(result.recordset[0]);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_GET_SCORE_BY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { id },
+        },
+        error,
+      );
+    }
   }
 
-  async saveScore(_score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_SAVE_SCORE_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: {},
-      text: 'saveScore is not implemented yet in MongoDBStore',
-    });
+  async saveScore(score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }> {
+    try {
+      // Generate ID like other storage implementations
+      const scoreId = crypto.randomUUID();
+
+      const { input, ...rest } = score;
+      await this.insert({
+        tableName: TABLE_SCORERS,
+        record: {
+          id: scoreId,
+          ...rest,
+          input: JSON.stringify(input),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+
+      const scoreFromDb = await this.getScoreById({ id: scoreId });
+      return { score: scoreFromDb! };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_SAVE_SCORE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        error,
+      );
+    }
   }
 
   async getScoresByScorerId({
     scorerId,
-    pagination: _pagination,
-    entityId,
-    entityType,
+    pagination,
   }: {
     scorerId: string;
     pagination: StoragePagination;
     entityId?: string;
     entityType?: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: { scorerId, entityId: entityId || '', entityType: entityType || '' },
-      text: 'getScoresByScorerId is not implemented yet in MongoDBStore',
-    });
+    try {
+      const request = this.pool.request();
+      request.input('p1', scorerId);
+
+      const totalResult = await request.query(
+        `SELECT COUNT(*) as count FROM ${this.getTableName(TABLE_SCORERS)} WHERE [scorerId] = @p1`,
+      );
+
+      const total = totalResult.recordset[0]?.count || 0;
+
+      if (total === 0) {
+        return {
+          pagination: {
+            total: 0,
+            page: pagination.page,
+            perPage: pagination.perPage,
+            hasMore: false,
+          },
+          scores: [],
+        };
+      }
+
+      const dataRequest = this.pool.request();
+      dataRequest.input('p1', scorerId);
+      dataRequest.input('p2', pagination.perPage);
+      dataRequest.input('p3', pagination.page * pagination.perPage);
+
+      const result = await dataRequest.query(
+        `SELECT * FROM ${this.getTableName(TABLE_SCORERS)} WHERE [scorerId] = @p1 ORDER BY [createdAt] DESC OFFSET @p3 ROWS FETCH NEXT @p2 ROWS ONLY`,
+      );
+
+      return {
+        pagination: {
+          total: Number(total),
+          page: pagination.page,
+          perPage: pagination.perPage,
+          hasMore: Number(total) > (pagination.page + 1) * pagination.perPage,
+        },
+        scores: result.recordset.map(row => this.transformScoreRow(row)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_GET_SCORES_BY_SCORER_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { scorerId },
+        },
+        error,
+      );
+    }
   }
 
   async getScoresByRunId({
     runId,
-    pagination: _pagination,
+    pagination,
   }: {
     runId: string;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_RUN_ID_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: { runId },
-      text: 'getScoresByRunId is not implemented yet in MongoDBStore',
-    });
+    try {
+      const request = this.pool.request();
+      request.input('p1', runId);
+
+      const totalResult = await request.query(
+        `SELECT COUNT(*) as count FROM ${this.getTableName(TABLE_SCORERS)} WHERE [runId] = @p1`,
+      );
+
+      const total = totalResult.recordset[0]?.count || 0;
+
+      if (total === 0) {
+        return {
+          pagination: {
+            total: 0,
+            page: pagination.page,
+            perPage: pagination.perPage,
+            hasMore: false,
+          },
+          scores: [],
+        };
+      }
+
+      const dataRequest = this.pool.request();
+      dataRequest.input('p1', runId);
+      dataRequest.input('p2', pagination.perPage);
+      dataRequest.input('p3', pagination.page * pagination.perPage);
+
+      const result = await dataRequest.query(
+        `SELECT * FROM ${this.getTableName(TABLE_SCORERS)} WHERE [runId] = @p1 ORDER BY [createdAt] DESC OFFSET @p3 ROWS FETCH NEXT @p2 ROWS ONLY`,
+      );
+
+      return {
+        pagination: {
+          total: Number(total),
+          page: pagination.page,
+          perPage: pagination.perPage,
+          hasMore: Number(total) > (pagination.page + 1) * pagination.perPage,
+        },
+        scores: result.recordset.map(row => this.transformScoreRow(row)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_GET_SCORES_BY_RUN_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { runId },
+        },
+        error,
+      );
+    }
   }
 
   async getScoresByEntityId({
     entityId,
     entityType,
-    pagination: _pagination,
+    pagination,
   }: {
     pagination: StoragePagination;
     entityId: string;
     entityType: string;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_GET_SCORES_BY_ENTITY_ID_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: { entityId, entityType },
-      text: 'getScoresByEntityId is not implemented yet in MongoDBStore',
-    });
+    try {
+      const request = this.pool.request();
+      request.input('p1', entityId);
+      request.input('p2', entityType);
+
+      const totalResult = await request.query(
+        `SELECT COUNT(*) as count FROM ${this.getTableName(TABLE_SCORERS)} WHERE [entityId] = @p1 AND [entityType] = @p2`,
+      );
+
+      const total = totalResult.recordset[0]?.count || 0;
+
+      if (total === 0) {
+        return {
+          pagination: {
+            total: 0,
+            page: pagination.page,
+            perPage: pagination.perPage,
+            hasMore: false,
+          },
+          scores: [],
+        };
+      }
+
+      const dataRequest = this.pool.request();
+      dataRequest.input('p1', entityId);
+      dataRequest.input('p2', entityType);
+      dataRequest.input('p3', pagination.perPage);
+      dataRequest.input('p4', pagination.page * pagination.perPage);
+
+      const result = await dataRequest.query(
+        `SELECT * FROM ${this.getTableName(TABLE_SCORERS)} WHERE [entityId] = @p1 AND [entityType] = @p2 ORDER BY [createdAt] DESC OFFSET @p4 ROWS FETCH NEXT @p3 ROWS ONLY`,
+      );
+
+      return {
+        pagination: {
+          total: Number(total),
+          page: pagination.page,
+          perPage: pagination.perPage,
+          hasMore: Number(total) > (pagination.page + 1) * pagination.perPage,
+        },
+        scores: result.recordset.map(row => this.transformScoreRow(row)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_GET_SCORES_BY_ENTITY_ID_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { entityId, entityType },
+        },
+        error,
+      );
+    }
   }
 
   async dropTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    throw new MastraError({
-      id: 'STORAGE_MONGODB_STORE_DROP_TABLE_FAILED',
-      domain: ErrorDomain.STORAGE,
-      category: ErrorCategory.THIRD_PARTY,
-      details: { tableName },
-      text: 'dropTable is not implemented yet in MongoDBStore',
-    });
+    try {
+      const tableNameWithSchema = this.getTableName(tableName);
+      await this.pool.request().query(`DROP TABLE IF EXISTS ${tableNameWithSchema}`);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_DROP_TABLE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: {
+            tableName,
+          },
+        },
+        error,
+      );
+    }
+  }
+
+  async deleteMessages(messageIds: string[]): Promise<void> {
+    if (!messageIds || messageIds.length === 0) {
+      return;
+    }
+
+    try {
+      const messageTableName = this.getTableName(TABLE_MESSAGES);
+      const threadTableName = this.getTableName(TABLE_THREADS);
+
+      // Build placeholders for the IN clause
+      const placeholders = messageIds.map((_, idx) => `@p${idx + 1}`).join(',');
+
+      // Get thread IDs for all messages first
+      const request = this.pool.request();
+      messageIds.forEach((id, idx) => {
+        request.input(`p${idx + 1}`, id);
+      });
+
+      const messages = await request.query(
+        `SELECT DISTINCT [thread_id] FROM ${messageTableName} WHERE [id] IN (${placeholders})`,
+      );
+
+      const threadIds = messages.recordset?.map(msg => msg.thread_id).filter(Boolean) || [];
+
+      // Use transaction for the actual delete and update operations
+      const transaction = this.pool.transaction();
+      await transaction.begin();
+
+      try {
+        // Delete all messages
+        const deleteRequest = transaction.request();
+        messageIds.forEach((id, idx) => {
+          deleteRequest.input(`p${idx + 1}`, id);
+        });
+
+        await deleteRequest.query(`DELETE FROM ${messageTableName} WHERE [id] IN (${placeholders})`);
+
+        // Update thread timestamps sequentially to avoid transaction conflicts
+        if (threadIds.length > 0) {
+          for (const threadId of threadIds) {
+            const updateRequest = transaction.request();
+            updateRequest.input('p1', threadId);
+            await updateRequest.query(`UPDATE ${threadTableName} SET [updatedAt] = GETDATE() WHERE [id] = @p1`);
+          }
+        }
+
+        await transaction.commit();
+      } catch (error) {
+        try {
+          await transaction.rollback();
+        } catch {
+          // Ignore rollback errors as they're usually not critical
+        }
+        throw error;
+      }
+
+      // TODO: Delete from vector store if semantic recall is enabled
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_DELETE_MESSAGES_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { messageIds: messageIds.join(', ') },
+        },
+        error,
+      );
+    }
+  }
+
+  async batchTraceInsert({ records }: { records: Record<string, any>[] }): Promise<void> {
+    if (records.length === 0) return;
+
+    try {
+      const tableName = this.getTableName(TABLE_TRACES);
+      const transaction = this.pool.transaction();
+      await transaction.begin();
+
+      try {
+        for (const record of records) {
+          const request = transaction.request();
+          request.input('id', record.id);
+          request.input('name', record.name);
+          request.input('scope', record.scope);
+          request.input('attributes', JSON.stringify(record.attributes || {}));
+          request.input('createdAt', record.createdAt || new Date().toISOString());
+
+          const mergeSql = `MERGE INTO ${tableName} AS target
+            USING (SELECT @id AS id) AS src
+            ON target.id = src.id
+            WHEN MATCHED THEN UPDATE SET
+              name = @name,
+              scope = @scope,
+              attributes = @attributes,
+              [createdAt] = @createdAt
+            WHEN NOT MATCHED THEN INSERT (id, name, scope, attributes, [createdAt])
+              VALUES (@id, @name, @scope, @attributes, @createdAt);`;
+
+          await request.query(mergeSql);
+        }
+
+        await transaction.commit();
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_MSSQL_STORE_BATCH_TRACE_INSERT_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { recordCount: records.length },
+        },
+        error,
+      );
+    }
   }
 }

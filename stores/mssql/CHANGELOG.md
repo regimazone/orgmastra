@@ -1,4 +1,19 @@
-# Changelog for mastra-mssql
+# @mastra/mssql
+
+## 0.3.0
+
+### Minor Changes
+
+- Implemented comprehensive scoring system with full CRUD operations
+- Added message deletion functionality with thread timestamp updates
+- Enhanced thread management with sorting options and improved pagination
+- Implemented batch trace insertion for improved performance
+- Added proper storage domain initialization with all operation bindings
+- Enhanced message parsing and formatting with better v1/v2 support
+- Improved table operations with better foreign key handling
+- Added float data type support in schema creation
+- Enhanced timestamp handling with proper SQL DateTime2 usage
+- Updated core dependency to latest version
 
 ## 0.2.3
 
