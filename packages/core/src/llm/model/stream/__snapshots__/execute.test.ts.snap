@@ -2177,6 +2177,280 @@ exports[`V4 tests > options.onChunk > should return events in order 1`] = `
 ]
 `;
 
+exports[`V4 tests > options.onChunk > should send files 1`] = `
+{
+  "experimental_providerMetadata": undefined,
+  "files": [
+    DefaultGeneratedFileWithType {
+      "base64Data": "Hello World",
+      "mimeType": "text/plain",
+      "type": "file",
+      "uint8ArrayData": undefined,
+    },
+    DefaultGeneratedFileWithType {
+      "base64Data": "QkFVRw==",
+      "mimeType": "image/jpeg",
+      "type": "file",
+      "uint8ArrayData": undefined,
+    },
+  ],
+  "finishReason": "stop",
+  "logprobs": undefined,
+  "providerMetadata": undefined,
+  "reasoning": undefined,
+  "reasoningDetails": [],
+  "request": {},
+  "response": {
+    "headers": undefined,
+    "id": "id-1",
+    "messages": [
+      {
+        "content": [
+          {
+            "data": "Hello World",
+            "mimeType": "text/plain",
+            "type": "file",
+          },
+          {
+            "text": "Hello!",
+            "type": "text",
+          },
+          {
+            "data": "QkFVRw==",
+            "mimeType": "image/jpeg",
+            "type": "file",
+          },
+        ],
+        "id": "msg-0",
+        "role": "assistant",
+      },
+    ],
+    "modelId": "mock-model-id",
+    "timestamp": 1970-01-01T00:00:00.000Z,
+  },
+  "sources": [],
+  "steps": [
+    {
+      "experimental_providerMetadata": undefined,
+      "files": [
+        DefaultGeneratedFileWithType {
+          "base64Data": "Hello World",
+          "mimeType": "text/plain",
+          "type": "file",
+          "uint8ArrayData": undefined,
+        },
+        DefaultGeneratedFileWithType {
+          "base64Data": "QkFVRw==",
+          "mimeType": "image/jpeg",
+          "type": "file",
+          "uint8ArrayData": undefined,
+        },
+      ],
+      "finishReason": "stop",
+      "isContinued": false,
+      "logprobs": undefined,
+      "providerMetadata": undefined,
+      "reasoning": undefined,
+      "reasoningDetails": [],
+      "request": {},
+      "response": {
+        "headers": undefined,
+        "id": "id-1",
+        "messages": [
+          {
+            "content": [
+              {
+                "data": "Hello World",
+                "mimeType": "text/plain",
+                "type": "file",
+              },
+              {
+                "text": "Hello!",
+                "type": "text",
+              },
+              {
+                "data": "QkFVRw==",
+                "mimeType": "image/jpeg",
+                "type": "file",
+              },
+            ],
+            "id": "msg-0",
+            "role": "assistant",
+          },
+        ],
+        "modelId": "mock-model-id",
+        "timestamp": 1970-01-01T00:00:00.000Z,
+      },
+      "sources": [],
+      "stepType": "initial",
+      "text": "Hello!",
+      "toolCalls": [],
+      "toolResults": [],
+      "usage": {
+        "completionTokens": 10,
+        "promptTokens": 3,
+        "totalTokens": 13,
+      },
+      "warnings": undefined,
+    },
+  ],
+  "text": "Hello!",
+  "toolCalls": [],
+  "toolResults": [],
+  "usage": {
+    "completionTokens": 10,
+    "promptTokens": 3,
+    "totalTokens": 13,
+  },
+  "warnings": undefined,
+}
+`;
+
+exports[`V4 tests > options.onChunk > should send sources 1`] = `
+{
+  "experimental_providerMetadata": {
+    "testprovider": {
+      "testkey": "testvalue",
+    },
+  },
+  "files": [],
+  "finishReason": "stop",
+  "logprobs": undefined,
+  "providerMetadata": {
+    "testprovider": {
+      "testkey": "testvalue",
+    },
+  },
+  "reasoning": undefined,
+  "reasoningDetails": [],
+  "request": {},
+  "response": {
+    "headers": undefined,
+    "id": "id-1",
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "Hello!",
+            "type": "text",
+          },
+        ],
+        "id": "msg-0",
+        "role": "assistant",
+      },
+    ],
+    "modelId": "mock-model-id",
+    "timestamp": 1970-01-01T00:00:00.000Z,
+  },
+  "sources": [
+    {
+      "id": "123",
+      "providerMetadata": {
+        "provider": {
+          "custom": "value",
+        },
+      },
+      "sourceType": "url",
+      "title": "Example",
+      "url": "https://example.com",
+    },
+    {
+      "id": "456",
+      "providerMetadata": {
+        "provider": {
+          "custom": "value2",
+        },
+      },
+      "sourceType": "url",
+      "title": "Example 2",
+      "url": "https://example.com/2",
+    },
+  ],
+  "steps": [
+    {
+      "experimental_providerMetadata": {
+        "testprovider": {
+          "testkey": "testvalue",
+        },
+      },
+      "files": [],
+      "finishReason": "stop",
+      "isContinued": false,
+      "logprobs": undefined,
+      "providerMetadata": {
+        "testprovider": {
+          "testkey": "testvalue",
+        },
+      },
+      "reasoning": undefined,
+      "reasoningDetails": [],
+      "request": {},
+      "response": {
+        "headers": undefined,
+        "id": "id-1",
+        "messages": [
+          {
+            "content": [
+              {
+                "text": "Hello!",
+                "type": "text",
+              },
+            ],
+            "id": "msg-0",
+            "role": "assistant",
+          },
+        ],
+        "modelId": "mock-model-id",
+        "timestamp": 1970-01-01T00:00:00.000Z,
+      },
+      "sources": [
+        {
+          "id": "123",
+          "providerMetadata": {
+            "provider": {
+              "custom": "value",
+            },
+          },
+          "sourceType": "url",
+          "title": "Example",
+          "url": "https://example.com",
+        },
+        {
+          "id": "456",
+          "providerMetadata": {
+            "provider": {
+              "custom": "value2",
+            },
+          },
+          "sourceType": "url",
+          "title": "Example 2",
+          "url": "https://example.com/2",
+        },
+      ],
+      "stepType": "initial",
+      "text": "Hello!",
+      "toolCalls": [],
+      "toolResults": [],
+      "usage": {
+        "completionTokens": 10,
+        "promptTokens": 3,
+        "totalTokens": 13,
+      },
+      "warnings": undefined,
+    },
+  ],
+  "text": "Hello!",
+  "toolCalls": [],
+  "toolResults": [],
+  "usage": {
+    "completionTokens": 10,
+    "promptTokens": 3,
+    "totalTokens": 13,
+  },
+  "warnings": undefined,
+}
+`;
+
 exports[`V4 tests > options.onFinish > should send correct information 1`] = `
 {
   "experimental_providerMetadata": {

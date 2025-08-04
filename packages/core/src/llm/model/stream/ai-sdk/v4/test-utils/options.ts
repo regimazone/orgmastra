@@ -109,6 +109,66 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     it('should return events in order', async () => {
       expect(result).toMatchSnapshot();
     });
+
+    it('should send sources', async () => {
+      let result!: any;
+
+      const resultObject = await executeFn({
+        runId,
+        model: modelWithSources,
+        options: {
+          onFinish: async event => {
+            result = event as unknown as typeof result;
+          },
+        },
+        ...defaultSettings(),
+      });
+
+      await resultObject.aisdk.v4.consumeStream();
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should send files', async () => {
+      let result!: any;
+
+      const resultObject = await executeFn({
+        runId,
+        model: modelWithFiles,
+        options: {
+          onFinish: async event => {
+            result = event as unknown as typeof result;
+          },
+        },
+        ...defaultSettings(),
+      });
+
+      await resultObject.aisdk.v4.consumeStream();
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should not prevent error from being forwarded', async () => {
+      const result = await executeFn({
+        runId,
+        model: new MockLanguageModelV1({
+          doStream: async () => {
+            throw new Error('test error');
+          },
+        }),
+        prompt: 'test-input',
+        options: {
+          onFinish() {}, // just defined; do nothing
+        },
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toStrictEqual([
+        {
+          type: 'error',
+          error: new Error('test error'),
+        },
+      ]);
+    });
   });
 
   describe('options.onError', () => {
