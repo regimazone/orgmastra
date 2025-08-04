@@ -925,11 +925,17 @@ export async function execute(
 
   const messages = messageList.get.all.core() as LanguageModelV1Prompt;
 
-  let _internalToUse = _internal || {
-    currentDate: () => new Date(),
-    now: () => Date.now(),
-    generateId,
-  };
+  let _internalToUse = _internal
+    ? {
+        currentDate: _internal.currentDate || (() => new Date()),
+        now: _internal.now || (() => Date.now()),
+        generateId: _internal.generateId || generateId,
+      }
+    : {
+        currentDate: () => new Date(),
+        now: () => Date.now(),
+        generateId,
+      };
 
   let startTimestamp = _internalToUse?.now?.();
 
