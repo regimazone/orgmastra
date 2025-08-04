@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { ArrowDownIcon, ArrowUpIcon, XIcon } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 

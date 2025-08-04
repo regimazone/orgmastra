@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { cn } from '@/lib/utils';
 
 type FormActionsProps = {
@@ -39,7 +39,7 @@ export function FormActions({
         children
       ) : (
         <>
-          <Button onClick={onSubmit} className="min-w-[12rem]" disabled={isSubmitting}>
+          <Button onClick={onSubmit} className="min-w-[12rem]" disabled={isSubmitting} variant="primary">
             {submitLabel || 'Submit'}
           </Button>
           <Button onClick={onCancel}>{cancelLabel || 'Cancel'}</Button>

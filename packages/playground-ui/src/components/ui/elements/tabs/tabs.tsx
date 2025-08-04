@@ -51,15 +51,21 @@ const Tabs = <T extends string>({ children, defaultTab, value, onValueChange, cl
   );
 };
 
-const TabList = ({ children, variant, className }: TabListProps) => {
+const TabList = ({ children, variant = 'default', className }: TabListProps) => {
   return (
     <div className={cn('w-full overflow-x-auto', className)}>
       <RadixTabs.List
         className={cn(
           'mb-[1.75rem] flex items-center',
           {
+            // variant: default
             'border-b border-border1 text-[0.9375rem]': variant === 'default',
-            'border border-border1 flex justify-stretch rounded-md overflow-hidden text-[0.875rem] ':
+            '[&>button]:py-[0.5rem] [&>button]:px-[1.5rem] [&>button]:font-normal [&>button]:text-icon3 [&>button]:border-b-[3px] [&>button]:border-transparent':
+              variant === 'default',
+            '[&>button[data-state=active]]:text-icon5 [&>button[data-state=active]]:transition-colors [&>button[data-state=active]]:duration-200 [&>button[data-state=active]]:border-icon3':
+              variant === 'default',
+            // variant: button
+            'border border-border1 flex justify-stretch rounded-md overflow-hidden text-[0.875rem] min-h-[2.5rem]':
               variant === 'buttons',
             '[&>button]:flex-1 [&>button]:py-[0.5rem] [&>button]:px-[1rem] [&>button]:text-icon3':
               variant === 'buttons',
@@ -76,16 +82,7 @@ const TabList = ({ children, variant, className }: TabListProps) => {
 
 const Tab = ({ children, value, onClick, className }: TabProps) => {
   return (
-    <RadixTabs.Trigger
-      value={value}
-      className={cn(
-        //     'py-[0.5rem] px-[1.5rem] font-normal text-icon3 border-b-[3px] border-transparent',
-        //     'data-[state=active]:text-icon5 data-[state=active]:transition-colors data-[state=active]:duration-200  data-[state=active]:border-icon3',
-        'hover:text-icon5',
-        className,
-      )}
-      onClick={onClick}
-    >
+    <RadixTabs.Trigger value={value} className={cn('hover:text-icon5', className)} onClick={onClick}>
       {children}
     </RadixTabs.Trigger>
   );

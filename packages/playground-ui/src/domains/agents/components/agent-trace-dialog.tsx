@@ -9,7 +9,7 @@ import {
   SelectField,
   FormActions,
 } from '@/components/ui/elements';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { ChevronRightIcon, DatabaseIcon, FileInputIcon, FileOutputIcon, FileTextIcon, GaugeIcon } from 'lucide-react';
 import { faker } from '@faker-js/faker';
 import { useState } from 'react';

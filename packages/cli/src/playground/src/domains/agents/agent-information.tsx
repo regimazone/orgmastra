@@ -2,12 +2,7 @@ import { useAgent } from '@/hooks/use-agents';
 import { AgentLogs } from './agent-logs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  AgentSettings,
-  PlaygroundTabs,
-  Tab,
   TabContent,
-  TabList,
-  AgentMetadata,
   EntityMainHeader,
   AgentIcon,
   ToolsIcon,
@@ -21,8 +16,6 @@ import {
 import { useMemory } from '@/hooks/use-memory';
 import { AgentMemory } from './agent-memory';
 import { useState, useEffect } from 'react';
-import { AgentPromptEnhancer } from './agent-instructions-enhancer';
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard';
 import { Link } from 'react-router';
 import { ArrowRightIcon, BrainIcon, GaugeIcon, HashIcon } from 'lucide-react';
 
@@ -30,8 +23,6 @@ export function AgentInformation({ agentId, chatInputValue }: { agentId: string;
   const { agent, isLoading } = useAgent(agentId);
   const { memory, isLoading: isMemoryLoading } = useMemory(agentId);
   const isRedesignedForCMS = true;
-
-  console.log({ agent });
 
   // Persist tab selection
   const STORAGE_KEY = 'agent-info-selected-tab';

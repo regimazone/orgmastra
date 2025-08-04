@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import * as React from 'react';
 import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 
-type SelectFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
+type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   name?: string;
   testId?: string;
   label?: React.ReactNode;
@@ -11,9 +11,9 @@ type SelectFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
   value?: string;
   helpMsg?: string;
   errorMsg?: string;
-  onChange?: (value: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  onValueChange: (value: string) => void;
 };
 
 export function SelectField({
@@ -26,7 +26,7 @@ export function SelectField({
   helpMsg,
   onChange,
   options,
-
+  onValueChange,
   placeholder = 'Select an option',
 }: SelectFieldProps) {
   return (
@@ -46,8 +46,11 @@ export function SelectField({
           {required && <i className="text-icon2">(required)</i>}
         </label>
       )}
-      <Select name={name} value={value} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger id="select-dataset" className="w-full border border-[rgba(255,255,255,0.15)] rounded-lg">
+      <Select name={name} value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger
+          id="select-dataset"
+          className="w-full border border-[rgba(255,255,255,0.15)] rounded-lg min-h-[2.5rem]"
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

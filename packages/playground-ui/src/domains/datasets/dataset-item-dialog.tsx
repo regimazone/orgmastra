@@ -9,7 +9,7 @@ import {
   InputField,
   FormActions,
 } from '@/components/ui/elements';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import {
   ChevronRightIcon,
   DatabaseIcon,
@@ -248,11 +248,9 @@ export function DatasetItemDialog({
                 Are you sure you want to delete this item? This action cannot be undone.
               </p>
               <div className="flex justify-between w-full gap-[1rem] mt-[1rem]">
-                <Button onClick={handleDelete} size="lg" variant="outline">
+                <Button onClick={() => setConfirmationIsOpen(false)}>Cancel</Button>
+                <Button onClick={handleDelete} variant="primary">
                   Delete <Trash2Icon />
-                </Button>
-                <Button onClick={() => setConfirmationIsOpen(false)} size="lg" variant="outline">
-                  Cancel
                 </Button>
               </div>
             </div>

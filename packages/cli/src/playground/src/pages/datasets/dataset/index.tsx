@@ -30,11 +30,18 @@ export default function Dataset() {
   const [currentVersion, setCurrentVersion] = useState<string>('0');
   const [currentTab, setCurrentTab] = useState<string>('items');
 
-  const handleOnListItem = (score: any) => {
-    if (score.id === selectedItem?.id) {
+  const handleOnListItem = (id: string) => {
+    if (id === selectedItem?.id) {
       setSelectedItem(null);
     } else {
-      setSelectedItem(score);
+      const item = items.find(item => item.id === id);
+
+      if (!item) {
+        console.warn('Item not found for id:', id);
+        return;
+      }
+
+      setSelectedItem(item);
       setDialogIsOpen(true);
     }
   };
@@ -60,6 +67,8 @@ export default function Dataset() {
   };
 
   const handleVersionChange = (value: string) => {
+    console.log('Version change requested:', value);
+
     setCurrentVersion(value);
     console.log('Version changed to:', value);
   };
@@ -145,44 +154,6 @@ export default function Dataset() {
                     onCancel={() => setCurrentTab('items')}
                   />
                 </Tabs.Content>
-
-                {/* <TabsList>
-                  <TabsTrigger value="items">Data items</TabsTrigger>
-                  <TabsTrigger value="experiments">Experiments</TabsTrigger>
-                  <TabsTrigger value="settings">Settings</TabsTrigger>
-                </TabsList>
-                <TabsContent value="items">
-                  <DatasetItemsTools
-                    onAdd={handleOnAdd}
-                    currentVersion={currentVersion}
-                    onVersionChange={handleVersionChange}
-                    versionOptions={['ver. 07/23 10:30 AM', 'ver. 07/23 9:35 AM', 'ver. 07/23 9:30 AM']}
-                  />
-                  <EntryList
-                    items={items || []}
-                    selectedItem={selectedItem}
-                    onItemClick={handleOnListItem}
-                    columns={itemsListColumns}
-                    isLoading={isLoading}
-                  />
-                </TabsContent>
-                <TabsContent value="experiments">
-                  <EntryList
-                    items={[]}
-                    selectedItem={null}
-                    onItemClick={() => {}}
-                    columns={experimentsListColumns}
-                    isLoading={false}
-                  />
-                </TabsContent>
-                <TabsContent value="settings">
-                  <DatasetSettings
-                    dataset={dataset}
-                    onUpdate={handleUpdate}
-                    onRemove={handleRemove}
-                    onCancel={() => setCurrentTab('items')}
-                  />
-                </TabsContent> */}
               </Tabs>
             </div>
           </div>

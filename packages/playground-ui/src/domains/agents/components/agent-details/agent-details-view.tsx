@@ -1,6 +1,6 @@
 import { KeyValueList, SelectField } from '@/components/ui/elements';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { SettingsIcon } from 'lucide-react';
 
 type AgentDetailsViewProps = {
@@ -25,7 +25,7 @@ export const AgentDetailsView = ({
   return (
     <div>
       <div className="grid grid-cols-[1fr_auto] gap-4  items-end">
-        <SelectField label="Version" value={currentVersion} onChange={onVersionChange} options={versionOptions} />
+        <SelectField label="Version" value={currentVersion} onValueChange={onVersionChange} options={versionOptions} />
         <Button onClick={onCustomizeClick}>
           Customize
           <SettingsIcon />

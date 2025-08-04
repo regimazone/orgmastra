@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 // import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 import { Select } from '@/components/ui/elements/select';
 import { PlusIcon, SearchIcon } from 'lucide-react';

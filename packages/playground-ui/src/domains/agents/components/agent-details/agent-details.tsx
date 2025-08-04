@@ -16,11 +16,19 @@ export const AgentDetails = ({ LinkComponent, agentId, agent }: AgentDetailsProp
   const modelSettings = settings?.modelSettings || {};
   const [isSaving, setIsSaving] = useState(false);
 
+  console.log('modelSettings', modelSettings);
+
   const settingsData = [
     {
       label: 'Chat Method',
       key: 'chatWithGenerate',
-      value: modelSettings?.chatWithGenerate ? 'Generate' : 'Stream',
+      value: modelSettings?.chatWithGenerate ? 'generate' : 'stream',
+      field: 'radio',
+      layout: 'horizontal',
+      options: [
+        { value: 'generate', label: 'Generate' },
+        { value: 'stream', label: 'Stream' },
+      ],
     },
     {
       label: 'Temperature',
@@ -73,13 +81,14 @@ export const AgentDetails = ({ LinkComponent, agentId, agent }: AgentDetailsProp
     {
       label: 'Max Retries',
       key: 'maxRetries',
-      value: modelSettings?.maxRetries?.toString() || 'n/a',
+      value: modelSettings?.maxRetries,
       type: 'number',
     },
     {
       label: 'Provider Options',
       key: 'providerOptions',
-      value: modelSettings?.providerOptions?.toString() || 'n/a',
+      value: modelSettings?.providerOptions,
+      field: 'textarea',
     },
   ];
 
@@ -115,7 +124,7 @@ export const AgentDetails = ({ LinkComponent, agentId, agent }: AgentDetailsProp
             { value: '07/19/2025', label: '07/19/2024 at 8:15:45 AM' },
           ]}
           currentVersion={'07/23/2025'}
-          onVersionChange={() => console.log('Version changed')}
+          onVersionChange={e => console.log('Version changed')}
           onCustomizeClick={() => {
             setIsEditMode(true);
           }}

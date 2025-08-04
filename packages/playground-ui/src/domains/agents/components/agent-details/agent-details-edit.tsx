@@ -1,6 +1,6 @@
-import { InputField, TextareaField, SliderField } from '@/components/ui/elements';
+import { InputField, TextareaField, SliderField, RadioGroupField } from '@/components/ui/elements';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { useEffect, useState } from 'react';
 import { RotateCcwIcon, Undo2Icon, Wand2Icon } from 'lucide-react';
 
@@ -26,14 +26,18 @@ export const AgentDetailsEdit = ({
   const [enhancementInstruction, setEnhancementInstruction] = useState('');
 
   useEffect(() => {
+    // filters out 'chatWithGenerate' from settings comparison, because it's not relevant for CMS
+    const settingsToCompare = [...settings].filter(item => item.key !== 'chatWithGenerate');
+    const initialSettingsToCompare = [...initialSettings].filter(item => item.key !== 'chatWithGenerate');
+
     if (
       !settingsIsChanged &&
-      (JSON.stringify(initialSettings) !== JSON.stringify(settings) || prompt !== initialPrompt)
+      (JSON.stringify(initialSettingsToCompare) !== JSON.stringify(settingsToCompare) || prompt !== initialPrompt)
     ) {
       setSettingsIsChanged(true);
     } else if (
       settingsIsChanged &&
-      JSON.stringify(initialSettings) === JSON.stringify(settings) &&
+      JSON.stringify(initialSettingsToCompare) === JSON.stringify(settingsToCompare) &&
       initialPrompt === prompt
     ) {
       setSettingsIsChanged(false);
@@ -52,6 +56,10 @@ export const AgentDetailsEdit = ({
     setSettings(prevSettings => prevSettings.map(setting => (setting.key === name ? { ...setting, value } : setting)));
   };
 
+  const handleRadioChange = (value: string, name: string) => {
+    setSettings(prevSettings => prevSettings.map(setting => (setting.key === name ? { ...setting, value } : setting)));
+  };
+
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setPrompt(e.target.value);
   };
@@ -61,8 +69,6 @@ export const AgentDetailsEdit = ({
     setPrompt(initialPrompt);
     setEnhancementInstruction('');
   };
-
-  console.log('Settings', settings);
 
   return (
     <div className="grid gap-[1rem]">
@@ -82,12 +88,12 @@ export const AgentDetailsEdit = ({
           value={enhancementInstruction}
           className="gap-0 [&>textarea]:rounded-none [&>textarea]:border-y-0 bg-[#191919]"
         />
-        <Button onClick={() => console.log('Enhance Prompt Clicked')} className="w-full bg-[#191919] rounded-t-none ">
+        <Button onClick={() => console.log('Enhance Prompt Clicked')} className="w-full bg-[#191919] rounded-t-none">
           Enhance Prompt <Wand2Icon />
         </Button>
       </div>
 
-      <div className={cn('grid gap-x-[2rem] gap-[1.5rem] mt-[1rem]', '2xl:grid-cols-2 3xl:grid-cols-3')}>
+      <div className={cn('grid gap-x-[2rem] gap-[1.5rem] mt-[1rem]', '2xl:grid-cols-2 4xl:grid-cols-3')}>
         {settings.map(item => {
           if (item.field === 'slider') {
             return (
@@ -100,6 +106,32 @@ export const AgentDetailsEdit = ({
                 min={item.min}
                 max={item.max}
                 step={item.step}
+                className=""
+              />
+            );
+          } else if (item.field === 'textarea') {
+            return (
+              <TextareaField
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                value={item.value || ''}
+                onChange={() => console.log('Textarea change')}
+                placeholder={item.placeholder}
+                className={cn('2xl:col-span-2 4xl:col-span-3')}
+              />
+            );
+          } else if (item.field === 'radio') {
+            return (
+              <RadioGroupField
+                key={item.key}
+                name={item.key}
+                label={item.label}
+                value={item.value || ''}
+                onValueChange={v => handleRadioChange(v, item.key)}
+                layout={item.layout}
+                options={item.options}
+                className={cn('2xl:col-span-2 4xl:col-span-3')}
               />
             );
           } else {
@@ -108,7 +140,7 @@ export const AgentDetailsEdit = ({
                 key={item.key}
                 name={item.key}
                 label={item.label}
-                value={item.value !== 'n/a' ? item.value : ''}
+                value={item.value || ''}
                 onChange={handleInputChange}
                 placeholder={item.placeholder}
                 className={cn('w-full', item.className)}
@@ -118,7 +150,7 @@ export const AgentDetailsEdit = ({
           }
         })}
       </div>
-      <div className="sticky bottom-0 bg-surface2 py-[1rem] grid gap-[1rem]">
+      <div className="sticky bottom-0 bg-surface2 py-[1.5rem] grid gap-[1rem]">
         {settingsIsChanged && (
           <div className="bg-surface5 p-[1rem] py-[1rem] grid gap-[1rem] rounded-lg">
             <p className=" text-icon4 text-[0.875rem] rounded-lg">
@@ -129,8 +161,8 @@ export const AgentDetailsEdit = ({
             </Button>
           </div>
         )}
-        <div className="grid grid-cols-[1fr_auto] gap-[1rem]">
-          <Button onClick={onCancel}>
+        <div className="grid grid-cols-[1fr_1fr] gap-[1rem]">
+          <Button onClick={onCancel} variant="primary">
             <Undo2Icon /> Cancel
           </Button>
           <Button onClick={handleReset} disabled={!settingsIsChanged || isSaving}>

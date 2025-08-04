@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -30,15 +30,15 @@ export function SideDialogTop({ children, onNext, onPrevious, showInnerNav }: Si
             <div
               className={cn(
                 'flex gap-[1rem] items-baseline',
-                '[&>button]:text-[0.875rem] [&>button]:flex [&>button]:items-center [&>button]:px-[0.5rem] [&>button]:py-[0.8rem] [&>button]:leading-[1]',
+                // '[&>button]:text-[0.875rem] [&>button]:flex [&>button]:items-center [&>button]:px-[0.5rem] [&>button]:py-[0.8rem] [&>button]:leading-[1]',
               )}
             >
               <Button onClick={handleOnNext} disabled={!onNext} variant="ghost">
-                <VisuallyHidden>Next</VisuallyHidden>
+                Next
                 <ArrowUpIcon />
               </Button>
               <Button onClick={handleOnPrevious} disabled={!onPrevious} variant="ghost">
-                <VisuallyHidden>Previous</VisuallyHidden>
+                Previous
                 <ArrowDownIcon />
               </Button>
             </div>

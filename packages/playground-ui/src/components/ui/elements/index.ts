@@ -2,7 +2,7 @@ export * from './entry-list';
 export * from './side-dialog';
 export * from './tabs';
 export * from './dropdown-menu';
-export { Button as UiButton } from './button';
+export { Button as UiButton } from './buttons';
 export { Select as UiSelect } from './select';
 export * from './form-fields';
 export * from './relations';

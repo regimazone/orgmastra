@@ -6,7 +6,7 @@ import {
   SideDialogKeyValueList,
   SideDialogSection,
 } from '@/components/ui/elements';
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { ChevronRightIcon, DatabaseIcon, FileTextIcon, Trash2Icon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 

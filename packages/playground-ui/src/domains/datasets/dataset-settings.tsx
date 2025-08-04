@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/elements/button';
+import { Button } from '@/components/ui/elements/buttons';
 import { TextareaField, InputField, FormActions } from '@/components/ui/elements';
 import { cn } from '@/lib/utils';
 import { EditIcon, TrashIcon } from 'lucide-react';
@@ -77,7 +77,7 @@ export function DatasetSettings({ dataset: initialDataset, onRemove, onUpdate, o
             Warning: This will permanently delete the dataset and related content (e.g. Experiments). This action is
             irreversible and may result in data loss. Proceed with caution.
           </p>
-          <Button onClick={handleRemove} className="ml-auto">
+          <Button onClick={handleRemove} className="ml-auto" variant="primary">
             Delete Dataset and related content
           </Button>
         </div>
