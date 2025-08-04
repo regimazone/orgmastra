@@ -708,7 +708,8 @@ function createAgentWorkflow({
   })
     .then(llmExecutionStep)
     .map(({ inputData }) => {
-      if (doStreamSpan && inputData.output.toolCalls?.length) {
+      console.log('huh', experimental_telemetry);
+      if (doStreamSpan && experimental_telemetry?.recordOutputs !== false && inputData.output.toolCalls?.length) {
         doStreamSpan.setAttribute('stream.response.toolCalls', JSON.stringify(inputData.output.toolCalls));
       }
       return inputData.output.toolCalls || [];
@@ -808,17 +809,21 @@ function createStreamExecutor({
             ...(inputData.metadata.providerMetadata
               ? { 'stream.response.providerMetadata': JSON.stringify(inputData.metadata.providerMetadata) }
               : {}),
-            'stream.response.text': inputData.output.text,
             'stream.response.finishReason': inputData.stepResult.reason,
             'stream.usage.inputTokens': inputData.output.usage?.inputTokens,
             'stream.usage.outputTokens': inputData.output.usage?.outputTokens,
             'stream.usage.totalTokens': inputData.output.usage?.totalTokens,
-            'stream.prompt.messages': JSON.stringify(
-              inputData.messages.user.map((message: MastraMessageV1) => ({
-                role: message.role,
-                content: message.content,
-              })),
-            ),
+            ...(experimental_telemetry?.recordOutputs !== false
+              ? {
+                  'stream.response.text': inputData.output.text,
+                  'stream.prompt.messages': JSON.stringify(
+                    inputData.messages.user.map((message: MastraMessageV1) => ({
+                      role: message.role,
+                      content: message.content,
+                    })),
+                  ),
+                }
+              : {}),
           });
 
           rootSpan.end();
@@ -985,7 +990,9 @@ export async function execute(
       operationId: 'mastra.stream',
       telemetry: rest.experimental_telemetry,
     }),
-    'stream.prompt.messages': JSON.stringify(messages),
+    ...(rest.experimental_telemetry?.recordOutputs !== false
+      ? { 'stream.prompt.messages': JSON.stringify(messages) }
+      : {}),
   });
 
   const executor = createStreamExecutor({
