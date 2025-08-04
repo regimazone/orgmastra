@@ -85,6 +85,7 @@ function createAgentWorkflow({
             })) as any,
         });
 
+        console.log('result before', result);
         return { result, ...inputData };
       },
     });
@@ -434,7 +435,6 @@ function createAgentWorkflow({
                 controller.enqueue(chunk);
                 break;
               case 'source':
-                console.log('source start', chunk.payload);
                 messageList.add(
                   {
                     id: messageId,
@@ -459,7 +459,6 @@ function createAgentWorkflow({
                   'response',
                 );
 
-                console.log('messageList after', JSON.stringify(messageList.get.all.v1(), null, 2));
                 controller.enqueue(chunk);
                 break;
               case 'text-delta': {
@@ -537,8 +536,6 @@ function createAgentWorkflow({
             content: message.content,
           };
         });
-
-        console.log('allMessages', JSON.stringify(allMessages, null, 2));
 
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');

@@ -465,7 +465,17 @@ export class MastraLLM extends MastraLLMBase {
     };
 
     try {
-      console.log('argsForExecute', JSON.stringify(argsForExecute, null, 2));
+      // Safely log argsForExecute without circular references from telemetry
+      const safeArgsForLog = {
+        ...argsForExecute,
+        experimental_telemetry: argsForExecute.experimental_telemetry ? '[Telemetry Object]' : undefined,
+        model: {
+          modelId: argsForExecute.model.modelId,
+          provider: argsForExecute.model.provider,
+        },
+        tools: argsForExecute.tools ? Object.keys(argsForExecute.tools) : undefined,
+      };
+      console.log('argsForExecute', JSON.stringify(safeArgsForLog, null, 2));
 
       const result = await execute({
         runId: runId!,
@@ -477,6 +487,7 @@ export class MastraLLM extends MastraLLMBase {
         options: {
           onFinish: argsForExecute.onFinish,
         },
+        experimental_telemetry: argsForExecute.experimental_telemetry,
       });
 
       return result.aisdk.v4 as any;

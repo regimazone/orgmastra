@@ -23,6 +23,6 @@ export const mastra = new Mastra({
     sourcemap: true,
   },
   telemetry: {
-    enabled: false,
+    enabled: true,
   },
 });
