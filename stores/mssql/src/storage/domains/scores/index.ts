@@ -2,7 +2,7 @@ import type { PaginationInfo, StoragePagination } from '@mastra/core';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { ScoreRowData } from '@mastra/core/scores';
 import { ScoresStorage, TABLE_SCORERS } from '@mastra/core/storage';
-import sql from 'mssql';
+import type { ConnectionPool } from 'mssql';
 import type { StoreOperationsMSSQL } from '../operations';
 import { getSchemaName, getTableName } from '../utils';
 
@@ -25,7 +25,7 @@ function transformScoreRow(row: Record<string, any>): ScoreRowData {
 }
 
 export class ScoresMSSQL extends ScoresStorage {
-  public pool: sql.ConnectionPool;
+  public pool: ConnectionPool;
   private operations: StoreOperationsMSSQL;
   private schema?: string;
 
@@ -34,7 +34,7 @@ export class ScoresMSSQL extends ScoresStorage {
     operations,
     schema,
   }: {
-    pool: sql.ConnectionPool;
+    pool: ConnectionPool;
     operations: StoreOperationsMSSQL;
     schema?: string;
   }) {

@@ -24,11 +24,11 @@ import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import sql from 'mssql';
 import { LegacyEvalsMSSQL } from './domains/legacy-evals';
+import { MemoryMSSQL } from './domains/memory';
 import { StoreOperationsMSSQL } from './domains/operations';
 import { ScoresMSSQL } from './domains/scores';
 import { TracesMSSQL } from './domains/traces';
 import { WorkflowsMSSQL } from './domains/workflows';
-import { MemoryMSSQL } from './domains/memory';
 
 export type MSSQLConfigType = {
   schemaName?: string;

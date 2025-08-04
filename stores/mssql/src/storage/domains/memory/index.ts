@@ -16,9 +16,9 @@ import type {
   StorageResourceType,
   ThreadSortOptions,
 } from '@mastra/core/storage';
+import sql from 'mssql';
 import type { StoreOperationsMSSQL } from '../operations';
 import { getTableName, getSchemaName } from '../utils';
-import sql from 'mssql';
 
 export class MemoryMSSQL extends MemoryStorage {
   private pool: sql.ConnectionPool;
