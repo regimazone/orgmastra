@@ -765,11 +765,17 @@ function createStreamExecutor({
             payload: inputData,
           });
 
+          console.log(inputData, '#######INPUT');
+
           rootSpan.setAttributes({
+            'stream.response.id': inputData.metadata.id,
             'stream.response.model': model.modelId,
+            'stream.response.providerMetadata': JSON.stringify(inputData.metadata.providerMetadata),
             'stream.response.text': inputData.output.text,
             'stream.response.finishReason': inputData.stepResult.reason,
             'stream.usage.inputTokens': inputData.output.usage?.inputTokens,
+            'stream.usage.outputTokens': inputData.output.usage?.outputTokens,
+            'stream.usage.totalTokens': inputData.output.usage?.totalTokens,
           });
 
           rootSpan.end();
@@ -906,6 +912,7 @@ export async function execute(
       operationId: 'mastra.stream',
       telemetry: rest.experimental_telemetry,
     }),
+    'stream.input.messages': JSON.stringify(messages),
   });
 
   const executor = createStreamExecutor({
