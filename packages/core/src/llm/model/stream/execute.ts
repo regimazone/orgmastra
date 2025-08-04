@@ -699,6 +699,7 @@ function createStreamExecutor({
   maxSteps = 5,
   logger,
   experimental_telemetry,
+  modelSettings,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -728,7 +729,7 @@ function createStreamExecutor({
 
       const baseTelemetryAttributes = getBaseTelemetryAttributes({
         model,
-        settings: {},
+        settings: modelSettings ?? {},
         telemetry: experimental_telemetry,
         headers: {},
       });
@@ -882,7 +883,7 @@ export async function execute(
       modelId: rest.model.modelId,
       provider: rest.model.provider,
     },
-    settings: {},
+    settings: rest.modelSettings,
     telemetry: rest.experimental_telemetry,
     headers: {},
   });

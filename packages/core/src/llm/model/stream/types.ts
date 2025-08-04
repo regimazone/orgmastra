@@ -1,5 +1,5 @@
 import type { IDGenerator, LanguageModelV1, LanguageModelV1Prompt, streamText, ToolChoice, ToolSet } from 'ai';
-import type { TelemetrySettings, ToolSet as ToolSetV5 } from 'ai-v5';
+import type { CallSettings, TelemetrySettings, ToolSet as ToolSetV5 } from 'ai-v5';
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
@@ -45,6 +45,7 @@ export type ExecutionProps = {
   >['experimental_generateMessageId'];
   toolCallStreaming?: boolean;
   options?: ExecuteOptions;
+  modelSettings?: Omit<CallSettings, 'abortSignal' | 'headers' | 'maxRetries'>;
   logger?: MastraLogger;
   experimental_telemetry?: TelemetrySettings;
 };
