@@ -12,6 +12,7 @@ import { executeV5 } from './ai-sdk/v5/execute';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, StreamExecutorProps } from './types';
+import type { MastraMessageV1 } from '../../../memory';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -777,6 +778,12 @@ function createStreamExecutor({
             'stream.usage.inputTokens': inputData.output.usage?.inputTokens,
             'stream.usage.outputTokens': inputData.output.usage?.outputTokens,
             'stream.usage.totalTokens': inputData.output.usage?.totalTokens,
+            'stream.prompt.messages': JSON.stringify(
+              inputData.messages.user.map((message: MastraMessageV1) => ({
+                role: message.role,
+                content: message.content,
+              })),
+            ),
           });
 
           rootSpan.end();
@@ -806,6 +813,7 @@ function createStreamExecutor({
       });
 
       rootSpan.setAttributes({
+        'stream.response.timestamp': new Date(startTimestamp).toISOString(),
         'stream.response.msToFirstChunk': msToFirstChunk,
       });
 
@@ -843,6 +851,14 @@ function createStreamExecutor({
         payload: executionResult.result,
       });
 
+      const msToFinish = (_internal?.now?.() ?? Date.now()) - startTimestamp;
+      rootSpan.addEvent('ai.stream.finish');
+      rootSpan.setAttributes({
+        'stream.response.msToFinish': msToFinish,
+        'stream.response.avgOutputTokensPerSecond':
+          (1000 * (executionResult?.result?.output?.usage?.outputTokens ?? 0)) / msToFinish,
+      });
+
       controller.close();
     },
   });
@@ -851,7 +867,7 @@ function createStreamExecutor({
 export async function execute(
   props: { system?: string; prompt?: string } & { resourceId?: string; threadId?: string } & Omit<
       StreamExecutorProps,
-      'inputMessages'
+      'inputMessages' | 'startTimestamp'
     >,
 ) {
   const { system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
@@ -901,6 +917,7 @@ export async function execute(
     _internal: _internalToUse,
     inputMessages: messages,
     logger: loggerToUse,
+    startTimestamp: startTimestamp!,
     ...rest,
   };
 
@@ -930,7 +947,7 @@ export async function execute(
 
   const executor = createStreamExecutor({
     ...streamExecutorProps,
-    startTimestamp,
+    startTimestamp: startTimestamp!,
   });
 
   return new MastraModelOutput({

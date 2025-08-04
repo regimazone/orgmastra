@@ -6084,7 +6084,9 @@ exports[`V5 tests > telemetry > should record telemetry data when enabled 1`] = 
       "aisdk.model.id": "mock-model-id",
       "aisdk.model.provider": "mock-provider",
       "mastra.operationId": "mastra.stream.aisdk.doStream",
-      "ai.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
+      "operation.name": "mastra.stream.aisdk.doStream test-function-id",
+      "resource.name": "test-function-id",
+      "stream.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
       "stream.request.headers.header1": "value1",
       "stream.request.headers.header2": "value2",
       "stream.response.avgOutputTokensPerSecond": 20,
@@ -6110,8 +6112,6 @@ exports[`V5 tests > telemetry > should record telemetry data when enabled 1`] = 
       "stream.usage.inputTokens": 3,
       "stream.usage.outputTokens": 10,
       "stream.usage.totalTokens": 13,
-      "operation.name": "ai.streamText.doStream test-function-id",
-      "resource.name": "test-function-id",
     },
     "events": [
       {
