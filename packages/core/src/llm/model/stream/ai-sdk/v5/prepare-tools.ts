@@ -5,9 +5,9 @@ import type {
 } from '@ai-sdk/provider-v5';
 import type { ToolChoice } from 'ai-v5';
 import { asSchema, tool as toolFn } from 'ai-v5';
-import type { CoreTool, CoreToolV2 } from '../../../../../tools';
+import type { ToolsForExecution } from '../../../../../tools';
 
-export function prepareToolsAndToolChoice<TOOLS extends Record<string, CoreTool | CoreToolV2>>({
+export function prepareToolsAndToolChoice<TOOLS extends Record<string, ToolsForExecution>>({
   tools,
   toolChoice,
   activeTools,
