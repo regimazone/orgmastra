@@ -241,9 +241,7 @@ export class AISDKV4OutputStream {
   get steps() {
     return this.#modelOutput.steps.map(step => {
       return {
-        stepType: 'initial',
-        text: step.text,
-        reasoning: step.reasoning || undefined,
+        ...step,
         sources: step.sources.map((source: any) => {
           return convertFullStreamChunkToAISDKv4({
             chunk: source,
@@ -284,13 +282,6 @@ export class AISDKV4OutputStream {
             getErrorMessage: (error: string) => error,
           });
         }),
-        warnings: step.warnings,
-        reasoningDetails: step.reasoningDetails,
-        providerMetadata: step.providerMetadata,
-        experimental_providerMetadata: step.providerMetadata,
-        isContinued: step.isContinued,
-        logprobs: step.logprobs,
-        finishReason: step.finishReason,
         response: {
           ...step.response,
           messages: step.response.messages.map((message: any) => {
@@ -300,8 +291,6 @@ export class AISDKV4OutputStream {
             };
           }),
         },
-        request: step.request,
-        usage: step.usage,
       };
     });
   }

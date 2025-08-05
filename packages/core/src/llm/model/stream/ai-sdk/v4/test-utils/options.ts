@@ -515,19 +515,20 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         expect(res).toMatchSnapshot();
       });
 
-      // describe('callbacks', () => {
-      //     beforeEach(async () => {
-      //         await result.consumeStream();
-      //     });
+      describe('callbacks', () => {
+        beforeEach(async () => {
+          await result.aisdk.v4.consumeStream();
+        });
 
-      //     it('onFinish should send correct information', async () => {
-      //         expect(onFinishResult).toMatchSnapshot();
-      //     });
+        it('onFinish should send correct information', async () => {
+          console.dir({ onFinishResult }, { depth: null });
+          expect(onFinishResult).toMatchSnapshot();
+        });
 
-      //     it('onStepFinish should send correct information', async () => {
-      //         expect(onStepFinishResults).toMatchSnapshot();
-      //     });
-      // });
+        it.skip('onStepFinish should send correct information', async () => {
+          expect(onStepFinishResults).toMatchSnapshot();
+        });
+      });
 
       // describe('value promises', () => {
       //     beforeEach(async () => {

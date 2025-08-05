@@ -39,6 +39,23 @@ export class MastraModelOutput extends MastraBase {
       providerMetadata: any;
     }
   > = {};
+  #bufferedByStep: {
+    text: string;
+    reasoning: string;
+    sources: any[];
+    files: any[];
+    toolCalls: any[];
+    toolResults: any[];
+    msgCount: number;
+  } = {
+    text: '',
+    reasoning: '',
+    sources: [],
+    files: [],
+    toolCalls: [],
+    toolResults: [],
+    msgCount: 0,
+  };
   #bufferedText: string[] = [];
   #bufferedTextChunks: Record<string, string[]> = {};
   #bufferedSources: any[] = [];
@@ -81,9 +98,11 @@ export class MastraModelOutput extends MastraBase {
           switch (chunk.type) {
             case 'source':
               self.#bufferedSources.push(chunk);
+              self.#bufferedByStep.sources.push(chunk);
               break;
             case 'text-delta':
               self.#bufferedText.push(chunk.payload.text);
+              self.#bufferedByStep.text += chunk.payload.text;
               if (chunk.payload.id) {
                 const ary = self.#bufferedTextChunks[chunk.payload.id] ?? [];
                 ary.push(chunk.payload.text);
@@ -96,11 +115,9 @@ export class MastraModelOutput extends MastraBase {
               }
               self.#toolCallArgsDeltas?.[chunk.payload.toolCallId]?.push(chunk.payload.argsTextDelta);
               break;
-            case 'text-delta':
-              self.#bufferedText.push(chunk.payload.text);
-              break;
             case 'file':
               self.#bufferedFiles.push(chunk);
+              self.#bufferedByStep.files.push(chunk);
               break;
             case 'reasoning-start':
               self.#bufferedReasoningDetails[chunk.payload.id] = {
@@ -111,6 +128,7 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'reasoning-delta': {
               self.#bufferedReasoning.push(chunk.payload.text);
+              self.#bufferedByStep.reasoning += chunk.payload.text;
 
               const bufferedReasoning = self.#bufferedReasoningDetails[chunk.payload.id];
               if (bufferedReasoning) {
@@ -131,6 +149,7 @@ export class MastraModelOutput extends MastraBase {
             }
             case 'tool-call':
               self.#toolCalls.push(chunk);
+              self.#bufferedByStep.toolCalls.push(chunk);
               if (chunk.payload?.output?.from === 'AGENT' && chunk.payload?.output?.type === 'finish') {
                 const finishPayload = chunk.payload?.output.payload;
                 self.updateUsageCount(finishPayload.usage);
@@ -138,8 +157,10 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'tool-result':
               self.#toolResults.push(chunk);
+              self.#bufferedByStep.toolResults.push(chunk);
               break;
             case 'step-finish': {
+              console.log('step-finish_chunk', JSON.stringify(chunk, null, 2));
               self.updateUsageCount(chunk.payload.output.usage);
               // chunk.payload.totalUsage = self.totalUsage;
               self.#warnings = chunk.payload.stepResult.warnings;
@@ -148,18 +169,20 @@ export class MastraModelOutput extends MastraBase {
                 self.#request = chunk.payload.metadata.request;
               }
 
-              const reasoningDetails = reasoningDetailsFromMessages(chunk.payload.messages.all);
+              const reasoningDetails = reasoningDetailsFromMessages(
+                chunk.payload.messages.all.slice(self.#bufferedByStep.msgCount),
+              );
 
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 
               self.#bufferedSteps.push({
-                stepType: 'initial',
-                text: self.text,
-                reasoning: self.reasoning || undefined,
-                sources: self.sources,
-                files: self.files,
-                toolCalls: self.toolCalls,
-                toolResults: self.toolResults,
+                stepType: self.#bufferedSteps.length === 0 ? 'initial' : 'tool-result',
+                text: self.#bufferedByStep.text,
+                reasoning: self.#bufferedByStep.reasoning || undefined,
+                sources: self.#bufferedByStep.sources,
+                files: self.#bufferedByStep.files,
+                toolCalls: self.#bufferedByStep.toolCalls,
+                toolResults: self.#bufferedByStep.toolResults,
                 warnings: self.warnings,
                 reasoningDetails: reasoningDetails,
                 providerMetadata: providerMetadata,
@@ -171,6 +194,18 @@ export class MastraModelOutput extends MastraBase {
                 request: request,
                 usage: chunk.payload.output.usage,
               });
+
+              self.#bufferedByStep = {
+                text: '',
+                reasoning: '',
+                sources: [],
+                files: [],
+                toolCalls: [],
+                toolResults: [],
+                msgCount: chunk.payload.messages.all.length,
+              };
+
+              console.log('step-finish_bufferedSteps', JSON.stringify(self.#bufferedSteps, null, 2));
 
               break;
             }
@@ -263,7 +298,7 @@ export class MastraModelOutput extends MastraBase {
                       }),
                     },
                     steps: self.aisdk.v4.steps,
-                    usage: baseFinishStep.usage,
+                    usage: self.usage,
                   };
                   // console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
                 } else if (model.version === 'v2') {
