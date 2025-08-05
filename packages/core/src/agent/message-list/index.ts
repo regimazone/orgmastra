@@ -245,6 +245,16 @@ export class MessageList {
             state: part.toolInvocation.state === 'result' ? 'output-available' : 'input-available',
             output: part.toolInvocation.state === 'result' ? part.toolInvocation.result : undefined,
           };
+        } else if (part.type === 'reasoning') {
+          // TODO: is this correct?
+          const details = part.details[0];
+          return {
+            type: 'reasoning',
+            // @ts-ignore
+            text: details.text,
+            // @ts-ignore
+            signature: details.signature,
+          };
         }
         return part;
       }),

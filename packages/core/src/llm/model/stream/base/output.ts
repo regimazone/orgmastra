@@ -161,7 +161,6 @@ export class MastraModelOutput extends MastraBase {
               self.#bufferedByStep.toolResults.push(chunk);
               break;
             case 'step-finish': {
-              console.log('step-finish_chunk', JSON.stringify(chunk, null, 2));
               self.updateUsageCount(chunk.payload.output.usage);
               // chunk.payload.totalUsage = self.totalUsage;
               self.#warnings = chunk.payload.stepResult.warnings;
@@ -267,8 +266,6 @@ export class MastraModelOutput extends MastraBase {
                 msgCount: chunk.payload.messages.all.length,
               };
 
-              console.log('step-finish_bufferedSteps', JSON.stringify(self.#bufferedSteps, null, 2));
-
               break;
             }
             case 'finish':
@@ -362,7 +359,6 @@ export class MastraModelOutput extends MastraBase {
                     steps: self.aisdk.v4.steps,
                     usage: self.usage,
                   };
-                  // console.log('onFinishPayload', JSON.stringify(onFinishPayload, null, 2));
                 } else if (model.version === 'v2') {
                   onFinishPayload = {
                     text: baseFinishStep.text,

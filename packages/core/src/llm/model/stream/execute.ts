@@ -141,6 +141,10 @@ function createAgentWorkflow({
       execute: async ({ inputData }) => {
         const messagesToUse = inputData.messages.all;
         const messageList = MessageList.fromArray(messagesToUse);
+        console.log('messages_to_use', JSON.stringify(messagesToUse, null, 2));
+        console.log('message_list', JSON.stringify(messageList.get.all.core(), null, 2));
+        console.log('message_list_ui', JSON.stringify(messageList.get.all.aiV5.ui(), null, 2));
+        console.log('message_list_model', JSON.stringify(messageList.get.all.model(), null, 2));
 
         const runState = new AgenticRunState({
           _internal: _internal!,
