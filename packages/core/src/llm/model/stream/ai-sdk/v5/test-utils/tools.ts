@@ -1,5 +1,5 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
-import { dynamicTool, jsonSchema } from 'ai-v5';
+import { dynamicTool, jsonSchema, stepCountIs } from 'ai-v5';
 import {
   convertArrayToReadableStream,
   convertReadableStreamToArray,
@@ -13,6 +13,297 @@ import type { execute } from '../../../execute';
 import { createTestModel, defaultSettings, testUsage } from './test-utils';
 
 export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
+  describe.skip('provider-executed tools', () => {
+    describe('single provider-executed tool call and result', () => {
+      let result: MastraModelOutput;
+
+      beforeEach(async () => {
+        result = await executeFn({
+          runId,
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              {
+                type: 'tool-input-start',
+                id: 'call-1',
+                toolName: 'web_search',
+                providerExecuted: true,
+              },
+              {
+                type: 'tool-input-delta',
+                id: 'call-1',
+                delta: '{ "value": "value" }',
+              },
+              {
+                type: 'tool-input-end',
+                id: 'call-1',
+              },
+              {
+                type: 'tool-call',
+                toolCallId: 'call-1',
+                toolName: 'web_search',
+                input: `{ "value": "value" }`,
+                providerExecuted: true,
+              },
+              {
+                type: 'tool-result',
+                toolCallId: 'call-1',
+                toolName: 'web_search',
+                result: `{ "value": "result1" }`,
+                providerExecuted: true,
+              },
+              {
+                type: 'tool-call',
+                toolCallId: 'call-2',
+                toolName: 'web_search',
+                input: `{ "value": "value" }`,
+                providerExecuted: true,
+              },
+              {
+                type: 'tool-result',
+                toolCallId: 'call-2',
+                toolName: 'web_search',
+                result: `ERROR`,
+                isError: true,
+                providerExecuted: true,
+              },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          tools: {
+            web_search: {
+              type: 'provider-defined',
+              id: 'test.web_search',
+              name: 'web_search',
+              inputSchema: z.object({ value: z.string() }),
+              outputSchema: z.object({ value: z.string() }),
+              args: {},
+            },
+          },
+          ...defaultSettings(),
+          stopWhen: stepCountIs(4),
+        });
+      });
+
+      it('should only execute a single step', async () => {
+        await result.aisdk.v5.consumeStream();
+        expect(result.aisdk.v5.steps.length).toBe(1);
+      });
+
+      it('should include provider-executed tool call and result content', async () => {
+        await result.aisdk.v5.consumeStream();
+        expect(result.aisdk.v5.content).toMatchInlineSnapshot(`
+          [
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": true,
+              "providerMetadata": undefined,
+              "toolCallId": "call-1",
+              "toolName": "web_search",
+              "type": "tool-call",
+            },
+            {
+              "input": {
+                "value": "value",
+              },
+              "output": "{ "value": "result1" }",
+              "providerExecuted": true,
+              "toolCallId": "call-1",
+              "toolName": "web_search",
+              "type": "tool-result",
+            },
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": true,
+              "providerMetadata": undefined,
+              "toolCallId": "call-2",
+              "toolName": "web_search",
+              "type": "tool-call",
+            },
+            {
+              "error": "ERROR",
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": true,
+              "toolCallId": "call-2",
+              "toolName": "web_search",
+              "type": "tool-error",
+            },
+          ]
+        `);
+      });
+
+      it('should include provider-executed tool call and result in the full stream', async () => {
+        expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream as any)).toMatchInlineSnapshot(`
+            [
+              {
+                "type": "start",
+              },
+              {
+                "request": {},
+                "type": "start-step",
+                "warnings": [],
+              },
+              {
+                "dynamic": false,
+                "id": "call-1",
+                "providerExecuted": true,
+                "toolName": "web_search",
+                "type": "tool-input-start",
+              },
+              {
+                "delta": "{ "value": "value" }",
+                "id": "call-1",
+                "type": "tool-input-delta",
+              },
+              {
+                "id": "call-1",
+                "type": "tool-input-end",
+              },
+              {
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": true,
+                "providerMetadata": undefined,
+                "toolCallId": "call-1",
+                "toolName": "web_search",
+                "type": "tool-call",
+              },
+              {
+                "input": {
+                  "value": "value",
+                },
+                "output": "{ "value": "result1" }",
+                "providerExecuted": true,
+                "toolCallId": "call-1",
+                "toolName": "web_search",
+                "type": "tool-result",
+              },
+              {
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": true,
+                "providerMetadata": undefined,
+                "toolCallId": "call-2",
+                "toolName": "web_search",
+                "type": "tool-call",
+              },
+              {
+                "error": "ERROR",
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": true,
+                "toolCallId": "call-2",
+                "toolName": "web_search",
+                "type": "tool-error",
+              },
+              {
+                "finishReason": "stop",
+                "providerMetadata": undefined,
+                "response": {
+                  "headers": undefined,
+                  "id": "id-0",
+                  "modelId": "mock-model-id",
+                  "timestamp": 1970-01-01T00:00:00.000Z,
+                },
+                "type": "finish-step",
+                "usage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": 3,
+                  "outputTokens": 10,
+                  "reasoningTokens": undefined,
+                  "totalTokens": 13,
+                },
+              },
+              {
+                "finishReason": "stop",
+                "totalUsage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": 3,
+                  "outputTokens": 10,
+                  "reasoningTokens": undefined,
+                  "totalTokens": 13,
+                },
+                "type": "finish",
+              },
+            ]
+          `);
+      });
+
+      it('should include provider-executed tool call and result in the ui message stream', async () => {
+        expect(await convertReadableStreamToArray(result.aisdk.v5.toUIMessageStream())).toMatchInlineSnapshot(`
+            [
+              {
+                "type": "start",
+              },
+              {
+                "type": "start-step",
+              },
+              {
+                "dynamic": false,
+                "providerExecuted": true,
+                "toolCallId": "call-1",
+                "toolName": "web_search",
+                "type": "tool-input-start",
+              },
+              {
+                "inputTextDelta": "{ "value": "value" }",
+                "toolCallId": "call-1",
+                "type": "tool-input-delta",
+              },
+              {
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": true,
+                "toolCallId": "call-1",
+                "toolName": "web_search",
+                "type": "tool-input-available",
+              },
+              {
+                "output": "{ "value": "result1" }",
+                "providerExecuted": true,
+                "toolCallId": "call-1",
+                "type": "tool-output-available",
+              },
+              {
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": true,
+                "toolCallId": "call-2",
+                "toolName": "web_search",
+                "type": "tool-input-available",
+              },
+              {
+                "errorText": "ERROR",
+                "providerExecuted": true,
+                "toolCallId": "call-2",
+                "type": "tool-output-error",
+              },
+              {
+                "type": "finish-step",
+              },
+              {
+                "type": "finish",
+              },
+            ]
+          `);
+      });
+    });
+  });
+
   describe.skip('dynamic tools', () => {
     describe('single dynamic tool call and result', () => {
       let result: MastraModelOutput;
