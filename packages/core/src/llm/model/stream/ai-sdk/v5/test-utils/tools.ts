@@ -14,7 +14,7 @@ import { createTestModel, defaultSettings, testUsage } from './test-utils';
 
 export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('tool callbacks', () => {
-    it.only('should invoke callbacks in the correct order', async () => {
+    it('should invoke callbacks in the correct order', async () => {
       const recordedCalls: unknown[] = [];
 
       const result = await executeFn({
@@ -112,8 +112,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
 
       await result.aisdk.v5.consumeStream();
 
-      console.log('recordedCalls', JSON.stringify(recordedCalls, null, 2));
-
       expect(recordedCalls).toMatchInlineSnapshot(`
         [
           {
@@ -131,6 +129,7 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           },
           {
             "options": {
+              "abortSignal": undefined,
               "inputTextDelta": "{"",
               "messages": [
                 {
@@ -145,7 +144,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": "value",
               "messages": [
                 {
@@ -160,7 +158,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": "":"",
               "messages": [
                 {
@@ -175,7 +172,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": "Spark",
               "messages": [
                 {
@@ -190,7 +186,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": "le",
               "messages": [
                 {
@@ -205,7 +200,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": " Day",
               "messages": [
                 {
@@ -220,7 +214,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "inputTextDelta": ""}",
               "messages": [
                 {
@@ -235,7 +228,6 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
           {
             "options": {
               "abortSignal": undefined,
-              "experimental_context": undefined,
               "input": {
                 "value": "Sparkle Day",
               },

@@ -61,14 +61,10 @@ function createAgentWorkflow({
       outputSchema: toolCallOutputSchema,
       execute: async ({ inputData, getStepResult }) => {
         const tool =
-          tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.name === inputData.toolName);
+          tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.id === inputData.toolName);
 
         if (!tool) {
           throw new Error(`Tool ${inputData.toolName} not found`);
-        }
-
-        if (!tool.execute) {
-          return inputData;
         }
 
         const initialResult = getStepResult({
@@ -76,6 +72,26 @@ function createAgentWorkflow({
         } as any);
 
         const messageList = MessageList.fromArray(initialResult.messages.user);
+
+        if (tool && 'onInputAvailable' in tool) {
+          try {
+            await tool?.onInputAvailable?.({
+              toolCallId: inputData.toolCallId,
+              input: inputData.args,
+              messages: messageList.get.all?.ui()?.map(message => ({
+                role: message.role,
+                content: message.content,
+              })) as any,
+              abortSignal: options?.abortSignal,
+            });
+          } catch (error) {
+            console.error('Error calling onInputAvailable', error);
+          }
+        }
+
+        if (!tool.execute) {
+          return inputData;
+        }
 
         const tracer = getTracer({
           isEnabled: experimental_telemetry?.isEnabled,
@@ -313,15 +329,22 @@ function createAgentWorkflow({
                   Object.values(tools || {})?.find(tool => tool.id === chunk.payload.toolName);
 
                 if (tool && 'onInputStart' in tool) {
-                  await tool?.onInputStart?.({
-                    toolCallId: chunk.payload.toolCallId,
-                    messages: messageList.get.all?.ui()?.map(message => ({
-                      role: message.role,
-                      content: message.content,
-                    })) as any,
-                    abortSignal: options?.abortSignal,
-                  });
+                  try {
+                    await tool?.onInputStart?.({
+                      toolCallId: chunk.payload.toolCallId,
+                      messages: messageList.get.all?.ui()?.map(message => ({
+                        role: message.role,
+                        content: message.content,
+                      })) as any,
+                      abortSignal: options?.abortSignal,
+                    });
+                  } catch (error) {
+                    console.error('Error calling onInputStart', error);
+                  }
                 }
+
+                controller.enqueue(chunk);
+
                 break;
               }
 
@@ -474,6 +497,26 @@ function createAgentWorkflow({
                   runState.setState({
                     hasToolCallStreaming: true,
                   });
+                }
+
+                const tool =
+                  tools?.[chunk.payload.toolName] ||
+                  Object.values(tools || {})?.find(tool => tool.id === chunk.payload.toolName);
+
+                if (tool && 'onInputDelta' in tool) {
+                  try {
+                    await tool?.onInputDelta?.({
+                      inputTextDelta: chunk.payload.argsTextDelta,
+                      toolCallId: chunk.payload.toolCallId,
+                      messages: messageList.get.all?.ui()?.map(message => ({
+                        role: message.role,
+                        content: message.content,
+                      })) as any,
+                      abortSignal: options?.abortSignal,
+                    });
+                  } catch (error) {
+                    console.error('Error calling onInputDelta', error);
+                  }
                 }
                 controller.enqueue(chunk);
                 break;
