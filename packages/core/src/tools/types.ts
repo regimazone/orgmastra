@@ -30,6 +30,7 @@ export type CoreTool = {
 );
 
 export type CoreToolV2 = Omit<CoreTool, 'parameters'> & {
+  type?: 'dynamic';
   inputSchema: ZodSchema | JSONSchema7Type | Schema | SchemaV5;
   onInputStart?: (options: ToolCallOptions) => void | Promise<void>;
   onInputAvailable?: (options: { input: JSONValue | unknown | never } & ToolCallOptions) => void | Promise<void>;
