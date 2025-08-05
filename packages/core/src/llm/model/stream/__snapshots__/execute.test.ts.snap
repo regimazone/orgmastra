@@ -6063,6 +6063,7 @@ exports[`V5 tests > telemetry > should not record telemetry inputs / outputs whe
       "aisdk.model.id": "mock-model-id",
       "aisdk.model.provider": "mock-provider",
       "mastra.operationId": "mastra.stream.aisdk.doStream",
+      "operation.name": "mastra.stream.aisdk.doStream",
       "stream.response.avgOutputTokensPerSecond": 20,
       "stream.response.finishReason": "stop",
       "stream.response.id": "id-0",
@@ -6074,7 +6075,6 @@ exports[`V5 tests > telemetry > should not record telemetry inputs / outputs whe
       "stream.usage.inputTokens": 3,
       "stream.usage.outputTokens": 10,
       "stream.usage.totalTokens": 13,
-      "operation.name": "ai.streamText.doStream",
     },
     "events": [
       {

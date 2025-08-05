@@ -67,6 +67,7 @@ export class MastraModelOutput extends MastraBase {
     stream: ReadableStream<ChunkType>;
     options: {
       rootSpan?: Span;
+      experimental_telemetry?: TelemetrySettings;
       toolCallStreaming?: boolean;
       onFinish?: (event: any) => Promise<void> | void;
     };
@@ -316,8 +317,10 @@ export class MastraModelOutput extends MastraBase {
                   ...(baseFinishStep?.finishReason
                     ? { 'stream.response.finishReason': baseFinishStep?.finishReason }
                     : {}),
-                  'stream.response.text': baseFinishStep?.text,
-                  ...(baseFinishStep?.toolCalls
+                  ...(options?.experimental_telemetry?.recordOutputs !== false
+                    ? { 'stream.response.text': baseFinishStep?.text }
+                    : {}),
+                  ...(baseFinishStep?.toolCalls && options?.experimental_telemetry?.recordOutputs !== false
                     ? {
                         'stream.response.toolCalls': JSON.stringify(
                           baseFinishStep?.toolCalls?.map(chunk => {

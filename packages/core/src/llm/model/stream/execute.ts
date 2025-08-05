@@ -197,6 +197,7 @@ function createAgentWorkflow({
               toolChoice,
               _internal,
               options,
+              experimental_telemetry,
               onResult: ({
                 warnings: warningsFromStream,
                 request: requestFromStream,
@@ -237,6 +238,7 @@ function createAgentWorkflow({
           stream: modelResult!,
           options: {
             toolCallStreaming,
+            experimental_telemetry,
           },
         });
 
@@ -814,7 +816,11 @@ function createStreamExecutor({
           operationId: 'mastra.stream.aisdk.doStream',
           telemetry: experimental_telemetry,
         }),
-        'stream.prompt.toolChoice': toolChoice as string,
+        ...(experimental_telemetry?.recordInputs !== false
+          ? {
+              'stream.prompt.toolChoice': toolChoice as string,
+            }
+          : {}),
       });
 
       const outerAgentWorkflow = createAgentWorkflow({
@@ -1059,6 +1065,7 @@ export async function execute(
     },
     stream: executor,
     options: {
+      experimental_telemetry: rest.experimental_telemetry,
       rootSpan,
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,

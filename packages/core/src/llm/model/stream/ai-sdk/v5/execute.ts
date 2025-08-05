@@ -15,6 +15,7 @@ export function executeV5({
   options,
   onResult,
   doStreamSpan,
+  experimental_telemetry,
 }: ExecutionProps & {
   model: LanguageModelV2;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
@@ -30,7 +31,7 @@ export function executeV5({
     activeTools: options?.activeTools,
   });
 
-  if (doStreamSpan && toolsAndToolChoice?.tools?.length) {
+  if (doStreamSpan && toolsAndToolChoice?.tools?.length && experimental_telemetry?.recordOutputs !== false) {
     doStreamSpan.setAttributes({
       'stream.prompt.tools': toolsAndToolChoice?.tools?.map(tool => JSON.stringify(tool)),
     });
