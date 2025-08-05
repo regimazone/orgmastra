@@ -87,6 +87,7 @@ export class MastraModelOutput extends MastraBase {
       experimental_telemetry?: TelemetrySettings;
       toolCallStreaming?: boolean;
       onFinish?: (event: any) => Promise<void> | void;
+      onStepFinish?: (event: any) => Promise<void> | void;
     };
   }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
@@ -175,7 +176,7 @@ export class MastraModelOutput extends MastraBase {
 
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 
-              self.#bufferedSteps.push({
+              const stepResult = {
                 stepType: self.#bufferedSteps.length === 0 ? 'initial' : 'tool-result',
                 text: self.#bufferedByStep.text,
                 reasoning: self.#bufferedByStep.reasoning || undefined,
@@ -193,7 +194,68 @@ export class MastraModelOutput extends MastraBase {
                 response: { ...otherMetadata, messages: chunk.payload.messages.nonUser },
                 request: request,
                 usage: chunk.payload.output.usage,
-              });
+              };
+
+              let stepResultPayload;
+              if (model.version === 'v1') {
+                stepResultPayload = {
+                  ...stepResult,
+                  files: stepResult.files.map((file: any) => {
+                    return convertFullStreamChunkToAISDKv4({
+                      chunk: file,
+                      client: false,
+                      sendReasoning: false,
+                      sendSources: false,
+                      sendUsage: false,
+                      getErrorMessage: (error: string) => error,
+                    });
+                  }),
+                  toolCalls: stepResult.toolCalls.map((toolCall: any) => {
+                    return convertFullStreamChunkToAISDKv4({
+                      chunk: toolCall,
+                      client: false,
+                      sendReasoning: false,
+                      sendSources: false,
+                      sendUsage: false,
+                      getErrorMessage: (error: string) => error,
+                    });
+                  }),
+                  toolResults: stepResult.toolResults.map((toolResult: any) => {
+                    return convertFullStreamChunkToAISDKv4({
+                      chunk: toolResult,
+                      client: false,
+                      sendReasoning: false,
+                      sendSources: false,
+                      sendUsage: false,
+                      getErrorMessage: (error: string) => error,
+                    });
+                  }),
+                  sources: stepResult.sources.map((source: any) => {
+                    return convertFullStreamChunkToAISDKv4({
+                      chunk: source,
+                      client: false,
+                      sendReasoning: false,
+                      sendSources: true,
+                      sendUsage: false,
+                      getErrorMessage: (error: string) => error,
+                    }).source;
+                  }),
+                  request: request || {},
+                  response: {
+                    ...otherMetadata,
+                    messages: stepResult.response.messages.map((message: any) => {
+                      return {
+                        ...message,
+                        content: message.content.filter((part: any) => part.type !== 'source'),
+                      };
+                    }),
+                  },
+                };
+              }
+
+              await options?.onStepFinish?.(stepResultPayload);
+
+              self.#bufferedSteps.push(stepResult);
 
               self.#bufferedByStep = {
                 text: '',

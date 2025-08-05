@@ -1072,6 +1072,7 @@ export async function execute(
       rootSpan,
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,
+      onStepFinish: rest.options?.onStepFinish,
     },
   });
 }

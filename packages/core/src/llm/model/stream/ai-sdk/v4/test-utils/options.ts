@@ -525,7 +525,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           expect(onFinishResult).toMatchSnapshot();
         });
 
-        it.skip('onStepFinish should send correct information', async () => {
+        it('onStepFinish should send correct information', async () => {
           expect(onStepFinishResults).toMatchSnapshot();
         });
       });
