@@ -14,7 +14,7 @@ import { createTestModel, defaultSettings, testUsage } from './test-utils';
 
 export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('tools with custom schema', () => {
-    it.only('should send tool calls', async () => {
+    it('should send tool calls', async () => {
       const result = await executeFn({
         runId,
         model: new MockLanguageModelV2({
