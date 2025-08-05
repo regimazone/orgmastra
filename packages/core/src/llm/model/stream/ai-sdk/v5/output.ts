@@ -398,4 +398,27 @@ export class AISDKV5OutputStream {
       }),
     );
   }
+
+  async getFullOutput() {
+    await this.consumeStream();
+    return {
+      text: this.#modelOutput.text,
+      usage: this.#modelOutput.usage,
+      steps: this.steps,
+      finishReason: this.#modelOutput.finishReason,
+      warnings: this.#modelOutput.warnings,
+      providerMetadata: this.#modelOutput.providerMetadata,
+      request: this.#modelOutput.request,
+      reasoning: this.reasoning,
+      reasoningText: this.reasoningText,
+      toolCalls: this.toolCalls,
+      toolResults: this.toolResults,
+      sources: this.sources,
+      files: this.files,
+      response: this.response,
+      content: this.content, // TODO: wrong shape / missing 'sources' (filtered out in transformResponse) etc
+      totalUsage: this.#modelOutput.totalUsage,
+      // experimental_output: // TODO
+    };
+  }
 }

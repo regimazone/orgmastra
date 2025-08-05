@@ -3,17 +3,18 @@ import type { LanguageModelV1Prompt } from 'ai';
 import { generateId } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../../agent';
+import type { MessageInput } from '../../../agent/message-list';
 import { ConsoleLogger } from '../../../logger';
+import type { MastraMessageV1 } from '../../../memory';
 import type { ChunkType } from '../../../stream/types';
 import { createStep, createWorkflow } from '../../../workflows';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
 import { convertFullStreamChunkToAISDKv4, executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
+import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
 import type { AgentWorkflowProps, StreamExecutorProps } from './types';
-import type { MastraMessageV1 } from '../../../memory';
-import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 
 const toolCallInpuSchema = z.object({
   toolCallId: z.string(),
@@ -44,6 +45,7 @@ function createAgentWorkflow({
   model,
   runId,
   providerMetadata,
+  providerOptions,
   tools,
   toolChoice,
   experimental_telemetry,
@@ -53,6 +55,7 @@ function createAgentWorkflow({
   controller,
   options,
   doStreamSpan,
+  headers,
 }: AgentWorkflowProps) {
   function toolCallStep() {
     return createStep({
@@ -177,8 +180,10 @@ function createAgentWorkflow({
           case 'v1': {
             modelResult = executeV4({
               model,
+              headers,
               runId,
               providerMetadata,
+              providerOptions,
               inputMessages: messageList.get.all.core() as any,
               tools,
               toolChoice,
@@ -891,6 +896,7 @@ function createStreamExecutor({
   model,
   runId,
   providerMetadata,
+  providerOptions,
   tools,
   toolChoice = 'auto',
   inputMessages,
@@ -942,6 +948,7 @@ function createStreamExecutor({
         model,
         runId,
         providerMetadata,
+        providerOptions,
         tools,
         toolChoice,
         inputMessages,
@@ -952,6 +959,7 @@ function createStreamExecutor({
         options,
         logger,
         doStreamSpan: rootSpan,
+        headers,
       });
 
       const mainWorkflow = createWorkflow({
@@ -1092,13 +1100,17 @@ function createStreamExecutor({
   });
 }
 
-export async function execute(
-  props: { system?: string; prompt?: string } & { resourceId?: string; threadId?: string } & Omit<
-      StreamExecutorProps,
-      'inputMessages' | 'startTimestamp'
-    >,
-) {
-  const { system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
+export type ExecuteParams = {
+  messages?: MessageInput[];
+  system?: string;
+  prompt?: string;
+} & {
+  resourceId?: string;
+  threadId?: string;
+} & Omit<StreamExecutorProps, 'inputMessages' | 'startTimestamp'>;
+
+export async function execute(props: ExecuteParams) {
+  const { messages = [], system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
 
   let loggerToUse =
     logger ||
@@ -1112,20 +1124,20 @@ export async function execute(
     runIdToUse = crypto.randomUUID();
   }
 
-  const messageList = new MessageList({
+  let initMessages = [...messages];
+  if (system) {
+    initMessages.unshift({ role: 'system', content: system });
+  }
+  if (prompt) {
+    initMessages.push({ role: 'user', content: prompt });
+  }
+
+  const messageList = MessageList.fromArray(initMessages, {
     threadId,
     resourceId,
   });
 
-  if (system) {
-    messageList.addSystem(system);
-  }
-
-  if (prompt) {
-    messageList.add(prompt, 'user');
-  }
-
-  const messages = messageList.get.all.core() as LanguageModelV1Prompt;
+  const allCoreMessages = messageList.get.all.core() as LanguageModelV1Prompt;
 
   let _internalToUse = _internal
     ? {
@@ -1141,15 +1153,10 @@ export async function execute(
 
   let startTimestamp = _internalToUse?.now?.();
 
-  // We call this for no reason because of aisdk
-  if (rest.model.specificationVersion === 'v1') {
-    _internalToUse.generateId?.();
-  }
-
   const streamExecutorProps: StreamExecutorProps = {
     runId,
     _internal: _internalToUse,
-    inputMessages: messages,
+    inputMessages: allCoreMessages,
     logger: loggerToUse,
     startTimestamp: startTimestamp!,
     ...rest,
