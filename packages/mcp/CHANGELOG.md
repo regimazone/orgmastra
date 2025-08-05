@@ -1,5 +1,43 @@
 # @mastra/mcp
 
+## 0.10.10-alpha.0
+
+### Patch Changes
+
+- 4a406ec: fixes TypeScript declaration file imports to ensure proper ESM compatibility
+- Updated dependencies [cb36de0]
+- Updated dependencies [a82b851]
+- Updated dependencies [41a0a0e]
+- Updated dependencies [2871020]
+- Updated dependencies [4a406ec]
+- Updated dependencies [5d377e5]
+  - @mastra/core@0.13.0-alpha.2
+
+## 0.10.9
+
+### Patch Changes
+
+- f90797b: dependencies updates:
+  - Updated dependency [`@apidevtools/json-schema-ref-parser@^14.1.1` ↗︎](https://www.npmjs.com/package/@apidevtools/json-schema-ref-parser/v/14.1.1) (from `^14.1.0`, in `dependencies`)
+- Updated dependencies [33dcb07]
+- Updated dependencies [d0d9500]
+- Updated dependencies [d30b1a0]
+- Updated dependencies [bff87f7]
+- Updated dependencies [b4a8df0]
+  - @mastra/core@0.12.1
+
+## 0.10.9-alpha.0
+
+### Patch Changes
+
+- f90797b: dependencies updates:
+  - Updated dependency [`@apidevtools/json-schema-ref-parser@^14.1.1` ↗︎](https://www.npmjs.com/package/@apidevtools/json-schema-ref-parser/v/14.1.1) (from `^14.1.0`, in `dependencies`)
+- Updated dependencies [33dcb07]
+- Updated dependencies [d30b1a0]
+- Updated dependencies [bff87f7]
+- Updated dependencies [b4a8df0]
+  - @mastra/core@0.12.1-alpha.0
+
 ## 0.10.8
 
 ### Patch Changes
