@@ -27,6 +27,7 @@ export type ExecuteOptions = {
   onChunk?: (chunk: ChunkType) => Promise<void> | void;
   onError?: ({ error }: { error: Error | string }) => Promise<void> | void;
   onFinish?: (event: any) => Promise<void> | void;
+  onStepFinish?: (event: any) => Promise<void> | void;
   activeTools?: Array<keyof ToolSet> | undefined;
   abortSignal?: AbortSignal;
 };
