@@ -1,5 +1,5 @@
 import type { IDGenerator, LanguageModelV1, LanguageModelV1Prompt, streamText, ToolChoice, ToolSet } from 'ai';
-import type { CallSettings, TelemetrySettings, ToolSet as ToolSetV5 } from 'ai-v5';
+import type { CallSettings, TelemetrySettings, ToolSet as ToolSetV5, StopCondition } from 'ai-v5';
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
@@ -60,6 +60,7 @@ export type AgentWorkflowProps = {
 
 export type StreamExecutorProps = {
   maxSteps?: number;
+  stopWhen?: StopCondition<ToolSetV5> | StopCondition<ToolSetV5>[];
   maxRetries?: number;
   startTimestamp: number;
 } & ExecutionProps;

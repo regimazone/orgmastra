@@ -1,6 +1,16 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
-import type { LanguageModelV2FunctionTool, LanguageModelV2ProviderDefinedTool } from '@ai-sdk/provider-v5';
-import { convertArrayToReadableStream, mockId, MockLanguageModelV2, mockValues } from 'ai-v5/test';
+import type {
+  LanguageModelV2CallOptions,
+  LanguageModelV2FunctionTool,
+  LanguageModelV2ProviderDefinedTool,
+} from '@ai-sdk/provider-v5';
+import {
+  convertArrayToReadableStream,
+  convertReadableStreamToArray,
+  mockId,
+  MockLanguageModelV2,
+  mockValues,
+} from 'ai-v5/test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
@@ -12,7 +22,7 @@ import {
   modelWithFiles,
   testUsage2,
 } from './test-utils';
-import { stepCountIs, type TextStreamPart } from 'ai-v5';
+import { stepCountIs, tool, type TextStreamPart } from 'ai-v5';
 import { MockTracer } from '../../test-utils/mockTracer';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
@@ -198,7 +208,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     });
   });
 
-  describe.skip('options.stopWhen', () => {
+  describe('options.stopWhen', () => {
     let result: any;
     let onFinishResult: any;
     let onStepFinishResults: any[];
@@ -421,7 +431,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('should contain assistant response message and tool message from all steps', async () => {
-        expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+        expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
             [
               {
                 "type": "start",
@@ -548,10 +558,10 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
 
       describe('callbacks', () => {
         beforeEach(async () => {
-          await result.consumeStream();
+          await result.aisdk.v5.consumeStream();
         });
 
-        it('onFinish should send correct information', async () => {
+        it.skip('onFinish should send correct information', async () => {
           expect(onFinishResult).toMatchInlineSnapshot(`
             {
               "content": [
@@ -809,7 +819,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           `);
         });
 
-        it('onStepFinish should send correct information', async () => {
+        it.skip('onStepFinish should send correct information', async () => {
           expect(onStepFinishResults).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
@@ -976,7 +986,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
       });
 
-      describe('value promises', () => {
+      describe.skip('value promises', () => {
         beforeEach(async () => {
           await result.consumeStream();
         });
@@ -1231,13 +1241,13 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
       });
 
-      it('should record telemetry data for each step', async () => {
-        await result.consumeStream();
+      it.skip('should record telemetry data for each step', async () => {
+        await result.aisdk.v5.consumeStream();
         expect(tracer.jsonSpans).toMatchSnapshot();
       });
 
       it('should have correct ui message stream', async () => {
-        expect(await convertReadableStreamToArray(result.toUIMessageStream())).toMatchInlineSnapshot(`
+        expect(await convertReadableStreamToArray(result.aisdk.v5.toUIMessageStream())).toMatchInlineSnapshot(`
             [
               {
                 "type": "start",
@@ -1307,19 +1317,20 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     });
 
     describe('2 steps: initial, tool-result with prepareStep', () => {
-      let result: StreamTextResult<any, any>;
+      let result: any;
       let doStreamCalls: Array<LanguageModelV2CallOptions>;
       let prepareStepCalls: Array<{
         stepNumber: number;
-        steps: Array<StepResult<any>>;
-        messages: Array<ModelMessage>;
+        steps: Array<any>;
+        messages: Array<any>;
       }>;
 
       beforeEach(async () => {
         doStreamCalls = [];
         prepareStepCalls = [];
 
-        result = streamText({
+        result = await executeFn({
+          runId,
           model: new MockLanguageModelV2({
             doStream: async options => {
               doStreamCalls.push(options);
@@ -1410,8 +1421,8 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
       });
 
-      it('should contain all doStream calls', async () => {
-        await result.consumeStream();
+      it.skip('should contain all doStream calls', async () => {
+        await result.aisdk.v5.consumeStream();
         expect(doStreamCalls).toMatchInlineSnapshot(`
           [
             {
@@ -1541,7 +1552,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         `);
       });
 
-      it('should contain all prepareStep calls', async () => {
+      it.skip('should contain all prepareStep calls', async () => {
         await result.consumeStream();
         expect(prepareStepCalls).toMatchInlineSnapshot(`
           [
@@ -1889,12 +1900,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
     });
 
-    describe('2 steps: initial, tool-result with transformed tool results', () => {
+    describe.skip('2 steps: initial, tool-result with transformed tool results', () => {
       const upperCaseToolResultTransform = () =>
-        new TransformStream<
-          TextStreamPart<{ tool1: Tool<{ value: string }, string> }>,
-          TextStreamPart<{ tool1: Tool<{ value: string }, string> }>
-        >({
+        new TransformStream<TextStreamPart<{ tool1: any }>, TextStreamPart<{ tool1: any }>>({
           transform(chunk, controller) {
             if (chunk.type === 'tool-result' && !chunk.dynamic) {
               chunk.output = chunk.output.toUpperCase();
@@ -1914,7 +1922,8 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         onStepFinishResults = [];
 
         let responseCount = 0;
-        result = streamText({
+        result = await executeFn({
+          runId,
           model: new MockLanguageModelV2({
             doStream: async ({ prompt, tools, toolChoice }) => {
               switch (responseCount++) {
@@ -3020,14 +3029,15 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     describe('2 stop conditions', () => {
       let stopConditionCalls: Array<{
         number: number;
-        steps: StepResult<any>[];
+        steps: any[];
       }>;
 
       beforeEach(async () => {
         stopConditionCalls = [];
 
         let responseCount = 0;
-        result = streamText({
+        result = await executeFn({
+          runId,
           model: new MockLanguageModelV2({
             doStream: async () => {
               switch (responseCount++) {
@@ -3099,12 +3109,12 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.steps should contain a single step', async () => {
-        await result.consumeStream();
+        await result.aisdk.v5.consumeStream();
         expect((await result.steps).length).toStrictEqual(1);
       });
 
-      it('stopConditionCalls should be called for each stop condition', async () => {
-        await result.consumeStream();
+      it.skip('stopConditionCalls should be called for each stop condition', async () => {
+        await result.aisdk.v5.consumeStream();
         expect(stopConditionCalls).toMatchInlineSnapshot(`
           [
             {

@@ -631,7 +631,7 @@ function createAgentWorkflow({
             text,
             toolCalls,
             usage: usage ?? inputData.output?.usage,
-            steps: outputStream.steps,
+            steps: outputStream.aisdk.v5.steps,
           },
           messages: {
             all: allMessages,
@@ -787,6 +787,7 @@ function createStreamExecutor({
   inputMessages,
   options,
   maxRetries = 2,
+  stopWhen,
   maxSteps = 5,
   logger,
   experimental_telemetry,
@@ -854,7 +855,21 @@ function createStreamExecutor({
       })
         .dowhile(outerAgentWorkflow, async ({ inputData }) => {
           stepCount++;
-          const hasFinishedSteps = stepCount >= maxSteps;
+          let hasFinishedSteps = stepCount >= maxSteps;
+
+          if (stopWhen) {
+            console.log('stop_when', JSON.stringify(inputData.output.steps, null, 2));
+            const conditions = await Promise.all(
+              (Array.isArray(stopWhen) ? stopWhen : [stopWhen]).map(condition => {
+                return condition({
+                  steps: inputData.output.steps,
+                });
+              }),
+            );
+
+            const hasStopped = conditions.some(condition => condition);
+            hasFinishedSteps = hasStopped;
+          }
 
           inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
 
