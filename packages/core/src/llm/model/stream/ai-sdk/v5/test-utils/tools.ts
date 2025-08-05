@@ -1,5 +1,11 @@
 import { convertAsyncIterableToArray } from '@ai-sdk/provider-utils/test';
-import { convertArrayToReadableStream, convertReadableStreamToArray } from 'ai-v5/test';
+import { jsonSchema } from 'ai-v5';
+import {
+  convertArrayToReadableStream,
+  convertReadableStreamToArray,
+  MockLanguageModelV2,
+  mockValues,
+} from 'ai-v5/test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import z from 'zod';
 import type { MastraModelOutput } from '../../../base';
@@ -7,6 +13,81 @@ import type { execute } from '../../../execute';
 import { createTestModel, defaultSettings, testUsage } from './test-utils';
 
 export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
+  describe('tools with custom schema', () => {
+    it.only('should send tool calls', async () => {
+      const result = await executeFn({
+        runId,
+        model: new MockLanguageModelV2({
+          doStream: async ({ prompt, tools, toolChoice }) => {
+            expect(tools).toStrictEqual([
+              {
+                type: 'function',
+                name: 'tool1',
+                description: undefined,
+                inputSchema: {
+                  additionalProperties: false,
+                  properties: { value: { type: 'string' } },
+                  required: ['value'],
+                  type: 'object',
+                },
+                providerOptions: undefined,
+              },
+            ]);
+
+            expect(toolChoice).toStrictEqual({ type: 'required' });
+
+            expect(prompt).toStrictEqual([
+              {
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
+                // providerOptions: undefined,
+              },
+            ]);
+
+            return {
+              stream: convertArrayToReadableStream([
+                {
+                  type: 'response-metadata',
+                  id: 'id-0',
+                  modelId: 'mock-model-id',
+                  timestamp: new Date(0),
+                },
+                {
+                  type: 'tool-call',
+                  toolCallId: 'call-1',
+                  toolName: 'tool1',
+                  input: `{ "value": "value" }`,
+                },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  usage: testUsage,
+                },
+              ]),
+            };
+          },
+        }),
+        tools: {
+          tool1: {
+            inputSchema: jsonSchema<{ value: string }>({
+              type: 'object',
+              properties: { value: { type: 'string' } },
+              required: ['value'],
+              additionalProperties: false,
+            }),
+          },
+        },
+        toolChoice: 'required',
+        prompt: 'test-input',
+        _internal: {
+          now: mockValues(0, 100, 500),
+        },
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream as any)).toMatchSnapshot();
+    });
+  });
+
   describe('tool execution errors', () => {
     let result: MastraModelOutput;
 
