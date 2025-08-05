@@ -914,41 +914,40 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     });
   });
 
-  // describe('options.headers', () => {
-  //     it('should set headers', async () => {
-  //         const result = streamText({
-  //             model: new MockLanguageModelV1({
-  //                 doStream: async ({ headers }) => {
-  //                     expect(headers).toStrictEqual({
-  //                         'custom-request-header': 'request-header-value',
-  //                     });
+  describe('options.headers', () => {
+    it.skip('should set headers', async () => {
+      const result = await executeFn({
+        runId,
+        model: new MockLanguageModelV1({
+          doStream: async ({ headers }) => {
+            console.log('set_headers', headers);
+            expect(headers).toStrictEqual({
+              'custom-request-header': 'request-header-value',
+            });
 
-  //                     return {
-  //                         stream: convertArrayToReadableStream([
-  //                             { type: 'text-delta', textDelta: 'Hello' },
-  //                             { type: 'text-delta', textDelta: ', ' },
-  //                             { type: 'text-delta', textDelta: `world!` },
-  //                             {
-  //                                 type: 'finish',
-  //                                 finishReason: 'stop',
-  //                                 logprobs: undefined,
-  //                                 usage: { completionTokens: 10, promptTokens: 3 },
-  //                             },
-  //                         ]),
-  //                         rawCall: { rawPrompt: 'prompt', rawSettings: {} },
-  //                     };
-  //                 },
-  //             }),
-  //             prompt: 'test-input',
-  //             headers: { 'custom-request-header': 'request-header-value' },
-  //         });
+            return {
+              stream: convertArrayToReadableStream([
+                { type: 'text-delta', textDelta: 'Hello' },
+                { type: 'text-delta', textDelta: ', ' },
+                { type: 'text-delta', textDelta: `world!` },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            };
+          },
+        }),
+        prompt: 'test-input',
+        headers: { 'custom-request-header': 'request-header-value' },
+      });
 
-  //         assert.deepStrictEqual(
-  //             await convertAsyncIterableToArray(result.textStream),
-  //             ['Hello', ', ', 'world!'],
-  //         );
-  //     });
-  // });
+      expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['Hello', ', ', 'world!']);
+    });
+  });
 
   // describe('options.providerMetadata', () => {
   //     it('should pass provider metadata to model', async () => {
