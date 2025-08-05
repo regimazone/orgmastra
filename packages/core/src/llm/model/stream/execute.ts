@@ -796,7 +796,7 @@ function createStreamExecutor({
     start: async controller => {
       const messageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
-      let stepCount = 0;
+      let stepCount = 1;
 
       const tracer = getTracer({
         isEnabled: experimental_telemetry?.isEnabled,
@@ -849,7 +849,8 @@ function createStreamExecutor({
         },
       })
         .dowhile(outerAgentWorkflow, async ({ inputData }) => {
-          const hasFinishedSteps = stepCount > maxSteps;
+          stepCount++;
+          const hasFinishedSteps = stepCount >= maxSteps;
 
           inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
 
@@ -891,11 +892,13 @@ function createStreamExecutor({
             return false;
           }
 
-          return inputData.stepResult.isContinued && stepCount < maxSteps;
+          return inputData.stepResult.isContinued && stepCount <= maxSteps;
         })
         .map(({ inputData }) => {
           const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');
+          const hasFinishedSteps = stepCount >= maxSteps;
 
+          inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
           inputData.output.toolCalls = toolCalls;
 
           return inputData;

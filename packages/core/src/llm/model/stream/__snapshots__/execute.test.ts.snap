@@ -512,7 +512,7 @@ exports[`V4 tests > options.maxSteps > 2 steps: initial, tool-result > should co
   {
     "experimental_providerMetadata": undefined,
     "finishReason": "tool-calls",
-    "isContinued": false,
+    "isContinued": true,
     "logprobs": undefined,
     "messageId": "msg-0",
     "providerMetadata": undefined,
@@ -534,7 +534,7 @@ exports[`V4 tests > options.maxSteps > 2 steps: initial, tool-result > should co
     "warnings": undefined,
   },
   {
-    "messageId": "msg-2",
+    "messageId": "msg-0",
     "request": {},
     "type": "step-start",
     "warnings": [],
@@ -552,7 +552,7 @@ exports[`V4 tests > options.maxSteps > 2 steps: initial, tool-result > should co
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
-    "messageId": "msg-2",
+    "messageId": "msg-0",
     "providerMetadata": undefined,
     "request": {},
     "response": {

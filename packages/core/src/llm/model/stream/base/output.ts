@@ -141,7 +141,7 @@ export class MastraModelOutput extends MastraBase {
               break;
             case 'step-finish': {
               self.updateUsageCount(chunk.payload.output.usage);
-              chunk.payload.totalUsage = self.totalUsage;
+              // chunk.payload.totalUsage = self.totalUsage;
               self.#warnings = chunk.payload.stepResult.warnings;
 
               if (chunk.payload.metadata.request) {
@@ -190,7 +190,8 @@ export class MastraModelOutput extends MastraBase {
                 };
               }
 
-              self.#usageCount = chunk.payload.output.usage;
+              this.populateUsageCount(chunk.payload.output.usage);
+              chunk.payload.output.usage = self.totalUsage;
 
               const baseFinishStep = self.#bufferedSteps[self.#bufferedSteps.length - 1];
 
@@ -339,6 +340,7 @@ export class MastraModelOutput extends MastraBase {
 
               break;
           }
+
           controller.enqueue(chunk);
         },
       }),
@@ -457,10 +459,22 @@ export class MastraModelOutput extends MastraBase {
     }
   }
 
+  populateUsageCount(usage: Record<string, number>) {
+    if (!usage) {
+      return;
+    }
+
+    for (const [key, value] of Object.entries(usage)) {
+      if (!this.#usageCount[key]) {
+        this.#usageCount[key] = value;
+      }
+    }
+  }
+
   get totalUsage() {
     let total = 0;
     for (const [key, value] of Object.entries(this.#usageCount)) {
-      if (key !== 'totalTokens') {
+      if (key !== 'totalTokens' && value && !key.startsWith('cached')) {
         total += value;
       }
     }

@@ -1,5 +1,5 @@
 import { convertAsyncIterableToArray, mockId } from '@ai-sdk/provider-utils/test';
-import type { TextStreamPart } from 'ai';
+import type { StepResult, StreamTextResult, TextStreamPart } from 'ai';
 import { convertArrayToReadableStream, MockLanguageModelV1, mockValues } from 'ai/test';
 import { describe, beforeEach, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -318,18 +318,18 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   describe('options.maxSteps', () => {
     let result: any;
     let onFinishResult: any;
-    // let onStepFinishResults: any[];
-    // let tracer: MockTracer;
+    let onStepFinishResults: any[];
+    let tracer: MockTracer;
 
-    // beforeEach(() => {
-    //     tracer = new MockTracer();
-    // });
+    beforeEach(() => {
+      tracer = new MockTracer();
+    });
 
     describe('2 steps: initial, tool-result', () => {
       beforeEach(async () => {
         result = undefined as any;
         onFinishResult = undefined as any;
-        // onStepFinishResults = [];
+        onStepFinishResults = [];
 
         let responseCount = 0;
         result = await executeFn({
@@ -497,11 +497,11 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               expect(onFinishResult).to.be.undefined;
               onFinishResult = event as unknown as typeof onFinishResult;
             },
-            // onStepFinish: async event => {
-            //     onStepFinishResults.push(event);
-            // },
+            onStepFinish: async event => {
+              onStepFinishResults.push(event);
+            },
           },
-          // experimental_telemetry: { isEnabled: true, tracer },
+          experimental_telemetry: { isEnabled: true, tracer },
           maxSteps: 3,
           _internal: {
             now: mockValues(0, 100, 500, 600, 1000),
@@ -510,8 +510,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
       });
 
-      it.skip('should contain assistant response message and tool message from all steps', async () => {
-        expect(await convertAsyncIterableToArray(result.aisdk.v4.fullStream)).toMatchSnapshot();
+      it('should contain assistant response message and tool message from all steps', async () => {
+        const res = await convertAsyncIterableToArray(result.aisdk.v4.fullStream);
+        expect(res).toMatchSnapshot();
       });
 
       // describe('callbacks', () => {
