@@ -1,5 +1,5 @@
 import type { ToolExecutionOptions, Tool, Schema } from 'ai';
-import type { Schema as SchemaV5 } from 'ai-v5';
+import type { Schema as SchemaV5, ToolCallOptions } from 'ai-v5';
 import type { JSONSchema7Type } from 'json-schema';
 import type { ZodSchema, z } from 'zod';
 
@@ -31,6 +31,9 @@ export type CoreTool = {
 
 export type CoreToolV2 = Omit<CoreTool, 'parameters'> & {
   inputSchema: ZodSchema | JSONSchema7Type | Schema | SchemaV5;
+  onInputStart?: (options: ToolCallOptions) => void | Promise<void>;
+  onInputAvailable?: (options: ToolCallOptions) => void | Promise<void>;
+  onInputDelta?: (options: ToolCallOptions) => void | Promise<void>;
 };
 
 // Duplicate of CoreTool but with parameters as Schema to make it easier to work with internally

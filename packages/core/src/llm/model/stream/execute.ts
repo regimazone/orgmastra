@@ -307,6 +307,24 @@ function createAgentWorkflow({
             }
 
             switch (chunk.type) {
+              case 'tool-call-input-streaming-start': {
+                const tool =
+                  tools?.[chunk.payload.toolName] ||
+                  Object.values(tools || {})?.find(tool => tool.id === chunk.payload.toolName);
+
+                if (tool && 'onInputStart' in tool) {
+                  await tool?.onInputStart?.({
+                    toolCallId: chunk.payload.toolCallId,
+                    messages: messageList.get.all?.ui()?.map(message => ({
+                      role: message.role,
+                      content: message.content,
+                    })) as any,
+                    abortSignal: options?.abortSignal,
+                  });
+                }
+                break;
+              }
+
               case 'error':
                 runState.setState({
                   hasErrored: true,
