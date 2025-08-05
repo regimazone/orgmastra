@@ -24,6 +24,7 @@ const toolCallInpuSchema = z.object({
 
 const toolCallOutputSchema = toolCallInpuSchema.extend({
   result: z.any(),
+  error: z.any().optional(),
 });
 
 const llmIterationOutputSchema = z.object({
@@ -117,7 +118,10 @@ function createAgentWorkflow({
             message: (error as Error)?.message ?? error,
           });
           span.recordException(error as Error);
-          throw error;
+          return {
+            error: error as Error,
+            ...inputData,
+          };
         }
       },
     });
@@ -654,6 +658,54 @@ function createAgentWorkflow({
         const messageList = MessageList.fromArray(initialResult.messages.all || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
+          const errorResults = inputData.filter(toolCall => toolCall?.error);
+
+          console.log('inputData', inputData);
+          console.log('errorResults', JSON.stringify(errorResults, null, 2));
+
+          const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
+
+          if (errorResults?.length) {
+            errorResults.forEach(toolCall => {
+              const chunk = {
+                type: 'tool-error',
+                runId: runId,
+                from: 'AGENT',
+                payload: {
+                  error: toolCall.error,
+                  args: toolCall.args,
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  result: toolCall.result,
+                  providerMetadata: toolCall.providerMetadata,
+                },
+              };
+              controller.enqueue(chunk);
+            });
+
+            messageList.add(
+              {
+                id: toolResultMessageId,
+                role: 'tool',
+                content: errorResults.map(toolCall => {
+                  console.log('toolCall', JSON.stringify(toolCall, null, 2));
+                  return {
+                    type: 'tool-result',
+                    args: toolCall.args,
+                    toolCallId: toolCall.toolCallId,
+                    toolName: toolCall.toolName,
+                    result: {
+                      tool_execution_error: toolCall.error?.message ?? toolCall.error,
+                    },
+                  };
+                }),
+              },
+              'response',
+            );
+
+            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v2(), null, 2));
+          }
+
           initialResult.stepResult.isContinued = false;
           return bail(initialResult);
         }
