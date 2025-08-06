@@ -187,6 +187,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
 
     describe('result.files', () => {
       // TODO: text data is being added as base64Data
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain files', async () => {
         const result = await generateText({
           model: modelWithFiles,
@@ -199,6 +201,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
 
     describe('result.steps', () => {
       // TODO: include `reasoning` and `reasoningDetails` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should add the reasoning from the model response to the step result', async () => {
         const result = await generateText({
           model: modelWithReasoning,
@@ -213,6 +217,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
       });
 
       // TODO: include `sources` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain sources', async () => {
         const result = await generateText({
           model: modelWithSources,
@@ -226,6 +232,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
       });
 
       // TODO: include `files` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain files', async () => {
         const result = await generateText({
           model: modelWithFiles,
