@@ -30,6 +30,8 @@ export type ExecuteOptions = {
   onStepFinish?: (event: any) => Promise<void> | void;
   activeTools?: Array<keyof ToolSet> | undefined;
   abortSignal?: AbortSignal;
+  mode?: 'json';
+  schema?: any;
 };
 
 export type ExecutionProps = {

@@ -1,4 +1,6 @@
 import { TransformStream } from 'stream/web';
+
+import { parsePartialJson } from '@ai-sdk/ui-utils';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
@@ -176,6 +178,54 @@ export class AISDKV4OutputStream {
 
           if (chunk.type === 'error') {
             controller.terminate();
+          }
+        },
+      }),
+    );
+  }
+
+  get partialObjectStream() {
+    const self = this;
+    let accumulatedText = '';
+    let previousObject: any = undefined;
+
+    return this.#modelOutput.fullStream.pipeThrough(
+      new TransformStream<ChunkType, any>({
+        transform(chunk, controller) {
+          switch (chunk.type) {
+            case 'text-delta':
+              if (typeof chunk.payload.text === 'string') {
+                accumulatedText += chunk.payload.text;
+
+                const parseResult = parsePartialJson(accumulatedText);
+
+                if (parseResult !== undefined) {
+                  const parsedObject = parseResult.value;
+                  if (parsedObject !== undefined && JSON.stringify(parsedObject) !== JSON.stringify(previousObject)) {
+                    previousObject = parsedObject;
+                    controller.enqueue(parsedObject);
+                  }
+                }
+              }
+
+              break;
+            case 'response-metadata':
+            case 'finish':
+            case 'error':
+              // const transformedChunk = convertFullStreamChunkToAISDKv4({
+              //   chunk,
+              //   client: false,
+              //   sendReasoning: false,
+              //   sendSources: false,
+              //   sendUsage: false,
+              //   getErrorMessage: getErrorMessage,
+              //   toolCallStreaming: self.#options.toolCallStreaming,
+              // });
+
+              // if (transformedChunk) {
+              //   controller.enqueue(transformedChunk);
+              // }
+              break;
           }
         },
       }),

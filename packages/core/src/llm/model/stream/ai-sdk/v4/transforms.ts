@@ -1,3 +1,5 @@
+import { safeParseJSON } from '@ai-sdk/provider-utils';
+import { parsePartialJson } from '@ai-sdk/ui-utils';
 import { formatDataStreamPart } from 'ai';
 import { DefaultGeneratedFileWithType } from './file';
 
@@ -415,4 +417,45 @@ export function convertFullStreamChunkToAISDKv4({
   } else {
     return;
   }
+}
+
+// State for partial object streaming
+const partialObjectState = new WeakMap<any, { accumulatedText: string; previousObject: any }>();
+
+export function convertPartialObjectStreamToAISDKv4({
+  chunk,
+  client,
+  sendReasoning,
+  sendSources,
+  sendUsage = true,
+  getErrorMessage,
+  toolCallStreaming,
+}: {
+  chunk: any;
+  client: boolean;
+  sendReasoning: boolean;
+  sendSources: boolean;
+  sendUsage: boolean;
+  getErrorMessage: (error: string) => string;
+  toolCallStreaming?: boolean;
+}) {
+  // Get or initialize state for this stream
+  let state = partialObjectState.get(chunk);
+  if (!state) {
+    state = { accumulatedText: '', previousObject: undefined };
+    partialObjectState.set(chunk, state);
+  }
+
+  if (chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
+    state.accumulatedText += chunk.payload.text;
+
+    const parsedObject = parsePartialJson(state.accumulatedText);
+
+    if (parsedObject !== undefined && JSON.stringify(parsedObject) !== JSON.stringify(state.previousObject)) {
+      state.previousObject = parsedObject;
+      return parsedObject;
+    }
+  }
+
+  return null;
 }

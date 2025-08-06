@@ -14,10 +14,13 @@ export function executeV4({
   activeTools,
   toolChoice,
   onResult,
+  options,
 }: ExecutionProps & {
   model: LanguageModelV1;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
 }) {
+  const { mode, output } = options;
+
   const v4 = new AISDKV4InputStream({
     component: 'LLM',
     name: model.modelId,
@@ -34,6 +37,31 @@ export function executeV4({
     onResult,
     createStream: async () => {
       try {
+        if (mode === 'json') {
+          let outputType = output;
+          if (!outputType) {
+            outputType = 'no-schema';
+          }
+
+          // TODO if outputStrategy.jsonSchema === null, inject json structions
+          // https://github.com/vercel/ai/blob/v4/packages/ai/core/generate-object/inject-json-instruction.ts
+          const stream = await model.doStream({
+            inputFormat: 'messages',
+            mode: {
+              type: 'object-json',
+              schema: undefined,
+              // schema: outputStrategy.jsonSchema,
+              // name: schemaName,
+              // description: schemaDescription,
+            },
+            providerMetadata: providerOptions ? { ...(providerMetadata ?? {}), ...providerOptions } : providerMetadata,
+            prompt: inputMessages,
+            headers,
+          });
+
+          return stream as any;
+        }
+
         const stream = await model.doStream({
           inputFormat: 'messages',
           mode: {

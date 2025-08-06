@@ -1,10 +1,10 @@
+import type { Span } from '@opentelemetry/api';
 import type { TelemetrySettings } from 'ai-v5';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from '../ai-sdk/telemetry';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
-import type { Span } from '@opentelemetry/api';
 
 function reasoningDetailsFromMessages(messages: any[]) {
   return messages
