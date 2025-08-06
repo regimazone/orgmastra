@@ -1007,6 +1007,7 @@ function createStreamExecutor({
             payload: inputData,
           });
 
+          console.log('user_msgs', JSON.stringify(inputData.messages.user, null, 2));
           rootSpan.setAttributes({
             'stream.response.id': inputData.metadata.id,
             'stream.response.model': model.modelId,
@@ -1196,7 +1197,11 @@ export async function execute(props: ExecuteParams) {
       telemetry: rest.experimental_telemetry,
     }),
     ...(rest.experimental_telemetry?.recordOutputs !== false
-      ? { 'stream.prompt.messages': JSON.stringify(messages) }
+      ? {
+          'stream.prompt.messages': messages.length
+            ? JSON.stringify(messages)
+            : JSON.stringify([{ role: 'user', content: [{ type: 'text', text: prompt }] }]),
+        }
       : {}),
   });
 
