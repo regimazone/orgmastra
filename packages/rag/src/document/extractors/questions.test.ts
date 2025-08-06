@@ -21,7 +21,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('extracts questions', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: 'What is the capital of France? What is the color of the sky?' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -30,7 +30,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles empty input gracefully', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -39,6 +39,7 @@ describe('QuestionsAnsweredExtractor', () => {
 
   it('supports prompt customization', async () => {
     const extractor = new QuestionsAnsweredExtractor({
+      llm: model,
       promptTemplate: 'List questions in: {context}. Limit to {numQuestions}.',
     });
     const node = new TextNode({ text: 'Test document for prompt customization.' });
@@ -48,7 +49,7 @@ describe('QuestionsAnsweredExtractor', () => {
     expect(result.questionsThisExcerptCanAnswer.length).toBeGreaterThan(0);
   });
   it('handles very long input', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const longText = 'A'.repeat(1000);
     const node = new TextNode({ text: longText });
     const result = await extractor.extractQuestionsFromNode(node);
@@ -58,14 +59,14 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles whitespace only input', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '    ' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result.questionsThisExcerptCanAnswer).toBe('');
   });
 
   it('handles special characters and emojis', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '🚀✨🔥' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -74,7 +75,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles numbers only', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '1234567890' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -83,7 +84,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles HTML tags', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '<h1>Test</h1>' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -92,7 +93,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles non-English text', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '这是一个测试文档。' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -101,7 +102,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles duplicate/repeated text', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: 'repeat repeat repeat' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');
@@ -110,7 +111,7 @@ describe('QuestionsAnsweredExtractor', () => {
   });
 
   it('handles only punctuation', async () => {
-    const extractor = new QuestionsAnsweredExtractor();
+    const extractor = new QuestionsAnsweredExtractor({ llm: model });
     const node = new TextNode({ text: '!!!???...' });
     const result = await extractor.extractQuestionsFromNode(node);
     expect(result).toHaveProperty('questionsThisExcerptCanAnswer');

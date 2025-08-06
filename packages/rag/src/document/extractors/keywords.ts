@@ -4,7 +4,6 @@ import type { KeywordExtractPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
 import { TextNode } from '../schema';
 import { BaseExtractor } from './base';
-import { baseLLM } from './types';
 import type { KeywordExtractArgs } from './types';
 
 type ExtractKeyword = {
@@ -24,19 +23,17 @@ export class KeywordExtractor extends BaseExtractor {
 
   /**
    * Constructor for the KeywordExtractor class.
-   * @param {MastraLanguageModel} llm MastraLanguageModel instance.
-   * @param {number} keywords Number of keywords to extract.
-   * @param {string} [promptTemplate] Optional custom prompt template (must include {context})
+   * @param {KeywordExtractArgs} options Configuration options including required llm instance.
    * @throws {Error} If keywords is less than 1.
    */
-  constructor(options?: KeywordExtractArgs) {
-    if (options?.keywords && options.keywords < 1) throw new Error('Keywords must be greater than 0');
+  constructor(options: KeywordExtractArgs) {
+    if (options.keywords && options.keywords < 1) throw new Error('Keywords must be greater than 0');
 
     super();
 
-    this.llm = options?.llm ?? baseLLM;
-    this.keywords = options?.keywords ?? 5;
-    this.promptTemplate = options?.promptTemplate
+    this.llm = options.llm;
+    this.keywords = options.keywords ?? 5;
+    this.promptTemplate = options.promptTemplate
       ? new PromptTemplate({
           templateVars: ['context', 'maxKeywords'],
           template: options.promptTemplate,

@@ -97,7 +97,7 @@ export class MessageList {
   private newResponseMessagesPersisted = new Set<MastraMessageV2>();
   private userContextMessagesPersisted = new Set<MastraMessageV2>();
 
-  private generateMessageId?: IDGenerator;
+  private generateMessageId?: IdGenerator;
   private _agentNetworkAppend = false;
 
   constructor({
@@ -235,10 +235,14 @@ export class MessageList {
     },
   };
   private rememberedPersisted = {
-    v2: () => this.messages.filter(m => this.memoryMessagesPersisted.has(m)),
+    v3: () => this.messages.filter(m => this.memoryMessagesPersisted.has(MessageList.mastraMessageV3ToV2(m))),
+    v2: () => this.rememberedPersisted.v3().map(MessageList.mastraMessageV3ToV2),
     v1: () => convertToV1Messages(this.rememberedPersisted.v2()),
-    ui: () => this.rememberedPersisted.v2().map(MessageList.toUIMessage),
-    core: () => this.convertToCoreMessages(this.rememberedPersisted.ui()),
+    ui: () => this.rememberedPersisted.v3().map(MessageList.toUIMessage),
+    core: () => this.convertToModelMessages(this.rememberedPersisted.ui()),
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.rememberedPersisted.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+    },
   };
   private input = {
     v3: () => this.messages.filter(m => this.newUserMessages.has(m)),
@@ -255,24 +259,32 @@ export class MessageList {
     },
   };
   private inputPersisted = {
-    v2: () => this.messages.filter(m => this.newUserMessagesPersisted.has(m)),
+    v3: () => this.messages.filter(m => this.newUserMessagesPersisted.has(MessageList.mastraMessageV3ToV2(m))),
+    v2: () => this.inputPersisted.v3().map(MessageList.mastraMessageV3ToV2),
     v1: () => convertToV1Messages(this.inputPersisted.v2()),
-    ui: () => this.inputPersisted.v2().map(MessageList.toUIMessage),
-    core: () => this.convertToCoreMessages(this.inputPersisted.ui()),
+    ui: () => this.inputPersisted.v3().map(MessageList.toUIMessage),
+    core: () => this.convertToModelMessages(this.inputPersisted.ui()),
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.inputPersisted.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+    },
   };
   private response = {
     v3: () => this.messages.filter(m => this.newResponseMessages.has(m)),
     v2: () => this.response.v3().map(MessageList.mastraMessageV3ToV2),
   };
   private responsePersisted = {
-    v2: () => this.messages.filter(m => this.newResponseMessagesPersisted.has(m)),
-    ui: () => this.responsePersisted.v2().map(MessageList.toUIMessage),
+    v3: () => this.messages.filter(m => this.newResponseMessagesPersisted.has(MessageList.mastraMessageV3ToV2(m))),
+    v2: () => this.responsePersisted.v3().map(MessageList.mastraMessageV3ToV2),
+    ui: () => this.responsePersisted.v3().map(MessageList.toUIMessage),
+    aiV4: {
+      ui: (): AIV4.UIMessage[] => this.responsePersisted.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+    },
   };
   public drainUnsavedMessages(): MastraMessageV2[] {
     const messages = this.messages.filter(m => this.newUserMessages.has(m) || this.newResponseMessages.has(m));
     this.newUserMessages.clear();
     this.newResponseMessages.clear();
-    return messages;
+    return messages.map(MessageList.mastraMessageV3ToV2);
   }
   public getEarliestUnsavedMessageTimestamp(): number | undefined {
     const unsavedMessages = this.messages.filter(m => this.newUserMessages.has(m) || this.newResponseMessages.has(m));

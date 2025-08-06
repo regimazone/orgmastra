@@ -79,7 +79,7 @@ export class NewAgentNetwork extends MastraBase {
       const lastMessage = messages[messages.length - 1];
       if (typeof lastMessage === 'string') {
         message = lastMessage;
-      } else if (lastMessage?.content) {
+      } else if (lastMessage && 'content' in lastMessage && lastMessage.content) {
         const lastMessageContent = lastMessage.content;
         if (typeof lastMessageContent === 'string') {
           message = lastMessageContent;

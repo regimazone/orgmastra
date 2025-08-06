@@ -4,7 +4,7 @@ import type { QuestionExtractPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
 import { TextNode } from '../schema';
 import { BaseExtractor } from './base';
-import { baseLLM, STRIP_REGEX } from './types';
+import { STRIP_REGEX } from './types';
 import type { QuestionAnswerExtractArgs } from './types';
 
 type ExtractQuestion = {
@@ -25,19 +25,16 @@ export class QuestionsAnsweredExtractor extends BaseExtractor {
 
   /**
    * Constructor for the QuestionsAnsweredExtractor class.
-   * @param {MastraLanguageModel} llm MastraLanguageModel instance.
-   * @param {number} questions Number of questions to generate.
-   * @param {QuestionExtractPrompt['template']} promptTemplate Optional custom prompt template (should include {context}).
-   * @param {boolean} embeddingOnly Whether to use metadata for embeddings only.
+   * @param {QuestionAnswerExtractArgs} options Configuration options including required llm instance.
    */
-  constructor(options?: QuestionAnswerExtractArgs) {
-    if (options?.questions && options.questions < 1) throw new Error('Questions must be greater than 0');
+  constructor(options: QuestionAnswerExtractArgs) {
+    if (options.questions && options.questions < 1) throw new Error('Questions must be greater than 0');
 
     super();
 
-    this.llm = options?.llm ?? baseLLM;
-    this.questions = options?.questions ?? 5;
-    this.promptTemplate = options?.promptTemplate
+    this.llm = options.llm;
+    this.questions = options.questions ?? 5;
+    this.promptTemplate = options.promptTemplate
       ? new PromptTemplate({
           templateVars: ['numQuestions', 'context'],
           template: options.promptTemplate,
@@ -45,7 +42,7 @@ export class QuestionsAnsweredExtractor extends BaseExtractor {
           numQuestions: '5',
         })
       : defaultQuestionExtractPrompt;
-    this.embeddingOnly = options?.embeddingOnly ?? false;
+    this.embeddingOnly = options.embeddingOnly ?? false;
   }
 
   /**

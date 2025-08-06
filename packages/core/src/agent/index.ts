@@ -50,6 +50,7 @@ import type { AgentVNextStreamOptions } from './agent.types';
 import type { InputProcessor } from './input-processor';
 import { runInputProcessors } from './input-processor/runner';
 import { MessageList } from './message-list';
+import type { UIMessageWithMetadata } from './message-list';
 import type { MessageInput } from './message-list';
 import { SaveQueueManager } from './save-queue';
 import { TripWire } from './trip-wire';
@@ -66,7 +67,6 @@ import type {
 export type { ChunkType, MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
 export { TripWire };
-export { MessageList };
 export * from './types';
 type IDGenerator = () => string;
 
@@ -1886,13 +1886,13 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const scorers = await this.getScorers({ runtimeContext });
 
     const scorerInput: ScorerRunInputForAgent = {
-      inputMessages: messageList.getPersisted.input.ui(),
-      rememberedMessages: messageList.getPersisted.remembered.ui(),
+      inputMessages: messageList.getPersisted.input.aiV4.ui(),
+      rememberedMessages: messageList.getPersisted.remembered.aiV4.ui(),
       systemMessages: messageList.getSystemMessages(),
       taggedSystemMessages: messageList.getPersisted.taggedSystemMessages,
     };
 
-    const scorerOutput: ScorerRunOutputForAgent = messageList.getPersisted.response.ui();
+    const scorerOutput: ScorerRunOutputForAgent = messageList.getPersisted.response.aiV4.ui();
 
     if (Object.keys(scorers || {}).length > 0) {
       for (const [id, scorerObject] of Object.entries(scorers)) {
@@ -2135,11 +2135,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
               });
             }
 
-            if (props.finishReason === 'tool-calls') {
-              for (const toolCall of props.content) {
-                toolCallsCollection.set(toolCall.toolCallId, toolCall);
-              }
-            }
+            // Tool calls are handled separately in the agent flow
 
             return onStepFinish?.({ ...props, runId });
           },

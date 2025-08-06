@@ -20,6 +20,8 @@ const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const model = openai('gpt-4o');
+
 vi.setConfig({ testTimeout: 10_000, hookTimeout: 10_000 });
 
 describe('MDocument', () => {
@@ -2042,7 +2044,7 @@ describe('MDocument', () => {
         type: 'text',
       });
 
-      await doc.extractMetadata({ title: true });
+      await doc.extractMetadata({ llm: model, title: true });
       const chunks = doc.getDocs();
 
       const titleA1 = chunks[0].metadata.documentTitle;

@@ -4,7 +4,6 @@ import type { TitleCombinePrompt, TitleExtractorPrompt } from '../prompts';
 import { TextNode } from '../schema';
 import type { BaseNode } from '../schema';
 import { BaseExtractor } from './base';
-import { baseLLM } from './types';
 import type { TitleExtractorsArgs } from './types';
 
 type ExtractTitle = {
@@ -21,20 +20,20 @@ export class TitleExtractor extends BaseExtractor {
   nodeTemplate: TitleExtractorPrompt;
   combineTemplate: TitleCombinePrompt;
 
-  constructor(options?: TitleExtractorsArgs) {
+  constructor(options: TitleExtractorsArgs) {
     super();
 
-    this.llm = options?.llm ?? baseLLM;
-    this.nodes = options?.nodes ?? 5;
+    this.llm = options.llm;
+    this.nodes = options.nodes ?? 5;
 
-    this.nodeTemplate = options?.nodeTemplate
+    this.nodeTemplate = options.nodeTemplate
       ? new PromptTemplate({
           templateVars: ['context'],
           template: options.nodeTemplate,
         })
       : defaultTitleExtractorPromptTemplate;
 
-    this.combineTemplate = options?.combineTemplate
+    this.combineTemplate = options.combineTemplate
       ? new PromptTemplate({
           templateVars: ['context'],
           template: options.combineTemplate,

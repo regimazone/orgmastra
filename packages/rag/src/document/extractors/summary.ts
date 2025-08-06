@@ -4,7 +4,7 @@ import type { SummaryPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
 import { TextNode } from '../schema';
 import { BaseExtractor } from './base';
-import { baseLLM, STRIP_REGEX } from './types';
+import { STRIP_REGEX } from './types';
 import type { SummaryExtractArgs } from './types';
 
 type ExtractSummary = {
@@ -27,26 +27,26 @@ export class SummaryExtractor extends BaseExtractor {
   private selfSummary: boolean;
   private prevSummary: boolean;
   private nextSummary: boolean;
-  constructor(options?: SummaryExtractArgs) {
-    const summaries = options?.summaries ?? ['self'];
+  constructor(options: SummaryExtractArgs) {
+    const summaries = options.summaries ?? ['self'];
 
     if (summaries && !summaries.some(s => ['self', 'prev', 'next'].includes(s)))
       throw new Error("Summaries must be one of 'self', 'prev', 'next'");
 
     super();
 
-    this.llm = options?.llm ?? baseLLM;
+    this.llm = options.llm;
     this.summaries = summaries;
-    this.promptTemplate = options?.promptTemplate
+    this.promptTemplate = options.promptTemplate
       ? new PromptTemplate({
           templateVars: ['context'],
           template: options.promptTemplate,
         })
       : defaultSummaryPrompt;
 
-    this.selfSummary = summaries?.includes('self') ?? false;
-    this.prevSummary = summaries?.includes('prev') ?? false;
-    this.nextSummary = summaries?.includes('next') ?? false;
+    this.selfSummary = summaries.includes('self') ?? false;
+    this.prevSummary = summaries.includes('prev') ?? false;
+    this.nextSummary = summaries.includes('next') ?? false;
   }
 
   /**
