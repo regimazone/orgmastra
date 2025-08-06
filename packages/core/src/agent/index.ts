@@ -903,7 +903,7 @@ export class Agent<
           runtimeContext,
           model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
         };
-        const convertedToCoreTool = makeCoreTool(toolObj, options);
+        const convertedToCoreTool = makeCoreTool<Exclude<ToolParameters, JSONSchema7Type>>(toolObj, options);
         convertedMemoryTools[toolName] = convertedToCoreTool;
       }
     }
