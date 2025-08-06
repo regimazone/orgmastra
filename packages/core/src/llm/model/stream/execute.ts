@@ -11,6 +11,7 @@ import { createStep, createWorkflow } from '../../../workflows';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
 import { convertFullStreamChunkToAISDKv4, executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
+import { DefaultStepResult } from './ai-sdk/v5/output';
 import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
@@ -680,6 +681,19 @@ function createAgentWorkflow({
         const responseMetadata = runState.state.responseMetadata;
         const text = outputStream.text;
 
+        const steps = inputData.output?.steps || [];
+        steps.push(
+          new DefaultStepResult({
+            warnings: outputStream.warnings,
+            providerMetadata: providerMetadata,
+            finishReason: runState.state.stepResult?.reason,
+            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }),
+            response: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }, true),
+            request: request,
+            usage: outputStream.usage as any,
+          }),
+        );
+
         return {
           messageId,
           stepResult: {
@@ -697,7 +711,7 @@ function createAgentWorkflow({
             text,
             toolCalls,
             usage: usage ?? inputData.output?.usage,
-            steps: outputStream.aisdk.v5.steps,
+            steps,
           },
           messages: {
             all: allMessages,
@@ -721,9 +735,6 @@ function createAgentWorkflow({
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);
-
-          console.log('inputData', inputData);
-          console.log('errorResults', JSON.stringify(errorResults, null, 2));
 
           const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 

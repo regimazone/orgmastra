@@ -275,59 +275,63 @@ export class AISDKV5OutputStream {
   }
 
   transformResponse(response: any, isMessages: boolean = false) {
-    const newResponse = { ...response };
-    newResponse.messages = response.messages.map((message: any) => {
-      let newContent = message.content.map((part: any) => {
-        if (part.type === 'file') {
-          if (isMessages) {
+    try {
+      const newResponse = { ...response };
+      newResponse.messages = response.messages.map((message: any) => {
+        let newContent = message.content.map((part: any) => {
+          if (part.type === 'file') {
+            if (isMessages) {
+              return {
+                type: 'file',
+                mediaType: part.mimeType,
+                data: part.data,
+                providerOptions: part.providerOptions,
+              };
+            }
+            const transformedFile = convertFullStreamChunkToAISDKv5({
+              chunk: {
+                type: 'file',
+                payload: {
+                  data: part.data,
+                  mimeType: part.mimeType,
+                },
+              },
+              sendReasoning: false,
+              sendSources: false,
+              sendUsage: false,
+              getErrorMessage: getErrorMessage,
+            });
+            console.log('transformedFile', transformedFile);
+
+            return transformedFile;
+          }
+
+          if (!isMessages) {
+            const { providerOptions, providerMetadata, ...rest } = part;
+            const providerMetadataValue = providerMetadata ?? providerOptions;
             return {
-              type: 'file',
-              mediaType: part.mimeType,
-              data: part.data,
-              providerOptions: part.providerOptions,
+              ...rest,
+              ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
             };
           }
-          const transformedFile = convertFullStreamChunkToAISDKv5({
-            chunk: {
-              type: 'file',
-              payload: {
-                data: part.data,
-                mimeType: part.mimeType,
-              },
-            },
-            sendReasoning: false,
-            sendSources: false,
-            sendUsage: false,
-            getErrorMessage: getErrorMessage,
-          });
-          console.log('transformedFile', transformedFile);
 
-          return transformedFile;
+          return part;
+        });
+
+        if (isMessages) {
+          newContent = newContent.filter((part: any) => part.type !== 'source');
         }
 
-        if (!isMessages) {
-          const { providerOptions, providerMetadata, ...rest } = part;
-          const providerMetadataValue = providerMetadata ?? providerOptions;
-          return {
-            ...rest,
-            ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
-          };
-        }
-
-        return part;
+        return {
+          ...message,
+          content: newContent,
+        };
       });
 
-      if (isMessages) {
-        newContent = newContent.filter((part: any) => part.type !== 'source');
-      }
-
-      return {
-        ...message,
-        content: newContent,
-      };
-    });
-
-    return newResponse;
+      return newResponse;
+    } catch (e) {
+      console.log('transformResponse error', e);
+    }
   }
 
   get response() {
