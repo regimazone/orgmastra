@@ -275,7 +275,6 @@ export class AISDKV5OutputStream {
   }
 
   transformResponse(response: any, isMessages: boolean = false) {
-    console.dir({ origResponse: response }, { depth: null });
     const newResponse = { ...response };
     const hasTools = response.messages.some((message: any) =>
       message.content.some((part: any) => part.type === 'tool-result'),
@@ -304,7 +303,6 @@ export class AISDKV5OutputStream {
             sendUsage: false,
             getErrorMessage: getErrorMessage,
           });
-          console.log('transformedFile', transformedFile);
 
           return transformedFile;
         }
