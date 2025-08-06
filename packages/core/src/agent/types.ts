@@ -33,8 +33,9 @@ export type {
   MastraMessageContentV2,
   MastraMessageV3,
   MastraMessageContentV3,
+  UIMessageWithMetadata,
   MessageList,
-} from './message-list/index.ts';
+} from './message-list/index';
 export type { UIMessage as AiMessageType } from 'ai';
 
 export type ToolsInput = Record<string, ToolAction<any, any, any> | VercelTool>;

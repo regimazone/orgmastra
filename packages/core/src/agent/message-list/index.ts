@@ -92,7 +92,12 @@ export class MessageList {
   private newResponseMessages = new Set<MastraMessageV3>();
   private userContextMessages = new Set<MastraMessageV3>();
 
-  private generateMessageId?: IdGenerator;
+  private memoryMessagesPersisted = new Set<MastraMessageV2>();
+  private newUserMessagesPersisted = new Set<MastraMessageV2>();
+  private newResponseMessagesPersisted = new Set<MastraMessageV2>();
+  private userContextMessagesPersisted = new Set<MastraMessageV2>();
+
+  private generateMessageId?: IDGenerator;
   private _agentNetworkAppend = false;
 
   constructor({
@@ -104,8 +109,8 @@ export class MessageList {
   }: { threadId?: string; resourceId?: string; generateMessageId?: IdGenerator } = {}) {
     if (threadId) {
       this.memoryInfo = { threadId, resourceId };
-      this.generateMessageId = generateMessageId;
     }
+    this.generateMessageId = generateMessageId;
     this._agentNetworkAppend = _agentNetworkAppend || false;
   }
 
@@ -136,6 +141,14 @@ export class MessageList {
       remembered: this.remembered,
       input: this.input,
       response: this.response,
+    };
+  }
+  public get getPersisted() {
+    return {
+      remembered: this.rememberedPersisted,
+      input: this.inputPersisted,
+      taggedSystemMessages: this.taggedSystemMessages,
+      response: this.responsePersisted,
     };
   }
   public get clear() {
@@ -221,6 +234,12 @@ export class MessageList {
       ui: (): AIV4.UIMessage[] => this.remembered.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
     },
   };
+  private rememberedPersisted = {
+    v2: () => this.messages.filter(m => this.memoryMessagesPersisted.has(m)),
+    v1: () => convertToV1Messages(this.rememberedPersisted.v2()),
+    ui: () => this.rememberedPersisted.v2().map(MessageList.toUIMessage),
+    core: () => this.convertToCoreMessages(this.rememberedPersisted.ui()),
+  };
   private input = {
     v3: () => this.messages.filter(m => this.newUserMessages.has(m)),
     v2: () => this.input.v3().map(MessageList.mastraMessageV3ToV2),
@@ -235,11 +254,21 @@ export class MessageList {
       ui: (): AIV4.UIMessage[] => this.input.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
     },
   };
+  private inputPersisted = {
+    v2: () => this.messages.filter(m => this.newUserMessagesPersisted.has(m)),
+    v1: () => convertToV1Messages(this.inputPersisted.v2()),
+    ui: () => this.inputPersisted.v2().map(MessageList.toUIMessage),
+    core: () => this.convertToCoreMessages(this.inputPersisted.ui()),
+  };
   private response = {
     v3: () => this.messages.filter(m => this.newResponseMessages.has(m)),
     v2: () => this.response.v3().map(MessageList.mastraMessageV3ToV2),
   };
-  public drainUnsavedMessages(): MastraMessageV3[] {
+  private responsePersisted = {
+    v2: () => this.messages.filter(m => this.newResponseMessagesPersisted.has(m)),
+    ui: () => this.responsePersisted.v2().map(MessageList.toUIMessage),
+  };
+  public drainUnsavedMessages(): MastraMessageV2[] {
     const messages = this.messages.filter(m => this.newUserMessages.has(m) || this.newResponseMessages.has(m));
     this.newUserMessages.clear();
     this.newResponseMessages.clear();
@@ -507,14 +536,19 @@ export class MessageList {
   }
 
   private pushMessageToSource(messageV3: MastraMessageV3, messageSource: MessageSource) {
+    const messageV2 = MessageList.mastraMessageV3ToV2(messageV3);
     if (messageSource === `memory`) {
       this.memoryMessages.add(messageV3);
+      this.memoryMessagesPersisted.add(messageV2);
     } else if (messageSource === `response`) {
       this.newResponseMessages.add(messageV3);
+      this.newResponseMessagesPersisted.add(messageV2);
     } else if (messageSource === `user`) {
       this.newUserMessages.add(messageV3);
+      this.newUserMessagesPersisted.add(messageV2);
     } else if (messageSource === `context`) {
       this.userContextMessages.add(messageV3);
+      this.userContextMessagesPersisted.add(messageV2);
     } else {
       throw new Error(`Missing message source for message ${messageV3}`);
     }
