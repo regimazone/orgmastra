@@ -5501,4 +5501,49 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     //   });
     // });
   });
+
+  describe.skip('options.messages', () => {
+    it('should support models that use "this" context in supportedUrls', async () => {
+      let supportedUrlsCalled = false;
+      class MockLanguageModelWithImageSupport extends MockLanguageModelV2 {
+        constructor() {
+          super({
+            supportedUrls() {
+              supportedUrlsCalled = true;
+              // Reference 'this' to verify context
+              return this.modelId === 'mock-model-id'
+                ? ({ 'image/*': [/^https:\/\/.*$/] } as Record<string, RegExp[]>)
+                : {};
+            },
+            doStream: async () => ({
+              stream: convertArrayToReadableStream([
+                { type: 'text-start', id: '1' },
+                { type: 'text-delta', id: '1', delta: 'Hello' },
+                { type: 'text-delta', id: '1', delta: ', ' },
+                { type: 'text-delta', id: '1', delta: 'world!' },
+                { type: 'text-end', id: '1' },
+              ]),
+            }),
+          });
+        }
+      }
+
+      const model = new MockLanguageModelWithImageSupport();
+      const result = await executeFn({
+        runId,
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image', image: 'https://example.com/test.jpg' }],
+          },
+        ],
+      });
+
+      await result.aisdk.v5.consumeStream();
+
+      expect(supportedUrlsCalled).toBe(true);
+      expect(result.text).toBe('Hello, world!');
+    });
+  });
 }
