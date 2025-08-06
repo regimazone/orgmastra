@@ -175,6 +175,7 @@ export class MastraModelOutput extends MastraBase {
 
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 
+              console.dir({ stepFinishChunk: chunk }, { depth: null });
               const stepResult = {
                 stepType: self.#bufferedSteps.length === 0 ? 'initial' : 'tool-result',
                 text: self.#bufferedByStep.text,

@@ -275,63 +275,63 @@ export class AISDKV5OutputStream {
   }
 
   transformResponse(response: any, isMessages: boolean = false) {
-    try {
-      const newResponse = { ...response };
-      newResponse.messages = response.messages.map((message: any) => {
-        let newContent = message.content.map((part: any) => {
-          if (part.type === 'file') {
-            if (isMessages) {
-              return {
-                type: 'file',
-                mediaType: part.mimeType,
-                data: part.data,
-                providerOptions: part.providerOptions,
-              };
-            }
-            const transformedFile = convertFullStreamChunkToAISDKv5({
-              chunk: {
-                type: 'file',
-                payload: {
-                  data: part.data,
-                  mimeType: part.mimeType,
-                },
-              },
-              sendReasoning: false,
-              sendSources: false,
-              sendUsage: false,
-              getErrorMessage: getErrorMessage,
-            });
-            console.log('transformedFile', transformedFile);
-
-            return transformedFile;
-          }
-
-          if (!isMessages) {
-            const { providerOptions, providerMetadata, ...rest } = part;
-            const providerMetadataValue = providerMetadata ?? providerOptions;
+    console.dir({ origResponse: response }, { depth: null });
+    const newResponse = { ...response };
+    const hasTools = response.messages.some((message: any) =>
+      message.content.some((part: any) => part.type === 'tool-result'),
+    );
+    newResponse.messages = response.messages.map((message: any) => {
+      let newContent = message.content.map((part: any) => {
+        if (part.type === 'file') {
+          if (isMessages) {
             return {
-              ...rest,
-              ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
+              type: 'file',
+              mediaType: part.mimeType,
+              data: part.data,
+              providerOptions: part.providerOptions,
             };
           }
+          const transformedFile = convertFullStreamChunkToAISDKv5({
+            chunk: {
+              type: 'file',
+              payload: {
+                data: part.data,
+                mimeType: part.mimeType,
+              },
+            },
+            sendReasoning: false,
+            sendSources: false,
+            sendUsage: false,
+            getErrorMessage: getErrorMessage,
+          });
+          console.log('transformedFile', transformedFile);
 
-          return part;
-        });
-
-        if (isMessages) {
-          newContent = newContent.filter((part: any) => part.type !== 'source');
+          return transformedFile;
         }
 
-        return {
-          ...message,
-          content: newContent,
-        };
+        if (!isMessages) {
+          const { providerOptions, providerMetadata, ...rest } = part;
+          const providerMetadataValue = providerMetadata ?? providerOptions;
+          return {
+            ...rest,
+            ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
+          };
+        }
+
+        return part;
       });
 
-      return newResponse;
-    } catch (e) {
-      console.log('transformResponse error', e);
-    }
+      if (isMessages && !hasTools) {
+        newContent = newContent.filter((part: any) => part.type !== 'source');
+      }
+
+      return {
+        ...message,
+        content: newContent,
+      };
+    });
+
+    return newResponse;
   }
 
   get response() {

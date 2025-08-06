@@ -761,7 +761,6 @@ function createAgentWorkflow({
                 id: toolResultMessageId,
                 role: 'tool',
                 content: errorResults.map(toolCall => {
-                  console.log('toolCall', JSON.stringify(toolCall, null, 2));
                   return {
                     type: 'tool-result',
                     args: toolCall.args,

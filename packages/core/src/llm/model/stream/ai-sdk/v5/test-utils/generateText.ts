@@ -56,7 +56,7 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
                 { type: 'reasoning-start', id: '1' },
                 { type: 'reasoning-delta', delta: 'I will open the conversation with witty banter.' },
                 { type: 'reasoning-end', id: '1' },
-                // { type: 'tool-call', toolCallId: 'call-1', toolName: 'tool1', input: `{ "value": "value" }` },
+                { type: 'tool-call', toolCallId: 'call-1', toolName: 'tool1', input: `{ "value": "value" }` },
                 { type: 'text-start', id: '2' },
                 { type: 'text-delta', id: '2', delta: 'More text' },
                 { type: 'text-end', id: '2' },
@@ -82,6 +82,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
             },
           },
         });
+
+        console.dir({ resultContent: result.content }, { depth: null });
 
         expect(result.content).toMatchInlineSnapshot(`
             [
