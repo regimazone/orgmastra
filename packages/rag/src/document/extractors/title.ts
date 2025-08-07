@@ -1,4 +1,5 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
+import { generateText } from 'ai';
 import { defaultTitleCombinePromptTemplate, defaultTitleExtractorPromptTemplate, PromptTemplate } from '../prompts';
 import type { TitleCombinePrompt, TitleExtractorPrompt } from '../prompts';
 import { TextNode } from '../schema';
@@ -109,31 +110,19 @@ export class TitleExtractor extends BaseExtractor {
     for (const [key, nodes] of Object.entries(nodesByDocument)) {
       const titleCandidates = await this.getTitlesCandidates(nodes);
       const combinedTitles = titleCandidates.join(', ');
-      const completion = await this.llm.doGenerate({
-        // TODO: these don't exist anymore. What do we need to do?
-        // inputFormat: 'messages',
-        // mode: { type: 'regular' },
-        prompt: [
+      const { text } = await generateText({
+        model: this.llm,
+        messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: this.combineTemplate.format({
-                  context: combinedTitles,
-                }),
-              },
-            ],
+            content: this.combineTemplate.format({
+              context: combinedTitles,
+            }),
           },
         ],
       });
 
-      let title = '';
-      for (const part of completion.content) {
-        if (part.type === `text`) {
-          title += part.text.trim();
-        }
-      }
+      const title = text.trim();
       titlesByDocument[key] = title;
     }
 
@@ -142,32 +131,19 @@ export class TitleExtractor extends BaseExtractor {
 
   private async getTitlesCandidates(nodes: BaseNode[]): Promise<string[]> {
     const titleJobs = nodes.map(async node => {
-      const completion = await this.llm.doGenerate({
-        // TODO: these don't exist anymore. What do we need to do?
-        // inputFormat: 'messages',
-        // mode: { type: 'regular' },
-        prompt: [
+      const { text } = await generateText({
+        model: this.llm,
+        messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: this.nodeTemplate.format({
-                  context: node.getContent(),
-                }),
-              },
-            ],
+            content: this.nodeTemplate.format({
+              context: node.getContent(),
+            }),
           },
         ],
       });
 
-      let text = '';
-      for (const part of completion.content) {
-        if (part.type === `text`) {
-          text += part.text.trim();
-        }
-      }
-      return text;
+      return text.trim();
     });
 
     return await Promise.all(titleJobs);

@@ -5,7 +5,6 @@
 import type { MastraMessageV1 } from '../../../memory/types';
 import type { MastraMessageContentV2, MastraMessageV2 } from '../../message-list';
 import type * as AIV4 from '../ai-sdk-4/';
-import type { ReasoningPart, RedactedReasoningPart } from '../ai-sdk-4/core/prompt/content-part';
 import { attachmentsToParts } from './attachments-to-parts';
 
 const makePushOrCombine = (v1Messages: MastraMessageV1[]) => {

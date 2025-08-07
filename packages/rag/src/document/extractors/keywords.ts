@@ -1,4 +1,5 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
+import { generateText } from 'ai';
 import { defaultKeywordExtractPrompt, PromptTemplate } from '../prompts';
 import type { KeywordExtractPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
@@ -61,28 +62,19 @@ export class KeywordExtractor extends BaseExtractor {
 
     let keywords = '';
     try {
-      const completion = await this.llm.doGenerate({
-        // TODO: these don't exist anymore. What do we need to do?
-        // inputFormat: 'messages',
-        // mode: { type: 'regular' },
-        prompt: [
+      const { text } = await generateText({
+        model: this.llm,
+        messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: this.promptTemplate.format({
-                  context: node.getContent(),
-                  maxKeywords: this.keywords.toString(),
-                }),
-              },
-            ],
+            content: this.promptTemplate.format({
+              context: node.getContent(),
+              maxKeywords: this.keywords.toString(),
+            }),
           },
         ],
       });
-      for (const part of completion.content) {
-        if (part.type === `text`) keywords += part.text.trim();
-      }
+      keywords = text.trim();
     } catch (err) {
       console.warn('Keyword extraction failed:', err);
     }

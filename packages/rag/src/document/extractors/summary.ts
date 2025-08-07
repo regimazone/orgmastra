@@ -1,4 +1,5 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
+import { generateText } from 'ai';
 import { PromptTemplate, defaultSummaryPrompt } from '../prompts';
 import type { SummaryPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
@@ -68,22 +69,17 @@ export class SummaryExtractor extends BaseExtractor {
       context,
     });
 
-    const result = await this.llm.doGenerate({
-      // TODO: these don't exist anymore. What do we need to do?
-      // inputFormat: 'messages',
-      // mode: { type: 'regular' },
-      prompt: [
+    const result = await generateText({
+      model: this.llm,
+      messages: [
         {
           role: 'user',
-          content: [{ type: 'text', text: prompt }],
+          content: prompt,
         },
       ],
     });
 
-    let summary = '';
-    for (const part of result.content) {
-      if (part.type === `text`) summary += part.text.trim();
-    }
+    const summary = result.text.trim();
 
     return summary.replace(STRIP_REGEX, '');
   }

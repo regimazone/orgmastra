@@ -1,4 +1,5 @@
 import type { MastraLanguageModel } from '@mastra/core/agent';
+import { generateText } from 'ai';
 import { PromptTemplate, defaultQuestionExtractPrompt } from '../prompts';
 import type { QuestionExtractPrompt } from '../prompts';
 import type { BaseNode } from '../schema';
@@ -66,24 +67,17 @@ export class QuestionsAnsweredExtractor extends BaseExtractor {
       numQuestions: this.questions.toString(),
     });
 
-    const questions = await this.llm.doGenerate({
-      // TODO: these don't exist anymore. What do we need to do?
-      // inputFormat: 'messages',
-      // mode: { type: 'regular' },
-      prompt: [
+    const response = await generateText({
+      model: this.llm,
+      messages: [
         {
           role: 'user',
-          content: [{ type: 'text', text: prompt }],
+          content: prompt,
         },
       ],
     });
 
-    let result = '';
-    for (const part of questions.content) {
-      if (part.type === `text`) {
-        result += part.text.replace(STRIP_REGEX, '').trim();
-      }
-    }
+    const result = response.text.replace(STRIP_REGEX, '').trim();
 
     return {
       questionsThisExcerptCanAnswer: result,
