@@ -828,12 +828,41 @@ export class MessageList {
             break;
 
           case 'tool-result':
+            // Try to find args from the corresponding tool-call in previous messages
+            let toolArgs: Record<string, unknown> = {};
+
+            // First, check if there's a tool-call in the same message
+            const toolCallInSameMsg = coreMessage.content.find(
+              p => p.type === 'tool-call' && p.toolCallId === part.toolCallId,
+            );
+            if (toolCallInSameMsg && toolCallInSameMsg.type === 'tool-call') {
+              toolArgs = toolCallInSameMsg.args as Record<string, unknown>;
+            }
+
+            // If not found, look in previous messages for the corresponding tool-call
+            if (Object.keys(toolArgs).length === 0) {
+              for (const msg of this.messages) {
+                if (msg.role === 'assistant' && msg.content.parts) {
+                  const toolCallPart = msg.content.parts.find(
+                    p =>
+                      p.type === 'tool-invocation' &&
+                      p.toolInvocation.toolCallId === part.toolCallId &&
+                      p.toolInvocation.state === 'call',
+                  );
+                  if (toolCallPart && toolCallPart.type === 'tool-invocation' && toolCallPart.toolInvocation.args) {
+                    toolArgs = toolCallPart.toolInvocation.args;
+                    break;
+                  }
+                }
+              }
+            }
+
             const invocation = {
               state: 'result' as const,
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               result: part.result ?? '', // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
-              args: {}, // when we combine this invocation onto the existing tool-call part it will have args already
+              args: toolArgs, // Use the args from the corresponding tool-call
             };
             parts.push({
               type: 'tool-invocation',
