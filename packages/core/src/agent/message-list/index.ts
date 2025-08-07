@@ -863,8 +863,11 @@ export class MessageList {
             }
 
             // If not found, look in previous messages for the corresponding tool-call
+            // Search from most recent messages first (more likely to find the match)
             if (Object.keys(toolArgs).length === 0) {
-              for (const msg of this.messages) {
+              // Iterate in reverse order (most recent first) for better performance
+              for (let i = this.messages.length - 1; i >= 0; i--) {
+                const msg = this.messages[i];
                 if (msg.role === 'assistant' && msg.content.parts) {
                   const toolCallPart = msg.content.parts.find(
                     p =>
