@@ -17,7 +17,7 @@ import { isVercelTool } from '../../tools/toolchecks';
 import type { ToolOptions } from '../../utils';
 import { isVercelV5Tool, isCoreToolWithVercelV5 } from '../ai-sdk-v5-compat';
 import { ToolStream } from '../stream';
-import type { CoreTool, ToolAction, VercelTool } from '../types';
+import type { CoreTool, ToolAction } from '../types';
 import { validateToolInput } from '../validation';
 
 export type ToolToConvert =
@@ -131,7 +131,7 @@ export class CoreToolBuilder extends MastraBase {
       type: logType,
     });
 
-    const execFunction = async (args: unknown, execOptions: ToolExecutionOptions) => {
+    const execFunction = async (args: unknown, execOptions: ToolCallOptions) => {
       const toolAny = tool as any;
 
       // Check if it's a CoreTool with Vercel v5 wrapper
@@ -175,7 +175,7 @@ export class CoreToolBuilder extends MastraBase {
       );
     };
 
-    return async (args: unknown, execOptions?: ToolExecutionOptions) => {
+    return async (args: unknown, execOptions?: ToolCallOptions) => {
       let logger = options.logger || this.logger;
       try {
         logger.debug(start, { ...rest, args });

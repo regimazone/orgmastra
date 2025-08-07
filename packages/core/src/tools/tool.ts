@@ -1,4 +1,4 @@
-import type { ToolExecutionOptions } from 'ai';
+import type { ToolCallOptions } from 'ai';
 import type { z } from 'zod';
 
 import type { Mastra } from '../mastra';
@@ -30,7 +30,7 @@ export class Tool<
     // Wrap the execute function with validation if it exists
     if (opts.execute) {
       const originalExecute = opts.execute;
-      this.execute = async (context: TContext, options?: ToolExecutionOptions) => {
+      this.execute = async (context: TContext, options?: ToolCallOptions) => {
         // Validate input if schema exists
         const { data, error } = validateToolInput(this.inputSchema, context, this.id);
         if (error) {

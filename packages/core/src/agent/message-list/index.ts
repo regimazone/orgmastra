@@ -1132,29 +1132,7 @@ export class MessageList {
 
   private hydrateMastraMessageV3Fields(message: MastraMessageV3): MastraMessageV3 {
     if (!(message.createdAt instanceof Date)) message.createdAt = new Date(message.createdAt);
-
-    // Fix toolInvocations with empty args by looking in the parts array
-    // This handles messages restored from database where toolInvocations might have lost their args
-    if (message.content.toolInvocations && message.content.parts) {
-      message.content.toolInvocations = message.content.toolInvocations.map(ti => {
-        if (!ti.args || Object.keys(ti.args).length === 0) {
-          // Find the corresponding tool-invocation part with args
-          const partWithArgs = message.content.parts.find(
-            part =>
-              part.type === 'tool-invocation' &&
-              part.toolInvocation &&
-              part.toolInvocation.toolCallId === ti.toolCallId &&
-              part.toolInvocation.args &&
-              Object.keys(part.toolInvocation.args).length > 0,
-          );
-          if (partWithArgs && partWithArgs.type === 'tool-invocation') {
-            return { ...ti, args: partWithArgs.toolInvocation.args };
-          }
-        }
-        return ti;
-      });
-    }
-
+    // V3 messages don't have toolInvocations, they use tool parts directly in the parts array
     return message;
   }
   private aiV5UIMessageToMastraMessageV3(message: AIV5.UIMessage, messageSource: MessageSource): MastraMessageV3 {
@@ -1345,14 +1323,16 @@ export class MessageList {
               for (let i = this.messages.length - 1; i >= 0; i--) {
                 const msg = this.messages[i];
                 if (msg && msg.role === 'assistant' && msg.content.parts) {
+                  // V3 messages have tool parts directly, not wrapped in toolInvocation
                   const toolCallPart = msg.content.parts.find(
-                    p =>
-                      p.type === 'tool-invocation' &&
-                      p.toolInvocation.toolCallId === part.toolCallId &&
-                      p.toolInvocation.state === 'call',
+                    (p): p is any =>
+                      p.type?.startsWith('tool-') &&
+                      'toolCallId' in p &&
+                      p.toolCallId === part.toolCallId &&
+                      p.state === 'input-available',
                   );
-                  if (toolCallPart && toolCallPart.type === 'tool-invocation' && toolCallPart.toolInvocation.args) {
-                    toolArgs = toolCallPart.toolInvocation.args;
+                  if (toolCallPart && 'input' in toolCallPart && toolCallPart.input) {
+                    toolArgs = toolCallPart.input;
                     break;
                   }
                 }
