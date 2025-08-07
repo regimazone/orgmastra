@@ -2609,6 +2609,9 @@ importers:
       '@internal/lint':
         specifier: workspace:*
         version: link:../../packages/_config
+      '@internal/storage-test-utils':
+        specifier: workspace:*
+        version: link:../_test-utils
       '@internal/types-builder':
         specifier: workspace:*
         version: link:../../packages/_types-builder
@@ -2678,7 +2681,7 @@ importers:
         version: 4.5.0(encoding@0.1.13)
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20250801.0
+        specifier: ^4.20250803.0
         version: 4.20250806.0
       '@internal/lint':
         specifier: workspace:*
@@ -2724,7 +2727,7 @@ importers:
         version: 4.5.0(encoding@0.1.13)
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20250801.0
+        specifier: ^4.20250803.0
         version: 4.20250806.0
       '@internal/lint':
         specifier: workspace:*
@@ -3339,7 +3342,7 @@ importers:
         version: 3.25.76
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20250801.0
+        specifier: ^4.20250803.0
         version: 4.20250806.0
       '@internal/lint':
         specifier: workspace:*
