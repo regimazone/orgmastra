@@ -331,7 +331,28 @@ export class MessageList {
         parts,
         reasoning: undefined,
         toolInvocations:
-          `toolInvocations` in m.content ? m.content.toolInvocations?.filter(t => t.state === 'result') : undefined,
+          `toolInvocations` in m.content
+            ? m.content.toolInvocations
+                ?.filter(t => t.state === 'result')
+                .map(ti => {
+                  // When messages are restored from database, toolInvocations might have empty args
+                  // but the parts array has the correct args. This ensures consistency.
+                  if ((!ti.args || Object.keys(ti.args).length === 0) && m.content.parts) {
+                    const partWithArgs = m.content.parts.find(
+                      part =>
+                        part.type === 'tool-invocation' &&
+                        part.toolInvocation.toolCallId === ti.toolCallId &&
+                        part.toolInvocation.state === 'result' &&
+                        part.toolInvocation.args &&
+                        Object.keys(part.toolInvocation.args).length > 0,
+                    );
+                    if (partWithArgs && partWithArgs.type === 'tool-invocation') {
+                      return { ...ti, args: partWithArgs.toolInvocation.args };
+                    }
+                  }
+                  return ti;
+                })
+            : undefined,
       };
       // Preserve metadata if present
       if (m.content.metadata) {
