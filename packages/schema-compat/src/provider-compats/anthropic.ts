@@ -1,10 +1,10 @@
 import type { ZodTypeAny } from 'zod';
 import type { Targets } from 'zod-to-json-schema';
 import { SchemaCompatLayer, isArr, isObj, isOptional, isString, isUnion } from '../schema-compatibility';
-import type { AllZodType, SchemaCompatModel } from '../schema-compatibility';
+import type { AllZodType, ModelInformation } from '../schema-compatibility';
 
 export class AnthropicSchemaCompatLayer extends SchemaCompatLayer {
-  constructor(model: SchemaCompatModel) {
+  constructor(model: ModelInformation) {
     super(model);
   }
 

@@ -36,7 +36,7 @@ import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
 import { MastraAgentStream } from '../stream/MastraAgentStream';
-import type { ChunkType } from '../stream/MastraAgentStream';
+import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
 import { Telemetry } from '../telemetry/telemetry';
 import type { ConvertedCoreTool, CoreTool, ToolParameters } from '../tools/types';
@@ -63,7 +63,8 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
-export type { ChunkType, MastraAgentStream } from '../stream/MastraAgentStream';
+export type { ChunkType } from '../stream/types';
+export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
 export { TripWire };
 export * from './types';

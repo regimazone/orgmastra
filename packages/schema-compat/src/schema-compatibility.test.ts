@@ -1,11 +1,11 @@
 import { MockLanguageModelV2 } from 'ai/test';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
-import type { SchemaCompatModel } from './schema-compatibility';
+import type { ModelInformation } from './schema-compatibility';
 import { isArr, isObj, isOptional, isString, isUnion, SchemaCompatLayer } from './schema-compatibility';
 
 class MockSchemaCompatibility extends SchemaCompatLayer {
-  constructor(model: SchemaCompatModel) {
+  constructor(model: ModelInformation) {
     super(model);
   }
 
@@ -44,12 +44,20 @@ describe('SchemaCompatLayer', () => {
   let compatibility: MockSchemaCompatibility;
 
   beforeEach(() => {
-    compatibility = new MockSchemaCompatibility(mockModel);
+    compatibility = new MockSchemaCompatibility({
+      modelId: mockModel.modelId,
+      supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+      provider: mockModel.provider,
+    });
   });
 
   describe('constructor and getModel', () => {
     it('should store and return the model', () => {
-      expect(compatibility.getModel()).toBe(mockModel);
+      expect(compatibility.getModel()).toEqual({
+        modelId: mockModel.modelId,
+        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+        provider: mockModel.provider,
+      });
     });
   });
 
@@ -350,7 +358,11 @@ describe('SchemaCompatLayer', () => {
         }
       }
 
-      const testCompat = new TestCompatibility(mockModel);
+      const testCompat = new TestCompatibility({
+        modelId: mockModel.modelId,
+        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+        provider: mockModel.provider,
+      });
       const result = testCompat.defaultZodOptionalHandler(optionalSchema);
 
       expect(result._def.typeName).toBe('ZodOptional');
@@ -401,7 +413,11 @@ describe('SchemaCompatLayer', () => {
           return super.processZodType(value);
         }
       }
-      const preservingCompat = new PreservingMock(mockModel);
+      const preservingCompat = new PreservingMock({
+        modelId: mockModel.modelId,
+        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+        provider: mockModel.provider,
+      });
       const preservingResult = preservingCompat.processToAISDKSchema(arraySchema);
       expect(preservingResult.jsonSchema.description).toBeUndefined();
       expect(

@@ -3,7 +3,7 @@ import type { Schema } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { z } from 'zod';
-import type { SchemaCompatModel } from './schema-compatibility';
+import type { ModelInformation } from './schema-compatibility';
 import { SchemaCompatLayer } from './schema-compatibility';
 import { convertZodSchemaToAISDKSchema, convertSchemaToZod, applyCompatLayer } from './utils';
 
@@ -13,7 +13,7 @@ const mockModel = new MockLanguageModelV2({
 
 class MockSchemaCompatibility extends SchemaCompatLayer {
   constructor(
-    model: SchemaCompatModel,
+    model: ModelInformation,
     private shouldApplyValue: boolean = true,
   ) {
     super(model);
@@ -199,7 +199,11 @@ describe('Builder Functions', () => {
     let mockCompatibility: MockSchemaCompatibility;
 
     beforeEach(() => {
-      mockCompatibility = new MockSchemaCompatibility(mockModel);
+      mockCompatibility = new MockSchemaCompatibility({
+        modelId: mockModel.modelId,
+        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+        provider: mockModel.provider,
+      });
     });
 
     it('should process Zod object schema with compatibility', () => {
@@ -265,7 +269,14 @@ describe('Builder Functions', () => {
     });
 
     it('should return fallback when no compatibility applies', () => {
-      const nonApplyingCompatibility = new MockSchemaCompatibility(mockModel, false);
+      const nonApplyingCompatibility = new MockSchemaCompatibility(
+        {
+          modelId: mockModel.modelId,
+          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+          provider: mockModel.provider,
+        },
+        false,
+      );
       const zodSchema = z.object({
         name: z.string(),
       });
@@ -311,8 +322,22 @@ describe('Builder Functions', () => {
     });
 
     it('should handle complex schema with multiple compatLayers', () => {
-      const compat1 = new MockSchemaCompatibility(mockModel, false);
-      const compat2 = new MockSchemaCompatibility(mockModel, true);
+      const compat1 = new MockSchemaCompatibility(
+        {
+          modelId: mockModel.modelId,
+          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? true,
+          provider: mockModel.provider,
+        },
+        false,
+      );
+      const compat2 = new MockSchemaCompatibility(
+        {
+          modelId: mockModel.modelId,
+          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
+          provider: mockModel.provider,
+        },
+        true,
+      );
 
       vi.spyOn(compat1, 'processZodType');
       vi.spyOn(compat2, 'processZodType');

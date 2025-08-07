@@ -144,6 +144,12 @@ type DateConstraints = {
   dateFormat?: string;
 };
 
+export type ModelInformation = {
+  modelId: string;
+  provider: string;
+  supportsStructuredOutputs: boolean;
+};
+
 /**
  * Abstract base class for creating schema compatibility layers for different AI model providers.
  *
@@ -184,14 +190,14 @@ type DateConstraints = {
  * ```
  */
 export abstract class SchemaCompatLayer {
-  private model: SchemaCompatModel;
+  private model: ModelInformation;
 
   /**
    * Creates a new schema compatibility instance.
    *
    * @param model - The language model this compatibility layer applies to
    */
-  constructor(model: SchemaCompatModel) {
+  constructor(model: ModelInformation) {
     this.model = model;
   }
 
@@ -200,7 +206,7 @@ export abstract class SchemaCompatLayer {
    *
    * @returns The language model instance
    */
-  getModel(): SchemaCompatModel {
+  getModel(): ModelInformation {
     return this.model;
   }
 

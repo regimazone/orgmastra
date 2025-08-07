@@ -1,6 +1,7 @@
 import type { ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import type { Targets } from 'zod-to-json-schema';
+import type { ModelInformation } from '../schema-compatibility';
 import {
   SchemaCompatLayer,
   UNSUPPORTED_ZOD_TYPES,
@@ -12,10 +13,8 @@ import {
   isString,
   isUnion,
 } from '../schema-compatibility';
-import type { SchemaCompatModel } from '../schema-compatibility';
-
 export class GoogleSchemaCompatLayer extends SchemaCompatLayer {
-  constructor(model: SchemaCompatModel) {
+  constructor(model: ModelInformation) {
     super(model);
   }
 

@@ -1,10 +1,10 @@
 import type { ZodTypeAny } from 'zod';
 import type { Targets } from 'zod-to-json-schema';
 import { SchemaCompatLayer, isArr, isObj, isOptional, isString, isUnion } from '../schema-compatibility';
-import type { SchemaCompatModel, StringCheckType } from '../schema-compatibility';
+import type { ModelInformation, StringCheckType } from '../schema-compatibility';
 
 export class OpenAISchemaCompatLayer extends SchemaCompatLayer {
-  constructor(model: SchemaCompatModel) {
+  constructor(model: ModelInformation) {
     super(model);
   }
 
