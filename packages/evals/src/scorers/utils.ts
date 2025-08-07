@@ -101,7 +101,6 @@ export const createUIMessage = ({
   content,
   role,
   id = 'test-message',
-  toolInvocations = [],
 }: {
   id: string;
   role: 'user' | 'assistant' | 'system';
