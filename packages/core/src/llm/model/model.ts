@@ -103,7 +103,6 @@ export class MastraLLM extends MastraBase {
     if (model) {
       const modelInfo = {
         modelId: model.modelId,
-        supportsStructuredOutputs: model.supportsStructuredOutputs ?? false,
         provider: model.provider,
       };
       schemaCompatLayers.push(

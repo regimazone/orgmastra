@@ -201,7 +201,6 @@ describe('Builder Functions', () => {
     beforeEach(() => {
       mockCompatibility = new MockSchemaCompatibility({
         modelId: mockModel.modelId,
-        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
         provider: mockModel.provider,
       });
     });
@@ -272,7 +271,6 @@ describe('Builder Functions', () => {
       const nonApplyingCompatibility = new MockSchemaCompatibility(
         {
           modelId: mockModel.modelId,
-          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
           provider: mockModel.provider,
         },
         false,
@@ -325,7 +323,6 @@ describe('Builder Functions', () => {
       const compat1 = new MockSchemaCompatibility(
         {
           modelId: mockModel.modelId,
-          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? true,
           provider: mockModel.provider,
         },
         false,
@@ -333,7 +330,6 @@ describe('Builder Functions', () => {
       const compat2 = new MockSchemaCompatibility(
         {
           modelId: mockModel.modelId,
-          supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
           provider: mockModel.provider,
         },
         true,

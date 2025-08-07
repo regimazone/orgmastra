@@ -46,7 +46,6 @@ describe('SchemaCompatLayer', () => {
   beforeEach(() => {
     compatibility = new MockSchemaCompatibility({
       modelId: mockModel.modelId,
-      supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
       provider: mockModel.provider,
     });
   });
@@ -55,7 +54,6 @@ describe('SchemaCompatLayer', () => {
     it('should store and return the model', () => {
       expect(compatibility.getModel()).toEqual({
         modelId: mockModel.modelId,
-        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
         provider: mockModel.provider,
       });
     });
@@ -360,7 +358,6 @@ describe('SchemaCompatLayer', () => {
 
       const testCompat = new TestCompatibility({
         modelId: mockModel.modelId,
-        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
         provider: mockModel.provider,
       });
       const result = testCompat.defaultZodOptionalHandler(optionalSchema);
@@ -415,7 +412,6 @@ describe('SchemaCompatLayer', () => {
       }
       const preservingCompat = new PreservingMock({
         modelId: mockModel.modelId,
-        supportsStructuredOutputs: mockModel.supportsStructuredOutputs ?? false,
         provider: mockModel.provider,
       });
       const preservingResult = preservingCompat.processToAISDKSchema(arraySchema);
