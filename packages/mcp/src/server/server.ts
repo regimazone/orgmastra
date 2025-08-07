@@ -249,7 +249,7 @@ export class MCPServer extends MCPServerBase {
 
         // Check if inputSchema is a Zod schema
         if (tool.inputSchema && typeof tool.inputSchema === 'object' && 'safeParse' in tool.inputSchema) {
-          validation = tool.inputSchema.safeParse(validatedArgs);
+          validation = (tool.inputSchema as any).safeParse(validatedArgs);
           if (!validation.success) {
             this.logger.warn(`CallTool: Invalid tool arguments for '${request.params.name}'`, {
               errors: validation.error,
