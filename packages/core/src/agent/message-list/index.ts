@@ -868,7 +868,7 @@ export class MessageList {
               // Iterate in reverse order (most recent first) for better performance
               for (let i = this.messages.length - 1; i >= 0; i--) {
                 const msg = this.messages[i];
-                if (msg.role === 'assistant' && msg.content.parts) {
+                if (msg && msg.role === 'assistant' && msg.content.parts) {
                   const toolCallPart = msg.content.parts.find(
                     p =>
                       p.type === 'tool-invocation' &&
