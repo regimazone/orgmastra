@@ -168,17 +168,39 @@ describe('MessageList', () => {
 
       const list = new MessageList().add(dbMessage, 'memory');
 
+      // Check that args are preserved in both parts and toolInvocations
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages).toHaveLength(1);
+
+      // Check parts array has correct args and no duplicate entries
+      expect(v2Messages[0].content.parts).toEqual([
+        {
+          type: 'tool-invocation',
+          toolInvocation: {
+            state: 'result',
+            toolCallId: 'call-123',
+            toolName: 'searchTool',
+            args: { query: 'mastra framework' },
+            result: { results: ['result1', 'result2'] },
+          },
+        },
+      ]);
+
+      // Check toolInvocations array has correct args (should be fixed by hydration)
+      expect(v2Messages[0].content.toolInvocations).toEqual([
+        {
+          state: 'result',
+          toolCallId: 'call-123',
+          toolName: 'searchTool',
+          args: { query: 'mastra framework' },
+          result: { results: ['result1', 'result2'] },
+        },
+      ]);
+
       // Check UI messages preserve args
       const uiMessages = list.get.all.ui();
       expect(uiMessages).toHaveLength(1);
       expect(uiMessages[0].toolInvocations![0].args).toEqual({ query: 'mastra framework' });
-
-      // Check Core messages preserve args for LLM context
-      const coreMessages = list.get.all.core();
-      // When there's only a result state, it might not appear in core messages
-      // The important thing is that UI messages have the args preserved for display
-      // and that when tool-calls are present, they maintain their args
-      expect(coreMessages).toBeDefined();
     });
 
     it('should preserve tool args when tool-result arrives in a separate message', () => {
@@ -221,6 +243,44 @@ describe('MessageList', () => {
         .add(userMessage, 'user')
         .add(toolCallMessage, 'response')
         .add(toolResultMessage, 'response');
+
+      // Check that args are preserved in v2 messages (internal representation)
+      const v2Messages = list.get.all.v2();
+      expect(v2Messages).toHaveLength(2);
+
+      const assistantV2Message = v2Messages[1];
+      expect(assistantV2Message.role).toBe('assistant');
+
+      // Check parts array has correct args and only one tool-invocation (no duplicate call part)
+      expect(assistantV2Message.content.parts).toEqual([
+        {
+          type: 'tool-invocation',
+          toolInvocation: {
+            state: 'result',
+            toolCallId: 'toolu_01Y9o5yfKqKvdueRhupfT9Jf',
+            toolName: 'weatherTool',
+            args: { location: 'Paris' },
+            result: {
+              temperature: 24.3,
+              conditions: 'Partly cloudy',
+            },
+          },
+        },
+      ]);
+
+      // Check toolInvocations array has correct args
+      expect(assistantV2Message.content.toolInvocations).toEqual([
+        {
+          state: 'result',
+          toolCallId: 'toolu_01Y9o5yfKqKvdueRhupfT9Jf',
+          toolName: 'weatherTool',
+          args: { location: 'Paris' },
+          result: {
+            temperature: 24.3,
+            conditions: 'Partly cloudy',
+          },
+        },
+      ]);
 
       // Check that the args are preserved in the final UI messages
       const uiMessages = list.get.all.ui();
