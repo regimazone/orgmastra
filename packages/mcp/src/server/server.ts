@@ -243,31 +243,39 @@ export class MCPServer extends MCPServerBase {
           };
         }
 
-        const validation = await tool.inputSchema.validate?.(request.params.arguments ?? {});
-        if (validation && !validation.success) {
-          this.logger.warn(`CallTool: Invalid tool arguments for '${request.params.name}'`, {
-            errors: validation.error,
-          });
+        // Validate tool input similar to executeTool method
+        let validation: any = undefined;
+        let validatedArgs = request.params.arguments ?? {};
 
-          // Format validation errors for agent understanding
-          let errorMessages = 'Validation failed';
-          if ('errors' in validation.error && Array.isArray(validation.error.errors)) {
-            errorMessages = validation.error.errors
-              .map((e: any) => `- ${e.path?.join('.') || 'root'}: ${e.message}`)
-              .join('\n');
-          } else if (validation.error instanceof Error) {
-            errorMessages = validation.error.message;
+        // Check if inputSchema is a Zod schema
+        if (tool.inputSchema && typeof tool.inputSchema === 'object' && 'safeParse' in tool.inputSchema) {
+          validation = tool.inputSchema.safeParse(validatedArgs);
+          if (!validation.success) {
+            this.logger.warn(`CallTool: Invalid tool arguments for '${request.params.name}'`, {
+              errors: validation.error,
+            });
+
+            // Format validation errors for agent understanding
+            let errorMessages = 'Validation failed';
+            if (validation.error && 'errors' in validation.error && Array.isArray(validation.error.errors)) {
+              errorMessages = validation.error.errors
+                .map((e: any) => `- ${e.path?.join('.') || 'root'}: ${e.message}`)
+                .join('\n');
+            } else if (validation.error instanceof Error) {
+              errorMessages = validation.error.message;
+            }
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Tool validation failed. Please fix the following errors and try again:\n${errorMessages}\n\nProvided arguments: ${JSON.stringify(request.params.arguments, null, 2)}`,
+                },
+              ],
+              isError: true, // Set to true so the LLM sees the error and can self-correct
+            };
           }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Tool validation failed. Please fix the following errors and try again:\n${errorMessages}\n\nProvided arguments: ${JSON.stringify(request.params.arguments, null, 2)}`,
-              },
-            ],
-            isError: true, // Set to true so the LLM sees the error and can self-correct
-          };
+          validatedArgs = validation.data;
         }
         if (!tool.execute) {
           this.logger.warn(`CallTool: Tool '${request.params.name}' does not have an execute function.`);
@@ -284,7 +292,7 @@ export class MCPServer extends MCPServerBase {
           },
         };
 
-        const args = validation?.success ? validation.value : (request.params.arguments ?? {});
+        const args = validatedArgs;
         const result = await tool.execute(args, {
           messages: [],
           toolCallId: '',
