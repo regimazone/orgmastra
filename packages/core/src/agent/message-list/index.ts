@@ -1201,7 +1201,7 @@ export class MessageList {
               type: `tool-${part.toolName}`,
               state: 'input-available',
               toolCallId: part.toolCallId,
-              input: part.input,
+              input: 'args' in part ? part.args : part.input,
             });
             break;
 
@@ -1299,7 +1299,7 @@ export class MessageList {
                 state: 'call',
                 toolCallId: part.toolCallId,
                 toolName: part.toolName,
-                args: part.args,
+                args: 'args' in part ? part.args : part.input,
               },
             });
             break;
@@ -1313,7 +1313,10 @@ export class MessageList {
               p => p.type === 'tool-call' && p.toolCallId === part.toolCallId,
             );
             if (toolCallInSameMsg && toolCallInSameMsg.type === 'tool-call') {
-              toolArgs = toolCallInSameMsg.args as Record<string, unknown>;
+              toolArgs = ('args' in toolCallInSameMsg ? toolCallInSameMsg.args : toolCallInSameMsg.input) as Record<
+                string,
+                unknown
+              >;
             }
 
             // If not found, look in previous messages for the corresponding tool-call
@@ -1343,7 +1346,7 @@ export class MessageList {
               state: 'result' as const,
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              result: part.result ?? '', // undefined will cause AI SDK to throw an error, but for client side tool calls this really could be undefined
+              result: 'result' in part ? part.result : (part.output ?? ''), // Handle both v4 (result) and v5 (output) formats
               args: toolArgs, // Use the args from the corresponding tool-call
             };
             parts.push({

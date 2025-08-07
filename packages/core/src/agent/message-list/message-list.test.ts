@@ -393,7 +393,7 @@ describe('MessageList', () => {
       const userMessage = {
         role: 'user' as const,
         content: 'Check the weather in Paris',
-      } satisfies VercelCoreMessage;
+      } satisfies AIV5.CoreMessage;
 
       const toolCallMessage = {
         role: 'assistant' as const,
@@ -402,10 +402,10 @@ describe('MessageList', () => {
             type: 'tool-call' as const,
             toolName: 'weatherTool',
             toolCallId: 'toolu_01Y9o5yfKqKvdueRhupfT9Jf',
-            args: { location: 'Paris' },
+            input: { location: 'Paris' },
           },
         ],
-      } satisfies VercelCoreMessage;
+      } satisfies AIV5.CoreMessage;
 
       const toolResultMessage = {
         role: 'tool' as const,
@@ -414,13 +414,14 @@ describe('MessageList', () => {
             type: 'tool-result' as const,
             toolName: 'weatherTool',
             toolCallId: 'toolu_01Y9o5yfKqKvdueRhupfT9Jf',
-            result: {
+            input: { location: 'Paris' },
+            output: {
               temperature: 24.3,
               conditions: 'Partly cloudy',
             },
           },
         ],
-      } satisfies VercelCoreMessage;
+      } satisfies AIV5.CoreMessage;
 
       // Add messages as they would arrive from the AI SDK
       const list = new MessageList()
@@ -479,7 +480,7 @@ describe('MessageList', () => {
       expect(toolParts[0].input).toEqual({ location: 'Paris' });
 
       // Check that args are preserved in Core messages (used by LLM)
-      const coreMessages = list.get.all.core();
+      const coreMessages = list.get.all.aiV5.model();
       // Note: Core messages may include the tool message separately
       expect(coreMessages.length).toBeGreaterThanOrEqual(2);
 
@@ -490,7 +491,7 @@ describe('MessageList', () => {
       const toolCallPart = assistantCoreMessage.content.find((part: any) => part.type === 'tool-call');
       // This is the bug - the tool-call part doesn't exist in core messages after sanitization
       expect(toolCallPart).toBeDefined();
-      expect(toolCallPart?.args).toEqual({ location: 'Paris' });
+      expect(toolCallPart?.input).toEqual({ location: 'Paris' });
     });
 
     it('should correctly convert and add a Mastra V1 MessageType with array content (text and tool-call)', () => {
