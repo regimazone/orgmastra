@@ -2010,7 +2010,7 @@ describe('agent', () => {
       const userAgent = new Agent({
         name: 'User agent',
         instructions: 'Test tool name collision.',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
             rawCall: { rawPrompt: null, rawSettings: {} },
             finishReason: 'stop',
@@ -2041,7 +2041,7 @@ describe('agent', () => {
       const userAgent = new Agent({
         name: 'User agent',
         instructions: 'Test tool name sanitization.',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
             rawCall: { rawPrompt: null, rawSettings: {} },
             finishReason: 'stop',
@@ -2068,7 +2068,7 @@ describe('agent', () => {
       const userAgent = new Agent({
         name: 'User agent',
         instructions: 'Test tool name prefix.',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
             rawCall: { rawPrompt: null, rawSettings: {} },
             finishReason: 'stop',
@@ -2095,7 +2095,7 @@ describe('agent', () => {
       const userAgent = new Agent({
         name: 'User agent',
         instructions: 'Test tool name truncation.',
-        model: new MockLanguageModelV1({
+        model: new MockLanguageModelV2({
           doGenerate: async () => ({
             rawCall: { rawPrompt: null, rawSettings: {} },
             finishReason: 'stop',

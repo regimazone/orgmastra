@@ -376,9 +376,15 @@ describe('MessageList', () => {
       ]);
 
       // Check UI messages preserve args
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV5.ui();
       expect(uiMessages).toHaveLength(1);
-      expect(uiMessages[0].toolInvocations![0].args).toEqual({ query: 'mastra framework' });
+      // In V5/V3, tool invocations are in parts with type 'tool-{toolName}'
+      const toolPart = uiMessages[0].parts.find((p: any) => p.type?.startsWith('tool-'));
+      expect(toolPart).toBeDefined();
+      expect(toolPart.type).toBe('tool-searchTool');
+      expect(toolPart.state).toBe('output-available');
+      expect(toolPart.input).toEqual({ query: 'mastra framework' });
+      expect(toolPart.output).toEqual({ results: ['result1', 'result2'] });
     });
 
     it('should preserve tool args when tool-result arrives in a separate message', () => {
@@ -461,13 +467,16 @@ describe('MessageList', () => {
       ]);
 
       // Check that the args are preserved in the final UI messages
-      const uiMessages = list.get.all.ui();
+      const uiMessages = list.get.all.aiV5.ui();
       expect(uiMessages).toHaveLength(2);
 
       const assistantMessage = uiMessages[1];
       expect(assistantMessage.role).toBe('assistant');
-      expect(assistantMessage.toolInvocations).toHaveLength(1);
-      expect(assistantMessage.toolInvocations![0].args).toEqual({ location: 'Paris' });
+      // In V5/V3, tool invocations are in parts with type 'tool-{toolName}'
+      const toolParts = assistantMessage.parts.filter((p: any) => p.type?.startsWith('tool-'));
+      expect(toolParts).toHaveLength(1);
+      expect(toolParts[0].state).toBe('output-available');
+      expect(toolParts[0].input).toEqual({ location: 'Paris' });
 
       // Check that args are preserved in Core messages (used by LLM)
       const coreMessages = list.get.all.core();
