@@ -1,6 +1,7 @@
 import type * as AIV4 from '../ai-sdk-4/';
+import type { ImagePart } from '../ai-sdk-4/core/prompt/content-part';
 
-type ContentPart = AIV4.TextUIPart | AIV4.FileUIPart;
+type ContentPart = AIV4.TextUIPart | AIV4.FileUIPart | ImagePart;
 
 /**
  * Converts a list of attachments to a list of content parts
@@ -26,26 +27,36 @@ export function attachmentsToParts(attachments: AIV4.Attachment[]): ContentPart[
           throw new Error("Attachments must have a contentType but one wasn't found");
         }
 
-        parts.push({
-          type: 'file',
-          data: url.toString(),
-          mimeType: attachment.contentType,
-        });
+        // Check if this is an image type
+        if (attachment.contentType.startsWith('image/')) {
+          parts.push({
+            type: 'image',
+            image: url.toString(),
+            mimeType: attachment.contentType,
+          } as ImagePart);
+        } else {
+          parts.push({
+            type: 'file',
+            data: url.toString(),
+            mimeType: attachment.contentType,
+          });
+        }
         break;
       }
 
       case 'data:': {
-        if (attachment.contentType?.startsWith('text/')) {
-          parts.push({
-            type: 'file',
-            data: attachment.url,
-            mimeType: attachment.contentType,
-          });
-        } else {
-          if (!attachment.contentType) {
-            throw new Error('If the attachment is not an image or text, it must specify a content type');
-          }
+        if (!attachment.contentType) {
+          throw new Error('Data URLs must specify a content type');
+        }
 
+        // Check if this is an image type
+        if (attachment.contentType.startsWith('image/')) {
+          parts.push({
+            type: 'image',
+            image: attachment.url,
+            mimeType: attachment.contentType,
+          } as ImagePart);
+        } else {
           parts.push({
             type: 'file',
             data: attachment.url,

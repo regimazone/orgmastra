@@ -2554,7 +2554,12 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
+          m.content.parts.some(
+            part =>
+              part.type === 'tool-invocation' &&
+              part.toolInvocation &&
+              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+          ),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
@@ -2881,7 +2886,12 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
+          m.content.parts.some(
+            part =>
+              part.type === 'tool-invocation' &&
+              part.toolInvocation &&
+              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+          ),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
@@ -3220,7 +3230,12 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
+          m.content.parts.some(
+            part =>
+              part.type === 'tool-invocation' &&
+              part.toolInvocation &&
+              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+          ),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)
@@ -3502,7 +3517,12 @@ describe('Agent save message parts', () => {
           m.role === 'assistant' &&
           m.content &&
           Array.isArray(m.content.parts) &&
-          m.content.parts.some(part => part.type.includes('echoTool') || part.type.includes('errorTool')),
+          m.content.parts.some(
+            part =>
+              part.type === 'tool-invocation' &&
+              part.toolInvocation &&
+              (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+          ),
       );
       expect(assistantWithToolInvocation).toBeTruthy();
       // There should be at least one save call (user and partial assistant/tool)

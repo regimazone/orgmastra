@@ -781,17 +781,25 @@ export class MessageList {
       type: v2Msg.type,
     };
 
-    if (v2Msg.content.metadata) {
-      v3Msg.content.metadata = v2Msg.content.metadata;
-    }
+    // Check if content.content needs to be preserved
+    // Only preserve if it's different from what the text parts would produce
+    const textParts = v2Msg.content.parts.filter(p => p.type === 'text');
+    const textFromParts = textParts.map(p => (p as any).text).join('');
+    const needsContentPreservation = v2Msg.content.content !== undefined && v2Msg.content.content !== textFromParts;
 
-    // Always preserve the original content.content value in metadata if it exists
-    // This is needed for V2->V3->V2 round-trip preservation
-    if (v2Msg.content.content !== undefined) {
-      v3Msg.content.metadata = {
-        ...(v3Msg.content.metadata || {}),
-        __originalContent: v2Msg.content.content,
-      };
+    // Only add metadata if there's actual metadata content or if we need to preserve content.content
+    const hasMetadata = v2Msg.content.metadata && Object.keys(v2Msg.content.metadata).length > 0;
+
+    if (hasMetadata || needsContentPreservation) {
+      v3Msg.content.metadata = {};
+
+      if (hasMetadata) {
+        v3Msg.content.metadata = { ...v2Msg.content.metadata };
+      }
+
+      if (needsContentPreservation) {
+        v3Msg.content.metadata.__originalContent = v2Msg.content.content;
+      }
     }
 
     const fileUrls = new Set<string>();
