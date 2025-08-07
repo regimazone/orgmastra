@@ -791,15 +791,17 @@ export class MessageList {
     const hasMetadata = v2Msg.content.metadata && Object.keys(v2Msg.content.metadata).length > 0;
 
     if (hasMetadata || needsContentPreservation) {
-      v3Msg.content.metadata = {};
+      const metadata: Record<string, any> = {};
 
       if (hasMetadata) {
-        v3Msg.content.metadata = { ...v2Msg.content.metadata };
+        Object.assign(metadata, v2Msg.content.metadata);
       }
 
       if (needsContentPreservation) {
-        v3Msg.content.metadata.__originalContent = v2Msg.content.content;
+        metadata.__originalContent = v2Msg.content.content;
       }
+
+      v3Msg.content.metadata = metadata;
     }
 
     const fileUrls = new Set<string>();
