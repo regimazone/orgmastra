@@ -771,6 +771,7 @@ export class MessageList {
           const partWithArgs = message.content.parts.find(
             part =>
               part.type === 'tool-invocation' &&
+              part.toolInvocation &&
               part.toolInvocation.toolCallId === ti.toolCallId &&
               part.toolInvocation.args &&
               Object.keys(part.toolInvocation.args).length > 0,
