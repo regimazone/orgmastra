@@ -17,7 +17,8 @@ import { isVercelTool } from '../../tools/toolchecks';
 import type { ToolOptions } from '../../utils';
 import { isVercelV5Tool, isCoreToolWithVercelV5 } from '../ai-sdk-v5-compat';
 import { ToolStream } from '../stream';
-import type { CoreTool, ToolAction } from '../types';
+import type { CoreTool, ToolAction, VercelTool } from '../types';
+import { validateToolInput } from '../validation';
 
 export type ToolToConvert =
   | ToolAction<any, any, any> // Mastra ToolAction
@@ -130,7 +131,7 @@ export class CoreToolBuilder extends MastraBase {
       type: logType,
     });
 
-    const execFunction = async (args: any, execOptions: ToolCallOptions) => {
+    const execFunction = async (args: unknown, execOptions: ToolExecutionOptions) => {
       const toolAny = tool as any;
 
       // Check if it's a CoreTool with Vercel v5 wrapper
@@ -174,16 +175,30 @@ export class CoreToolBuilder extends MastraBase {
       );
     };
 
-    return async (args: any, execOptions?: any) => {
+    return async (args: unknown, execOptions?: ToolExecutionOptions) => {
       let logger = options.logger || this.logger;
       try {
         logger.debug(start, { ...rest, args });
+
+        // Validate input parameters if schema exists
+        const parameters = this.getParameters();
+        const { data, error } = validateToolInput(parameters, args, options.name);
+        if (error) {
+          logger.warn(`Tool input validation failed for '${options.name}'`, {
+            toolName: options.name,
+            errors: error.validationErrors,
+            args,
+          });
+          return error;
+        }
+        // Use validated/transformed data
+        args = data;
 
         // there is a small delay in stream output so we add an immediate to ensure the stream is ready
         return await new Promise((resolve, reject) => {
           setImmediate(async () => {
             try {
-              const result = await execFunction(args, execOptions);
+              const result = await execFunction(args, execOptions!);
               resolve(result);
             } catch (err) {
               reject(err);
@@ -197,8 +212,8 @@ export class CoreToolBuilder extends MastraBase {
             domain: ErrorDomain.TOOL,
             category: ErrorCategory.USER,
             details: {
-              error,
-              args,
+              errorMessage: String(error),
+              argsJson: JSON.stringify(args),
               model: rest.model?.modelId ?? '',
             },
           },
