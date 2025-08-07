@@ -1,4 +1,5 @@
-import type { LanguageModelV1, ToolSet } from 'ai';
+import type { LanguageModelV1, LanguageModelV1CallOptions, ToolSet } from 'ai';
+import { asSchema } from 'ai-v5';
 import type { ExecutionProps } from '../../types';
 import { AISDKV4InputStream } from './input';
 import { prepareToolsAndToolChoice } from './prepare-tools';
@@ -19,7 +20,13 @@ export function executeV4({
   model: LanguageModelV1;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
 }) {
-  const { mode, output } = options;
+  const {
+    mode = 'regular',
+    output = 'no-schema',
+    schema,
+    schemaName,
+    schemaDescription,
+  } = options ?? { mode: 'regular' };
 
   const v4 = new AISDKV4InputStream({
     component: 'LLM',
@@ -32,48 +39,67 @@ export function executeV4({
     activeTools: activeTools,
   });
 
+  const jsonSchema = schema ? asSchema(schema).jsonSchema : undefined;
+
+  // TODO: is there a better place to inject this system message?
+  // For models that don't support structured outputs, inject the json schema as the first system message (exactly the same as streamObject/generateObject in v4)
+  if (mode === 'object-json' && jsonSchema && !model.supportsStructuredOutputs) {
+    inputMessages.unshift({
+      role: 'system',
+      content: `JSON schema:\n${JSON.stringify(jsonSchema)}\nYou MUST answer with a JSON object that matches the JSON schema above.`,
+    });
+  }
+
+  const providerMetadataOption = providerOptions
+    ? { ...(providerMetadata ?? {}), ...providerOptions }
+    : providerMetadata;
+
   const stream = v4.initialize({
     runId,
     onResult,
     createStream: async () => {
       try {
-        if (mode === 'json') {
-          let outputType = output;
-          if (!outputType) {
-            outputType = 'no-schema';
+        const modeOption = ((): LanguageModelV1CallOptions['mode'] => {
+          switch (mode) {
+            case 'regular':
+              return {
+                type: 'regular' as const,
+                ...preparedTools,
+              };
+            case 'object-json':
+              return {
+                type: 'object-json' as const,
+                schema: jsonSchema,
+                name: schemaName,
+                description: schemaDescription,
+              };
+            case 'object-tool':
+              if (!jsonSchema) {
+                throw new Error('JSON schema is required for object-tool mode');
+              }
+              return {
+                type: 'object-tool' as const,
+                tool: {
+                  type: 'function' as const,
+                  name: schemaName ?? 'json',
+                  description: schemaDescription ?? 'Respond with a JSON object.',
+                  parameters: jsonSchema,
+                },
+              };
+            default:
+              throw new Error(`Unsupported mode: ${mode}`);
           }
-
-          // TODO if outputStrategy.jsonSchema === null, inject json structions
-          // https://github.com/vercel/ai/blob/v4/packages/ai/core/generate-object/inject-json-instruction.ts
-          const stream = await model.doStream({
-            inputFormat: 'messages',
-            mode: {
-              type: 'object-json',
-              schema: undefined,
-              // schema: outputStrategy.jsonSchema,
-              // name: schemaName,
-              // description: schemaDescription,
-            },
-            providerMetadata: providerOptions ? { ...(providerMetadata ?? {}), ...providerOptions } : providerMetadata,
-            prompt: inputMessages,
-            headers,
-          });
-
-          return stream as any;
-        }
+        })();
 
         const stream = await model.doStream({
           inputFormat: 'messages',
-          mode: {
-            type: 'regular',
-            ...preparedTools,
-          },
-          providerMetadata: providerOptions ? { ...(providerMetadata ?? {}), ...providerOptions } : providerMetadata,
+          mode: modeOption,
+          providerMetadata: providerMetadataOption,
           prompt: inputMessages,
           headers,
         });
 
-        return stream as any;
+        return stream;
       } catch (error) {
         return {
           stream: new ReadableStream({

@@ -1,18 +1,25 @@
 import { TransformStream } from 'stream/web';
 
-import { parsePartialJson } from '@ai-sdk/ui-utils';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
+import { NoObjectGeneratedError } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
+import type { ExecuteOptions } from '../../types';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from './compat';
 import type { ConsumeStreamOptions } from './compat';
-import { convertFullStreamChunkToAISDKv4 } from './transforms';
+import { convertFullStreamChunkToAISDKv4, createObjectStreamTransformer } from './transforms';
 
 export class AISDKV4OutputStream {
   #modelOutput: MastraModelOutput;
-  #options: { toolCallStreaming?: boolean };
+  #options: { toolCallStreaming?: boolean; executeOptions?: ExecuteOptions };
 
-  constructor({ modelOutput, options }: { modelOutput: MastraModelOutput; options: { toolCallStreaming?: boolean } }) {
+  constructor({
+    modelOutput,
+    options,
+  }: {
+    modelOutput: MastraModelOutput;
+    options: { toolCallStreaming?: boolean; executeOptions?: ExecuteOptions };
+  }) {
     this.#modelOutput = modelOutput;
     this.#options = options;
   }
@@ -135,9 +142,18 @@ export class AISDKV4OutputStream {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
     const self = this;
-    return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, LanguageModelV1StreamPart>({
+
+    const objectTransformer = createObjectStreamTransformer({ executeOptions: self.#options.executeOptions });
+
+    return this.#modelOutput.fullStream.pipeThrough(objectTransformer).pipeThrough(
+      new TransformStream<ChunkType | any, LanguageModelV1StreamPart>({
         transform(chunk, controller) {
+          // object chunks from the object transformer
+          if (chunk.type === 'object') {
+            controller.enqueue(chunk);
+            return;
+          }
+
           if (chunk.type === 'start') {
             return;
           }
@@ -184,48 +200,59 @@ export class AISDKV4OutputStream {
     );
   }
 
+  get object(): Promise<any> {
+    return (async () => {
+      const chunks: any[] = [];
+      const reader = this.partialObjectStream.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+
+        if (chunks.length === 0) {
+          throw new NoObjectGeneratedError({
+            message: 'No object generated: response did not match schema.',
+            response: this.#modelOutput.response || { body: '', headers: {} },
+            usage: this.#modelOutput.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            finishReason: this.#modelOutput.finishReason || 'stop',
+          });
+        }
+
+        const finalObject = chunks[chunks.length - 1];
+        const schema = this.#options.executeOptions?.schema;
+
+        // Validate final object against schema if provided (only for Zod schemas)
+        if (schema && typeof schema === 'object' && 'parse' in schema) {
+          try {
+            return (schema as any).parse(finalObject);
+          } catch (error) {
+            throw new NoObjectGeneratedError({
+              message: 'No object generated: response did not match schema.',
+              response: this.#modelOutput.response || { body: '', headers: {} },
+              usage: this.#modelOutput.usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              finishReason: this.#modelOutput.finishReason || 'stop',
+            });
+          }
+        }
+
+        return finalObject;
+      } finally {
+        reader.releaseLock();
+      }
+    })();
+  }
+
   get partialObjectStream() {
     const self = this;
-    let accumulatedText = '';
-    let previousObject: any = undefined;
-
-    return this.#modelOutput.fullStream.pipeThrough(
-      new TransformStream<ChunkType, any>({
+    const objectTransformer = createObjectStreamTransformer({ executeOptions: self.#options.executeOptions });
+    return this.#modelOutput.fullStream.pipeThrough(objectTransformer).pipeThrough(
+      new TransformStream<any, any>({
         transform(chunk, controller) {
-          switch (chunk.type) {
-            case 'text-delta':
-              if (typeof chunk.payload.text === 'string') {
-                accumulatedText += chunk.payload.text;
-
-                const parseResult = parsePartialJson(accumulatedText);
-
-                if (parseResult !== undefined) {
-                  const parsedObject = parseResult.value;
-                  if (parsedObject !== undefined && JSON.stringify(parsedObject) !== JSON.stringify(previousObject)) {
-                    previousObject = parsedObject;
-                    controller.enqueue(parsedObject);
-                  }
-                }
-              }
-
-              break;
-            case 'response-metadata':
-            case 'finish':
-            case 'error':
-              // const transformedChunk = convertFullStreamChunkToAISDKv4({
-              //   chunk,
-              //   client: false,
-              //   sendReasoning: false,
-              //   sendSources: false,
-              //   sendUsage: false,
-              //   getErrorMessage: getErrorMessage,
-              //   toolCallStreaming: self.#options.toolCallStreaming,
-              // });
-
-              // if (transformedChunk) {
-              //   controller.enqueue(transformedChunk);
-              // }
-              break;
+          if (chunk.type === 'object') {
+            controller.enqueue(chunk.object);
           }
         },
       }),

@@ -264,6 +264,7 @@ function createAgentWorkflow({
           options: {
             toolCallStreaming,
             experimental_telemetry,
+            executeOptions: options,
           },
         });
 
@@ -1208,6 +1209,7 @@ export async function execute(props: ExecuteParams) {
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,
       onStepFinish: rest.options?.onStepFinish,
+      executeOptions: rest.options,
     },
   });
 }

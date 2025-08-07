@@ -5,6 +5,7 @@ import type { ChunkType } from '../../../../stream/types';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from '../ai-sdk/telemetry';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
+import type { ExecuteOptions } from '../types';
 
 function reasoningDetailsFromMessages(messages: any[]) {
   return messages
@@ -88,6 +89,7 @@ export class MastraModelOutput extends MastraBase {
       toolCallStreaming?: boolean;
       onFinish?: (event: any) => Promise<void> | void;
       onStepFinish?: (event: any) => Promise<void> | void;
+      executeOptions?: ExecuteOptions;
     };
   }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
@@ -443,6 +445,7 @@ export class MastraModelOutput extends MastraBase {
       modelOutput: this as MastraModelOutput,
       options: {
         toolCallStreaming: options?.toolCallStreaming,
+        executeOptions: options?.executeOptions,
       },
     });
 
@@ -450,6 +453,7 @@ export class MastraModelOutput extends MastraBase {
       modelOutput: this,
       options: {
         toolCallStreaming: options?.toolCallStreaming,
+        executeOptions: options?.executeOptions,
       },
     });
   }

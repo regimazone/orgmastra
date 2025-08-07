@@ -1,6 +1,6 @@
-import { safeParseJSON } from '@ai-sdk/provider-utils';
-import { parsePartialJson } from '@ai-sdk/ui-utils';
+import { parsePartialJson, isDeepEqualData } from '@ai-sdk/ui-utils';
 import { formatDataStreamPart } from 'ai';
+import type { ExecuteOptions } from '../../types';
 import { DefaultGeneratedFileWithType } from './file';
 
 export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
@@ -419,43 +419,51 @@ export function convertFullStreamChunkToAISDKv4({
   }
 }
 
-// State for partial object streaming
-const partialObjectState = new WeakMap<any, { accumulatedText: string; previousObject: any }>();
+export function createObjectStreamTransformer(options: { executeOptions?: ExecuteOptions }) {
+  let textAccumulatedText = '';
+  let textPreviousObject: any = undefined;
 
-export function convertPartialObjectStreamToAISDKv4({
-  chunk,
-  client,
-  sendReasoning,
-  sendSources,
-  sendUsage = true,
-  getErrorMessage,
-  toolCallStreaming,
-}: {
-  chunk: any;
-  client: boolean;
-  sendReasoning: boolean;
-  sendSources: boolean;
-  sendUsage: boolean;
-  getErrorMessage: (error: string) => string;
-  toolCallStreaming?: boolean;
-}) {
-  // Get or initialize state for this stream
-  let state = partialObjectState.get(chunk);
-  if (!state) {
-    state = { accumulatedText: '', previousObject: undefined };
-    partialObjectState.set(chunk, state);
-  }
+  let toolCallAccumulatedText = '';
+  let toolCallPreviousObject: any = undefined;
 
-  if (chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
-    state.accumulatedText += chunk.payload.text;
+  const mode = options?.executeOptions?.mode;
 
-    const parsedObject = parsePartialJson(state.accumulatedText);
+  return new TransformStream<any, any>({
+    transform(chunk, controller) {
+      // Handle text-delta for object-json mode
+      if (mode === 'object-json' && chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
+        textAccumulatedText += chunk.payload.text;
+        const { value: currentObjectJson } = parsePartialJson(textAccumulatedText);
 
-    if (parsedObject !== undefined && JSON.stringify(parsedObject) !== JSON.stringify(state.previousObject)) {
-      state.previousObject = parsedObject;
-      return parsedObject;
-    }
-  }
+        if (currentObjectJson !== undefined && !isDeepEqualData(textPreviousObject, currentObjectJson)) {
+          textPreviousObject = currentObjectJson;
+          controller.enqueue({
+            type: 'object',
+            object: currentObjectJson,
+          });
+        }
+      }
 
-  return null;
+      // Handle tool-call-delta for object-tool mode
+      if (
+        mode === 'object-tool' &&
+        chunk.type === 'tool-call-delta' &&
+        typeof chunk.payload.argsTextDelta === 'string'
+      ) {
+        toolCallAccumulatedText += chunk.payload.argsTextDelta;
+        const { value: currentObjectJson } = parsePartialJson(toolCallAccumulatedText);
+
+        if (currentObjectJson !== undefined && !isDeepEqualData(toolCallPreviousObject, currentObjectJson)) {
+          toolCallPreviousObject = currentObjectJson;
+          controller.enqueue({
+            type: 'object',
+            object: currentObjectJson,
+          });
+        }
+      }
+
+      // Always pass through the original chunk
+      controller.enqueue(chunk);
+    },
+  });
 }
