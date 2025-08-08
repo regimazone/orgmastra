@@ -76,7 +76,7 @@ function createAgentWorkflow({
           id: 'generateText',
         } as any);
 
-        const messageList = MessageList.fromArray(initialResult.messages.user);
+        const messageList = new MessageList().add(initialResult.messages.user, 'input');
 
         if (tool && 'onInputAvailable' in tool) {
           try {
@@ -170,7 +170,7 @@ function createAgentWorkflow({
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
         const messagesToUse = inputData.messages.all;
-        const messageList = MessageList.fromArray(messagesToUse);
+        const messageList = new MessageList().add(messagesToUse, 'input');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -744,7 +744,7 @@ function createAgentWorkflow({
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
 
-        const messageList = MessageList.fromArray(initialResult.messages.all || []);
+        const messageList = new MessageList().add(initialResult.messages.all || [], 'input');
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);

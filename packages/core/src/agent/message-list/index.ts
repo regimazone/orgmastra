@@ -81,7 +81,7 @@ export type MessageInput =
   | MastraMessageV2
   | MastraMessageV3;
 
-type MessageSource = 'memory' | 'response' | 'user' | 'system' | 'context';
+type MessageSource = 'memory' | 'response' | 'input' | 'system' | 'context';
 type MemoryInfo = { threadId: string; resourceId?: string };
 
 export type MessageListAddInput = string | string[] | MessageInput | MessageInput[];
@@ -577,7 +577,7 @@ export class MessageList {
       this.memoryMessages.add(messageV3);
     } else if (messageSource === `response`) {
       this.newResponseMessages.add(messageV3);
-    } else if (messageSource === `user`) {
+    } else if (messageSource === `input`) {
       this.newUserMessages.add(messageV3);
     } else if (messageSource === `context`) {
       this.userContextMessages.add(messageV3);
@@ -1319,8 +1319,8 @@ export class MessageList {
     const id = `id` in coreMessage ? (coreMessage.id as string) : this.newMessageId();
     const parts: UIMessageV5['parts'] = [];
 
-    // Add step-start for user messages
-    if (messageSource === 'user' && coreMessage.role === 'user') {
+    // Add step-start for input messages
+    if (messageSource === 'input' && coreMessage.role === 'user') {
       parts.push({ type: 'step-start' } as any);
     }
 
