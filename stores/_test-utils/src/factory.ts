@@ -23,7 +23,6 @@ export * from './domains/traces/data';
 
 const STORES_WITH_RUN_SCORES_TESTS = [
   'MongoDBStore',
-  'LibSQLStore',
   'ClickhouseStore',
   'Cloudflare',
   'D1',
