@@ -1,7 +1,7 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
-import type { ScoreRowData } from '@mastra/core/scores';
+import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
 import { MastraStorage } from '@mastra/core/storage';
 import type {
   EvalRow,
@@ -421,13 +421,19 @@ export class PostgresStore extends MastraStorage {
   }
 
   async getScoresByScorerId({
-    scorerId: _scorerId,
-    pagination: _pagination,
+    scorerId,
+    pagination,
+    entityId,
+    entityType,
+    source,
   }: {
     scorerId: string;
     pagination: StoragePagination;
+    entityId?: string;
+    entityType?: string;
+    source?: ScoringSource;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return this.stores.scores.getScoresByScorerId({ scorerId: _scorerId, pagination: _pagination });
+    return this.stores.scores.getScoresByScorerId({ scorerId, pagination, entityId, entityType, source });
   }
 
   async saveScore(_score: ScoreRowData): Promise<{ score: ScoreRowData }> {

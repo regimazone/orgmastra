@@ -4,6 +4,7 @@ import type { ScoreRowData } from '@mastra/core/scores';
 import { ScoresStorage, TABLE_SCORERS } from '@mastra/core/storage';
 import type { PaginationInfo, StoragePagination } from '@mastra/core/storage';
 import { getTableSchema, processResultWithTypeConversion } from '../utils';
+import type { ScoringSource } from '@mastra/core/scores';
 
 export class StoreScoresLance extends ScoresStorage {
   private client: Connection;
@@ -82,24 +83,35 @@ export class StoreScoresLance extends ScoresStorage {
   async getScoresByScorerId({
     scorerId,
     pagination,
+    source,
   }: {
     scorerId: string;
     pagination: StoragePagination;
+    source?: ScoringSource;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     try {
       const table = await this.client.openTable(TABLE_SCORERS);
       // Use zero-based pagination (default page = 0)
       const { page = 0, perPage = 10 } = pagination || {};
       const offset = page * perPage;
-      // Query for scores with the given scorerId
-      // Must use backticks for field names to handle camelCase
-      const query = table.query().where(`\`scorerId\` = '${scorerId}'`).limit(perPage);
+
+      let query = table.query().where(`\`scorerId\` = '${scorerId}'`);
+
+      if (source) {
+        query = query.where(`\`source\` = '${source}'`);
+      }
+
+      query = query.limit(perPage);
       if (offset > 0) query.offset(offset);
       const records = await query.toArray();
       const schema = await getTableSchema({ tableName: TABLE_SCORERS, client: this.client });
       const scores = processResultWithTypeConversion(records, schema) as ScoreRowData[];
 
-      const allRecords = await table.query().where(`\`scorerId\` = '${scorerId}'`).toArray();
+      let totalQuery = table.query().where(`\`scorerId\` = '${scorerId}'`);
+      if (source) {
+        totalQuery = totalQuery.where(`\`source\` = '${source}'`);
+      }
+      const allRecords = await totalQuery.toArray();
       const total = allRecords.length;
 
       return {

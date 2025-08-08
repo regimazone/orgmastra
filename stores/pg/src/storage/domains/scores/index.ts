@@ -1,6 +1,6 @@
 import type { PaginationInfo, StoragePagination } from '@mastra/core';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/scores';
+import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
 import { safelyParseJSON, ScoresStorage, TABLE_SCORERS } from '@mastra/core/storage';
 import type { IDatabase } from 'pg-promise';
 import type { StoreOperationsPG } from '../operations';
@@ -66,14 +66,41 @@ export class ScoresPG extends ScoresStorage {
   async getScoresByScorerId({
     scorerId,
     pagination,
+    entityId,
+    entityType,
+    source,
   }: {
     scorerId: string;
     pagination: StoragePagination;
+    entityId?: string;
+    entityType?: string;
+    source?: ScoringSource;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     try {
+      const conditions: string[] = [`"scorerId" = $1`];
+      const queryParams: any[] = [scorerId];
+      let paramIndex = 2;
+
+      if (entityId) {
+        conditions.push(`"entityId" = $${paramIndex++}`);
+        queryParams.push(entityId);
+      }
+
+      if (entityType) {
+        conditions.push(`"entityType" = $${paramIndex++}`);
+        queryParams.push(entityType);
+      }
+
+      if (source) {
+        conditions.push(`"source" = $${paramIndex++}`);
+        queryParams.push(source);
+      }
+
+      const whereClause = conditions.join(' AND ');
+
       const total = await this.client.oneOrNone<{ count: string }>(
-        `SELECT COUNT(*) FROM ${getTableName({ indexName: TABLE_SCORERS, schemaName: this.schema })} WHERE "scorerId" = $1`,
-        [scorerId],
+        `SELECT COUNT(*) FROM ${getTableName({ indexName: TABLE_SCORERS, schemaName: this.schema })} WHERE ${whereClause}`,
+        queryParams,
       );
       if (total?.count === '0' || !total?.count) {
         return {
@@ -88,9 +115,10 @@ export class ScoresPG extends ScoresStorage {
       }
 
       const result = await this.client.manyOrNone<ScoreRowData>(
-        `SELECT * FROM ${getTableName({ indexName: TABLE_SCORERS, schemaName: this.schema })} WHERE "scorerId" = $1 LIMIT $2 OFFSET $3`,
-        [scorerId, pagination.perPage, pagination.page * pagination.perPage],
+        `SELECT * FROM ${getTableName({ indexName: TABLE_SCORERS, schemaName: this.schema })} WHERE ${whereClause} ORDER BY "createdAt" DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+        [...queryParams, pagination.perPage, pagination.page * pagination.perPage],
       );
+
       return {
         pagination: {
           total: Number(total?.count) || 0,
