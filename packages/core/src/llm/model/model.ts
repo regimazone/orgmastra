@@ -8,7 +8,7 @@ import {
   OpenAISchemaCompatLayer,
 } from '@mastra/schema-compat';
 import type { CoreMessage, LanguageModel, Schema, StreamObjectOnFinishCallback, StreamTextOnFinishCallback } from 'ai';
-import { generateObject, generateText, jsonSchema, Output, streamObject, streamText } from 'ai';
+import { generateObject, jsonSchema, Output, streamObject } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
 import { z } from 'zod';
@@ -337,7 +337,7 @@ export class MastraLLM extends MastraLLMBase {
     }
   }
 
-  async __stream<Tools extends ToolSet, Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
+  __stream<Tools extends ToolSet, Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
     messages,
     onStepFinish,
     onFinish,
@@ -494,7 +494,7 @@ export class MastraLLM extends MastraLLMBase {
       };
       console.log('argsForExecute', JSON.stringify(safeArgsForLog, null, 2));
 
-      const result = await execute({
+      const result = execute({
         runId: runId!,
         model: argsForExecute.model,
         prompt: argsForExecute.messages as any,

@@ -342,7 +342,8 @@ export class AISDKV5OutputStream {
         content: this.transformResponse(step.response).messages[0]?.content ?? [],
         warnings: step.warnings ?? [],
         providerMetadata: step.providerMetadata,
-        finishReason: step.finishReason,
+        // TODO: this as seems wrong
+        finishReason: step.finishReason as StepResult<ToolSet>['finishReason'],
         response: this.transformResponse(step.response, true),
         request: step.request,
         usage: step.usage,
@@ -357,7 +358,7 @@ export class AISDKV5OutputStream {
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
-    let stepCounter = 1;
+    // let stepCounter = 1;
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, TextStreamPart<ToolSet>>({
         transform(chunk, controller) {
@@ -369,7 +370,7 @@ export class AISDKV5OutputStream {
               sendUsage: false,
               getErrorMessage: getErrorMessage,
             });
-            stepCounter++;
+            // stepCounter++;
             return;
           } else if (chunk.type !== 'error') {
             hasStarted = true;

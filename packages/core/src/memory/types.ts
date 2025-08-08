@@ -1,7 +1,8 @@
 import type { AssistantContent, CoreMessage, EmbeddingModel, ToolContent, UserContent } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 
-export type { MastraMessageV2 } from '../agent';
+export type { MastraMessageV1, MastraMessageV2 } from '../agent';
+import type { MastraMessageV1 } from '../agent';
 import type { ZodObject } from 'zod';
 import type { MastraLanguageModel } from '../agent/types';
 import type { MastraStorage } from '../storage';
@@ -11,25 +12,6 @@ import type { MemoryProcessor } from '.';
 
 export type { Message as AiMessageType } from 'ai';
 export type { MastraLanguageModel };
-
-// Types for the memory system
-export type MastraMessageV1 = {
-  id: string;
-  content: string | UserContent | AssistantContent | ToolContent;
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  createdAt: Date;
-  threadId?: string;
-  resourceId?: string;
-  toolCallIds?: string[];
-  toolCallArgs?: Record<string, unknown>[];
-  toolNames?: string[];
-  type: 'text' | 'tool-call' | 'tool-result';
-};
-
-/**
- * @deprecated use MastraMessageV1 or MastraMessageV2
- */
-export type MessageType = MastraMessageV1;
 
 export type StorageThreadType = {
   id: string;

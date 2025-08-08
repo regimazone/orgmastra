@@ -1,4 +1,4 @@
-import { TransformStream } from 'stream/web';
+import { TransformStream, TextEncoderStream, TextDecoderStream } from 'stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
@@ -16,7 +16,7 @@ export class AISDKV4OutputStream {
   }
 
   toTextStreamResponse(init?: ResponseInit): Response {
-    return new Response(this.#modelOutput.textStream.pipeThrough(new TextEncoderStream() as any) as any, {
+    return new Response(this.#modelOutput.textStream.pipeThrough(new TextEncoderStream()) as BodyInit, {
       status: init?.status ?? 200,
       headers: prepareResponseHeaders(init?.headers, {
         contentType: 'text/plain; charset=utf-8',
@@ -45,13 +45,19 @@ export class AISDKV4OutputStream {
       sendReasoning,
       sendSources,
       experimental_sendFinish,
-    }).pipeThrough(new TextEncoderStream() as any) as any;
+    }).pipeThrough(new TextEncoderStream() as unknown as TransformStream<LanguageModelV1StreamPart, Uint8Array>);
 
     if (data) {
-      dataStream = mergeStreams(data.stream as any, dataStream);
+      // Type incompatibility between Node.js stream/web and global ReadableStream types
+      // These are runtime-compatible but TypeScript sees them as different
+      const mergedStream = mergeStreams(
+        data.stream as Parameters<typeof mergeStreams>[0],
+        dataStream as Parameters<typeof mergeStreams>[1],
+      );
+      dataStream = mergedStream as typeof dataStream;
     }
 
-    return new Response(dataStream, {
+    return new Response(dataStream as BodyInit, {
       status,
       statusText,
       headers: prepareResponseHeaders(headers, {
@@ -106,8 +112,8 @@ export class AISDKV4OutputStream {
         sendSources: options?.sendSources,
         experimental_sendFinish: options?.experimental_sendFinish,
       })
-        .pipeThrough(new TextEncoderStream() as any)
-        .pipeThrough(new TextDecoderStream() as any) as any,
+        .pipeThrough(new TextEncoderStream() as unknown as TransformStream<LanguageModelV1StreamPart, Uint8Array>)
+        .pipeThrough(new TextDecoderStream()) as Parameters<typeof writer.merge>[0],
     );
   }
 

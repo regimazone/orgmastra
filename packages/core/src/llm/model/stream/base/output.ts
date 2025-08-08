@@ -1,10 +1,41 @@
+import type { ReadableStream } from 'stream/web';
+import { TransformStream } from 'stream/web';
+import type { Span } from '@opentelemetry/api';
 import type { TelemetrySettings } from 'ai-v5';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
-import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from '../ai-sdk/telemetry';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
 import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
-import type { Span } from '@opentelemetry/api';
+
+interface StepBufferItem {
+  stepType: 'initial' | 'tool-result';
+  text: string;
+  reasoning?: string;
+  sources: any[];
+  files: any[];
+  toolCalls: any[];
+  toolResults: any[];
+  warnings?: any[];
+  reasoningDetails?: any;
+  providerMetadata?: any;
+  experimental_providerMetadata?: any;
+  isContinued?: boolean;
+  logprobs?: any;
+  finishReason?: string;
+  response?: any;
+  request?: any;
+  usage?: any;
+}
+
+interface BufferedByStep {
+  text: string;
+  reasoning: string;
+  sources: any[];
+  files: any[];
+  toolCalls: any[];
+  toolResults: any[];
+  msgCount: number;
+}
 
 function reasoningDetailsFromMessages(messages: any[]) {
   return messages
@@ -30,7 +61,7 @@ export class MastraModelOutput extends MastraBase {
   #aisdkv4: AISDKV4OutputStream;
   #aisdkv5: AISDKV5OutputStream;
   #baseStream: ReadableStream<any>;
-  #bufferedSteps: any[] = [];
+  #bufferedSteps: StepBufferItem[] = [];
   #bufferedReasoningDetails: Record<
     string,
     {
@@ -39,15 +70,7 @@ export class MastraModelOutput extends MastraBase {
       providerMetadata: any;
     }
   > = {};
-  #bufferedByStep: {
-    text: string;
-    reasoning: string;
-    sources: any[];
-    files: any[];
-    toolCalls: any[];
-    toolResults: any[];
-    msgCount: number;
-  } = {
+  #bufferedByStep: BufferedByStep = {
     text: '',
     reasoning: '',
     sources: [],
@@ -176,7 +199,7 @@ export class MastraModelOutput extends MastraBase {
               const { providerMetadata, request, ...otherMetadata } = chunk.payload.metadata;
 
               console.dir({ stepFinishChunk: chunk }, { depth: null });
-              const stepResult = {
+              const stepResult: StepBufferItem = {
                 stepType: self.#bufferedSteps.length === 0 ? 'initial' : 'tool-result',
                 text: self.#bufferedByStep.text,
                 reasoning: self.#bufferedByStep.reasoning || undefined,

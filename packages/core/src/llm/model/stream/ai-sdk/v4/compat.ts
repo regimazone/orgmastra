@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'http';
-import type { ReadableStream } from 'stream/web';
+import { ReadableStream } from 'stream/web';
 
 /**
  * Writes the content of a stream to a server response.
