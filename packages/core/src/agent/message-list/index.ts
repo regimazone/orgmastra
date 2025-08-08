@@ -2082,13 +2082,4 @@ export class MessageList {
 
     return true;
   }
-
-  // Backward compatibility exports
-  static fromArray(messages: MessageInput[]): MessageList {
-    const list = new MessageList();
-    for (const msg of messages) {
-      list.add(msg, 'user');
-    }
-    return list;
-  }
 }

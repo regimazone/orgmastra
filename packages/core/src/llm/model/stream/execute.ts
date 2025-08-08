@@ -1125,15 +1125,19 @@ export function execute(props: ExecuteParams) {
     runIdToUse = crypto.randomUUID();
   }
 
-  let initMessages = [...messages];
+  const messageList = new MessageList();
+
+  // Add system message separately if provided
   if (system) {
-    initMessages.unshift({ role: 'system', content: system });
-  }
-  if (prompt) {
-    initMessages.push({ role: 'user', content: prompt });
+    messageList.addSystem({ role: 'system', content: system });
   }
 
-  const messageList = MessageList.fromArray(initMessages);
+  // Add user messages
+  const userMessages = [...messages];
+  if (prompt) {
+    userMessages.push({ role: 'user', content: prompt });
+  }
+  messageList.add(userMessages, 'input');
 
   const allCoreMessages = messageList.get.all.aiV4.llmPrompt();
 
