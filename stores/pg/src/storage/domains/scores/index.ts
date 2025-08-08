@@ -7,6 +7,7 @@ import type { StoreOperationsPG } from '../operations';
 import { getTableName } from '../utils';
 
 function transformScoreRow(row: Record<string, any>): ScoreRowData {
+  console.log(`row is`, JSON.stringify(row, null, 2));
   return {
     ...row,
     input: safelyParseJSON(row.input),
@@ -50,7 +51,7 @@ export class ScoresPG extends ScoresStorage {
         [id],
       );
 
-      return transformScoreRow(result!);
+      return result ? transformScoreRow(result) : null;
     } catch (error) {
       throw new MastraError(
         {
@@ -143,7 +144,7 @@ export class ScoresPG extends ScoresStorage {
   async saveScore(score: Omit<ScoreRowData, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ score: ScoreRowData }> {
     try {
       // Generate ID like other storage implementations
-      const scoreId = crypto.randomUUID();
+      const id = crypto.randomUUID();
 
       const {
         scorer,
@@ -158,10 +159,12 @@ export class ScoresPG extends ScoresStorage {
         ...rest
       } = score;
 
+      console.log(`saving score with id: ${id}`);
+
       await this.operations.insert({
         tableName: TABLE_SCORERS,
         record: {
-          id: scoreId,
+          id,
           ...rest,
           input: JSON.stringify(input) || '',
           output: JSON.stringify(output) || '',
@@ -177,7 +180,7 @@ export class ScoresPG extends ScoresStorage {
         },
       });
 
-      const scoreFromDb = await this.getScoreById({ id: scoreId });
+      const scoreFromDb = await this.getScoreById({ id });
       return { score: scoreFromDb! };
     } catch (error) {
       throw new MastraError(

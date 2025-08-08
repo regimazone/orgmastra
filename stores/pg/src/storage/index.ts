@@ -120,7 +120,7 @@ export class PostgresStore extends MastraStorage {
       this.#db = this.#pgp(this.#config);
 
       const operations = new StoreOperationsPG({ client: this.#db, schemaName: this.schema });
-      const scores = new ScoresPG({ client: this.#db, operations });
+      const scores = new ScoresPG({ client: this.#db, operations, schema: this.schema });
       const traces = new TracesPG({ client: this.#db, operations, schema: this.schema });
       const workflows = new WorkflowsPG({ client: this.#db, operations, schema: this.schema });
       const legacyEvals = new LegacyEvalsPG({ client: this.#db, schema: this.schema });

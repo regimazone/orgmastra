@@ -21,18 +21,6 @@ export * from './domains/evals/data';
 export * from './domains/scores/data';
 export * from './domains/traces/data';
 
-const STORES_WITH_RUN_SCORES_TESTS = [
-  'MongoDBStore',
-  'ClickhouseStore',
-  'Cloudflare',
-  'D1',
-  'DynamoDBStore',
-  'LanceStorage',
-  'LibSQLStore',
-  'PostgresStore',
-  'UpstashStore',
-];
-
 export function createTestSuite(storage: MastraStorage) {
   describe(storage.constructor.name, () => {
     beforeAll(async () => {
@@ -66,11 +54,6 @@ export function createTestSuite(storage: MastraStorage) {
 
     createMemoryTest({ storage });
 
-    const storeName = Object.getPrototypeOf(storage).constructor.name;
-    if (storeName && STORES_WITH_RUN_SCORES_TESTS.includes(storeName)) {
-      createScoresTest({ storage });
-    } else {
-      console.log('Skipping scores tests for', storeName);
-    }
+    createScoresTest({ storage });
   });
 }

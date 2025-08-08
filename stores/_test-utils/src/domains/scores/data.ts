@@ -11,9 +11,8 @@ export function createSampleScore({
   entityId?: string;
   entityType?: ScoringEntityType;
   source?: ScoringSource;
-}): ScoreRowData {
+}): Omit<ScoreRowData, 'id'> {
   return {
-    id: randomUUID(),
     entityId: entityId ?? 'eval-agent',
     entityType: entityType ?? 'AGENT',
     scorerId,
