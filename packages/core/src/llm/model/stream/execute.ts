@@ -677,13 +677,7 @@ function createAgentWorkflow({
          * Assemble messages
          */
 
-        const allMessages = messageList.get.all.v1().map(message => {
-          return {
-            id: message.id,
-            role: message.role,
-            content: message.content,
-          };
-        });
+        const allMessages = messageList.get.all.v3();
 
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
@@ -695,13 +689,20 @@ function createAgentWorkflow({
         const text = outputStream.text;
 
         const steps = inputData.output?.steps || [];
+
+        // Convert v3 messages to CoreMessageV5 format for transformResponse
+        const v5NonUserMessages = messageList.get.all.aiV5.model().filter(msg => msg.role !== 'user');
+
         steps.push(
           new DefaultStepResult({
             warnings: outputStream.warnings,
             providerMetadata: providerMetadata,
             finishReason: runState.state.stepResult?.reason,
-            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }),
-            response: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }, true),
+            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: v5NonUserMessages }),
+            response: outputStream.aisdk.v5.transformResponse(
+              { ...responseMetadata, messages: v5NonUserMessages },
+              true,
+            ),
             request: request,
             usage: outputStream.usage as any,
           }),
@@ -788,7 +789,7 @@ function createAgentWorkflow({
               'response',
             );
 
-            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v2(), null, 2));
+            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v3(), null, 2));
           }
 
           initialResult.stepResult.isContinued = false;
@@ -859,33 +860,9 @@ function createAgentWorkflow({
         return {
           ...initialResult,
           messages: {
-            all: messageList.get.all.v1().map(message => {
-              return {
-                id: message.id,
-                role: message.role,
-                content: message.content,
-              };
-            }),
-            user: messageList.get.all
-              .v1()
-              .filter(message => message.role === 'user')
-              .map(message => {
-                return {
-                  id: message.id,
-                  role: message.role,
-                  content: message.content,
-                };
-              }),
-            nonUser: messageList.get.all
-              .v1()
-              .filter(message => message.role !== 'user')
-              .map(message => {
-                return {
-                  id: message.id,
-                  role: message.role,
-                  content: message.content,
-                };
-              }),
+            all: messageList.get.all.v3(),
+            user: messageList.get.all.v3().filter(message => message.role === 'user'),
+            nonUser: messageList.get.all.v3().filter(message => message.role !== 'user'),
           },
         };
       },
