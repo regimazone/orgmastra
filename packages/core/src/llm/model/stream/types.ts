@@ -6,7 +6,7 @@ import type z3 from 'zod';
 import type z4 from 'zod/v4';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
-import type { CoreTool, CoreToolV2 } from '../../../tools';
+import type { CoreTool, CoreToolV2, ToolsForExecution } from '../../../tools';
 
 export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
 
@@ -55,7 +55,7 @@ export type ExecutionProps = {
   runId: string;
   providerMetadata?: Record<string, any>;
   providerOptions?: Record<string, any>;
-  tools?: Record<string, CoreTool | CoreToolV2>;
+  tools?: Record<string, ToolsForExecution>;
   toolChoice?: ToolChoice<ToolSet> | undefined;
   _internal?: StreamInternal;
   experimental_generateMessageId?: Pick<

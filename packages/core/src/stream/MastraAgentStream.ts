@@ -1,4 +1,4 @@
-import { ReadableStream, TransformStream } from 'stream/web';
+import { ReadableStream, TransformStream, TextEncoderStream, TextDecoderStream } from 'stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
 import {
   consumeStream,
@@ -575,13 +575,13 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
         sendSources: options?.sendSources,
         experimental_sendFinish: options?.experimental_sendFinish,
       })
-        .pipeThrough(new TextEncoderStream() as any)
-        .pipeThrough(new TextDecoderStream() as any) as any,
+        .pipeThrough(new TextEncoderStream() as unknown as TransformStream<LanguageModelV1StreamPart, Uint8Array>)
+        .pipeThrough(new TextDecoderStream()) as Parameters<typeof writer.merge>[0],
     );
   }
 
   toTextStreamResponse(init?: ResponseInit): Response {
-    return new Response(this.textStream.pipeThrough(new TextEncoderStream() as any) as any, {
+    return new Response(this.textStream.pipeThrough(new TextEncoderStream()) as BodyInit, {
       status: init?.status ?? 200,
       headers: prepareResponseHeaders(init?.headers, {
         contentType: 'text/plain; charset=utf-8',
@@ -628,13 +628,16 @@ export class MastraAgentStream<Output> extends ReadableStream<ChunkType> {
       sendReasoning,
       sendSources,
       experimental_sendFinish,
-    }).pipeThrough(new TextEncoderStream() as any) as any;
+    }).pipeThrough(new TextEncoderStream() as unknown as TransformStream<LanguageModelV1StreamPart, Uint8Array>);
 
     if (data) {
-      dataStream = mergeStreams(data.stream, dataStream);
+      dataStream = mergeStreams(
+        data.stream as unknown as ReadableStream<Uint8Array>,
+        dataStream,
+      ) as ReadableStream<Uint8Array>;
     }
 
-    return new Response(dataStream, {
+    return new Response(dataStream as BodyInit, {
       status,
       statusText,
       headers: prepareResponseHeaders(headers, {

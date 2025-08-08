@@ -346,7 +346,7 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               execute: async () => {
                 return { value: 'test-result' };
               },
-            }) as any,
+            }),
           },
           ...defaultSettings(),
         });

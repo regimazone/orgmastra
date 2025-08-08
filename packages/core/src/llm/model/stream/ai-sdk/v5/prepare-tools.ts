@@ -5,9 +5,9 @@ import type {
 } from '@ai-sdk/provider-v5';
 import type { ToolChoice } from 'ai-v5';
 import { asSchema, tool as toolFn } from 'ai-v5';
-import type { CoreTool, CoreToolV2 } from '../../../../../tools';
+import type { ToolsForExecution } from '../../../../../tools';
 
-export function prepareToolsAndToolChoice<TOOLS extends Record<string, CoreTool | CoreToolV2>>({
+export function prepareToolsAndToolChoice<TOOLS extends Record<string, ToolsForExecution>>({
   tools,
   toolChoice,
   activeTools,
@@ -33,51 +33,54 @@ export function prepareToolsAndToolChoice<TOOLS extends Record<string, CoreTool 
       : Object.entries(tools || {});
 
   return {
-    tools: filteredTools.map(([name, tool]) => {
-      try {
-        let inputSchema;
-        if ('inputSchema' in tool) {
-          inputSchema = tool.inputSchema;
-        } else {
-          inputSchema = tool.parameters;
-        }
-
-        const sdkTool = toolFn({
-          type: 'function',
-          ...tool,
-          inputSchema,
-        } as any);
-
-        const toolType = sdkTool?.type ?? 'function';
-
-        switch (toolType) {
-          case undefined:
-          case 'dynamic':
-          case 'function':
-            return {
-              type: 'function' as const,
-              name,
-              description: sdkTool.description,
-              inputSchema: asSchema(sdkTool.inputSchema).jsonSchema,
-              providerOptions: sdkTool.providerOptions,
-            };
-          case 'provider-defined':
-            return {
-              type: 'provider-defined' as const,
-              name,
-              id: sdkTool.id,
-              args: sdkTool.args,
-            };
-          default: {
-            const exhaustiveCheck: never = toolType;
-            throw new Error(`Unsupported tool type: ${exhaustiveCheck}`);
+    tools: filteredTools
+      .map(([name, tool]) => {
+        try {
+          let inputSchema;
+          if ('inputSchema' in tool) {
+            inputSchema = tool.inputSchema;
+          } else if ('parameters' in tool) {
+            inputSchema = tool.parameters;
           }
+
+          const sdkTool = toolFn({
+            type: 'function',
+            ...tool,
+            inputSchema,
+          } as any);
+
+          const toolType = sdkTool?.type ?? 'function';
+
+          switch (toolType) {
+            case undefined:
+            case 'dynamic':
+            case 'function':
+              return {
+                type: 'function' as const,
+                name,
+                description: sdkTool.description,
+                inputSchema: asSchema(sdkTool.inputSchema).jsonSchema,
+                providerOptions: sdkTool.providerOptions,
+              };
+            case 'provider-defined':
+              return {
+                type: 'provider-defined' as const,
+                name,
+                // TODO: as any seems wrong here. are there cases where we don't have an id?
+                id: (sdkTool as any).id,
+                args: (sdkTool as any).args,
+              };
+            default: {
+              const exhaustiveCheck: never = toolType;
+              throw new Error(`Unsupported tool type: ${exhaustiveCheck}`);
+            }
+          }
+        } catch (e) {
+          console.error('Error preparing tool', e);
+          return null;
         }
-      } catch (e) {
-        console.error('Error preparing tool', e);
-        return null;
-      }
-    }),
+      })
+      .filter(tool => tool !== null) as (LanguageModelV2FunctionTool | LanguageModelV2ProviderDefinedTool)[],
     toolChoice:
       toolChoice == null
         ? { type: 'auto' }

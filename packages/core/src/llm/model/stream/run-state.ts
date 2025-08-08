@@ -1,5 +1,8 @@
 import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel as LanguageModelAI5 } from 'ai-v5';
 import type { StreamInternal } from './types';
+
+type LanguageModelV2 = Exclude<LanguageModelAI5, string>;
 
 type State = {
   stepResult: Record<string, any> | undefined;
@@ -15,7 +18,7 @@ type State = {
 
 export class AgenticRunState {
   #state: State;
-  constructor({ _internal, model }: { _internal: StreamInternal; model: LanguageModelV1 }) {
+  constructor({ _internal, model }: { _internal: StreamInternal; model: LanguageModelV1 | LanguageModelV2 }) {
     this.#state = {
       responseMetadata: {
         id: _internal?.generateId?.(),

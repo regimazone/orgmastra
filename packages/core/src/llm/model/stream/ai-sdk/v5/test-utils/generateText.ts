@@ -56,7 +56,7 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
                 { type: 'reasoning-start', id: '1' },
                 { type: 'reasoning-delta', delta: 'I will open the conversation with witty banter.' },
                 { type: 'reasoning-end', id: '1' },
-                // { type: 'tool-call', toolCallId: 'call-1', toolName: 'tool1', input: `{ "value": "value" }` },
+                { type: 'tool-call', toolCallId: 'call-1', toolName: 'tool1', input: `{ "value": "value" }` },
                 { type: 'text-start', id: '2' },
                 { type: 'text-delta', id: '2', delta: 'More text' },
                 { type: 'text-end', id: '2' },
@@ -82,6 +82,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
             },
           },
         });
+
+        console.dir({ resultContent: result.content }, { depth: null });
 
         expect(result.content).toMatchInlineSnapshot(`
             [
@@ -185,6 +187,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
 
     describe('result.files', () => {
       // TODO: text data is being added as base64Data
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain files', async () => {
         const result = await generateText({
           model: modelWithFiles,
@@ -197,6 +201,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
 
     describe('result.steps', () => {
       // TODO: include `reasoning` and `reasoningDetails` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should add the reasoning from the model response to the step result', async () => {
         const result = await generateText({
           model: modelWithReasoning,
@@ -211,6 +217,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
       });
 
       // TODO: include `sources` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain sources', async () => {
         const result = await generateText({
           model: modelWithSources,
@@ -224,6 +232,8 @@ export function generateTextTestsV5({ executeFn, runId }: { executeFn: typeof ex
       });
 
       // TODO: include `files` in step result
+      // generateText uses a defaurt StepResult class than streaming does
+      // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain files', async () => {
         const result = await generateText({
           model: modelWithFiles,

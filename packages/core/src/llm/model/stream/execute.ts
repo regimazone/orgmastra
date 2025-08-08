@@ -11,6 +11,7 @@ import { createStep, createWorkflow } from '../../../workflows';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
 import { convertFullStreamChunkToAISDKv4, executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
+import { DefaultStepResult } from './ai-sdk/v5/output';
 import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
@@ -64,7 +65,8 @@ function createAgentWorkflow({
       outputSchema: toolCallOutputSchema,
       execute: async ({ inputData, getStepResult }) => {
         const tool =
-          tools?.[inputData.toolName] || Object.values(tools || {})?.find(tool => tool.id === inputData.toolName);
+          tools?.[inputData.toolName] ||
+          Object.values(tools || {})?.find(tool => `id` in tool && tool.id === inputData.toolName);
 
         if (!tool) {
           throw new Error(`Tool ${inputData.toolName} not found`);
@@ -83,7 +85,7 @@ function createAgentWorkflow({
               input: inputData.args,
               messages: messageList.get.all?.ui()?.map(message => ({
                 role: message.role,
-                content: message.content,
+                parts: message.parts,
               })) as any,
               abortSignal: options?.abortSignal,
             });
@@ -120,7 +122,7 @@ function createAgentWorkflow({
               ?.filter(message => message.role === 'user')
               ?.map(message => ({
                 role: message.role,
-                content: message.content,
+                parts: message.parts,
               })) as any,
           });
 
@@ -270,6 +272,7 @@ function createAgentWorkflow({
 
         try {
           for await (const chunk of outputStream.fullStream) {
+            if (!chunk) continue;
             if (
               chunk.type !== 'reasoning-delta' &&
               chunk.type !== 'reasoning-signature' &&
@@ -328,7 +331,7 @@ function createAgentWorkflow({
               case 'tool-call-input-streaming-start': {
                 const tool =
                   tools?.[chunk.payload.toolName] ||
-                  Object.values(tools || {})?.find(tool => tool.id === chunk.payload.toolName);
+                  Object.values(tools || {})?.find(tool => `id` in tool && tool.id === chunk.payload.toolName);
 
                 if (tool && 'onInputStart' in tool) {
                   try {
@@ -336,7 +339,7 @@ function createAgentWorkflow({
                       toolCallId: chunk.payload.toolCallId,
                       messages: messageList.get.all?.ui()?.map(message => ({
                         role: message.role,
-                        content: message.content,
+                        parts: message.parts,
                       })) as any,
                       abortSignal: options?.abortSignal,
                     });
@@ -503,7 +506,7 @@ function createAgentWorkflow({
 
                 const tool =
                   tools?.[chunk.payload.toolName] ||
-                  Object.values(tools || {})?.find(tool => tool.id === chunk.payload.toolName);
+                  Object.values(tools || {})?.find(tool => `id` in tool && tool.id === chunk.payload.toolName);
 
                 if (tool && 'onInputDelta' in tool) {
                   try {
@@ -512,7 +515,7 @@ function createAgentWorkflow({
                       toolCallId: chunk.payload.toolCallId,
                       messages: messageList.get.all?.ui()?.map(message => ({
                         role: message.role,
-                        content: message.content,
+                        parts: message.parts,
                       })) as any,
                       abortSignal: options?.abortSignal,
                     });
@@ -681,6 +684,19 @@ function createAgentWorkflow({
         const responseMetadata = runState.state.responseMetadata;
         const text = outputStream.text;
 
+        const steps = inputData.output?.steps || [];
+        steps.push(
+          new DefaultStepResult({
+            warnings: outputStream.warnings,
+            providerMetadata: providerMetadata,
+            finishReason: runState.state.stepResult?.reason,
+            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }),
+            response: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }, true),
+            request: request,
+            usage: outputStream.usage as any,
+          }),
+        );
+
         return {
           messageId,
           stepResult: {
@@ -698,7 +714,7 @@ function createAgentWorkflow({
             text,
             toolCalls,
             usage: usage ?? inputData.output?.usage,
-            steps: outputStream.aisdk.v5.steps,
+            steps,
           },
           messages: {
             all: allMessages,
@@ -722,9 +738,6 @@ function createAgentWorkflow({
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);
-
-          console.log('inputData', inputData);
-          console.log('errorResults', JSON.stringify(errorResults, null, 2));
 
           const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
@@ -751,7 +764,6 @@ function createAgentWorkflow({
                 id: toolResultMessageId,
                 role: 'tool',
                 content: errorResults.map(toolCall => {
-                  console.log('toolCall', JSON.stringify(toolCall, null, 2));
                   return {
                     type: 'tool-result',
                     args: toolCall.args,
@@ -998,6 +1010,7 @@ function createStreamExecutor({
             payload: inputData,
           });
 
+          console.log('user_msgs', JSON.stringify(inputData.messages.user, null, 2));
           rootSpan.setAttributes({
             'stream.response.id': inputData.metadata.id,
             'stream.response.model': model.modelId,
@@ -1110,7 +1123,7 @@ export type ExecuteParams = {
   threadId?: string;
 } & Omit<StreamExecutorProps, 'inputMessages' | 'startTimestamp'>;
 
-export async function execute(props: ExecuteParams) {
+export function execute(props: ExecuteParams) {
   const { messages = [], system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
 
   let loggerToUse =
@@ -1187,7 +1200,11 @@ export async function execute(props: ExecuteParams) {
       telemetry: rest.experimental_telemetry,
     }),
     ...(rest.experimental_telemetry?.recordOutputs !== false
-      ? { 'stream.prompt.messages': JSON.stringify(messages) }
+      ? {
+          'stream.prompt.messages': messages.length
+            ? JSON.stringify(messages)
+            : JSON.stringify([{ role: 'user', content: [{ type: 'text', text: prompt }] }]),
+        }
       : {}),
   });
 

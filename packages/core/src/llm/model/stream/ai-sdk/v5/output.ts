@@ -283,6 +283,9 @@ export class AISDKV5OutputStream {
 
   transformResponse(response: any, isMessages: boolean = false) {
     const newResponse = { ...response };
+    const hasTools = response.messages.some((message: any) =>
+      message.content.some((part: any) => part.type === 'tool-result'),
+    );
     newResponse.messages = response.messages.map((message: any) => {
       let newContent = message.content.map((part: any) => {
         if (part.type === 'file') {
@@ -307,7 +310,6 @@ export class AISDKV5OutputStream {
             sendUsage: false,
             getErrorMessage: getErrorMessage,
           });
-          console.log('transformedFile', transformedFile);
 
           return transformedFile;
         }
@@ -324,7 +326,7 @@ export class AISDKV5OutputStream {
         return part;
       });
 
-      if (isMessages) {
+      if (isMessages && !hasTools) {
         newContent = newContent.filter((part: any) => part.type !== 'source');
       }
 
@@ -347,7 +349,8 @@ export class AISDKV5OutputStream {
         content: this.transformResponse(step.response).messages[0]?.content ?? [],
         warnings: step.warnings ?? [],
         providerMetadata: step.providerMetadata,
-        finishReason: step.finishReason,
+        // TODO: this as seems wrong
+        finishReason: step.finishReason as StepResult<ToolSet>['finishReason'],
         response: this.transformResponse(step.response, true),
         request: step.request,
         usage: step.usage,
@@ -362,7 +365,7 @@ export class AISDKV5OutputStream {
   get fullStream() {
     let startEvent: ChunkType | undefined;
     let hasStarted: boolean = false;
-    let stepCounter = 1;
+    // let stepCounter = 1;
     return this.#modelOutput.fullStream.pipeThrough(
       new TransformStream<ChunkType, TextStreamPart<ToolSet>>({
         transform(chunk, controller) {
@@ -374,7 +377,7 @@ export class AISDKV5OutputStream {
               sendUsage: false,
               getErrorMessage: getErrorMessage,
             });
-            stepCounter++;
+            // stepCounter++;
             return;
           } else if (chunk.type !== 'error') {
             hasStarted = true;
@@ -423,7 +426,7 @@ export class AISDKV5OutputStream {
       sources: this.sources,
       files: this.files,
       response: this.response,
-      content: this.content, // TODO: wrong shape / missing 'sources' (filtered out in transformResponse) etc
+      content: this.content,
       totalUsage: this.#modelOutput.totalUsage,
       // experimental_output: // TODO
     };

@@ -790,7 +790,10 @@ export class MessageList {
               text: part.text,
             });
             break;
-
+          // @ts-ignore
+          case 'source':
+            parts.push({ type: 'source', source: part });
+            break;
           case 'tool-call':
             parts.push({
               type: 'tool-invocation',
