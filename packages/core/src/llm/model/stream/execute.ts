@@ -76,7 +76,7 @@ function createAgentWorkflow({
           id: 'generateText',
         } as any);
 
-        const messageList = new MessageList().add(initialResult.messages.user, 'input');
+        const messageList = new MessageList().add.input(initialResult.messages.user);
 
         if (tool && 'onInputAvailable' in tool) {
           try {
@@ -170,7 +170,7 @@ function createAgentWorkflow({
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
         const messagesToUse = inputData.messages.all;
-        const messageList = new MessageList().add(messagesToUse, 'input');
+        const messageList = new MessageList().add.input(messagesToUse);
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -284,21 +284,18 @@ function createAgentWorkflow({
               runState.state.isReasoning
             ) {
               if (runState.state.reasoningDeltas.length) {
-                messageList.add(
-                  {
-                    id: messageId,
-                    role: 'assistant',
-                    content: [
-                      {
-                        type: 'reasoning',
-                        text: runState.state.reasoningDeltas.join(''),
-                        signature: chunk.payload.signature,
-                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                      },
-                    ],
-                  },
-                  'response',
-                );
+                messageList.add.response({
+                  id: messageId,
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'reasoning',
+                      text: runState.state.reasoningDeltas.join(''),
+                      signature: chunk.payload.signature,
+                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                    },
+                  ],
+                });
               }
 
               runState.setState({
@@ -309,20 +306,17 @@ function createAgentWorkflow({
 
             if (chunk.type !== 'text-delta' && chunk.type !== 'tool-call' && runState.state.isStreaming) {
               if (runState.state.textDeltas.length) {
-                messageList.add(
-                  {
-                    id: messageId,
-                    role: 'assistant',
-                    content: [
-                      {
-                        type: 'text',
-                        text: runState.state.textDeltas.join(''),
-                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                      },
-                    ],
-                  },
-                  'response',
-                );
+                messageList.add.response({
+                  id: messageId,
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'text',
+                      text: runState.state.textDeltas.join(''),
+                      providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                    },
+                  ],
+                });
               }
 
               runState.setState({
@@ -416,21 +410,18 @@ function createAgentWorkflow({
               case 'reasoning-signature': {
                 const reasoningDeltasFromState = runState.state.reasoningDeltas;
                 if (reasoningDeltasFromState.length) {
-                  messageList.add(
-                    {
-                      id: messageId,
-                      role: 'assistant',
-                      content: [
-                        {
-                          type: 'reasoning',
-                          text: reasoningDeltasFromState.join(''),
-                          signature: chunk.payload.signature,
-                          providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                        },
-                      ],
-                    },
-                    'response',
-                  );
+                  messageList.add.response({
+                    id: messageId,
+                    role: 'assistant',
+                    content: [
+                      {
+                        type: 'reasoning',
+                        text: reasoningDeltasFromState.join(''),
+                        signature: chunk.payload.signature,
+                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                      },
+                    ],
+                  });
 
                   runState.setState({
                     reasoningDeltas: [],
@@ -447,20 +438,17 @@ function createAgentWorkflow({
                 });
 
                 if (Object.values(chunk.payload.providerMetadata || {}).find((v: any) => v?.redactedData)) {
-                  messageList.add(
-                    {
-                      id: messageId,
-                      role: 'assistant',
-                      content: [
-                        {
-                          type: 'reasoning',
-                          text: '',
-                          providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                        },
-                      ],
-                    },
-                    'response',
-                  );
+                  messageList.add.response({
+                    id: messageId,
+                    role: 'assistant',
+                    content: [
+                      {
+                        type: 'reasoning',
+                        text: '',
+                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                      },
+                    ],
+                  });
                   controller.enqueue(chunk);
                   break;
                 }
@@ -468,14 +456,11 @@ function createAgentWorkflow({
                 break;
               }
               case 'redacted-reasoning':
-                messageList.add(
-                  {
-                    id: messageId,
-                    role: 'assistant',
-                    content: [{ type: 'redacted-reasoning', data: chunk.payload.data }],
-                  },
-                  'response',
-                );
+                messageList.add.response({
+                  id: messageId,
+                  role: 'assistant',
+                  content: [{ type: 'redacted-reasoning', data: chunk.payload.data }],
+                });
                 controller.enqueue(chunk);
                 break;
               case 'tool-call-delta': {
@@ -537,46 +522,40 @@ function createAgentWorkflow({
                 break;
               }
               case 'file':
-                messageList.add(
-                  {
-                    id: messageId,
-                    role: 'assistant',
-                    content: [
-                      {
-                        type: 'file',
-                        data: chunk.payload.data,
-                        mimeType: chunk.payload.mimeType,
-                      },
-                    ],
-                  },
-                  'response',
-                );
+                messageList.add.response({
+                  id: messageId,
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'file',
+                      data: chunk.payload.data,
+                      mimeType: chunk.payload.mimeType,
+                    },
+                  ],
+                });
                 controller.enqueue(chunk);
                 break;
               case 'source':
-                messageList.add(
-                  {
-                    id: messageId,
-                    role: 'assistant',
-                    content: {
-                      format: 2,
-                      parts: [
-                        {
-                          type: 'source',
-                          source: {
-                            sourceType: 'url',
-                            id: chunk.payload.id,
-                            url: chunk.payload.url,
-                            title: chunk.payload.title,
-                            providerMetadata: chunk.payload.providerMetadata,
-                          },
+                messageList.add.response({
+                  id: messageId,
+                  role: 'assistant',
+                  content: {
+                    format: 2,
+                    parts: [
+                      {
+                        type: 'source',
+                        source: {
+                          sourceType: 'url',
+                          id: chunk.payload.id,
+                          url: chunk.payload.url,
+                          title: chunk.payload.title,
+                          providerMetadata: chunk.payload.providerMetadata,
                         },
-                      ],
-                    },
-                    createdAt: new Date(),
+                      },
+                    ],
                   },
-                  'response',
-                );
+                  createdAt: new Date(),
+                });
 
                 controller.enqueue(chunk);
                 break;
@@ -663,14 +642,11 @@ function createAgentWorkflow({
             }) as any),
           ];
 
-          messageList.add(
-            {
-              id: messageId,
-              role: 'assistant',
-              content: assistantContent,
-            },
-            'response',
-          );
+          messageList.add.response({
+            id: messageId,
+            role: 'assistant',
+            content: assistantContent,
+          });
         }
 
         /**
@@ -745,7 +721,7 @@ function createAgentWorkflow({
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
 
-        const messageList = new MessageList().add(initialResult.messages.all || [], 'input');
+        const messageList = new MessageList().add.input(initialResult.messages.all || []);
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);
@@ -770,24 +746,21 @@ function createAgentWorkflow({
               controller.enqueue(chunk);
             });
 
-            messageList.add(
-              {
-                id: toolResultMessageId,
-                role: 'tool',
-                content: errorResults.map(toolCall => {
-                  return {
-                    type: 'tool-result',
-                    args: toolCall.args,
-                    toolCallId: toolCall.toolCallId,
-                    toolName: toolCall.toolName,
-                    result: {
-                      tool_execution_error: toolCall.error?.message ?? toolCall.error,
-                    },
-                  };
-                }),
-              },
-              'response',
-            );
+            messageList.add.response({
+              id: toolResultMessageId,
+              role: 'tool',
+              content: errorResults.map(toolCall => {
+                return {
+                  type: 'tool-result',
+                  args: toolCall.args,
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  result: {
+                    tool_execution_error: toolCall.error?.message ?? toolCall.error,
+                  },
+                };
+              }),
+            });
 
             console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v3(), null, 2));
           }
@@ -839,22 +812,19 @@ function createAgentWorkflow({
 
           const toolResultMessageId = experimental_generateMessageId?.() || _internal?.generateId?.();
 
-          messageList.add(
-            {
-              id: toolResultMessageId,
-              role: 'tool',
-              content: inputData.map(toolCall => {
-                return {
-                  type: 'tool-result',
-                  args: toolCall.args,
-                  toolCallId: toolCall.toolCallId,
-                  toolName: toolCall.toolName,
-                  result: toolCall.result,
-                };
-              }),
-            },
-            'response',
-          );
+          messageList.add.response({
+            id: toolResultMessageId,
+            role: 'tool',
+            content: inputData.map(toolCall => {
+              return {
+                type: 'tool-result',
+                args: toolCall.args,
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result: toolCall.result,
+              };
+            }),
+          });
         }
 
         return {
@@ -1137,7 +1107,7 @@ export function execute(props: ExecuteParams) {
   if (prompt) {
     userMessages.push({ role: 'user', content: prompt });
   }
-  messageList.add(userMessages, 'input');
+  messageList.add.input(userMessages);
 
   const allCoreMessages = messageList.get.all.aiV4.llmPrompt();
 

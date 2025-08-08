@@ -703,10 +703,10 @@ describe('agent', () => {
 
     // Add messages. addOne will merge toolCallTwo and toolResultTwo.
     // toolCallThree is orphaned.
-    messageList.add(toolResultOne_Core, 'memory');
-    messageList.add(toolCallTwo_Core, 'memory');
-    messageList.add(toolResultTwo_Core, 'memory');
-    messageList.add(toolCallThree_Core, 'memory');
+    messageList.add.memory(toolResultOne_Core);
+    messageList.add.memory(toolCallTwo_Core);
+    messageList.add.memory(toolResultTwo_Core);
+    messageList.add.memory(toolCallThree_Core);
 
     const finalCoreMessages = messageList.get.all.aiV4.core();
 
@@ -774,10 +774,10 @@ describe('agent', () => {
       content: 'Hello',
     };
 
-    messageList.add(assistantToolCall_Core, 'memory');
-    messageList.add(toolMessage_Core, 'memory');
-    messageList.add(emptyAssistant_Core, 'memory');
-    messageList.add(userMessage_Core, 'memory');
+    messageList.add.memory(assistantToolCall_Core);
+    messageList.add.memory(toolMessage_Core);
+    messageList.add.memory(emptyAssistant_Core);
+    messageList.add.memory(userMessage_Core);
 
     const finalCoreMessages = messageList.get.all.aiV4.core();
 

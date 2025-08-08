@@ -377,7 +377,7 @@ export abstract class MastraMemory extends MastraBase {
     };
 
     const savedMessages = await this.saveMessages({ messages: [message], memoryConfig: config });
-    const list = new MessageList({ threadId, resourceId }).add(savedMessages[0]!, 'memory');
+    const list = new MessageList({ threadId, resourceId }).add.memory(savedMessages[0]!);
     return list.get.all.v1()[0]!;
   }
 

@@ -255,7 +255,7 @@ export class InMemoryMemory extends MemoryStorage {
       this.collection.messages.set(key, storageMessage);
     }
 
-    const list = new MessageList().add(messages, 'memory');
+    const list = new MessageList().add.memory(messages);
     if (format === `v2`) return list.get.all.v2();
     return list.get.all.v1();
   }

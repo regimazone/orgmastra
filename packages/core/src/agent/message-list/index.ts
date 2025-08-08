@@ -123,7 +123,29 @@ export class MessageList {
     this._agentNetworkAppend = _agentNetworkAppend || false;
   }
 
-  public add(messages: MessageListAddInput, messageSource: MessageSource) {
+  public get add(): {
+    input: (messages: MessageListAddInput) => InstanceType<typeof MessageList>;
+    response: (messages: MessageListAddInput) => InstanceType<typeof MessageList>;
+    memory: (messages: MessageListAddInput) => InstanceType<typeof MessageList>;
+    context: (messages: MessageListAddInput) => InstanceType<typeof MessageList>;
+  } {
+    return {
+      input: (messages: MessageListAddInput) => {
+        return this.addMessages(messages, 'input');
+      },
+      response: (messages: MessageListAddInput) => {
+        return this.addMessages(messages, 'response');
+      },
+      memory: (messages: MessageListAddInput) => {
+        return this.addMessages(messages, 'memory');
+      },
+      context: (messages: MessageListAddInput) => {
+        return this.addMessages(messages, 'context');
+      },
+    };
+  }
+
+  private addMessages(messages: MessageListAddInput, messageSource: MessageSource) {
     if (!messages) return this;
     for (const message of Array.isArray(messages) ? messages : [messages]) {
       this.addOne(

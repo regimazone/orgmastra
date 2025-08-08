@@ -668,7 +668,7 @@ export class Agent<
     // need to use text, not object output or it will error for models that don't support structured output (eg Deepseek R1)
     const llm = await this.getLLM({ runtimeContext, model });
 
-    const normMessage = new MessageList().add(message, 'input').get.all.aiV4.ui().at(-1);
+    const normMessage = new MessageList().add.input(message).get.all.aiV4.ui().at(-1);
     if (!normMessage) {
       throw new Error(`Could not generate title from input ${JSON.stringify(message)}`);
     }
@@ -725,7 +725,7 @@ export class Agent<
   ) {
     try {
       if (userMessage) {
-        const normMessage = new MessageList().add(userMessage, 'input').get.all.aiV4.ui().at(-1);
+        const normMessage = new MessageList().add.input(userMessage).get.all.aiV4.ui().at(-1);
         if (normMessage) {
           return await this.generateTitleFromUserMessage({
             message: normMessage,
@@ -777,11 +777,11 @@ export class Agent<
       }
 
       if (userMessages && userMessages.length > 0) {
-        messageList.add(userMessages, 'memory');
+        messageList.add.memory(userMessages);
       }
 
       if (systemMessage?.role === 'system') {
-        messageList.addSystem(systemMessage, 'memory');
+        messageList.addSystem(systemMessage);
       }
 
       const [memoryMessages, memorySystemMessage] =
@@ -806,10 +806,10 @@ export class Agent<
       });
 
       if (memorySystemMessage) {
-        messageList.addSystem(memorySystemMessage, 'memory');
+        messageList.addSystem(memorySystemMessage);
       }
 
-      messageList.add(memoryMessages, 'memory');
+      messageList.add.memory(memoryMessages);
 
       const systemMessages =
         messageList
@@ -831,8 +831,8 @@ export class Agent<
 
       const returnList = new MessageList()
         .addSystem(systemMessages)
-        .add(processedMemoryMessages, 'memory')
-        .add(newMessages, 'input');
+        .add.memory(processedMemoryMessages)
+        .add.input(newMessages);
 
       return {
         threadId: thread.id,
@@ -1284,7 +1284,7 @@ export class Agent<
     runId?: string;
   }) {
     try {
-      messageList.add(result.response.messages, 'response');
+      messageList.add.response(result.response.messages);
       await saveQueueManager.batchMessages(messageList, threadId, memoryConfig);
     } catch (e) {
       await saveQueueManager.flushMessages(messageList, threadId, memoryConfig);
@@ -1375,10 +1375,10 @@ export class Agent<
             role: 'system',
             content: instructions || `${this.instructions}.`,
           })
-          .add(context || [], 'context');
+          .add.context(context || []);
 
         if (!memory || (!threadId && !resourceId)) {
-          messageList.add(messages, 'input');
+          messageList.add.input(messages);
           return {
             messageObjects: messageList.get.all.aiV4.prompt(),
             convertedTools,
@@ -1442,7 +1442,7 @@ export class Agent<
                 this.getMemoryMessages({
                   resourceId,
                   threadId: threadObject.id,
-                  vectorMessageSearch: new MessageList().add(messages, `input`).getLatestUserContent() || '',
+                  vectorMessageSearch: new MessageList().add.input(messages).getLatestUserContent() || '',
                   memoryConfig,
                   runtimeContext,
                 }),
@@ -1467,7 +1467,7 @@ export class Agent<
           memorySystemMessage += `\nThe following messages were remembered from a different conversation:\n<remembered_from_other_conversation>\n${(() => {
             let result = ``;
 
-            const messages = new MessageList().add(resultsFromOtherThreads, 'memory').get.all.v1();
+            const messages = new MessageList().add.memory(resultsFromOtherThreads).get.all.v1();
             let lastYmd: string | null = null;
             for (const msg of messages) {
               const date = msg.createdAt;
@@ -1494,16 +1494,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         }
 
         if (memorySystemMessage) {
-          messageList.addSystem(memorySystemMessage, 'memory');
+          messageList.addSystem(memorySystemMessage);
         }
 
-        messageList
-          .add(
-            memoryMessages.filter(m => m.threadId === threadObject.id), // filter out messages from other threads. those are added to system message above
-            'memory',
-          )
-          // add new user messages to the list AFTER remembered messages to make ordering more reliable
-          .add(messages as Parameters<typeof messageList.add>[0], 'input');
+        messageList.add
+          .memory(memoryMessages.filter(m => m.threadId === threadObject.id))
+          .add.input(messages as Parameters<typeof messageList.add.input>[0]);
 
         const systemMessage =
           [...messageList.getSystemMessages(), ...messageList.getSystemMessages('memory')]
@@ -1528,9 +1524,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         })
           .addSystem(instructions || `${this.instructions}.`)
           .addSystem(memorySystemMessage)
-          .add(context || [], 'context')
-          .add(processedMemoryMessages, 'memory')
-          .add(messageList.get.input.v2(), 'input')
+          .add.context(context || [])
+          .add.memory(processedMemoryMessages)
+          .add.input(messageList.get.input.v2())
           .get.all.aiV4.prompt();
 
         return {
@@ -1589,8 +1585,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           resourceId,
           // @ts-ignore Flag for agent network messages
           _agentNetworkAppend: this._agentNetworkAppend,
-        })
-          .add(result.response?.messages || [], 'response')
+        }).add
+          .response(result.response?.messages || [])
           .get.all.aiV4.core();
 
         const usedWorkingMemory = messageListResponses?.some(
@@ -1622,7 +1618,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
               ];
             }
             if (responseMessages) {
-              messageList.add(responseMessages, 'response');
+              messageList.add.response(responseMessages);
             }
 
             // Parallelize title generation and message saving
