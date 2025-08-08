@@ -1201,7 +1201,7 @@ export class MessageList {
               type: `tool-${part.toolName}`,
               state: 'input-available',
               toolCallId: part.toolCallId,
-              input: 'args' in part ? part.args : part.input,
+              input: part.input,
             });
             break;
 
@@ -1299,7 +1299,7 @@ export class MessageList {
                 state: 'call',
                 toolCallId: part.toolCallId,
                 toolName: part.toolName,
-                args: 'args' in part ? part.args : part.input,
+                args: part.args,
               },
             });
             break;
@@ -1313,15 +1313,12 @@ export class MessageList {
               p => p.type === 'tool-call' && p.toolCallId === part.toolCallId,
             );
             if (toolCallInSameMsg && toolCallInSameMsg.type === 'tool-call') {
-              toolArgs = ('args' in toolCallInSameMsg ? toolCallInSameMsg.args : toolCallInSameMsg.input) as Record<
-                string,
-                unknown
-              >;
+              toolArgs = toolCallInSameMsg.args as Record<string, unknown>;
             }
 
             // If not found, look in previous messages for the corresponding tool-call
             // Search from most recent messages first (more likely to find the match)
-            if (Object.keys(toolArgs).length === 0) {
+            if (Object.keys(toolArgs).length === 0 && coreMessage.role !== 'tool') {
               // Iterate in reverse order (most recent first) for better performance
               for (let i = this.messages.length - 1; i >= 0; i--) {
                 const msg = this.messages[i];
@@ -1346,7 +1343,7 @@ export class MessageList {
               state: 'result' as const,
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              result: 'result' in part ? part.result : (part.output ?? ''), // Handle both v4 (result) and v5 (output) formats
+              result: part.result,
               args: toolArgs, // Use the args from the corresponding tool-call
             };
             parts.push({
