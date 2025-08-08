@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
-import type { CoreMessage as CoreMessageV4, IdGenerator, UIMessage as UIMessageV4 } from 'ai';
+import type { LanguageModelV1Message } from '@ai-sdk/provider';
+import type { LanguageModelV2Prompt } from '@ai-sdk/provider-v5';
+import type { CoreMessage as CoreMessageV4, IdGenerator, UIMessage as UIMessageV4, LanguageModelV1Prompt } from 'ai';
 import * as AIV4 from 'ai';
 import type {
   UIMessage as UIMessageV5,
@@ -14,6 +16,8 @@ import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import { getToolName } from './ai-sdk-5';
 import { convertToV1Messages } from './prompt/convert-to-mastra-v1';
 import { convertDataContentToBase64String } from './prompt/data-content';
+
+type AIV5LanguageModelV2Message = LanguageModelV2Prompt[0];
 
 type MastraMessageShared = {
   id: string;
@@ -190,6 +194,251 @@ export class MessageList {
     });
   }
 
+  static aiV4CoreMessageToV1PromptMessage(coreMessage: CoreMessageV4): LanguageModelV1Message {
+    if (coreMessage.role === `system`) {
+      return coreMessage;
+    }
+
+    if (typeof coreMessage.content === `string` && (coreMessage.role === `assistant` || coreMessage.role === `user`)) {
+      return {
+        ...coreMessage,
+        content: [{ type: 'text', text: coreMessage.content }],
+      };
+    }
+
+    if (typeof coreMessage.content === `string`) {
+      throw new Error(
+        `Saw text content for input CoreMessage, but the role is ${coreMessage.role}. This is only allowed for "system", "assistant", and "user" roles.`,
+      );
+    }
+
+    const roleContent: {
+      user: Exclude<Extract<LanguageModelV1Message, { role: 'user' }>['content'], string>;
+      assistant: Exclude<Extract<LanguageModelV1Message, { role: 'assistant' }>['content'], string>;
+      tool: Exclude<Extract<LanguageModelV1Message, { role: 'tool' }>['content'], string>;
+    } = {
+      user: [],
+      assistant: [],
+      tool: [],
+    };
+
+    const role = coreMessage.role;
+
+    for (const part of coreMessage.content) {
+      const incompatibleMessage = `Saw incompatible message content part type ${part.type} for message role ${role}`;
+
+      switch (part.type) {
+        case 'text': {
+          if (role === `tool`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'redacted-reasoning':
+        case 'reasoning': {
+          if (role !== `assistant`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'tool-call': {
+          if (role === `tool` || role === `user`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'tool-result': {
+          if (role === `assistant` || role === `user`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'image': {
+          if (role === `tool` || role === `assistant`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push({
+            ...part,
+            image:
+              part.image instanceof URL || part.image instanceof Uint8Array
+                ? part.image
+                : Buffer.isBuffer(part.image) || part.image instanceof ArrayBuffer
+                  ? new Uint8Array(part.image)
+                  : new URL(part.image),
+          });
+          break;
+        }
+
+        case 'file': {
+          if (role === `tool`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push({
+            ...part,
+            data:
+              part.data instanceof URL
+                ? part.data
+                : typeof part.data === 'string'
+                  ? part.data
+                  : convertDataContentToBase64String(part.data),
+          });
+          break;
+        }
+      }
+    }
+
+    if (role === `tool`) {
+      return {
+        ...coreMessage,
+        content: roleContent[role],
+      };
+    }
+    if (role === `user`) {
+      return {
+        ...coreMessage,
+        content: roleContent[role],
+      };
+    }
+    if (role === `assistant`) {
+      return {
+        ...coreMessage,
+        content: roleContent[role],
+      };
+    }
+
+    throw new Error(
+      `Encountered unknown role ${role} when converting V4 CoreMessage -> V4 LanguageModelV1Prompt, input message: ${JSON.stringify(coreMessage, null, 2)}`,
+    );
+  }
+
+  static aiV5ModelMessageToV2PromptMessage(modelMessage: AIV5.ModelMessage): AIV5LanguageModelV2Message {
+    if (modelMessage.role === `system`) {
+      return modelMessage;
+    }
+
+    if (
+      typeof modelMessage.content === `string` &&
+      (modelMessage.role === `assistant` || modelMessage.role === `user`)
+    ) {
+      return {
+        role: modelMessage.role,
+        content: [{ type: 'text', text: modelMessage.content }],
+        providerOptions: modelMessage.providerOptions,
+      };
+    }
+
+    if (typeof modelMessage.content === `string`) {
+      throw new Error(
+        `Saw text content for input ModelMessage, but the role is ${modelMessage.role}. This is only allowed for "system", "assistant", and "user" roles.`,
+      );
+    }
+
+    const roleContent: {
+      user: Extract<AIV5LanguageModelV2Message, { role: 'user' }>['content'];
+      assistant: Extract<AIV5LanguageModelV2Message, { role: 'assistant' }>['content'];
+      tool: Extract<AIV5LanguageModelV2Message, { role: 'tool' }>['content'];
+    } = {
+      user: [],
+      assistant: [],
+      tool: [],
+    };
+
+    const role = modelMessage.role;
+
+    for (const part of modelMessage.content) {
+      const incompatibleMessage = `Saw incompatible message content part type ${part.type} for message role ${role}`;
+
+      switch (part.type) {
+        case 'text': {
+          if (role === `tool`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'reasoning': {
+          if (role === `tool` || role === `user`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'tool-call': {
+          if (role !== `assistant`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'tool-result': {
+          if (role === `assistant` || role === `user`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push(part);
+          break;
+        }
+
+        case 'file': {
+          if (role === `tool`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push({
+            ...part,
+            data: part.data instanceof ArrayBuffer ? new Uint8Array(part.data) : part.data,
+          });
+          break;
+        }
+
+        case 'image': {
+          if (role === `tool`) {
+            throw new Error(incompatibleMessage);
+          }
+          roleContent[role].push({
+            ...part,
+            mediaType: part.mediaType || 'image/unknown',
+            type: 'file',
+            data: part.image instanceof ArrayBuffer ? new Uint8Array(part.image) : part.image,
+          });
+          break;
+        }
+      }
+    }
+
+    if (role === `tool`) {
+      return {
+        ...modelMessage,
+        content: roleContent[role],
+      };
+    }
+    if (role === `user`) {
+      return {
+        ...modelMessage,
+        content: roleContent[role],
+      };
+    }
+    if (role === `assistant`) {
+      return {
+        ...modelMessage,
+        content: roleContent[role],
+      };
+    }
+
+    throw new Error(
+      `Encountered unknown role ${role} when converting V5 ModelMessage -> V5 LanguageModelV2Message, input message: ${JSON.stringify(modelMessage, null, 2)}`,
+    );
+  }
+
   private all = {
     v3: () => this.cleanV3Metadata(this.messages),
     v2: () => this.messages.map(MessageList.mastraMessageV3ToV2),
@@ -198,27 +447,90 @@ export class MessageList {
     aiV5: {
       model: () => this.convertToModelMessages(this.all.aiV5.ui()),
       ui: (): UIMessageV5[] => this.all.v3().map(MessageList.toUIMessage),
+
+      // Used when calling AI SDK streamText/generateText
+      prompt: () => {
+        const coreMessages = this.all.aiV5.model();
+        const messages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...coreMessages];
+
+        const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
+        if (needsDefaultUserMessage) {
+          const defaultMessage: CoreMessageV5 = {
+            role: 'user',
+            content: ' ',
+          };
+          messages.unshift(defaultMessage);
+        }
+
+        return messages;
+      },
+
+      // Used for creating LLM prompt messages without AI SDK streamText/generateText
+      llmPrompt: (): LanguageModelV2Prompt => {
+        const modelMessages = this.all.aiV5.model();
+        const systemMessages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat()];
+        const messages = [...systemMessages, ...modelMessages];
+
+        // Ensure we have at least one user message
+        const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
+        if (needsDefaultUserMessage) {
+          const defaultMessage: CoreMessageV5 = {
+            role: 'user',
+            content: ' ',
+          };
+          messages.unshift(defaultMessage);
+        }
+
+        return messages.map(MessageList.aiV5ModelMessageToV2PromptMessage);
+      },
     },
 
     aiV4: {
       ui: (): UIMessageV4[] => this.all.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
       core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.all.aiV4.ui()),
-    },
 
-    prompt: () => {
-      const coreMessages = this.all.aiV5.model();
-      const messages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...coreMessages];
+      // Used when calling AI SDK streamText/generateText
+      prompt: () => {
+        const coreMessages = this.all.aiV4.core();
+        const messages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat(), ...coreMessages];
 
-      const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
-      if (needsDefaultUserMessage) {
-        const defaultMessage: CoreMessageV5 = {
-          role: 'user',
-          content: '.',
-        };
-        messages.unshift(defaultMessage);
-      }
+        const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
+        if (needsDefaultUserMessage) {
+          const defaultMessage: CoreMessageV5 = {
+            role: 'user',
+            content: ' ',
+          };
+          messages.unshift(defaultMessage);
+        }
 
-      return messages;
+        return messages;
+      },
+
+      // Used for creating LLM prompt messages without AI SDK streamText/generateText
+      llmPrompt: (): LanguageModelV1Prompt => {
+        const coreMessages = this.all.aiV4.core();
+        const systemMessages = [...this.systemMessages, ...Object.values(this.taggedSystemMessages).flat()];
+
+        // Convert v5 system messages to v4 format
+        const v4SystemMessages = systemMessages.map(msg => ({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : MessageList.coreContentToString(msg.content),
+        })) as CoreMessageV4[];
+
+        const messages = [...v4SystemMessages, ...coreMessages];
+
+        // Ensure we have at least one user message
+        const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
+        if (needsDefaultUserMessage) {
+          const defaultMessage: CoreMessageV4 = {
+            role: 'user',
+            content: ' ',
+          };
+          messages.unshift(defaultMessage);
+        }
+
+        return messages.map(MessageList.aiV4CoreMessageToV1PromptMessage);
+      },
     },
   };
 

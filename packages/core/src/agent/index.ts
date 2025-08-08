@@ -836,7 +836,7 @@ export class Agent<
 
       return {
         threadId: thread.id,
-        messages: returnList.get.all.prompt(),
+        messages: returnList.get.all.aiV4.prompt(),
       };
     }
 
@@ -1380,7 +1380,7 @@ export class Agent<
         if (!memory || (!threadId && !resourceId)) {
           messageList.add(messages, 'input');
           return {
-            messageObjects: messageList.get.all.prompt(),
+            messageObjects: messageList.get.all.aiV4.prompt(),
             convertedTools,
             messageList,
           };
@@ -1531,7 +1531,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           .add(context || [], 'context')
           .add(processedMemoryMessages, 'memory')
           .add(messageList.get.input.v2(), 'input')
-          .get.all.prompt();
+          .get.all.aiV4.prompt();
 
         return {
           convertedTools,

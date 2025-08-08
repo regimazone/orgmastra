@@ -191,7 +191,7 @@ function createAgentWorkflow({
               runId,
               providerMetadata,
               providerOptions,
-              inputMessages: messageList.get.all.aiV4.core() as any,
+              inputMessages: messageList.get.all.aiV4.llmPrompt(),
               tools,
               toolChoice,
               _internal,
@@ -224,7 +224,7 @@ function createAgentWorkflow({
               model,
               runId,
               providerMetadata,
-              inputMessages: messageList.get.all.aiV5.model() as any,
+              inputMessages: messageList.get.all.aiV5.llmPrompt(),
               tools,
               toolChoice,
               _internal,
@@ -1158,7 +1158,7 @@ export function execute(props: ExecuteParams) {
 
   const messageList = MessageList.fromArray(initMessages);
 
-  const allCoreMessages = messageList.get.all.aiV4.core() as LanguageModelV1Prompt;
+  const allCoreMessages = messageList.get.all.aiV4.llmPrompt();
 
   let _internalToUse = _internal
     ? {
