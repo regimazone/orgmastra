@@ -1,10 +1,9 @@
 import type { Connection } from '@lancedb/lancedb';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/scores';
+import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
 import { ScoresStorage, TABLE_SCORERS } from '@mastra/core/storage';
 import type { PaginationInfo, StoragePagination } from '@mastra/core/storage';
 import { getTableSchema, processResultWithTypeConversion } from '../utils';
-import type { ScoringSource } from '@mastra/core/scores';
 
 export class StoreScoresLance extends ScoresStorage {
   private client: Connection;
@@ -15,6 +14,7 @@ export class StoreScoresLance extends ScoresStorage {
 
   async saveScore(score: ScoreRowData): Promise<{ score: ScoreRowData }> {
     try {
+      const id = crypto.randomUUID();
       const table = await this.client.openTable(TABLE_SCORERS);
       // Fetch schema fields for mastra_scorers
       const schema = await getTableSchema({ tableName: TABLE_SCORERS, client: this.client });
@@ -37,8 +37,7 @@ export class StoreScoresLance extends ScoresStorage {
         }
       }
 
-      console.log('Saving score to LanceStorage:', filteredScore);
-
+      filteredScore.id = id;
       await table.add([filteredScore], { mode: 'append' });
       return { score };
     } catch (error: any) {
@@ -83,10 +82,14 @@ export class StoreScoresLance extends ScoresStorage {
   async getScoresByScorerId({
     scorerId,
     pagination,
+    entityId,
+    entityType,
     source,
   }: {
     scorerId: string;
     pagination: StoragePagination;
+    entityId?: string;
+    entityType?: string;
     source?: ScoringSource;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
     try {
@@ -99,6 +102,13 @@ export class StoreScoresLance extends ScoresStorage {
 
       if (source) {
         query = query.where(`\`source\` = '${source}'`);
+      }
+
+      if (entityId) {
+        query = query.where(`\`entityId\` = '${entityId}'`);
+      }
+      if (entityType) {
+        query = query.where(`\`entityType\` = '${entityType}'`);
       }
 
       query = query.limit(perPage);

@@ -477,12 +477,16 @@ export class DynamoDBStore extends MastraStorage {
   async getScoresByScorerId({
     scorerId,
     source,
+    entityId,
+    entityType,
     pagination,
   }: {
     scorerId: string;
+    entityId?: string;
+    entityType?: string;
     source?: ScoringSource;
     pagination: StoragePagination;
   }): Promise<{ pagination: PaginationInfo; scores: ScoreRowData[] }> {
-    return this.stores.scores.getScoresByScorerId({ scorerId, source, pagination });
+    return this.stores.scores.getScoresByScorerId({ scorerId, source, entityId, entityType, pagination });
   }
 }

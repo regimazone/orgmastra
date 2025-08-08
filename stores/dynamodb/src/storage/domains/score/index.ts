@@ -1,9 +1,8 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import type { ScoreRowData } from '@mastra/core/scores';
+import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
 import { ScoresStorage } from '@mastra/core/storage';
 import type { PaginationInfo, StoragePagination } from '@mastra/core/storage';
 import type { Service } from 'electrodb';
-import type { ScoringSource } from '@mastra/core/scores';
 
 export class ScoresStorageDynamoDB extends ScoresStorage {
   private service: Service<Record<string, any>>;
