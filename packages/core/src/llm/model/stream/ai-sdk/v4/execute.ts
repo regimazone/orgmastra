@@ -1,4 +1,4 @@
-import type { LanguageModelV1, LanguageModelV1CallOptions, ToolSet } from 'ai';
+import type { LanguageModelV1, ToolSet } from 'ai';
 import type { ExecutionProps } from '../../types';
 import { AISDKV4InputStream } from './input';
 import { getModeOption, getOutputSchema, injectJsonInstructions } from './output-schema';
@@ -49,7 +49,6 @@ export function executeV4({
     injectJsonInstructions({
       inputMessages,
       outputSchema,
-      // output,
     });
   }
 
