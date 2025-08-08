@@ -223,11 +223,21 @@ export class AISDKV4OutputStream {
 
         const finalObject = chunks[chunks.length - 1];
         const schema = this.#options.executeOptions?.schema;
+        const output = this.#options.executeOptions?.output;
+
+        // For array output, the finalObject is already the elements array from the transformer
+        // For object output, finalObject is the object itself
+        let resultObject = finalObject;
 
         // Validate final object against schema if provided (only for Zod schemas)
         if (schema && typeof schema === 'object' && 'parse' in schema) {
           try {
-            return (schema as any).parse(finalObject);
+            // For array output, validate each element in the array
+            if (output === 'array' && Array.isArray(resultObject)) {
+              return resultObject.map(element => (schema as any).parse(element));
+            } else {
+              return (schema as any).parse(resultObject);
+            }
           } catch (error) {
             throw new NoObjectGeneratedError({
               message: 'No object generated: response did not match schema.',
@@ -238,7 +248,7 @@ export class AISDKV4OutputStream {
           }
         }
 
-        return finalObject;
+        return resultObject;
       } finally {
         reader.releaseLock();
       }

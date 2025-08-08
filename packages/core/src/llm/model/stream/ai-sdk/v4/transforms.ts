@@ -2,6 +2,7 @@ import { parsePartialJson, isDeepEqualData } from '@ai-sdk/ui-utils';
 import { formatDataStreamPart } from 'ai';
 import type { ExecuteOptions } from '../../types';
 import { DefaultGeneratedFileWithType } from './file';
+import { getModeOption, getOutputSchema } from './output-schema';
 
 export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
   if (value.type === 'step-start') {
@@ -422,25 +423,88 @@ export function convertFullStreamChunkToAISDKv4({
 export function createObjectStreamTransformer(options: { executeOptions?: ExecuteOptions }) {
   let textAccumulatedText = '';
   let textPreviousObject: any = undefined;
+  let textPreviousFilteredArray: any[];
 
   let toolCallAccumulatedText = '';
   let toolCallPreviousObject: any = undefined;
 
-  const mode = options?.executeOptions?.mode;
+  const executeOptions = options?.executeOptions;
+  const output = executeOptions?.output;
+
+  // Use getModeOption to determine the actual mode
+  const modeOption = getModeOption({
+    mode: executeOptions?.mode,
+    output: executeOptions?.output,
+    outputSchema: executeOptions?.schema ? getOutputSchema({ schema: executeOptions.schema, output }) : undefined,
+    schemaName: executeOptions?.schemaName,
+    schemaDescription: executeOptions?.schemaDescription,
+    tools: undefined, // No tools in streamObject mode
+    toolChoice: undefined,
+  });
+
+  const mode =
+    modeOption.type === 'object-json' ? 'object-json' : modeOption.type === 'object-tool' ? 'object-tool' : 'regular';
 
   return new TransformStream<any, any>({
     transform(chunk, controller) {
-      // Handle text-delta for object-json mode
-      if (mode === 'object-json' && chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
-        textAccumulatedText += chunk.payload.text;
-        const { value: currentObjectJson } = parsePartialJson(textAccumulatedText);
+      if (mode === 'object-json') {
+        switch (output) {
+          case 'array':
+            if (chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
+              textAccumulatedText += chunk.payload.text;
+              const { value: currentObjectJson, state: parseState } = parsePartialJson(textAccumulatedText);
 
-        if (currentObjectJson !== undefined && !isDeepEqualData(textPreviousObject, currentObjectJson)) {
-          textPreviousObject = currentObjectJson;
-          controller.enqueue({
-            type: 'object',
-            object: currentObjectJson,
-          });
+              if (currentObjectJson !== undefined && !isDeepEqualData(textPreviousObject, currentObjectJson)) {
+                // For arrays, extract and filter elements
+                const rawElements = (currentObjectJson as any)?.elements || [];
+                const filteredElements: any[] = [];
+
+                // Filter out incomplete elements (like empty objects {})
+                for (let i = 0; i < rawElements.length; i++) {
+                  const element = rawElements[i];
+
+                  // Skip the last element if it's incomplete (unless this is the final parse)
+                  if (i === rawElements.length - 1 && parseState !== 'successful-parse') {
+                    // Only include the last element if it has meaningful content
+                    if (element && typeof element === 'object' && Object.keys(element).length > 0) {
+                      filteredElements.push(element);
+                    }
+                  } else {
+                    // Include all non-last elements that have content
+                    if (element && typeof element === 'object' && Object.keys(element).length > 0) {
+                      filteredElements.push(element);
+                    }
+                  }
+                }
+
+                // Only emit if the filtered array has actually changed
+                if (!isDeepEqualData(textPreviousFilteredArray, filteredElements)) {
+                  textPreviousFilteredArray = [...filteredElements];
+                  controller.enqueue({
+                    type: 'object',
+                    object: filteredElements,
+                  });
+                }
+
+                textPreviousObject = currentObjectJson;
+              }
+            }
+            break;
+          case 'no-schema':
+          default:
+            if (chunk.type === 'text-delta' && typeof chunk.payload.text === 'string') {
+              textAccumulatedText += chunk.payload.text;
+              const { value: currentObjectJson } = parsePartialJson(textAccumulatedText);
+
+              if (currentObjectJson !== undefined && !isDeepEqualData(textPreviousObject, currentObjectJson)) {
+                textPreviousObject = currentObjectJson;
+                controller.enqueue({
+                  type: 'object',
+                  object: currentObjectJson,
+                });
+              }
+            }
+            break;
         }
       }
 

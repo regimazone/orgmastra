@@ -33,8 +33,17 @@ export type ExecuteOptions = {
   activeTools?: Array<keyof ToolSet> | undefined;
   abortSignal?: AbortSignal;
 
-  mode: 'regular' | 'object-json' | 'object-tool';
-  output?: 'object' | 'array' | 'enum' | 'no-schema';
+  mode?: 'regular' | 'object-json' | 'object-tool';
+  /**
+   * The expected structure of the output.
+   *
+   * - 'object': Generate a single object that conforms to the schema.
+   * - 'array': Generate an array of objects that conform to the schema.
+   * - 'no-schema': Generate any JSON object. No schema is specified.
+   *
+   * Default is 'object' if not specified.
+   */
+  output?: 'object' | 'array' | 'no-schema';
   schema?: Parameters<typeof asSchema>[0];
   schemaName?: string;
   schemaDescription?: string;
