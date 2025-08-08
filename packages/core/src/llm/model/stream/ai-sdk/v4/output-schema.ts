@@ -53,8 +53,6 @@ export function getModeOption({
       },
     };
   } else {
-    // default to regular?
-    // } else if (mode === 'regular') {
     return {
       type: 'regular',
       tools,
@@ -91,11 +89,9 @@ export function getOutputSchema({ schema, output }: { schema?: Parameters<typeof
  * inject the json schema as the first system message
  */
 export function injectJsonInstructions({
-  // output,
   outputSchema,
   inputMessages,
 }: {
-  // output?: OutputMode;
   outputSchema?: JSONSchema7;
   inputMessages: CoreMessage[];
 }) {

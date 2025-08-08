@@ -34,8 +34,6 @@ export function executeV4({
   });
 
   const outputSchema = getOutputSchema({ schema, output });
-
-  // Get the mode option early to determine the actual mode
   const modeOption = getModeOption({
     mode,
     output,
@@ -45,7 +43,6 @@ export function executeV4({
     tools: preparedTools.tools,
     toolChoice: preparedTools.toolChoice,
   });
-
   // For models that don't support structured outputs,
   // inject the json schema as the first system message
   if (modeOption.type === 'object-json' && !model.supportsStructuredOutputs) {
