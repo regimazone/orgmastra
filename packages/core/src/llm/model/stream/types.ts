@@ -1,10 +1,10 @@
-import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
+import type { LanguageModelV2, LanguageModelV2Prompt } from '@ai-sdk/provider-v5';
 import type { Span } from '@opentelemetry/api';
 import type { IDGenerator, LanguageModelV1, LanguageModelV1Prompt, streamText, ToolChoice, ToolSet } from 'ai';
 import type { CallSettings, TelemetrySettings, ToolSet as ToolSetV5, StopCondition } from 'ai-v5';
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
-import type { CoreTool, CoreToolV2, ToolsForExecution } from '../../../tools';
+import type { ToolsForExecution } from '../../../tools';
 
 export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
 
@@ -34,11 +34,12 @@ export type ExecuteOptions = {
 
 export type ExecutionProps = {
   model: LanguageModelV1 | LanguageModelV2;
-  inputMessages: LanguageModelV1Prompt;
+  inputMessages: LanguageModelV1Prompt | LanguageModelV2Prompt;
   runId: string;
   providerMetadata?: Record<string, any>;
   providerOptions?: Record<string, any>;
   tools?: Record<string, ToolsForExecution>;
+  activeTools?: string[];
   toolChoice?: ToolChoice<ToolSet> | undefined;
   _internal?: StreamInternal;
   experimental_generateMessageId?: Pick<

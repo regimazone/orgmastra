@@ -1,5 +1,4 @@
 import { ReadableStream } from 'stream/web';
-import type { LanguageModelV1Prompt } from 'ai';
 import { generateId } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../../agent';
@@ -76,14 +75,17 @@ function createAgentWorkflow({
           id: 'generateText',
         } as any);
 
-        const messageList = MessageList.fromArray(initialResult.messages.user);
+        const messageList = new MessageList().add(initialResult.messages.user, 'input');
 
         if (tool && 'onInputAvailable' in tool) {
           try {
             await tool?.onInputAvailable?.({
               toolCallId: inputData.toolCallId,
               input: inputData.args,
-              messages: messageList.get.all?.ui()?.map(message => ({
+              messages: (model.specificationVersion === 'v1'
+                ? messageList.get.all.aiV4.ui()
+                : messageList.get.all.aiV5.ui()
+              )?.map(message => ({
                 role: message.role,
                 parts: message.parts,
               })) as any,
@@ -117,8 +119,10 @@ function createAgentWorkflow({
           const result = await tool.execute(inputData.args, {
             abortSignal: options?.abortSignal,
             toolCallId: inputData.toolCallId,
-            messages: messageList.get.all
-              ?.ui()
+            messages: (model.specificationVersion === 'v1'
+              ? messageList.get.all.aiV4.ui()
+              : messageList.get.all.aiV5.ui()
+            )
               ?.filter(message => message.role === 'user')
               ?.map(message => ({
                 role: message.role,
@@ -165,7 +169,7 @@ function createAgentWorkflow({
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
         const messagesToUse = inputData.messages.all;
-        const messageList = MessageList.fromArray(messagesToUse);
+        const messageList = new MessageList().add(messagesToUse, 'input');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -186,7 +190,7 @@ function createAgentWorkflow({
               runId,
               providerMetadata,
               providerOptions,
-              inputMessages: messageList.get.all.core() as any,
+              inputMessages: messageList.get.all.aiV4.llmPrompt(),
               tools,
               toolChoice,
               _internal,
@@ -219,7 +223,7 @@ function createAgentWorkflow({
               model,
               runId,
               providerMetadata,
-              inputMessages: messageList.get.all.core() as any,
+              inputMessages: messageList.get.all.aiV5.llmPrompt(),
               tools,
               toolChoice,
               _internal,
@@ -336,7 +340,10 @@ function createAgentWorkflow({
                   try {
                     await tool?.onInputStart?.({
                       toolCallId: chunk.payload.toolCallId,
-                      messages: messageList.get.all?.ui()?.map(message => ({
+                      messages: (model.specificationVersion === 'v1'
+                        ? messageList.get.all.aiV4.ui()
+                        : messageList.get.all.aiV5.ui()
+                      )?.map(message => ({
                         role: message.role,
                         parts: message.parts,
                       })) as any,
@@ -512,7 +519,10 @@ function createAgentWorkflow({
                     await tool?.onInputDelta?.({
                       inputTextDelta: chunk.payload.argsTextDelta,
                       toolCallId: chunk.payload.toolCallId,
-                      messages: messageList.get.all?.ui()?.map(message => ({
+                      messages: (model.specificationVersion === 'v1'
+                        ? messageList.get.all.aiV4.ui()
+                        : messageList.get.all.aiV5.ui()
+                      )?.map(message => ({
                         role: message.role,
                         parts: message.parts,
                       })) as any,
@@ -666,13 +676,7 @@ function createAgentWorkflow({
          * Assemble messages
          */
 
-        const allMessages = messageList.get.all.v1().map(message => {
-          return {
-            id: message.id,
-            role: message.role,
-            content: message.content,
-          };
-        });
+        const allMessages = messageList.get.all.v3();
 
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
@@ -684,13 +688,20 @@ function createAgentWorkflow({
         const text = outputStream.text;
 
         const steps = inputData.output?.steps || [];
+
+        // Convert v3 messages to CoreMessageV5 format for transformResponse
+        const v5NonUserMessages = messageList.get.all.aiV5.model().filter(msg => msg.role !== 'user');
+
         steps.push(
           new DefaultStepResult({
             warnings: outputStream.warnings,
             providerMetadata: providerMetadata,
             finishReason: runState.state.stepResult?.reason,
-            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }),
-            response: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: nonUserMessages }, true),
+            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: v5NonUserMessages }),
+            response: outputStream.aisdk.v5.transformResponse(
+              { ...responseMetadata, messages: v5NonUserMessages },
+              true,
+            ),
             request: request,
             usage: outputStream.usage as any,
           }),
@@ -733,7 +744,7 @@ function createAgentWorkflow({
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
 
-        const messageList = MessageList.fromArray(initialResult.messages.all || []);
+        const messageList = new MessageList().add(initialResult.messages.all || [], 'input');
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);
@@ -777,7 +788,7 @@ function createAgentWorkflow({
               'response',
             );
 
-            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v2(), null, 2));
+            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v3(), null, 2));
           }
 
           initialResult.stepResult.isContinued = false;
@@ -848,33 +859,9 @@ function createAgentWorkflow({
         return {
           ...initialResult,
           messages: {
-            all: messageList.get.all.v1().map(message => {
-              return {
-                id: message.id,
-                role: message.role,
-                content: message.content,
-              };
-            }),
-            user: messageList.get.all
-              .v1()
-              .filter(message => message.role === 'user')
-              .map(message => {
-                return {
-                  id: message.id,
-                  role: message.role,
-                  content: message.content,
-                };
-              }),
-            nonUser: messageList.get.all
-              .v1()
-              .filter(message => message.role !== 'user')
-              .map(message => {
-                return {
-                  id: message.id,
-                  role: message.role,
-                  content: message.content,
-                };
-              }),
+            all: messageList.get.all.v3(),
+            user: messageList.get.all.v3().filter(message => message.role === 'user'),
+            nonUser: messageList.get.all.v3().filter(message => message.role !== 'user'),
           },
         };
       },
@@ -1137,20 +1124,21 @@ export function execute(props: ExecuteParams) {
     runIdToUse = crypto.randomUUID();
   }
 
-  let initMessages = [...messages];
+  const messageList = new MessageList();
+
+  // Add system message separately if provided
   if (system) {
-    initMessages.unshift({ role: 'system', content: system });
+    messageList.addSystem({ role: 'system', content: system });
   }
+
+  // Add user messages
+  const userMessages = [...messages];
   if (prompt) {
-    initMessages.push({ role: 'user', content: prompt });
+    userMessages.push({ role: 'user', content: prompt });
   }
+  messageList.add(userMessages, 'input');
 
-  const messageList = MessageList.fromArray(initMessages, {
-    threadId,
-    resourceId,
-  });
-
-  const allCoreMessages = messageList.get.all.core() as LanguageModelV1Prompt;
+  const allCoreMessages = messageList.get.all.aiV4.llmPrompt();
 
   let _internalToUse = _internal
     ? {
