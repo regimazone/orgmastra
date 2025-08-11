@@ -563,12 +563,24 @@ export class MessageList {
 
     aiV4: {
       ui: (): UIMessageV4[] => this.input.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.input.aiV4.ui()),
     },
   };
 
   private response = {
     v3: () => this.messages.filter(m => this.newResponseMessages.has(m)),
     v2: () => this.response.v3().map(MessageList.mastraMessageV3ToV2),
+    v1: () => convertToV1Messages(this.response.v3().map(MessageList.mastraMessageV3ToV2)),
+
+    aiV5: {
+      model: () => this.convertToModelMessages(this.response.aiV5.ui()),
+      ui: (): UIMessageV5[] => this.response.v3().map(MessageList.toUIMessage),
+    },
+
+    aiV4: {
+      ui: (): UIMessageV4[] => this.response.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.response.aiV4.ui()),
+    },
   };
 
   // Return V2 for storage compatibility (storage layer doesn't support V3 yet)
