@@ -1,4 +1,3 @@
-import type { ServerResponse } from 'http';
 import type {
   LanguageModelV2,
   LanguageModelV2CallWarning,
