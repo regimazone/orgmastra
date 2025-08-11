@@ -996,6 +996,9 @@ function createStreamExecutor({
             payload: inputData,
           });
 
+          const telemetryMessages = new MessageList();
+          telemetryMessages.add(inputData.messages.user, 'input');
+
           console.log('user_msgs', JSON.stringify(inputData.messages.user, null, 2));
           rootSpan.setAttributes({
             'stream.response.id': inputData.metadata.id,
@@ -1011,7 +1014,7 @@ function createStreamExecutor({
               ? {
                   'stream.response.text': inputData.output.text,
                   'stream.prompt.messages': JSON.stringify(
-                    inputData.messages.user.map((message: MastraMessageV1) => ({
+                    telemetryMessages.get.all.v1().map((message: MastraMessageV1) => ({
                       role: message.role,
                       content: message.content,
                     })),
