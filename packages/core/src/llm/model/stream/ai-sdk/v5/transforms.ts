@@ -260,12 +260,12 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
 
 export function convertFullStreamChunkToAISDKv5({
   chunk,
-  sendReasoning,
-  sendSources,
-  sendUsage = true,
-  experimental_sendFinish = true,
-  toolCallArgsDeltas,
-  getErrorMessage,
+  // sendReasoning,
+  // sendSources,
+  // sendUsage = true,
+  // experimental_sendFinish = true,
+  // toolCallArgsDeltas,
+  // getErrorMessage,
 }: {
   chunk: any;
   sendReasoning: boolean;
@@ -333,12 +333,14 @@ export function convertFullStreamChunkToAISDKv5({
       providerMetadata: chunk.payload.providerMetadata,
     };
   } else if (chunk.type === 'reasoning-signature') {
+    // AI SDK 5 doesn't support this??
     return {
-      type: 'reasoning-signature',
+      type: 'reasoning-signature' as const,
       id: chunk.payload.id,
       signature: chunk.payload.signature,
     };
   } else if (chunk.type === 'redacted-reasoning') {
+    // AI SDK 5 doesn't support this??
     return {
       type: 'redacted-reasoning',
       id: chunk.payload.id,
@@ -402,10 +404,11 @@ export function convertFullStreamChunkToAISDKv5({
       type: 'tool-result',
       input: chunk.payload.args,
       toolCallId: chunk.payload.toolCallId,
-      providerMetadata: chunk.payload.providerMetadata,
       providerExecuted: chunk.payload.providerExecuted,
       toolName: chunk.payload.toolName,
       output: chunk.payload.result,
+      // AI v5 types don't show this?
+      providerMetadata: chunk.payload.providerMetadata,
     };
   } else if (chunk.type === 'tool-error') {
     return {
@@ -413,9 +416,10 @@ export function convertFullStreamChunkToAISDKv5({
       error: chunk.payload.error,
       input: chunk.payload.args,
       toolCallId: chunk.payload.toolCallId,
-      providerMetadata: chunk.payload.providerMetadata,
       providerExecuted: chunk.payload.providerExecuted,
       toolName: chunk.payload.toolName,
+      // AI v5 types don't show this?
+      providerMetadata: chunk.payload.providerMetadata,
     };
   } else if (chunk.type === 'error') {
     return {
