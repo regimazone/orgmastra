@@ -1,4 +1,4 @@
-import type { LanguageModelV1, ToolSet } from 'ai';
+import type { LanguageModelV1, LanguageModelV1Prompt, ToolSet } from 'ai';
 import type { ExecutionProps } from '../../types';
 import { AISDKV4InputStream } from './input';
 import { prepareToolsAndToolChoice } from './prepare-tools';
