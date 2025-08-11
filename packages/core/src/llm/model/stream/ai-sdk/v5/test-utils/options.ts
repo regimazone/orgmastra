@@ -4,6 +4,8 @@ import type {
   LanguageModelV2FunctionTool,
   LanguageModelV2ProviderDefinedTool,
 } from '@ai-sdk/provider-v5';
+import { stepCountIs, tool } from 'ai-v5';
+import type { TextStreamPart, Tool } from 'ai-v5';
 import {
   convertArrayToReadableStream,
   convertReadableStreamToArray,
@@ -14,6 +16,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import type { execute } from '../../../execute';
+import { MockTracer } from '../../test-utils/mockTracer';
 import {
   createTestModel,
   testUsage,
@@ -22,8 +25,6 @@ import {
   modelWithFiles,
   testUsage2,
 } from './test-utils';
-import { stepCountIs, tool, type TextStreamPart, type Tool } from 'ai-v5';
-import { MockTracer } from '../../test-utils/mockTracer';
 
 export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('options.abortSignal', () => {
@@ -374,6 +375,11 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                       "text": "thinking",
                       "type": "reasoning",
                     },
+                  ],
+                  "role": "assistant",
+                },
+                {
+                  "content": [
                     {
                       "input": {
                         "value": "value",
