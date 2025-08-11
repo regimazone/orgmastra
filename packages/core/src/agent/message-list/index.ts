@@ -1971,6 +1971,7 @@ export class MessageList {
   private static getRole(message: MessageInput): MastraMessageV2['role'] {
     if (message.role === `assistant` || message.role === `tool`) return `assistant`;
     if (message.role === `user`) return `user`;
+    if (message.role === `system`) return `system`;
     throw new Error(
       `BUG: add handling for message role ${message.role} in message ${JSON.stringify(message, null, 2)}`,
     );
