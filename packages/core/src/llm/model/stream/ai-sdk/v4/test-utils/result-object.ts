@@ -183,7 +183,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       console.log('result.response', JSON.stringify(result.response, null, 2));
 
-      expect(result.response).toMatchSnapshot();
+      expect(result.aisdk.v4.response).toMatchSnapshot();
     });
   });
 
@@ -392,7 +392,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.response.messages).toMatchSnapshot();
+      expect(result.aisdk.v4.response.messages).toMatchSnapshot();
     });
 
     it('should contain assistant response message and tool message when there are tool calls with results', async () => {
