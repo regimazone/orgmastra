@@ -377,13 +377,16 @@ export class MastraModelOutput extends MastraBase {
                     request: request || {},
                     response: {
                       ...otherMetadata,
-                      messages: chunkMessages.get.all.v1().map((message: any) => {
-                        return {
-                          id: message.id,
-                          role: message.role,
-                          content: message.content.filter((part: any) => part.type !== 'source'),
-                        };
-                      }),
+                      messages: chunkMessages.get.all
+                        .v1()
+                        .slice(1)
+                        .map((message: any) => {
+                          return {
+                            id: message.id,
+                            role: message.role,
+                            content: message.content.filter((part: any) => part.type !== 'source'),
+                          };
+                        }),
                     },
                     steps: self.aisdk.v4.steps,
                     usage: self.usage,

@@ -190,7 +190,6 @@ export { modelWithReasoning, createTestModel, modelWithSources, modelWithFiles }
 
 export const defaultSettings = () =>
   ({
-    prompt: 'prompt',
     experimental_generateMessageId: mockId({ prefix: 'msg' }),
     _internal: {
       generateId: mockId({ prefix: 'id' }),

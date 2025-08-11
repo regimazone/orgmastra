@@ -122,7 +122,7 @@ function createAgentWorkflow({
             messages: (model.specificationVersion === 'v1'
               ? messageList.get.all.aiV4.core()
               : messageList.get.all.aiV5.model()
-            )?.filter(message => message.role === 'user'),
+            )?.filter(message => message.role === 'user') as any[],
           });
 
           span.setAttributes({
