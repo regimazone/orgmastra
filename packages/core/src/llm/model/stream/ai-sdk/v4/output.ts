@@ -326,6 +326,18 @@ export class AISDKV4OutputStream {
   }
 
   get response() {
-    return this.#modelOutput.response;
+    const messageList = new MessageList();
+    messageList.add(this.#modelOutput.response.messages, 'response');
+
+    return {
+      ...this.#modelOutput.response,
+      messages: messageList.get.all.v1().map((message: any) => {
+        return {
+          id: message.id,
+          role: message.role,
+          content: message.content.filter((part: any) => part.type !== 'source'),
+        };
+      }),
+    };
   }
 }
