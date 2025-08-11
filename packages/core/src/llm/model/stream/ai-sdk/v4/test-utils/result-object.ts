@@ -428,7 +428,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      expect(result.response.messages).toMatchSnapshot();
+      expect(result.aisdk.v4.response.messages).toMatchSnapshot();
     });
   });
 }

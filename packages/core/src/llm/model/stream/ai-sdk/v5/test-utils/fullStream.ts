@@ -890,7 +890,9 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
               console.log('TOOL 1', input, options);
 
               expect(input).toStrictEqual({ value: 'value' });
-              expect(options.messages).toStrictEqual([{ role: 'user', content: 'test-input' }]);
+              expect(options.messages).toStrictEqual([
+                { role: 'user', content: [{ type: 'text', text: 'test-input' }] },
+              ]);
               return `${input.value}-result`;
             },
           }),
