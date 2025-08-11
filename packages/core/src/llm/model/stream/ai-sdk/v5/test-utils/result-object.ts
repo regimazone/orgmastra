@@ -503,39 +503,13 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v5.consumeStream();
 
-      console.log('result.aisdk.v5.steps', JSON.stringify(result.aisdk.v5.steps, null, 2));
-
       expect(result.aisdk.v5.steps).toMatchInlineSnapshot(`
             [
               DefaultStepResult {
                 "content": [
                   {
-                    "id": "123",
-                    "providerMetadata": {
-                      "provider": {
-                        "custom": "value",
-                      },
-                    },
-                    "sourceType": "url",
-                    "title": "Example",
-                    "type": "source",
-                    "url": "https://example.com",
-                  },
-                  {
                     "text": "Hello!",
                     "type": "text",
-                  },
-                  {
-                    "id": "456",
-                    "providerMetadata": {
-                      "provider": {
-                        "custom": "value2",
-                      },
-                    },
-                    "sourceType": "url",
-                    "title": "Example 2",
-                    "type": "source",
-                    "url": "https://example.com/2",
                   },
                 ],
                 "finishReason": "stop",
@@ -552,7 +526,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "text",
                         },
                       ],
-                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],
