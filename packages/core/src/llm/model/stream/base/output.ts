@@ -322,6 +322,9 @@ export class MastraModelOutput extends MastraBase {
                 let onFinishPayload: any = {};
 
                 if (model.version === 'v1') {
+                  const chunkMessages = new MessageList();
+                  chunkMessages.add(chunk.payload.messages.all, 'response');
+
                   onFinishPayload = {
                     text: baseFinishStep.text,
                     warnings: baseFinishStep.warnings,
@@ -374,9 +377,10 @@ export class MastraModelOutput extends MastraBase {
                     request: request || {},
                     response: {
                       ...otherMetadata,
-                      messages: chunk.payload.messages.all.slice(1).map((message: any) => {
+                      messages: chunkMessages.get.all.v1().map((message: any) => {
                         return {
-                          ...message,
+                          id: message.id,
+                          role: message.role,
                           content: message.content.filter((part: any) => part.type !== 'source'),
                         };
                       }),
