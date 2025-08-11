@@ -16,6 +16,7 @@ export function textStreamTests({ executeFn, runId }: { executeFn: typeof execut
           });
 
           expect(prompt).toStrictEqual([
+            { role: 'system', content: 'You are a helpful assistant.' },
             {
               role: 'user',
               content: [{ type: 'text', text: 'test-input' }],
