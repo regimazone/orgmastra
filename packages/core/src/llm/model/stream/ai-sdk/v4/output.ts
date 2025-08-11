@@ -5,6 +5,7 @@ import type { MastraModelOutput } from '../../base';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from './compat';
 import type { ConsumeStreamOptions } from './compat';
 import { convertFullStreamChunkToAISDKv4 } from './transforms';
+import { MessageList } from '../../../../../agent/message-list';
 
 export class AISDKV4OutputStream {
   #modelOutput: MastraModelOutput;
@@ -265,6 +266,9 @@ export class AISDKV4OutputStream {
 
   get steps() {
     return this.#modelOutput.steps.map(step => {
+      const messageList = new MessageList();
+      messageList.add(step.response.messages, 'response');
+
       return {
         ...step,
         sources: step.sources.map((source: any) => {
@@ -309,9 +313,10 @@ export class AISDKV4OutputStream {
         }),
         response: {
           ...step.response,
-          messages: step.response.messages.map((message: any) => {
+          messages: messageList.get.all.v1().map((message: any) => {
             return {
-              ...message,
+              id: message.id,
+              role: message.role,
               content: message.content.filter((part: any) => part.type !== 'source'),
             };
           }),

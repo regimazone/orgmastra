@@ -2,7 +2,7 @@ import type { ReadableStream } from 'stream/web';
 import { TransformStream } from 'stream/web';
 import type { Span } from '@opentelemetry/api';
 import type { ReasoningUIPart, TelemetrySettings } from 'ai-v5';
-import type { MastraMessageV3 } from '../../../../agent/message-list';
+import { MessageList, type MastraMessageV3 } from '../../../../agent/message-list';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
@@ -47,7 +47,11 @@ function reasoningDetailsFromMessages(messages: MastraMessageV3[]): ReasoningUIP
       }
       return [];
     })
-    .filter(part => part.type === `reasoning`);
+    .filter(part => part.type === `reasoning`)
+    .flatMap(part => {
+      const { __details, ...rest } = part;
+      return __details;
+    });
 }
 
 export class MastraModelOutput extends MastraBase {
@@ -214,6 +218,9 @@ export class MastraModelOutput extends MastraBase {
 
               let stepResultPayload;
               if (model.version === 'v1') {
+                const stepResultMessages = new MessageList();
+                stepResultMessages.add(stepResult.response.messages, 'response');
+
                 stepResultPayload = {
                   ...stepResult,
                   files: stepResult.files.map((file: any) => {
@@ -259,9 +266,10 @@ export class MastraModelOutput extends MastraBase {
                   request: request || {},
                   response: {
                     ...otherMetadata,
-                    messages: stepResult.response.messages.map((message: any) => {
+                    messages: stepResultMessages.get.all.v1().map((message: any) => {
                       return {
-                        ...message,
+                        id: message.id,
+                        role: message.role,
                         content: message.content.filter((part: any) => part.type !== 'source'),
                       };
                     }),
