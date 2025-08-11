@@ -120,14 +120,9 @@ function createAgentWorkflow({
             abortSignal: options?.abortSignal,
             toolCallId: inputData.toolCallId,
             messages: (model.specificationVersion === 'v1'
-              ? messageList.get.all.aiV4.ui()
-              : messageList.get.all.aiV5.ui()
-            )
-              ?.filter(message => message.role === 'user')
-              ?.map(message => ({
-                role: message.role,
-                parts: message.parts,
-              })) as any,
+              ? messageList.get.all.aiV4.core()
+              : messageList.get.all.aiV5.model()
+            )?.filter(message => message.role === 'user'),
           });
 
           span.setAttributes({

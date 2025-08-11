@@ -246,7 +246,9 @@ export function fullStreamTests({ executeFn, runId }: { executeFn: typeof execut
             parameters: z.object({ value: z.string() }),
             execute: async (args, options) => {
               expect(args).toStrictEqual({ value: 'value' });
-              expect(options.messages).toStrictEqual([{ role: 'user', content: 'test-input' }]);
+              expect(options.messages).toStrictEqual([
+                { role: 'user', content: [{ type: 'text', text: 'test-input' }] },
+              ]);
               return `${args.value}-result`;
             },
           }),
