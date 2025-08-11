@@ -2,6 +2,7 @@ import { TransformStream } from 'stream/web';
 import { createTextStreamResponse, createUIMessageStream, createUIMessageStreamResponse } from 'ai-v5';
 import type { TextStreamPart, ToolSet, UIMessage, UIMessageStreamOptions, StepResult } from 'ai-v5';
 
+import { MessageList } from '../../../../../agent/message-list';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
@@ -276,11 +277,16 @@ export class AISDKV5OutputStream {
 
   transformResponse(response: any, isMessages: boolean = false) {
     const newResponse = { ...response };
-    const hasTools = response.messages.some(
+    const messageList = new MessageList();
+    messageList.add(response.messages, 'response');
+
+    const formattedMessages = messageList.get.all.aiV5.model();
+
+    const hasTools = formattedMessages.some(
       (message: any) =>
         Array.isArray(message.content) && message.content.some((part: any) => part.type === 'tool-result'),
     );
-    newResponse.messages = response.messages.map((message: any) => {
+    newResponse.messages = formattedMessages.map((message: any) => {
       // Handle string content
       if (typeof message.content === 'string') {
         return message;
