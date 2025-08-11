@@ -183,7 +183,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                     "type": "text",
                   },
                 ],
-                "id": "msg-0",
                 "role": "assistant",
               },
             ]
@@ -267,7 +266,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                       "type": "text",
                     },
                   ],
-                  "id": "msg-0",
                   "role": "assistant",
                 },
               ],
@@ -474,7 +472,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "text",
                         },
                       ],
-                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],
