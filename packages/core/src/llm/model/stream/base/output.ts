@@ -83,6 +83,7 @@ export class MastraModelOutput extends MastraBase {
   #bufferedReasoning: string[] = [];
   #bufferedFiles: any[] = [];
   #toolCallArgsDeltas: Record<string, string[]> = {};
+  #toolCallDeltaIdNameMap: Record<string, string> = {};
   #toolCalls: any[] = [];
   #toolResults: any[] = [];
   #warnings: any[] = [];
@@ -131,11 +132,16 @@ export class MastraModelOutput extends MastraBase {
                 self.#bufferedTextChunks[chunk.payload.id] = ary;
               }
               break;
+            case 'tool-call-input-streaming-start':
+              self.#toolCallDeltaIdNameMap[chunk.payload.toolCallId] = chunk.payload.toolName;
+              break;
             case 'tool-call-delta':
               if (!self.#toolCallArgsDeltas[chunk.payload.toolCallId]) {
                 self.#toolCallArgsDeltas[chunk.payload.toolCallId] = [];
               }
               self.#toolCallArgsDeltas?.[chunk.payload.toolCallId]?.push(chunk.payload.argsTextDelta);
+              // mutate chunk to add toolname, we need it later to look up tools by their name
+              chunk.payload.toolName ||= self.#toolCallDeltaIdNameMap[chunk.payload.toolCallId];
               break;
             case 'file':
               self.#bufferedFiles.push(chunk);
@@ -271,7 +277,7 @@ export class MastraModelOutput extends MastraBase {
                       return {
                         id: message.id,
                         role: message.role,
-                        content: message.content.filter((part: any) => part.type !== 'source'),
+                        content: message.content,
                       };
                     }),
                   },
@@ -385,7 +391,7 @@ export class MastraModelOutput extends MastraBase {
                           return {
                             id: message.id,
                             role: message.role,
-                            content: message.content.filter((part: any) => part.type !== 'source'),
+                            content: message.content,
                           };
                         }),
                     },

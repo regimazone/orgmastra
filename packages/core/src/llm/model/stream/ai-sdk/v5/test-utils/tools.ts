@@ -529,7 +529,7 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
     it('should invoke callbacks in the correct order', async () => {
       const recordedCalls: unknown[] = [];
 
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -631,7 +631,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "abortSignal": undefined,
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -645,7 +650,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": "{"",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -659,7 +669,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": "value",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -673,7 +688,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": "":"",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -687,7 +707,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": "Spark",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -701,7 +726,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": "le",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -715,7 +745,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": " Day",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -729,7 +764,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               "inputTextDelta": ""}",
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
@@ -745,7 +785,12 @@ export function toolsTests({ executeFn, runId }: { executeFn: typeof execute; ru
               },
               "messages": [
                 {
-                  "content": "test-input",
+                  "content": [
+                    {
+                      "text": "test-input",
+                      "type": "text",
+                    },
+                  ],
                   "role": "user",
                 },
               ],
