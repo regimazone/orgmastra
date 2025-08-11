@@ -2,7 +2,7 @@ import { ReadableStream } from 'stream/web';
 import { generateId } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../../agent';
-import type { MessageInput } from '../../../agent/message-list';
+import type { MessageListAddInput } from '../../../agent/message-list';
 import { ConsoleLogger } from '../../../logger';
 import type { MastraMessageV1 } from '../../../memory';
 import type { ChunkType } from '../../../stream/types';
@@ -1099,7 +1099,7 @@ function createStreamExecutor({
 }
 
 export type ExecuteParams = {
-  messages?: MessageInput[];
+  messages?: MessageListAddInput;
   system?: string;
   prompt?: string;
 } & {
@@ -1126,17 +1126,18 @@ export function execute(props: ExecuteParams) {
 
   // Add system message separately if provided
   if (system) {
-    messageList.addSystem({ role: 'system', content: system });
+    messageList.addSystem(system);
   }
 
   // Add user messages
   const userMessages = [...messages];
   if (prompt) {
     userMessages.push({ role: 'user', content: prompt });
+    messageList.add({ role: 'user', content: prompt }, 'input');
   }
-  messageList.add(userMessages, 'input');
+  messageList.add(messages, 'input');
 
-  const allCoreMessages = messageList.get.all.aiV4.llmPrompt();
+  const modelPromptMessages = messageList.get.all.aiV4.llmPrompt();
 
   let _internalToUse = _internal
     ? {
@@ -1155,7 +1156,7 @@ export function execute(props: ExecuteParams) {
   const streamExecutorProps: StreamExecutorProps = {
     runId,
     _internal: _internalToUse,
-    inputMessages: allCoreMessages,
+    inputMessages: modelPromptMessages,
     logger: loggerToUse,
     startTimestamp: startTimestamp!,
     ...rest,
@@ -1186,9 +1187,12 @@ export function execute(props: ExecuteParams) {
     }),
     ...(rest.experimental_telemetry?.recordOutputs !== false
       ? {
-          'stream.prompt.messages': messages.length
-            ? JSON.stringify(messages)
-            : JSON.stringify([{ role: 'user', content: [{ type: 'text', text: prompt }] }]),
+          'stream.prompt.messages':
+            // TODO: we shouldn't be making a messages array, we should use MessageList instead
+            // for now tests fail when we do.
+            Array.isArray(messages) && messages.length
+              ? JSON.stringify(messages)
+              : JSON.stringify([{ role: 'user', content: [{ type: 'text', text: prompt }] }]),
         }
       : {}),
   });
