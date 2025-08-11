@@ -637,7 +637,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
                           "type": "file",
                         },
                       ],
-                      "id": "msg-0",
                       "role": "assistant",
                     },
                   ],

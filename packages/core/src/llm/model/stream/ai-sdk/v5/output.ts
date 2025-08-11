@@ -297,7 +297,7 @@ export class AISDKV5OutputStream {
           if (isMessages) {
             return {
               type: 'file',
-              mediaType: part.mimeType,
+              mediaType: part.mediaType,
               data: part.data,
               providerOptions: part.providerOptions,
             };
@@ -307,7 +307,7 @@ export class AISDKV5OutputStream {
               type: 'file',
               payload: {
                 data: part.data,
-                mimeType: part.mimeType,
+                mimeType: part.mediaType,
               },
             },
             sendReasoning: false,
