@@ -83,11 +83,11 @@ function createAgentWorkflow({
               toolCallId: inputData.toolCallId,
               input: inputData.args,
               messages: (model.specificationVersion === 'v1'
-                ? messageList.get.all.aiV4.ui()
-                : messageList.get.all.aiV5.ui()
+                ? messageList.get.input.aiV4.core()
+                : messageList.get.input.aiV5.model()
               )?.map(message => ({
                 role: message.role,
-                parts: message.parts,
+                content: message.content,
               })) as any,
               abortSignal: options?.abortSignal,
             });
@@ -120,9 +120,8 @@ function createAgentWorkflow({
             abortSignal: options?.abortSignal,
             toolCallId: inputData.toolCallId,
             messages: (model.specificationVersion === 'v1'
-              ? messageList.get.all.aiV4.core()
-              : messageList.get.all.aiV5.model()
-            )?.filter(message => message.role === 'user') as any[],
+              ? messageList.get.input.aiV4.core()
+              : messageList.get.input.aiV5.model()) as any[],
           });
 
           span.setAttributes({
@@ -308,11 +307,16 @@ function createAgentWorkflow({
                     id: messageId,
                     role: 'assistant',
                     content: [
-                      {
-                        type: 'text',
-                        text: runState.state.textDeltas.join(''),
-                        providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
-                      },
+                      (chunk.payload.providerMetadata ?? runState.state.providerOptions)
+                        ? {
+                            type: 'text',
+                            text: runState.state.textDeltas.join(''),
+                            providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
+                          }
+                        : {
+                            type: 'text',
+                            text: runState.state.textDeltas.join(''),
+                          },
                     ],
                   },
                   'response',
@@ -336,11 +340,11 @@ function createAgentWorkflow({
                     await tool?.onInputStart?.({
                       toolCallId: chunk.payload.toolCallId,
                       messages: (model.specificationVersion === 'v1'
-                        ? messageList.get.all.aiV4.ui()
-                        : messageList.get.all.aiV5.ui()
+                        ? messageList.get.input.aiV4.core()
+                        : messageList.get.input.aiV5.model()
                       )?.map(message => ({
                         role: message.role,
-                        parts: message.parts,
+                        content: message.content,
                       })) as any,
                       abortSignal: options?.abortSignal,
                     });
@@ -515,11 +519,11 @@ function createAgentWorkflow({
                       inputTextDelta: chunk.payload.argsTextDelta,
                       toolCallId: chunk.payload.toolCallId,
                       messages: (model.specificationVersion === 'v1'
-                        ? messageList.get.all.aiV4.ui()
-                        : messageList.get.all.aiV5.ui()
+                        ? messageList.get.input.aiV4.core()
+                        : messageList.get.input.aiV5.model()
                       )?.map(message => ({
                         role: message.role,
-                        parts: message.parts,
+                        content: message.content,
                       })) as any,
                       abortSignal: options?.abortSignal,
                     });
@@ -671,7 +675,7 @@ function createAgentWorkflow({
          * Assemble messages
          */
 
-        const allMessages = messageList.get.all.v3();
+        const allMessages = messageList.get.all.v1();
 
         const userMessages = allMessages.filter(message => message.role === 'user');
         const nonUserMessages = allMessages.filter(message => message.role !== 'user');
@@ -685,7 +689,7 @@ function createAgentWorkflow({
         const steps = inputData.output?.steps || [];
 
         // Convert v3 messages to CoreMessageV5 format for transformResponse
-        const v5NonUserMessages = messageList.get.all.aiV5.model().filter(msg => msg.role !== 'user');
+        const v5NonUserMessages = messageList.get.response.aiV5.model();
 
         steps.push(
           new DefaultStepResult({
@@ -783,7 +787,7 @@ function createAgentWorkflow({
               'response',
             );
 
-            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v3(), null, 2));
+            console.log('messageList TOOL ERROR', JSON.stringify(messageList.get.all.v1(), null, 2));
           }
 
           initialResult.stepResult.isContinued = false;
