@@ -20,6 +20,8 @@ export function executeV5({
   model: LanguageModelV2;
   onResult: (result: { warnings: any; request: any; rawResponse: any }) => void;
 }) {
+  const { mode, output, schema, schemaName, schemaDescription } = options ?? { mode: undefined };
+
   const v5 = new AISDKV5InputStream({
     component: 'LLM',
     name: model.modelId,

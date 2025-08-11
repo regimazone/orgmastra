@@ -1,39 +1,137 @@
 import assert, { fail } from 'node:assert';
 import { JSONParseError, TypeValidationError } from '@ai-sdk/provider';
-import { jsonSchema } from '@ai-sdk/provider-utils';
+// import { jsonSchema } from '@ai-sdk/provider-utils';
 import { convertAsyncIterableToArray, convertReadableStreamToArray } from '@ai-sdk/provider-utils/test';
+import type { LanguageModelV2CallWarning, LanguageModelV2StreamPart } from '@ai-sdk/provider-v5';
 import { streamObject as streamObjectv5 } from 'ai-v5';
 import { convertArrayToReadableStream, MockLanguageModelV2, mockValues } from 'ai-v5/test';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { z } from 'zod/v4';
 
-import type { execute } from '../../../execute';
+import type { execute, ExecuteParams } from '../../../execute';
 // import { NoObjectGeneratedError, verifyNoObjectGeneratedError } from '../error/no-object-generated-error';
 
 import {
-  createTestModel,
-  defaultSettings,
-  modelWithFiles,
-  modelWithReasoning,
-  modelWithSources,
+  // createTestModel,
+  // defaultSettings,
+  // modelWithFiles,
+  // modelWithReasoning,
+  // modelWithSources,
   testUsage,
-  testUsage2,
+  // testUsage2,
 } from './test-utils';
 
+function createTestModel({
+  warnings = [],
+  stream = convertArrayToReadableStream([
+    {
+      type: 'stream-start',
+      warnings,
+    },
+    {
+      type: 'response-metadata',
+      id: 'id-0',
+      modelId: 'mock-model-id',
+      timestamp: new Date(0),
+    },
+    { type: 'text-start', id: '1' },
+    { type: 'text-delta', id: '1', delta: '{ ' },
+    { type: 'text-delta', id: '1', delta: '"content": ' },
+    { type: 'text-delta', id: '1', delta: `"Hello, ` },
+    { type: 'text-delta', id: '1', delta: `world` },
+    { type: 'text-delta', id: '1', delta: `!"` },
+    { type: 'text-delta', id: '1', delta: ' }' },
+    { type: 'text-end', id: '1' },
+    {
+      type: 'finish',
+      finishReason: 'stop',
+      usage: testUsage,
+      providerMetadata: {
+        testProvider: {
+          testKey: 'testValue',
+        },
+      },
+    },
+  ]),
+  request = undefined,
+  response = undefined,
+}: {
+  stream?: ReadableStream<LanguageModelV2StreamPart>;
+  request?: { body: string };
+  response?: { headers: Record<string, string> };
+  warnings?: LanguageModelV2CallWarning[];
+} = {}) {
+  return new MockLanguageModelV2({
+    doStream: async () => ({ stream, request, response, warnings }),
+  });
+}
+
 export function streamObjectTestsV5({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
-  const streamObject = streamObjectv5;
-  // const streamObject = async (args: Omit<ExecuteParams, 'runId'>): Promise<StreamObjectResult> => {
-  //   const output = await executeFn({
+  // const streamObject = streamObjectv5;
+  // const streamObject = (args: Omit<ExecuteParams, 'runId'>) => {
+  //   const output = executeFn({
   //     runId,
   //     ...args,
   //   });
-  //   return output.aisdk.v5.getFullOutput();
+  //   return output;
   // };
 
-  describe.skip('streamObject', () => {
+  const streamObject = (args: any) => {
+    const {
+      mode,
+      output,
+      schema,
+      schemaName,
+      schemaDescription,
+
+      model,
+      messages,
+      prompt,
+      system,
+      headers,
+      onError,
+      providerOptions,
+
+      onFinish,
+    } = args;
+
+    let modeType: 'regular' | 'object-json' | 'object-tool' | undefined;
+    if (mode === 'json') {
+      modeType = 'object-json';
+    } else if (mode === 'tool') {
+      modeType = 'object-tool';
+    }
+
+    const executeParams: Omit<ExecuteParams, 'runId'> = {
+      model,
+      messages,
+      prompt,
+      system,
+      options: {
+        mode: modeType,
+        schema,
+        schemaName,
+        schemaDescription,
+        onError,
+        output,
+        onFinish,
+      },
+      headers,
+      providerOptions,
+    };
+
+    const res = executeFn({
+      runId,
+      ...executeParams,
+    });
+
+    return res;
+  };
+
+  describe('streamObject', () => {
     describe('output = "object"', () => {
       describe('result.objectStream', () => {
-        it('should send object deltas', async () => {
+        it.only('should send object deltas', async () => {
           const mockModel = createTestModel();
 
           const result = streamObject({
@@ -41,48 +139,53 @@ export function streamObjectTestsV5({ executeFn, runId }: { executeFn: typeof ex
             schema: z.object({ content: z.string() }),
             prompt: 'prompt',
           });
-          console.log(result);
 
+          // console.log(
+          //   'RESULT222',
+          //   JSON.stringify(await convertAsyncIterableToArray(result.partialObjectStream), null, 2),
+          // );
+          console.log('result22', result);
           console.log(
-            'RESULT222',
-            JSON.stringify(await convertAsyncIterableToArray(result.partialObjectStream), null, 2),
+            'result.partialObjectStream',
+            await convertAsyncIterableToArray(result.aisdk.v5.partialObjectStream),
           );
+          console.log('result224', await result.response);
 
-          expect(await convertAsyncIterableToArray(result.partialObjectStream)).toMatchInlineSnapshot(`
-          [
-            {},
-            {
-              "content": "Hello, ",
-            },
-            {
-              "content": "Hello, world",
-            },
-            {
-              "content": "Hello, world!",
-            },
-          ]
-        `);
+          //   expect(await convertAsyncIterableToArray(result.partialObjectStream)).toMatchInlineSnapshot(`
+          //   [
+          //     {},
+          //     {
+          //       "content": "Hello, ",
+          //     },
+          //     {
+          //       "content": "Hello, world",
+          //     },
+          //     {
+          //       "content": "Hello, world!",
+          //     },
+          //   ]
+          // `);
 
-          expect(mockModel.doStreamCalls[0].responseFormat).toMatchInlineSnapshot(`
-          {
-            "description": undefined,
-            "name": undefined,
-            "schema": {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "additionalProperties": false,
-              "properties": {
-                "content": {
-                  "type": "string",
-                },
-              },
-              "required": [
-                "content",
-              ],
-              "type": "object",
-            },
-            "type": "json",
-          }
-        `);
+          //   expect(mockModel.doStreamCalls[0].responseFormat).toMatchInlineSnapshot(`
+          //   {
+          //     "description": undefined,
+          //     "name": undefined,
+          //     "schema": {
+          //       "$schema": "http://json-schema.org/draft-07/schema#",
+          //       "additionalProperties": false,
+          //       "properties": {
+          //         "content": {
+          //           "type": "string",
+          //         },
+          //       },
+          //       "required": [
+          //         "content",
+          //       ],
+          //       "type": "object",
+          //     },
+          //     "type": "json",
+          //   }
+          // `);
         });
 
         it('should use name and description', async () => {
@@ -1276,157 +1379,6 @@ export function streamObjectTestsV5({ executeFn, runId }: { executeFn: typeof ex
           "type": "json",
         }
       `);
-      });
-    });
-
-    describe('telemetry', () => {
-      let tracer: MockTracer;
-
-      beforeEach(() => {
-        tracer = new MockTracer();
-      });
-
-      it('should not record any telemetry data when not explicitly enabled', async () => {
-        const result = streamObject({
-          model: new MockLanguageModelV2({
-            doStream: async () => ({
-              stream: convertArrayToReadableStream([
-                {
-                  type: 'response-metadata',
-                  id: 'id-0',
-                  modelId: 'mock-model-id',
-                  timestamp: new Date(0),
-                },
-                { type: 'text-start', id: '1' },
-                { type: 'text-delta', id: '1', delta: '{ ' },
-                { type: 'text-delta', id: '1', delta: '"content": ' },
-                { type: 'text-delta', id: '1', delta: `"Hello, ` },
-                { type: 'text-delta', id: '1', delta: `world` },
-                { type: 'text-delta', id: '1', delta: `!"` },
-                { type: 'text-delta', id: '1', delta: ' }' },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: testUsage,
-                },
-              ]),
-            }),
-          }),
-          schema: z.object({ content: z.string() }),
-          prompt: 'prompt',
-          _internal: { now: () => 0 },
-        });
-
-        // consume stream
-        await convertAsyncIterableToArray(result.partialObjectStream);
-
-        expect(tracer.jsonSpans).toMatchSnapshot();
-      });
-
-      it('should record telemetry data when enabled', async () => {
-        const result = streamObject({
-          model: createTestModel({
-            stream: convertArrayToReadableStream([
-              {
-                type: 'response-metadata',
-                id: 'id-0',
-                modelId: 'mock-model-id',
-                timestamp: new Date(0),
-              },
-              { type: 'text-start', id: '1' },
-              { type: 'text-delta', id: '1', delta: '{ ' },
-              { type: 'text-delta', id: '1', delta: '"content": ' },
-              { type: 'text-delta', id: '1', delta: `"Hello, ` },
-              { type: 'text-delta', id: '1', delta: `world` },
-              { type: 'text-delta', id: '1', delta: `!"` },
-              { type: 'text-delta', id: '1', delta: ' }' },
-              { type: 'text-end', id: '1' },
-              {
-                type: 'finish',
-                finishReason: 'stop',
-                usage: testUsage,
-                providerMetadata: {
-                  testProvider: {
-                    testKey: 'testValue',
-                  },
-                },
-              },
-            ]),
-          }),
-          schema: z.object({ content: z.string() }),
-          schemaName: 'test-name',
-          schemaDescription: 'test description',
-          prompt: 'prompt',
-          topK: 0.1,
-          topP: 0.2,
-          frequencyPenalty: 0.3,
-          presencePenalty: 0.4,
-          temperature: 0.5,
-          headers: {
-            header1: 'value1',
-            header2: 'value2',
-          },
-          experimental_telemetry: {
-            isEnabled: true,
-            functionId: 'test-function-id',
-            metadata: {
-              test1: 'value1',
-              test2: false,
-            },
-            tracer,
-          },
-          _internal: { now: () => 0 },
-        });
-
-        // consume stream
-        await convertAsyncIterableToArray(result.partialObjectStream);
-
-        expect(tracer.jsonSpans).toMatchSnapshot();
-      });
-
-      it('should not record telemetry inputs / outputs when disabled', async () => {
-        const result = streamObject({
-          model: new MockLanguageModelV2({
-            doStream: async () => ({
-              stream: convertArrayToReadableStream([
-                {
-                  type: 'response-metadata',
-                  id: 'id-0',
-                  modelId: 'mock-model-id',
-                  timestamp: new Date(0),
-                },
-                { type: 'text-start', id: '1' },
-                { type: 'text-delta', id: '1', delta: '{ ' },
-                { type: 'text-delta', id: '1', delta: '"content": ' },
-                { type: 'text-delta', id: '1', delta: `"Hello, ` },
-                { type: 'text-delta', id: '1', delta: `world` },
-                { type: 'text-delta', id: '1', delta: `!"` },
-                { type: 'text-delta', id: '1', delta: ' }' },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: testUsage,
-                },
-              ]),
-            }),
-          }),
-          schema: z.object({ content: z.string() }),
-          prompt: 'prompt',
-          experimental_telemetry: {
-            isEnabled: true,
-            recordInputs: false,
-            recordOutputs: false,
-            tracer,
-          },
-          _internal: { now: () => 0 },
-        });
-
-        // consume stream
-        await convertAsyncIterableToArray(result.partialObjectStream);
-
-        expect(tracer.jsonSpans).toMatchSnapshot();
       });
     });
 

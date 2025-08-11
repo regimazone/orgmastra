@@ -205,18 +205,16 @@ export class AISDKV4OutputStream {
     );
   }
 
-  get object(): Promise<any> {
+  get object() {
     return (async () => {
       const chunks: any[] = [];
       const reader = this.partialObjectStream.getReader();
-
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           chunks.push(value);
         }
-
         if (chunks.length === 0) {
           throw new NoObjectGeneratedError({
             message: 'No object generated: response did not match schema.',
@@ -225,15 +223,12 @@ export class AISDKV4OutputStream {
             finishReason: this.#modelOutput.finishReason || 'stop',
           });
         }
-
         const finalObject = chunks[chunks.length - 1];
         const schema = this.#options.executeOptions?.schema;
         const output = this.#options.executeOptions?.output;
-
         // For array output, the finalObject is already the elements array from the transformer
         // For object output, finalObject is the object itself
         let resultObject = finalObject;
-
         // Validate final object against schema if provided (only for Zod schemas)
         if (schema && typeof schema === 'object' && 'parse' in schema) {
           try {
@@ -252,7 +247,6 @@ export class AISDKV4OutputStream {
             });
           }
         }
-
         return resultObject;
       } finally {
         reader.releaseLock();
@@ -277,7 +271,8 @@ export class AISDKV4OutputStream {
   async getFullOutput() {
     await this.consumeStream();
     return {
-      text: this.#modelOutput.text,
+      object: await this.object,
+      text: this.#modelOutput.text.trim(),
       usage: this.#modelOutput.usage,
       steps: this.steps,
       finishReason: this.#modelOutput.finishReason,

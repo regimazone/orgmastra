@@ -1,5 +1,6 @@
 import { describe } from 'vitest';
 import { fullStreamTests as fullStreamTestsV4 } from './ai-sdk/v4/test-utils/fullStream';
+import { generateObjectTestsV4 } from './ai-sdk/v4/test-utils/generateObject';
 import { generateTextTestsV4 } from './ai-sdk/v4/test-utils/generateText';
 import { mergeIntoDataStreamTests } from './ai-sdk/v4/test-utils/mergeIntoDataStream';
 import { optionsTests as optionsTestsV4 } from './ai-sdk/v4/test-utils/options';
@@ -43,6 +44,7 @@ describe('V4 tests', () => {
   });
 
   generateTextTestsV4({ executeFn: execute, runId });
+  generateObjectTestsV4({ executeFn: execute, runId });
   streamObjectTestsV4({ executeFn: execute, runId });
 });
 
@@ -62,5 +64,5 @@ describe('V5 tests', () => {
   toUIMessageStreamTests({ executeFn: execute, runId });
 
   generateTextTestsV5({ executeFn: execute, runId });
-  streamObjectTestsV5({ executeFn: execute, runId });
+  // streamObjectTestsV5({ executeFn: execute, runId });
 });

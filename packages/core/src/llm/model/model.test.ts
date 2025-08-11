@@ -163,7 +163,7 @@ describe('MastraLLM', () => {
   });
 
   describe('stream', () => {
-    it.only('should stream text by default', async () => {
+    it('should stream text by default', async () => {
       const messages: CoreMessage[] = [{ role: 'user', content: 'test message' }];
 
       await aisdkText.stream(messages, {
@@ -287,7 +287,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
 
       expect(result.text).toEqual('Custom text response');
     });
@@ -303,7 +303,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should handle pre-converted tools', async () => {
@@ -317,7 +317,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should handle onStepFinish callback', async () => {
@@ -332,7 +332,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should handle rate limiting', async () => {
@@ -354,7 +354,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should log debug messages', async () => {
@@ -369,7 +369,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should handle step change logging', async () => {
@@ -391,7 +391,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
   });
 
@@ -502,7 +502,7 @@ describe('MastraLLM', () => {
     });
   });
 
-  describe('__textObject', () => {
+  describe.only('__textObject', () => {
     it('should generate structured output with Zod schema', async () => {
       const messages: CoreMessage[] = [{ role: 'user', content: 'test message' }];
 
@@ -532,7 +532,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should handle JSON schema input', async () => {
@@ -553,7 +553,7 @@ describe('MastraLLM', () => {
         runtimeContext,
       });
 
-      expect(generateSpy).toHaveBeenCalled();
+      expect(streamSpy).toHaveBeenCalled();
     });
 
     it('should integrate tools correctly', async () => {

@@ -31,7 +31,7 @@ function verifyNoObjectGeneratedError(
 
 export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   // const streamObject = streamObjectv4;
-  const streamObject = async (
+  const streamObject = (
     args: any,
     // Parameters<typeof streamObjectv4>[0]
   ) => {
@@ -78,7 +78,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
       providerOptions,
     };
 
-    const res = await executeFn({
+    const res = executeFn({
       runId,
       ...executeParams,
     });
@@ -86,7 +86,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
     return res;
   };
 
-  describe.only('streamObject', () => {
+  describe('streamObject', () => {
     describe('output = "object"', () => {
       describe('result.objectStream', () => {
         it('should send object deltas with json mode', async () => {
@@ -142,7 +142,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
               };
             },
           });
-          const result = await streamObject({
+          const result = streamObject({
             runId,
             model,
             schema: z.object({ content: z.string() }),
@@ -197,7 +197,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
               };
             },
           });
-          const result = await streamObject({
+          const result = streamObject({
             runId,
             model,
             mode: 'json',
@@ -257,7 +257,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
             },
           });
 
-          const result = await streamObject({
+          const result = streamObject({
             model,
             schema: z.object({ content: z.string() }),
             schemaName: 'test-name',
@@ -355,7 +355,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
             },
           });
 
-          const result = await streamObject({
+          const result = streamObject({
             model,
             schema: z.object({ content: z.string() }),
             mode: 'tool',
@@ -450,7 +450,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
               };
             },
           });
-          const result = await streamObject({
+          const result = streamObject({
             model,
             schema: z.object({ content: z.string() }),
             schemaName: 'test-name',
@@ -468,7 +468,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should suppress error in partialObjectStream', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => {
                 throw new Error('test error');
@@ -485,7 +485,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         it('should invoke onError callback with Error', async () => {
           const result: Array<{ error: unknown }> = [];
 
-          const resultObject = await streamObject({
+          const resultObject = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => {
                 throw new Error('test error');
@@ -509,7 +509,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
       // the snapshot doesn't have chunks like step-start, step-finish
       describe.todo('result.fullStream', () => {
         it('should send full stream data', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -548,7 +548,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
       // no textStream yet
       describe.todo('result.textStream', () => {
         it('should send text stream', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -584,7 +584,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('result.toTextStreamResponse', () => {
         it('should create a Response with a text stream', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -625,7 +625,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         it.todo('should write text deltas to a Node.js response-like object', async () => {
           const mockResponse = createMockServerResponse();
 
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -663,7 +663,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('result.usage', () => {
         it('should resolve with token usage', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -697,7 +697,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('result.providerMetadata', () => {
         it('should resolve with provider metadata', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -733,7 +733,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
       describe.todo('result.response', () => {
         // original test didn't include `messages` in response
         it.todo('should resolve with response information in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -787,7 +787,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
         // original test didn't include `messages` in response
         it.todo('should resolve with response information in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -834,7 +834,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('result.request', () => {
         it('should contain request information with json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -873,7 +873,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should contain request information with tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -917,7 +917,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('result.object', () => {
         it('should resolve with typed object', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -950,7 +950,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should reject object promise when the streamed object does not match the schema', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -981,7 +981,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should not lead to unhandled promise rejections when the streamed object does not match the schema', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1017,7 +1017,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         it.todo('should be called when a valid object is generated', async () => {
           let result: Parameters<Required<Parameters<typeof streamObject>[0]>['onFinish']>[0];
 
-          const streamResult = await streamObject({
+          const streamResult = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1060,7 +1060,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         it.todo("should be called when object doesn't match the schema", async () => {
           let result: Parameters<Required<Parameters<typeof streamObject>[0]>['onFinish']>[0];
 
-          const streamResult = await streamObject({
+          const streamResult = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1105,7 +1105,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('options.headers', () => {
         it('should pass headers to model in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ headers }) => {
                 expect(headers).toStrictEqual({
@@ -1140,7 +1140,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should pass headers to model in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ headers }) => {
                 expect(headers).toStrictEqual({
@@ -1180,7 +1180,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('options.providerOptions', () => {
         it('should pass provider options to model in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ providerMetadata }) => {
                 expect(providerMetadata).toStrictEqual({
@@ -1217,7 +1217,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should pass provider options to model in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ providerMetadata }) => {
                 expect(providerMetadata).toStrictEqual({
@@ -1259,7 +1259,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('custom schema', () => {
         it('should send object deltas with json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ prompt, mode }) => {
                 assert.deepStrictEqual(mode, {
@@ -1328,7 +1328,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
       describe('error handling', () => {
         it('should throw NoObjectGeneratedError when schema validation fails in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1382,7 +1382,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
         // TODO: response has messages with content and a random id
         it.todo('should throw NoObjectGeneratedError when schema validation fails in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1427,7 +1427,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should throw NoObjectGeneratedError when parsing fails in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1481,7 +1481,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
         // TODO: response has messages with content and a random id
         it.todo('should throw NoObjectGeneratedError when parsing fails in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1526,7 +1526,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should throw NoObjectGeneratedError when no tool call is made in tool mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1572,7 +1572,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         });
 
         it('should throw NoObjectGeneratedError when no text is generated in json mode', async () => {
-          const result = await streamObject({
+          const result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async () => ({
                 stream: convertArrayToReadableStream([
@@ -1625,7 +1625,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         let onFinishResult: Parameters<Required<Parameters<typeof streamObject>[0]>['onFinish']>[0];
 
         beforeEach(async () => {
-          result = await streamObject({
+          result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ prompt, mode }) => {
                 const expectedPrompt = [
@@ -1768,7 +1768,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
         let onFinishResult: Parameters<Required<Parameters<typeof streamObject>[0]>['onFinish']>[0];
 
         beforeEach(async () => {
-          result = await streamObject({
+          result = streamObject({
             model: new MockLanguageModelV1({
               doStream: async ({ prompt, mode }) => {
                 assert.deepStrictEqual(mode, {
@@ -1873,7 +1873,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
     describe('output = "no-schema"', () => {
       it('should send object deltas with json mode', async () => {
-        const result = await streamObject({
+        const result = streamObject({
           model: new MockLanguageModelV1({
             doStream: async ({ prompt, mode }) => {
               console.log('mode22', mode);
@@ -1930,7 +1930,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
     describe('options.messages', () => {
       // TODO: currently failing to detect ui messages when creating MessageList
       it.todo('should detect and convert ui messages', async () => {
-        const result = await streamObject({
+        const result = streamObject({
           model: new MockLanguageModelV1({
             doStream: async ({ prompt }) => {
               expect(prompt).toStrictEqual([
@@ -2065,7 +2065,7 @@ export function streamObjectTestsV4({ executeFn, runId }: { executeFn: typeof ex
 
         const model = new MockLanguageModelWithImageSupport();
 
-        const result = await streamObject({
+        const result = streamObject({
           model,
           schema: z.object({ content: z.string() }),
           mode: 'json',

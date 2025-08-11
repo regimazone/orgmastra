@@ -213,7 +213,7 @@ export class MastraLLM extends MastraLLMBase {
 
     try {
       // const result: GenerateTextResult<Tools, Z> = await generateText(argsForExecute);
-      const output = await execute({
+      const output = execute({
         runId: runId!,
         model: argsForExecute.model,
         prompt: argsForExecute.messages as any,
@@ -221,7 +221,10 @@ export class MastraLLM extends MastraLLMBase {
         toolChoice: argsForExecute.toolChoice as any,
         maxSteps: argsForExecute.maxSteps,
         messages: argsForExecute.messages as any,
-        // onStepFinish: argsForExecute.onStepFinish,
+        options: {
+          schema: schema as any,
+          onStepFinish: argsForExecute.onStepFinish,
+        },
       });
 
       // TODO: missing return values:
@@ -230,10 +233,10 @@ export class MastraLLM extends MastraLLMBase {
       // logprobs
       // @ts-expect-error
       const result: GenerateTextResult<Tools, Z> = await output.aisdk.v4.getFullOutput();
-
-      if (schema && result.finishReason === 'stop') {
-        result.object = (result as any).experimental_output;
-      }
+      console.log('result55', result);
+      // if (schema && result.finishReason === 'stop') {
+      //   result.object = (result as any).experimental_output;
+      // }
 
       return result;
     } catch (e: unknown) {
@@ -276,9 +279,9 @@ export class MastraLLM extends MastraLLMBase {
         output = 'array';
         structuredOutput = structuredOutput._def.type;
       }
-
+      console.log('structuredOutput', structuredOutput);
       const processedSchema = this._applySchemaCompat(structuredOutput!);
-
+      console.log('processedSchema', processedSchema);
       const argsForExecute: OriginalGenerateObjectOptions<Z> = {
         ...rest,
         messages,
@@ -293,8 +296,25 @@ export class MastraLLM extends MastraLLMBase {
       };
 
       try {
-        // @ts-expect-error - output in our implementation can only be object or array
-        return await generateObject(argsForExecute);
+        // const output = execute(argsForExecute);
+        const output = execute({
+          ...rest,
+          runId: runId!,
+          model: model,
+          messages: argsForExecute.messages as any,
+          options: {
+            mode: 'object-json',
+            schema: processedSchema as any,
+          },
+          experimental_telemetry: argsForExecute.experimental_telemetry,
+        });
+
+        // if (model.specificationVersion === 'v2') {
+        //   return { object: await output.aisdk.v5.object };
+        // }
+        return { object: await output.aisdk.v4.object };
+        // return { object: await output.aisdk.v4.object };
+        // return await generateObject(argsForExecute);
       } catch (e: unknown) {
         const mastraError = new MastraError(
           {
@@ -603,7 +623,19 @@ export class MastraLLM extends MastraLLMBase {
       };
 
       try {
-        return streamObject(argsForExecute as any);
+        const output = execute({
+          runId: runId!,
+          model: argsForExecute.model,
+          prompt: argsForExecute.messages as any,
+          options: {
+            mode: 'object-json',
+            schema: processedSchema as any,
+          },
+          experimental_telemetry: argsForExecute.experimental_telemetry,
+        });
+        // return output.aisdk.v4;
+        // return streamObject(argsForExecute as any);
+        return output.aisdk.v4 as any;
       } catch (e: unknown) {
         const mastraError = new MastraError(
           {

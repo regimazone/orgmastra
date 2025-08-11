@@ -40,8 +40,6 @@ export type ExecuteOptions = {
    * - 'object': Generate a single object that conforms to the schema.
    * - 'array': Generate an array of objects that conform to the schema.
    * - 'no-schema': Generate any JSON object. No schema is specified.
-   *
-   * Default is 'object' if not specified.
    */
   output?: 'object' | 'array' | 'no-schema';
   schema?: Parameters<typeof asSchema>[0];
