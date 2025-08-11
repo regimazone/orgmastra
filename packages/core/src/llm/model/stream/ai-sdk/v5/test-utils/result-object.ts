@@ -15,7 +15,7 @@ import {
 export function resultObjectTests({ executeFn, runId }: { executeFn: typeof execute; runId: string }) {
   describe('result.warnings', () => {
     it('should resolve with warnings', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           warnings: [{ type: 'other', message: 'test-warning' }],
@@ -31,7 +31,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.usage', () => {
     it('should resolve with token usage', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -64,7 +64,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.finishReason', () => {
     it('should resolve with finish reason', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -89,7 +89,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.providerMetadata', () => {
     it('should resolve with provider metadata', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -119,7 +119,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.response.messages', () => {
     it('should contain reasoning', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithReasoning,
         ...defaultSettings(),
@@ -192,7 +192,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.request', () => {
     it('should resolve with response information', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -226,7 +226,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.response', () => {
     it('should resolve with response information', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -278,7 +278,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.text', () => {
     it('should resolve with full text', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel(),
         ...defaultSettings(),
@@ -292,7 +292,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.reasoningText', () => {
     it('should contain reasoning text from model response', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithReasoning,
         ...defaultSettings(),
@@ -306,7 +306,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.reasoning', () => {
     it('should contain reasoning from model response', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithReasoning,
         ...defaultSettings(),
@@ -320,7 +320,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.sources', () => {
     it('should contain sources', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithSources,
         ...defaultSettings(),
@@ -334,7 +334,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.files', () => {
     it('should contain files', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithFiles,
         ...defaultSettings(),
@@ -348,7 +348,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.steps', () => {
     it('should add the reasoning from the model response to the step result', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithReasoning,
         ...defaultSettings(),
@@ -492,7 +492,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
     });
 
     it('should add the sources from the model response to the step result', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithSources,
         ...defaultSettings(),
@@ -543,7 +543,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
     });
 
     it('should add the files from the model response to the step result', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: modelWithFiles,
         ...defaultSettings(),
@@ -629,7 +629,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.toolCalls', () => {
     it('should resolve with tool calls', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
@@ -675,7 +675,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
   describe('result.toolResults', () => {
     it('should resolve with tool results', async () => {
-      const result = await executeFn({
+      const result = executeFn({
         runId,
         model: createTestModel({
           stream: convertArrayToReadableStream([
