@@ -317,7 +317,10 @@ export class AISDKV4OutputStream {
             return {
               id: message.id,
               role: message.role,
-              content: message.content.filter((part: any) => part.type !== 'source'),
+              content:
+                typeof message.content !== `string`
+                  ? message.content.filter((part: any) => part.type !== 'source')
+                  : message.content,
             };
           }),
         },
