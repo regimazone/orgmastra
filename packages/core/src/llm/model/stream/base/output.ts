@@ -314,7 +314,7 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#response = {
                   ...otherMetadata,
-                  messages: chunk.payload.messages.all.slice(1),
+                  messages: chunk.payload.messages.all,
                 };
               }
 

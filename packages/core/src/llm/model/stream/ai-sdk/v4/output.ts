@@ -1,6 +1,6 @@
 import { TransformStream, TextEncoderStream, TextDecoderStream } from 'stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
-import type { MessageList } from '../../../../../agent/message-list';
+import { MessageList } from '../../../../../agent/message-list';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from './compat';
@@ -276,7 +276,8 @@ export class AISDKV4OutputStream {
 
   get steps() {
     return this.#modelOutput.steps.map(step => {
-      // this.#messageList.add(step.response.messages, 'response');
+      const messageList = new MessageList();
+      messageList.add(step.response.messages, 'response');
 
       return {
         ...step,
@@ -322,13 +323,13 @@ export class AISDKV4OutputStream {
         }),
         response: {
           ...step.response,
-          messages: this.#messageList.get.all.v1().map((message: any) => {
+          messages: messageList.get.all.v1().map((message: any) => {
             return {
               id: message.id,
               role: message.role,
               content:
                 typeof message.content === `string`
-                  ? message.content
+                  ? [{ type: 'text', text: message.content }]
                   : message.content.filter((part: any) => part.type !== 'source'),
             };
           }),
@@ -340,16 +341,19 @@ export class AISDKV4OutputStream {
   get response() {
     return {
       ...this.#modelOutput.response,
-      messages: this.#messageList.get.all.v1().map((message: any) => {
-        return {
-          id: message.id,
-          role: message.role,
-          content:
-            typeof message.content === `string`
-              ? message.content
-              : message.content.filter((part: any) => part.type !== 'source'),
-        };
-      }),
+      messages: this.#messageList.get.all
+        .v1()
+        .slice(1)
+        .map((message: any) => {
+          return {
+            id: message.id,
+            role: message.role,
+            content:
+              typeof message.content === `string`
+                ? [{ type: 'text', text: message.content }]
+                : message.content.filter((part: any) => part.type !== 'source'),
+          };
+        }),
     };
   }
 }
