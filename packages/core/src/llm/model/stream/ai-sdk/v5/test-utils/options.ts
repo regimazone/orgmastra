@@ -3361,6 +3361,8 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
 
       await resultObject.aisdk.v5.consumeStream();
 
+      console.log('test_result', JSON.stringify(result, null, 2));
+
       expect(result).toMatchInlineSnapshot(`
         {
           "content": [

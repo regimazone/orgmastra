@@ -403,7 +403,7 @@ export class MastraModelOutput extends MastraBase {
                     text: baseFinishStep.text,
                     warnings: baseFinishStep.warnings,
                     finishReason: chunk.payload.stepResult.reason,
-                    content: this.aisdk.v5.content,
+                    content: this.aisdk.v5.transformResponse({ messages: messageList.get.response.v3() }),
                     reasoning: this.aisdk.v5.reasoning,
                     sources: this.aisdk.v5.sources,
                     files: this.aisdk.v5.files,
