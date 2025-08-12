@@ -401,21 +401,34 @@ export class MastraModelOutput extends MastraBase {
                 } else if (model.version === 'v2') {
                   onFinishPayload = {
                     text: baseFinishStep.text,
-                    warnings: baseFinishStep.warnings,
+                    warnings: baseFinishStep.warnings ?? [],
                     finishReason: chunk.payload.stepResult.reason,
                     content:
                       this.aisdk.v5
                         .transformResponse({ messages: messageList.get.response.v3() })
                         .messages?.flatMap((message: any) => message.content) ?? [],
+                    request: this.request,
                     reasoning: this.aisdk.v5.reasoning,
+                    reasoningText: !this.aisdk.v5.reasoningText ? undefined : this.aisdk.v5.reasoningText,
                     sources: this.aisdk.v5.sources,
                     files: this.aisdk.v5.files,
                     steps: this.aisdk.v5.transformSteps(this.#bufferedSteps),
-                    response: this.aisdk.v5.transformResponse({ messages: messageList.get.response.v3() }, true),
+                    response: this.aisdk.v5.transformResponse(
+                      { ...this.response, messages: messageList.get.response.v3() },
+                      true,
+                    ),
                     usage: chunk.payload.output.usage,
                     totalUsage: self.totalUsage,
                     toolCalls: this.aisdk.v5.toolCalls,
                     toolResults: this.aisdk.v5.toolResults,
+                    staticToolCalls: this.aisdk.v5.toolCalls.filter((toolCall: any) => toolCall.dynamic === false),
+                    staticToolResults: this.aisdk.v5.toolResults.filter(
+                      (toolResult: any) => toolResult.dynamic === false,
+                    ),
+                    dynamicToolCalls: this.aisdk.v5.toolCalls.filter((toolCall: any) => toolCall.dynamic === true),
+                    dynamicToolResults: this.aisdk.v5.toolResults.filter(
+                      (toolResult: any) => toolResult.dynamic === true,
+                    ),
                   };
                 }
 

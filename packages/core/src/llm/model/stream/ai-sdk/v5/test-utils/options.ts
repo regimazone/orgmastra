@@ -3409,7 +3409,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               {
                 "content": [
                   {
-                    "providerOptions": undefined,
                     "text": "Hello, world!",
                     "type": "text",
                   },
@@ -3418,7 +3417,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                       "value": "value",
                     },
                     "providerExecuted": undefined,
-                    "providerOptions": undefined,
                     "toolCallId": "call-1",
                     "toolName": "tool1",
                     "type": "tool-call",
@@ -3451,7 +3449,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
             DefaultStepResult {
               "content": [
                 {
-                  "providerMetadata": undefined,
                   "text": "Hello, world!",
                   "type": "text",
                 },
@@ -3460,7 +3457,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                     "value": "value",
                   },
                   "providerExecuted": undefined,
-                  "providerMetadata": undefined,
                   "toolCallId": "call-1",
                   "toolName": "tool1",
                   "type": "tool-call",
@@ -3471,7 +3467,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                   },
                   "output": "value-result",
                   "providerExecuted": undefined,
-                  "providerMetadata": undefined,
                   "toolCallId": "call-1",
                   "toolName": "tool1",
                   "type": "tool-result",
@@ -3493,7 +3488,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                   {
                     "content": [
                       {
-                        "providerOptions": undefined,
                         "text": "Hello, world!",
                         "type": "text",
                       },
@@ -3502,7 +3496,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                           "value": "value",
                         },
                         "providerExecuted": undefined,
-                        "providerOptions": undefined,
                         "toolCallId": "call-1",
                         "toolName": "tool1",
                         "type": "tool-call",
@@ -3615,7 +3608,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               "url": "https://example.com",
             },
             {
-              "providerMetadata": undefined,
               "text": "Hello!",
               "type": "text",
             },
@@ -3636,7 +3628,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           "dynamicToolResults": [],
           "files": [],
           "finishReason": "stop",
-          "providerMetadata": undefined,
           "reasoning": [],
           "reasoningText": undefined,
           "request": {},
@@ -3647,7 +3638,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               {
                 "content": [
                   {
-                    "providerOptions": undefined,
                     "text": "Hello!",
                     "type": "text",
                   },
@@ -3702,7 +3692,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                   "url": "https://example.com",
                 },
                 {
-                  "providerMetadata": undefined,
                   "text": "Hello!",
                   "type": "text",
                 },
@@ -3729,7 +3718,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                   {
                     "content": [
                       {
-                        "providerOptions": undefined,
                         "text": "Hello!",
                         "type": "text",
                       },
@@ -3801,7 +3789,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               "type": "file",
             },
             {
-              "providerMetadata": undefined,
               "text": "Hello!",
               "type": "text",
             },
@@ -3832,7 +3819,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
             },
           ],
           "finishReason": "stop",
-          "providerMetadata": undefined,
           "reasoning": [],
           "reasoningText": undefined,
           "request": {},
@@ -3849,7 +3835,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                     "type": "file",
                   },
                   {
-                    "providerOptions": undefined,
                     "text": "Hello!",
                     "type": "text",
                   },
@@ -3882,7 +3867,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                   "type": "file",
                 },
                 {
-                  "providerMetadata": undefined,
                   "text": "Hello!",
                   "type": "text",
                 },
@@ -3912,7 +3896,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                         "type": "file",
                       },
                       {
-                        "providerOptions": undefined,
                         "text": "Hello!",
                         "type": "text",
                       },
