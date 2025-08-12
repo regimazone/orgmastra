@@ -291,6 +291,7 @@ export class AISDKV5OutputStream {
     messageList.add(response.messages, 'response');
 
     const formattedMessages = messageList.get.response.aiV5.model().filter((message: any) => message.role !== 'user');
+    console.log('message_list', JSON.stringify(formattedMessages, null, 2));
 
     const hasTools = formattedMessages.some(
       (message: any) =>
@@ -374,7 +375,7 @@ export class AISDKV5OutputStream {
   }
 
   get content() {
-    return this.transformResponse(this.response, true).messages[0]?.content ?? [];
+    return this.transformResponse(this.response, true).messages?.flatMap((message: any) => message.content) ?? [];
   }
 
   get fullStream() {
