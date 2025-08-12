@@ -4213,40 +4213,37 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         });
 
       it('should transform the stream', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel(),
-          // experimental_transform: upperCaseTransform,
+          experimental_transform: upperCaseTransform,
           prompt: 'test-input',
         });
 
-        expect(await convertAsyncIterableToArray(result.textStream as any)).toStrictEqual(['HELLO', ', ', 'WORLD!']);
+        expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['HELLO', ', ', 'WORLD!']);
       });
 
       it('result.text should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel(),
           experimental_transform: upperCaseTransform,
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.text).toStrictEqual('HELLO, WORLD!');
+        expect(await result.text).toStrictEqual('HELLO, WORLD!');
       });
 
       it('result.response.messages should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel(),
           experimental_transform: upperCaseTransform,
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.aisdk.v5.response).toStrictEqual({
+        expect(await result.response).toStrictEqual({
           id: expect.any(String),
           timestamp: expect.any(Date),
           modelId: expect.any(String),
@@ -4267,8 +4264,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.totalUsage should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               { type: 'text-start', id: '1' },
@@ -4299,9 +4295,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.totalUsage).toStrictEqual({
+        expect(await result.totalUsage).toStrictEqual({
           inputTokens: 200,
           outputTokens: 300,
           totalTokens: undefined,
@@ -4311,8 +4307,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.finishReason should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               { type: 'text-start', id: '1' },
@@ -4337,14 +4332,13 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.finishReason).toStrictEqual('stop');
+        expect(await result.finishReason).toStrictEqual('stop');
       });
 
       it('result.toolCalls should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               { type: 'text-start', id: '1' },
@@ -4374,9 +4368,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.aisdk.v5.toolCalls).toMatchInlineSnapshot(`
+        expect(await result.toolCalls).toMatchInlineSnapshot(`
           [
             {
               "input": {
@@ -4393,8 +4387,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.toolResults should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               { type: 'text-start', id: '1' },
@@ -4424,9 +4417,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
-        expect(result.aisdk.v5.toolResults).toMatchInlineSnapshot(`
+        expect(await result.toolResults).toMatchInlineSnapshot(`
           [
             {
               "input": {
@@ -4444,8 +4437,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.steps should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -4481,9 +4473,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           prompt: 'test-input',
         });
 
-        await result.aisdk.v5.consumeStream();
+        result.consumeStream();
 
-        expect(result.aisdk.v5.steps).toMatchInlineSnapshot(`
+        expect(await result.steps).toMatchInlineSnapshot(`
           [
             DefaultStepResult {
               "content": [
@@ -4573,8 +4565,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('result.request should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -4598,16 +4589,15 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           experimental_transform: upperCaseTransform,
         });
 
-        await result.aisdk.v5.consumeStream();
+        result.consumeStream();
 
-        expect(result.aisdk.v5.request).toStrictEqual({
+        expect(await result.request).toStrictEqual({
           body: 'TEST BODY',
         });
       });
 
       it('result.providerMetadata should be transformed', async () => {
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -4636,9 +4626,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           experimental_transform: upperCaseTransform,
         });
 
-        await result.aisdk.v5.consumeStream();
+        result.consumeStream();
 
-        expect(JSON.stringify(result.providerMetadata)).toStrictEqual(
+        expect(JSON.stringify(await result.providerMetadata)).toStrictEqual(
           JSON.stringify({
             testProvider: {
               testKey: 'TEST VALUE',
@@ -4648,10 +4638,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('options.onFinish should receive transformed data', async () => {
-        let result!: any;
+        let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
 
-        const resultObject = await executeFn({
-          runId,
+        const resultObject = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -4685,19 +4674,17 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           tools: {
             tool1: {
               inputSchema: z.object({ value: z.string() }),
-              execute: async ({ value }: { value: string }) => `${value}-result`,
+              execute: async ({ value }) => `${value}-result`,
             },
           },
           prompt: 'test-input',
-          options: {
-            onFinish: async event => {
-              result = event as unknown as typeof result;
-            },
+          onFinish: async event => {
+            result = event as unknown as typeof result;
           },
           experimental_transform: upperCaseTransform,
         });
 
-        await resultObject.aisdk.v5.consumeStream();
+        await resultObject.consumeStream();
 
         expect(result).toMatchInlineSnapshot(`
           {
@@ -4925,10 +4912,9 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
 
       it('options.onStepFinish should receive transformed data', async () => {
-        let result!: any;
+        let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onStepFinish']>[0];
 
-        const resultObject = await executeFn({
-          runId,
+        const resultObject = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -4966,15 +4952,13 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
             }),
           },
           prompt: 'test-input',
-          options: {
-            onStepFinish: async event => {
-              result = event as unknown as typeof result;
-            },
+          onStepFinish: async event => {
+            result = event as unknown as typeof result;
           },
           experimental_transform: upperCaseTransform,
         });
 
-        await resultObject.aisdk.v5.consumeStream();
+        await resultObject.consumeStream();
 
         expect(result).toMatchInlineSnapshot(`
           DefaultStepResult {
@@ -5072,8 +5056,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       it('telemetry should record transformed data when enabled', async () => {
         const tracer = new MockTracer();
 
-        const result = await executeFn({
-          runId,
+        const result = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               {
@@ -5115,7 +5098,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           _internal: { now: mockValues(0, 100, 500) },
         });
 
-        await result.aisdk.v5.consumeStream();
+        await result.consumeStream();
 
         expect(tracer.jsonSpans).toMatchSnapshot();
       });
@@ -5138,8 +5121,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           >
         > = [];
 
-        const resultObject = await executeFn({
-          runId,
+        const resultObject = streamText({
           model: createTestModel({
             stream: convertArrayToReadableStream([
               { type: 'text-start', id: '1' },
@@ -5170,19 +5152,17 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
           tools: {
             tool1: {
               inputSchema: z.object({ value: z.string() }),
-              execute: async ({ value }: { value: string }) => `${value}-result`,
+              execute: async ({ value }) => `${value}-result`,
             },
           },
           prompt: 'test-input',
-          options: {
-            onChunk(event) {
-              result.push(event.payload as any);
-            },
+          onChunk(event) {
+            result.push(event.chunk);
           },
           experimental_transform: upperCaseTransform,
         });
 
-        await resultObject.aisdk.v5.consumeStream();
+        await resultObject.consumeStream();
 
         expect(result).toMatchInlineSnapshot(`
           [
@@ -5251,261 +5231,661 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       });
     });
 
-    // describe('with multiple transformations', () => {
-    //   const toUppercaseAndAddCommaTransform =
-    //     <TOOLS extends ToolSet>() =>
-    //       (options: { tools: TOOLS }) =>
-    //         new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
-    //           transform(chunk, controller) {
-    //             if (chunk.type !== 'text-delta') {
-    //               controller.enqueue(chunk);
-    //               return;
-    //             }
+    describe('with multiple transformations', () => {
+      const toUppercaseAndAddCommaTransform =
+        <TOOLS extends ToolSet>() =>
+        (options: { tools: TOOLS }) =>
+          new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
+            transform(chunk, controller) {
+              if (chunk.type !== 'text-delta') {
+                controller.enqueue(chunk);
+                return;
+              }
 
-    //             controller.enqueue({
-    //               ...chunk,
-    //               text: `${chunk.text.toUpperCase()},`,
-    //             });
-    //           },
-    //         });
+              controller.enqueue({
+                ...chunk,
+                text: `${chunk.text.toUpperCase()},`,
+              });
+            },
+          });
 
-    //   const omitCommaTransform =
-    //     <TOOLS extends ToolSet>() =>
-    //       (options: { tools: TOOLS }) =>
-    //         new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
-    //           transform(chunk, controller) {
-    //             if (chunk.type !== 'text-delta') {
-    //               controller.enqueue(chunk);
-    //               return;
-    //             }
+      const omitCommaTransform =
+        <TOOLS extends ToolSet>() =>
+        (options: { tools: TOOLS }) =>
+          new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
+            transform(chunk, controller) {
+              if (chunk.type !== 'text-delta') {
+                controller.enqueue(chunk);
+                return;
+              }
 
-    //             controller.enqueue({
-    //               ...chunk,
-    //               text: chunk.text.replaceAll(',', ''),
-    //             });
-    //           },
-    //         });
+              controller.enqueue({
+                ...chunk,
+                text: chunk.text.replaceAll(',', ''),
+              });
+            },
+          });
 
-    //   it('should transform the stream', async () => {
-    //     const result = streamText({
-    //       model: createTestModel(),
-    //       experimental_transform: [
-    //         toUppercaseAndAddCommaTransform(),
-    //         omitCommaTransform(),
-    //       ],
-    //       prompt: 'test-input',
-    //     });
+      it('should transform the stream', async () => {
+        const result = streamText({
+          model: createTestModel(),
+          experimental_transform: [toUppercaseAndAddCommaTransform(), omitCommaTransform()],
+          prompt: 'test-input',
+        });
 
-    //     expect(
-    //       await convertAsyncIterableToArray(result.textStream),
-    //     ).toStrictEqual(['HELLO', ' ', 'WORLD!']);
-    //   });
-    // });
+        expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['HELLO', ' ', 'WORLD!']);
+      });
+    });
 
-    // describe('with transformation that aborts stream', () => {
-    //   const stopWordTransform =
-    //     <TOOLS extends ToolSet>() =>
-    //       ({ stopStream }: { stopStream: () => void }) =>
-    //         new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
-    //           // note: this is a simplified transformation for testing;
-    //           // in a real-world version more there would need to be
-    //           // stream buffering and scanning to correctly emit prior text
-    //           // and to detect all STOP occurrences.
-    //           transform(chunk, controller) {
-    //             if (chunk.type !== 'text-delta') {
-    //               controller.enqueue(chunk);
-    //               return;
-    //             }
+    describe('with transformation that aborts stream', () => {
+      const stopWordTransform =
+        <TOOLS extends ToolSet>() =>
+        ({ stopStream }: { stopStream: () => void }) =>
+          new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
+            // note: this is a simplified transformation for testing;
+            // in a real-world version more there would need to be
+            // stream buffering and scanning to correctly emit prior text
+            // and to detect all STOP occurrences.
+            transform(chunk, controller) {
+              if (chunk.type !== 'text-delta') {
+                controller.enqueue(chunk);
+                return;
+              }
 
-    //             if (chunk.text.includes('STOP')) {
-    //               stopStream();
+              if (chunk.text.includes('STOP')) {
+                stopStream();
 
-    //               controller.enqueue({
-    //                 type: 'finish-step',
-    //                 finishReason: 'stop',
-    //                 providerMetadata: undefined,
-    //                 usage: {
-    //                   inputTokens: undefined,
-    //                   outputTokens: undefined,
-    //                   totalTokens: undefined,
-    //                   reasoningTokens: undefined,
-    //                   cachedInputTokens: undefined,
-    //                 },
-    //                 response: {
-    //                   id: 'response-id',
-    //                   modelId: 'mock-model-id',
-    //                   timestamp: new Date(0),
-    //                 },
-    //               });
+                controller.enqueue({
+                  type: 'finish-step',
+                  finishReason: 'stop',
+                  providerMetadata: undefined,
+                  usage: {
+                    inputTokens: undefined,
+                    outputTokens: undefined,
+                    totalTokens: undefined,
+                    reasoningTokens: undefined,
+                    cachedInputTokens: undefined,
+                  },
+                  response: {
+                    id: 'response-id',
+                    modelId: 'mock-model-id',
+                    timestamp: new Date(0),
+                  },
+                });
 
-    //               controller.enqueue({
-    //                 type: 'finish',
-    //                 finishReason: 'stop',
-    //                 totalUsage: {
-    //                   inputTokens: undefined,
-    //                   outputTokens: undefined,
-    //                   totalTokens: undefined,
-    //                   reasoningTokens: undefined,
-    //                   cachedInputTokens: undefined,
-    //                 },
-    //               });
+                controller.enqueue({
+                  type: 'finish',
+                  finishReason: 'stop',
+                  totalUsage: {
+                    inputTokens: undefined,
+                    outputTokens: undefined,
+                    totalTokens: undefined,
+                    reasoningTokens: undefined,
+                    cachedInputTokens: undefined,
+                  },
+                });
 
-    //               return;
-    //             }
+                return;
+              }
 
-    //             controller.enqueue(chunk);
-    //           },
-    //         });
+              controller.enqueue(chunk);
+            },
+          });
 
-    //   it('stream should stop when STOP token is encountered', async () => {
-    //     const result = streamText({
-    //       model: createTestModel({
-    //         stream: convertArrayToReadableStream([
-    //           { type: 'text-start', id: '1' },
-    //           { type: 'text-delta', id: '1', delta: 'Hello, ' },
-    //           { type: 'text-delta', id: '1', delta: 'STOP' },
-    //           { type: 'text-delta', id: '1', delta: ' World' },
-    //           { type: 'text-end', id: '1' },
-    //           {
-    //             type: 'finish',
-    //             finishReason: 'stop',
-    //             usage: {
-    //               inputTokens: undefined,
-    //               outputTokens: undefined,
-    //               totalTokens: undefined,
-    //               reasoningTokens: undefined,
-    //               cachedInputTokens: undefined,
-    //             },
-    //           },
-    //         ]),
-    //       }),
-    //       prompt: 'test-input',
-    //       experimental_transform: stopWordTransform(),
-    //     });
+      it('stream should stop when STOP token is encountered', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: 'Hello, ' },
+              { type: 'text-delta', id: '1', delta: 'STOP' },
+              { type: 'text-delta', id: '1', delta: ' World' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                  inputTokens: undefined,
+                  outputTokens: undefined,
+                  totalTokens: undefined,
+                  reasoningTokens: undefined,
+                  cachedInputTokens: undefined,
+                },
+              },
+            ]),
+          }),
+          prompt: 'test-input',
+          experimental_transform: stopWordTransform(),
+        });
 
-    //     expect(await convertAsyncIterableToArray(result.fullStream))
-    //       .toMatchInlineSnapshot(`
-    //         [
-    //           {
-    //             "type": "start",
-    //           },
-    //           {
-    //             "request": {},
-    //             "type": "start-step",
-    //             "warnings": [],
-    //           },
-    //           {
-    //             "id": "1",
-    //             "type": "text-start",
-    //           },
-    //           {
-    //             "id": "1",
-    //             "providerMetadata": undefined,
-    //             "text": "Hello, ",
-    //             "type": "text-delta",
-    //           },
-    //           {
-    //             "finishReason": "stop",
-    //             "providerMetadata": undefined,
-    //             "response": {
-    //               "id": "response-id",
-    //               "modelId": "mock-model-id",
-    //               "timestamp": 1970-01-01T00:00:00.000Z,
-    //             },
-    //             "type": "finish-step",
-    //             "usage": {
-    //               "cachedInputTokens": undefined,
-    //               "inputTokens": undefined,
-    //               "outputTokens": undefined,
-    //               "reasoningTokens": undefined,
-    //               "totalTokens": undefined,
-    //             },
-    //           },
-    //           {
-    //             "finishReason": "stop",
-    //             "totalUsage": {
-    //               "cachedInputTokens": undefined,
-    //               "inputTokens": undefined,
-    //               "outputTokens": undefined,
-    //               "reasoningTokens": undefined,
-    //               "totalTokens": undefined,
-    //             },
-    //             "type": "finish",
-    //           },
-    //         ]
-    //       `);
-    //   });
+        expect(await convertAsyncIterableToArray(result.fullStream)).toMatchInlineSnapshot(`
+            [
+              {
+                "type": "start",
+              },
+              {
+                "request": {},
+                "type": "start-step",
+                "warnings": [],
+              },
+              {
+                "id": "1",
+                "type": "text-start",
+              },
+              {
+                "id": "1",
+                "providerMetadata": undefined,
+                "text": "Hello, ",
+                "type": "text-delta",
+              },
+              {
+                "finishReason": "stop",
+                "providerMetadata": undefined,
+                "response": {
+                  "id": "response-id",
+                  "modelId": "mock-model-id",
+                  "timestamp": 1970-01-01T00:00:00.000Z,
+                },
+                "type": "finish-step",
+                "usage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": undefined,
+                  "outputTokens": undefined,
+                  "reasoningTokens": undefined,
+                  "totalTokens": undefined,
+                },
+              },
+              {
+                "finishReason": "stop",
+                "totalUsage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": undefined,
+                  "outputTokens": undefined,
+                  "reasoningTokens": undefined,
+                  "totalTokens": undefined,
+                },
+                "type": "finish",
+              },
+            ]
+          `);
+      });
 
-    //   it('options.onStepFinish should be called', async () => {
-    //     let result!: Parameters<
-    //       Required<Parameters<typeof streamText>[0]>['onStepFinish']
-    //     >[0];
+      it('options.onStepFinish should be called', async () => {
+        let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onStepFinish']>[0];
 
-    //     const resultObject = streamText({
-    //       model: createTestModel({
-    //         stream: convertArrayToReadableStream([
-    //           { type: 'text-start', id: '1' },
-    //           { type: 'text-delta', id: '1', delta: 'Hello, ' },
-    //           { type: 'text-delta', id: '1', delta: 'STOP' },
-    //           { type: 'text-delta', id: '1', delta: ' World' },
-    //           { type: 'text-end', id: '1' },
-    //           {
-    //             type: 'finish',
-    //             finishReason: 'stop',
-    //             usage: testUsage,
-    //           },
-    //         ]),
-    //       }),
-    //       prompt: 'test-input',
-    //       onStepFinish: async event => {
-    //         result = event as unknown as typeof result;
-    //       },
-    //       experimental_transform: stopWordTransform(),
-    //     });
+        const resultObject = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: 'Hello, ' },
+              { type: 'text-delta', id: '1', delta: 'STOP' },
+              { type: 'text-delta', id: '1', delta: ' World' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          prompt: 'test-input',
+          onStepFinish: async event => {
+            result = event as unknown as typeof result;
+          },
+          experimental_transform: stopWordTransform(),
+        });
 
-    //     await resultObject.consumeStream();
+        await resultObject.consumeStream();
 
-    //     expect(result).toMatchInlineSnapshot(`
-    //       DefaultStepResult {
-    //         "content": [
-    //           {
-    //             "providerMetadata": undefined,
-    //             "text": "Hello, ",
-    //             "type": "text",
-    //           },
-    //         ],
-    //         "finishReason": "stop",
-    //         "providerMetadata": undefined,
-    //         "request": {},
-    //         "response": {
-    //           "id": "response-id",
-    //           "messages": [
-    //             {
-    //               "content": [
-    //                 {
-    //                   "providerOptions": undefined,
-    //                   "text": "Hello, ",
-    //                   "type": "text",
-    //                 },
-    //               ],
-    //               "role": "assistant",
-    //             },
-    //           ],
-    //           "modelId": "mock-model-id",
-    //           "timestamp": 1970-01-01T00:00:00.000Z,
-    //         },
-    //         "usage": {
-    //           "cachedInputTokens": undefined,
-    //           "inputTokens": undefined,
-    //           "outputTokens": undefined,
-    //           "reasoningTokens": undefined,
-    //           "totalTokens": undefined,
-    //         },
-    //         "warnings": [],
-    //       }
-    //     `);
-    //   });
-    // });
+        expect(result).toMatchInlineSnapshot(`
+          DefaultStepResult {
+            "content": [
+              {
+                "providerMetadata": undefined,
+                "text": "Hello, ",
+                "type": "text",
+              },
+            ],
+            "finishReason": "stop",
+            "providerMetadata": undefined,
+            "request": {},
+            "response": {
+              "id": "response-id",
+              "messages": [
+                {
+                  "content": [
+                    {
+                      "providerOptions": undefined,
+                      "text": "Hello, ",
+                      "type": "text",
+                    },
+                  ],
+                  "role": "assistant",
+                },
+              ],
+              "modelId": "mock-model-id",
+              "timestamp": 1970-01-01T00:00:00.000Z,
+            },
+            "usage": {
+              "cachedInputTokens": undefined,
+              "inputTokens": undefined,
+              "outputTokens": undefined,
+              "reasoningTokens": undefined,
+              "totalTokens": undefined,
+            },
+            "warnings": [],
+          }
+        `);
+      });
+    });
+  });
+
+  describe.skip('options.output', () => {
+    describe('no output', () => {
+      it('should throw error when accessing partial output stream', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world` },
+              { type: 'text-delta', id: '1', delta: `!"` },
+              { type: 'text-delta', id: '1', delta: ' }' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          prompt: 'prompt',
+        });
+
+        await expect(async () => {
+          await convertAsyncIterableToArray(result.experimental_partialOutputStream);
+        }).rejects.toThrow('No output specified');
+      });
+    });
+
+    describe('text output', () => {
+      it('should send partial output stream', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: 'Hello, ' },
+              { type: 'text-delta', id: '1', delta: ',' },
+              { type: 'text-delta', id: '1', delta: ' world!' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: text(),
+          prompt: 'prompt',
+        });
+
+        expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+          'Hello, ',
+          'Hello, ,',
+          'Hello, , world!',
+        ]);
+      });
+    });
+
+    describe('object output', () => {
+      it('should set responseFormat to json and send schema as part of the responseFormat', async () => {
+        let callOptions!: LanguageModelV2CallOptions;
+
+        const result = streamText({
+          model: new MockLanguageModelV2({
+            doStream: async args => {
+              callOptions = args;
+              return {
+                stream: convertArrayToReadableStream([
+                  { type: 'text-start', id: '1' },
+                  { type: 'text-delta', id: '1', delta: '{ ' },
+                  { type: 'text-delta', id: '1', delta: '"value": ' },
+                  { type: 'text-delta', id: '1', delta: `"Hello, ` },
+                  { type: 'text-delta', id: '1', delta: `world` },
+                  { type: 'text-delta', id: '1', delta: `!"` },
+                  { type: 'text-delta', id: '1', delta: ' }' },
+                  { type: 'text-end', id: '1' },
+                  {
+                    type: 'finish',
+                    finishReason: 'stop',
+                    usage: testUsage,
+                  },
+                ]),
+              };
+            },
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+        });
+
+        await result.consumeStream();
+
+        expect(callOptions).toMatchInlineSnapshot(`
+          {
+            "abortSignal": undefined,
+            "frequencyPenalty": undefined,
+            "headers": undefined,
+            "includeRawChunks": false,
+            "maxOutputTokens": undefined,
+            "presencePenalty": undefined,
+            "prompt": [
+              {
+                "content": [
+                  {
+                    "text": "prompt",
+                    "type": "text",
+                  },
+                ],
+                "providerOptions": undefined,
+                "role": "user",
+              },
+            ],
+            "providerOptions": undefined,
+            "responseFormat": {
+              "schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "value": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "value",
+                ],
+                "type": "object",
+              },
+              "type": "json",
+            },
+            "seed": undefined,
+            "stopSequences": undefined,
+            "temperature": undefined,
+            "toolChoice": undefined,
+            "tools": undefined,
+            "topK": undefined,
+            "topP": undefined,
+          }
+        `);
+      });
+
+      it('should send valid partial text fragments', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world` },
+              { type: 'text-delta', id: '1', delta: `!"` },
+              { type: 'text-delta', id: '1', delta: ' }' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+        });
+
+        expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual([
+          `{ `,
+          // key difference: need to combine after `:`
+          `"value": "Hello, `,
+          `world`,
+          `!"`,
+          ` }`,
+        ]);
+      });
+
+      it('should send partial output stream', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world` },
+              { type: 'text-delta', id: '1', delta: `!"` },
+              { type: 'text-delta', id: '1', delta: ' }' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+        });
+
+        expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+          {},
+          { value: 'Hello, ' },
+          { value: 'Hello, world' },
+          { value: 'Hello, world!' },
+        ]);
+      });
+
+      it('should send partial output stream when last chunk contains content', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world!" }` },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+        });
+
+        expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+          {},
+          { value: 'Hello, ' },
+          { value: 'Hello, world!' },
+        ]);
+      });
+
+      it('should resolve text promise with the correct content', async () => {
+        const result = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world!" ` },
+              { type: 'text-delta', id: '1', delta: '}' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+        });
+
+        result.consumeStream();
+
+        expect(await result.text).toStrictEqual('{ "value": "Hello, world!" }');
+      });
+
+      it('should call onFinish with the correct content', async () => {
+        let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
+
+        const resultObject = streamText({
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: '{ ' },
+              { type: 'text-delta', id: '1', delta: '"value": ' },
+              { type: 'text-delta', id: '1', delta: `"Hello, ` },
+              { type: 'text-delta', id: '1', delta: `world!" ` },
+              { type: 'text-delta', id: '1', delta: '}' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          experimental_output: object({
+            schema: z.object({ value: z.string() }),
+          }),
+          prompt: 'prompt',
+          onFinish: async event => {
+            result = event as unknown as typeof result;
+          },
+          _internal: {
+            generateId: mockId({ prefix: 'id' }),
+            currentDate: () => new Date(0),
+          },
+        });
+
+        resultObject.consumeStream();
+
+        await resultObject.consumeStream();
+
+        expect(result).toMatchInlineSnapshot(`
+          {
+            "content": [
+              {
+                "providerMetadata": undefined,
+                "text": "{ "value": "Hello, world!" }",
+                "type": "text",
+              },
+            ],
+            "dynamicToolCalls": [],
+            "dynamicToolResults": [],
+            "files": [],
+            "finishReason": "stop",
+            "providerMetadata": undefined,
+            "reasoning": [],
+            "reasoningText": undefined,
+            "request": {},
+            "response": {
+              "headers": undefined,
+              "id": "id-0",
+              "messages": [
+                {
+                  "content": [
+                    {
+                      "providerOptions": undefined,
+                      "text": "{ "value": "Hello, world!" }",
+                      "type": "text",
+                    },
+                  ],
+                  "role": "assistant",
+                },
+              ],
+              "modelId": "mock-model-id",
+              "timestamp": 1970-01-01T00:00:00.000Z,
+            },
+            "sources": [],
+            "staticToolCalls": [],
+            "staticToolResults": [],
+            "steps": [
+              DefaultStepResult {
+                "content": [
+                  {
+                    "providerMetadata": undefined,
+                    "text": "{ "value": "Hello, world!" }",
+                    "type": "text",
+                  },
+                ],
+                "finishReason": "stop",
+                "providerMetadata": undefined,
+                "request": {},
+                "response": {
+                  "headers": undefined,
+                  "id": "id-0",
+                  "messages": [
+                    {
+                      "content": [
+                        {
+                          "providerOptions": undefined,
+                          "text": "{ "value": "Hello, world!" }",
+                          "type": "text",
+                        },
+                      ],
+                      "role": "assistant",
+                    },
+                  ],
+                  "modelId": "mock-model-id",
+                  "timestamp": 1970-01-01T00:00:00.000Z,
+                },
+                "usage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": 3,
+                  "outputTokens": 10,
+                  "reasoningTokens": undefined,
+                  "totalTokens": 13,
+                },
+                "warnings": [],
+              },
+            ],
+            "text": "{ "value": "Hello, world!" }",
+            "toolCalls": [],
+            "toolResults": [],
+            "totalUsage": {
+              "cachedInputTokens": undefined,
+              "inputTokens": 3,
+              "outputTokens": 10,
+              "reasoningTokens": undefined,
+              "totalTokens": 13,
+            },
+            "usage": {
+              "cachedInputTokens": undefined,
+              "inputTokens": 3,
+              "outputTokens": 10,
+              "reasoningTokens": undefined,
+              "totalTokens": 13,
+            },
+            "warnings": [],
+          }
+        `);
+      });
+    });
   });
 
   describe.skip('options.messages', () => {
@@ -5550,6 +5930,570 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
 
       expect(supportedUrlsCalled).toBe(true);
       expect(result.text).toBe('Hello, world!');
+    });
+  });
+
+  describe.skip('raw chunks forwarding', () => {
+    it('should forward raw chunks when includeRawChunks is enabled', async () => {
+      const modelWithRawChunks = createTestModel({
+        stream: convertArrayToReadableStream([
+          { type: 'stream-start', warnings: [] },
+          {
+            type: 'raw',
+            rawValue: {
+              type: 'raw-data',
+              content: 'should appear',
+            },
+          },
+          {
+            type: 'response-metadata',
+            id: 'test-id',
+            modelId: 'test-model',
+            timestamp: new Date(0),
+          },
+          { type: 'text-start', id: '1' },
+          { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+          { type: 'text-end', id: '1' },
+          {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: testUsage,
+          },
+        ]),
+      });
+
+      const result = executeFn({
+        runId,
+        model: modelWithRawChunks,
+        prompt: 'test prompt',
+        includeRawChunks: true,
+      });
+
+      const chunks = await convertAsyncIterableToArray(result.fullStream);
+
+      expect(chunks.filter(chunk => chunk.type === 'raw')).toMatchInlineSnapshot(`
+          [
+            {
+              "rawValue": {
+                "content": "should appear",
+                "type": "raw-data",
+              },
+              "type": "raw",
+            },
+          ]
+        `);
+    });
+
+    it('should not forward raw chunks when includeRawChunks is disabled', async () => {
+      const modelWithRawChunks = createTestModel({
+        stream: convertArrayToReadableStream([
+          { type: 'stream-start', warnings: [] },
+          {
+            type: 'raw',
+            rawValue: {
+              type: 'raw-data',
+              content: 'should not appear',
+            },
+          },
+          {
+            type: 'response-metadata',
+            id: 'test-id',
+            modelId: 'test-model',
+            timestamp: new Date(0),
+          },
+          { type: 'text-start', id: '1' },
+          { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+          { type: 'text-end', id: '1' },
+          {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: testUsage,
+          },
+        ]),
+      });
+
+      const result = streamText({
+        model: modelWithRawChunks,
+        prompt: 'test prompt',
+        includeRawChunks: false,
+      });
+
+      const chunks = await convertAsyncIterableToArray(result.fullStream);
+
+      expect(chunks.filter(chunk => chunk.type === 'raw')).toHaveLength(0);
+    });
+
+    it('should pass through the includeRawChunks flag correctly to the model', async () => {
+      let capturedOptions: any;
+
+      const model = new MockLanguageModelV2({
+        doStream: async options => {
+          capturedOptions = options;
+
+          return {
+            stream: convertArrayToReadableStream([
+              { type: 'stream-start', warnings: [] },
+              { type: 'finish', finishReason: 'stop', usage: testUsage },
+            ]),
+          };
+        },
+      });
+
+      await streamText({
+        model,
+        prompt: 'test prompt',
+        includeRawChunks: true,
+      }).consumeStream();
+
+      expect(capturedOptions.includeRawChunks).toBe(true);
+    });
+
+    it('should call onChunk with raw chunks when includeRawChunks is enabled', async () => {
+      const onChunkCalls: Array<any> = [];
+
+      const modelWithRawChunks = createTestModel({
+        stream: convertArrayToReadableStream([
+          { type: 'stream-start', warnings: [] },
+          {
+            type: 'raw',
+            rawValue: { type: 'stream-start', data: 'start' },
+          },
+          {
+            type: 'raw',
+            rawValue: {
+              type: 'response-metadata',
+              id: 'test-id',
+              modelId: 'test-model',
+            },
+          },
+          {
+            type: 'raw',
+            rawValue: { type: 'text-delta', content: 'Hello' },
+          },
+          {
+            type: 'raw',
+            rawValue: { type: 'text-delta', content: ', world!' },
+          },
+          {
+            type: 'raw',
+            rawValue: { type: 'finish', reason: 'stop' },
+          },
+          {
+            type: 'response-metadata',
+            id: 'test-id',
+            modelId: 'test-model',
+            timestamp: new Date(0),
+          },
+          { type: 'text-start', id: '1' },
+          { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+          { type: 'text-end', id: '1' },
+          {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: testUsage,
+          },
+        ]),
+      });
+
+      const result = streamText({
+        model: modelWithRawChunks,
+        prompt: 'test prompt',
+        includeRawChunks: true,
+        onChunk({ chunk }) {
+          onChunkCalls.push(chunk);
+        },
+      });
+
+      await result.consumeStream();
+
+      expect(onChunkCalls).toMatchInlineSnapshot(`
+        [
+          {
+            "rawValue": {
+              "data": "start",
+              "type": "stream-start",
+            },
+            "type": "raw",
+          },
+          {
+            "rawValue": {
+              "id": "test-id",
+              "modelId": "test-model",
+              "type": "response-metadata",
+            },
+            "type": "raw",
+          },
+          {
+            "rawValue": {
+              "content": "Hello",
+              "type": "text-delta",
+            },
+            "type": "raw",
+          },
+          {
+            "rawValue": {
+              "content": ", world!",
+              "type": "text-delta",
+            },
+            "type": "raw",
+          },
+          {
+            "rawValue": {
+              "reason": "stop",
+              "type": "finish",
+            },
+            "type": "raw",
+          },
+          {
+            "id": "1",
+            "providerMetadata": undefined,
+            "text": "Hello, world!",
+            "type": "text-delta",
+          },
+        ]
+      `);
+    });
+
+    it('should pass includeRawChunks flag correctly to the model', async () => {
+      let capturedOptions: any;
+
+      const model = new MockLanguageModelV2({
+        doStream: async options => {
+          capturedOptions = options;
+          return {
+            stream: convertArrayToReadableStream([
+              { type: 'stream-start', warnings: [] },
+              {
+                type: 'response-metadata',
+                id: 'test-id',
+                modelId: 'test-model',
+                timestamp: new Date(0),
+              },
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: 'Hello' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          };
+        },
+      });
+
+      await executeFn({
+        runId,
+        model,
+        prompt: 'test prompt',
+        includeRawChunks: true,
+      }).aisdk.v5.consumeStream();
+
+      expect(capturedOptions.includeRawChunks).toBe(true);
+
+      await executeFn({
+        runId,
+        model,
+        prompt: 'test prompt',
+        includeRawChunks: false,
+      }).aisdk.v5.consumeStream();
+
+      expect(capturedOptions.includeRawChunks).toBe(false);
+
+      await executeFn({
+        runId,
+        model,
+        prompt: 'test prompt',
+      }).aisdk.v5.consumeStream();
+
+      expect(capturedOptions.includeRawChunks).toBe(false);
+    });
+  });
+
+  describe('mixed multi content streaming with interleaving parts', () => {
+    describe('mixed text and reasoning blocks', () => {
+      let result: any;
+
+      beforeEach(async () => {
+        result = executeFn({
+          runId,
+          model: createTestModel({
+            stream: convertArrayToReadableStream([
+              { type: 'stream-start', warnings: [] },
+              { type: 'reasoning-start', id: '0' },
+              { type: 'text-start', id: '1' },
+              { type: 'reasoning-delta', id: '0', delta: 'Thinking...' },
+              { type: 'text-delta', id: '1', delta: 'Hello' },
+              { type: 'text-delta', id: '1', delta: ', ' },
+              { type: 'text-start', id: '2' },
+              { type: 'text-delta', id: '2', delta: `This ` },
+              { type: 'text-delta', id: '2', delta: `is ` },
+              { type: 'reasoning-start', id: '3' },
+              { type: 'reasoning-delta', id: '0', delta: `I'm thinking...` },
+              { type: 'reasoning-delta', id: '3', delta: `Separate thoughts` },
+              { type: 'text-delta', id: '2', delta: `a` },
+              { type: 'text-delta', id: '1', delta: `world!` },
+              { type: 'reasoning-end', id: '0' },
+              { type: 'text-delta', id: '2', delta: ` test.` },
+              { type: 'text-end', id: '2' },
+              { type: 'reasoning-end', id: '3' },
+              { type: 'text-end', id: '1' },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+          prompt: 'test-input',
+          _internal: {
+            currentDate: mockValues(new Date(2000)),
+            generateId: mockId(),
+          },
+        });
+      });
+
+      it('should return the full stream with the correct parts', async () => {
+        expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
+            [
+              {
+                "type": "start",
+              },
+              {
+                "request": {},
+                "type": "start-step",
+                "warnings": [],
+              },
+              {
+                "id": "0",
+                "type": "reasoning-start",
+              },
+              {
+                "id": "1",
+                "type": "text-start",
+              },
+              {
+                "id": "0",
+                "providerMetadata": undefined,
+                "text": "Thinking...",
+                "type": "reasoning-delta",
+              },
+              {
+                "id": "1",
+                "providerMetadata": undefined,
+                "text": "Hello",
+                "type": "text-delta",
+              },
+              {
+                "id": "1",
+                "providerMetadata": undefined,
+                "text": ", ",
+                "type": "text-delta",
+              },
+              {
+                "id": "2",
+                "type": "text-start",
+              },
+              {
+                "id": "2",
+                "providerMetadata": undefined,
+                "text": "This ",
+                "type": "text-delta",
+              },
+              {
+                "id": "2",
+                "providerMetadata": undefined,
+                "text": "is ",
+                "type": "text-delta",
+              },
+              {
+                "id": "3",
+                "type": "reasoning-start",
+              },
+              {
+                "id": "0",
+                "providerMetadata": undefined,
+                "text": "I'm thinking...",
+                "type": "reasoning-delta",
+              },
+              {
+                "id": "3",
+                "providerMetadata": undefined,
+                "text": "Separate thoughts",
+                "type": "reasoning-delta",
+              },
+              {
+                "id": "2",
+                "providerMetadata": undefined,
+                "text": "a",
+                "type": "text-delta",
+              },
+              {
+                "id": "1",
+                "providerMetadata": undefined,
+                "text": "world!",
+                "type": "text-delta",
+              },
+              {
+                "id": "0",
+                "type": "reasoning-end",
+              },
+              {
+                "id": "2",
+                "providerMetadata": undefined,
+                "text": " test.",
+                "type": "text-delta",
+              },
+              {
+                "id": "2",
+                "type": "text-end",
+              },
+              {
+                "id": "3",
+                "type": "reasoning-end",
+              },
+              {
+                "id": "1",
+                "type": "text-end",
+              },
+              {
+                "finishReason": "stop",
+                "providerMetadata": undefined,
+                "response": {
+                  "headers": undefined,
+                  "id": "id-1",
+                  "modelId": "mock-model-id",
+                  "timestamp": 1970-01-01T00:00:02.000Z,
+                },
+                "type": "finish-step",
+                "usage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": 3,
+                  "outputTokens": 10,
+                  "reasoningTokens": undefined,
+                  "totalTokens": 13,
+                },
+              },
+              {
+                "finishReason": "stop",
+                "totalUsage": {
+                  "cachedInputTokens": undefined,
+                  "inputTokens": 3,
+                  "outputTokens": 10,
+                  "reasoningTokens": undefined,
+                  "totalTokens": 13,
+                },
+                "type": "finish",
+              },
+            ]
+          `);
+      });
+
+      it.skip('should return the content parts in the correct order', async () => {
+        await result.aisdk.v5.consumeStream();
+
+        expect(await result.aisdk.v5.content).toMatchInlineSnapshot(`
+          [
+            {
+              "providerMetadata": undefined,
+              "text": "Thinking...I'm thinking...",
+              "type": "reasoning",
+            },
+            {
+              "providerMetadata": undefined,
+              "text": "Hello, world!",
+              "type": "text",
+            },
+            {
+              "providerMetadata": undefined,
+              "text": "This is a test.",
+              "type": "text",
+            },
+            {
+              "providerMetadata": undefined,
+              "text": "Separate thoughts",
+              "type": "reasoning",
+            },
+          ]
+        `);
+      });
+
+      it.skip('should return the step content parts in the correct order', async () => {
+        await result.aisdk.v5.consumeStream();
+
+        expect(await result.aisdk.v5.steps).toMatchInlineSnapshot(`
+          [
+            DefaultStepResult {
+              "content": [
+                {
+                  "providerMetadata": undefined,
+                  "text": "Thinking...I'm thinking...",
+                  "type": "reasoning",
+                },
+                {
+                  "providerMetadata": undefined,
+                  "text": "Hello, world!",
+                  "type": "text",
+                },
+                {
+                  "providerMetadata": undefined,
+                  "text": "This is a test.",
+                  "type": "text",
+                },
+                {
+                  "providerMetadata": undefined,
+                  "text": "Separate thoughts",
+                  "type": "reasoning",
+                },
+              ],
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "request": {},
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "messages": [
+                  {
+                    "content": [
+                      {
+                        "providerOptions": undefined,
+                        "text": "Thinking...I'm thinking...",
+                        "type": "reasoning",
+                      },
+                      {
+                        "providerOptions": undefined,
+                        "text": "Hello, world!",
+                        "type": "text",
+                      },
+                      {
+                        "providerOptions": undefined,
+                        "text": "This is a test.",
+                        "type": "text",
+                      },
+                      {
+                        "providerOptions": undefined,
+                        "text": "Separate thoughts",
+                        "type": "reasoning",
+                      },
+                    ],
+                    "role": "assistant",
+                  },
+                ],
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:02.000Z,
+              },
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "warnings": [],
+            },
+          ]
+        `);
+      });
     });
   });
 }

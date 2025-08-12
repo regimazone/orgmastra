@@ -430,4 +430,247 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
       expect(result.aisdk.v4.response.messages).toMatchSnapshot();
     });
   });
+
+  // describe('text output', () => {
+  //   it('should send partial output stream', async () => {
+  //     const result = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: 'Hello, ' },
+  //           { type: 'text-delta', textDelta: ',' },
+  //           { type: 'text-delta', textDelta: ' world!' },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: text(),
+  //       prompt: 'prompt',
+  //     });
+
+  //     expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+  //       'Hello, ',
+  //       'Hello, ,',
+  //       'Hello, , world!',
+  //     ]);
+  //   });
+  // });
+
+  // describe('object output', () => {
+  //   it('should set responseFormat to json and send schema as part of the responseFormat', async () => {
+  //     let callOptions!: LanguageModelV1CallOptions;
+
+  //     const result = streamText({
+  //       model: new MockLanguageModelV1({
+  //         supportsStructuredOutputs: false,
+  //         doStream: async args => {
+  //           callOptions = args;
+  //           return {
+  //             stream: convertArrayToReadableStream([
+  //               { type: 'text-delta', textDelta: '{ ' },
+  //               { type: 'text-delta', textDelta: '"value": ' },
+  //               { type: 'text-delta', textDelta: `"Hello, ` },
+  //               { type: 'text-delta', textDelta: `world` },
+  //               { type: 'text-delta', textDelta: `!"` },
+  //               { type: 'text-delta', textDelta: ' }' },
+  //               {
+  //                 type: 'finish',
+  //                 finishReason: 'stop',
+  //                 usage: { completionTokens: 10, promptTokens: 3 },
+  //               },
+  //             ]),
+  //             rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+  //           };
+  //         },
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //     });
+
+  //     await result.consumeStream();
+
+  //     expect(callOptions).toEqual({
+  //       temperature: 0,
+  //       mode: { type: 'regular' },
+  //       inputFormat: 'prompt',
+  //       responseFormat: { type: 'json', schema: undefined },
+  //       prompt: [
+  //         {
+  //           content:
+  //             'JSON schema:\n' +
+  //             '{"type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}\n' +
+  //             'You MUST answer with a JSON object that matches the JSON schema above.',
+  //           role: 'system',
+  //         },
+  //         {
+  //           content: [{ text: 'prompt', type: 'text' }],
+  //           providerMetadata: undefined,
+  //           role: 'user',
+  //         },
+  //       ],
+  //     });
+  //   });
+
+  //   it('should send valid partial text fragments', async () => {
+  //     const result = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: '{ ' },
+  //           { type: 'text-delta', textDelta: '"value": ' },
+  //           { type: 'text-delta', textDelta: `"Hello, ` },
+  //           { type: 'text-delta', textDelta: `world` },
+  //           { type: 'text-delta', textDelta: `!"` },
+  //           { type: 'text-delta', textDelta: ' }' },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //     });
+
+  //     expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual([
+  //       `{ `,
+  //       // key difference: need to combine after `:`
+  //       `"value": "Hello, `,
+  //       `world`,
+  //       `!"`,
+  //       ` }`,
+  //     ]);
+  //   });
+
+  //   it('should send partial output stream', async () => {
+  //     const result = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: '{ ' },
+  //           { type: 'text-delta', textDelta: '"value": ' },
+  //           { type: 'text-delta', textDelta: `"Hello, ` },
+  //           { type: 'text-delta', textDelta: `world` },
+  //           { type: 'text-delta', textDelta: `!"` },
+  //           { type: 'text-delta', textDelta: ' }' },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //     });
+
+  //     expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+  //       {},
+  //       { value: 'Hello, ' },
+  //       { value: 'Hello, world' },
+  //       { value: 'Hello, world!' },
+  //     ]);
+  //   });
+
+  //   it('should send partial output stream when last chunk contains content', async () => {
+  //     const result = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: '{ ' },
+  //           { type: 'text-delta', textDelta: '"value": ' },
+  //           { type: 'text-delta', textDelta: `"Hello, ` },
+  //           { type: 'text-delta', textDelta: `world!" }` },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //     });
+
+  //     expect(await convertAsyncIterableToArray(result.experimental_partialOutputStream)).toStrictEqual([
+  //       {},
+  //       { value: 'Hello, ' },
+  //       { value: 'Hello, world!' },
+  //     ]);
+  //   });
+
+  //   it('should resolve text promise with the correct content', async () => {
+  //     const result = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: '{ ' },
+  //           { type: 'text-delta', textDelta: '"value": ' },
+  //           { type: 'text-delta', textDelta: `"Hello, ` },
+  //           { type: 'text-delta', textDelta: `world!" ` },
+  //           { type: 'text-delta', textDelta: '}' },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //     });
+
+  //     result.consumeStream();
+
+  //     expect(await result.text).toStrictEqual('{ "value": "Hello, world!" }');
+  //   });
+
+  //   it('should call onFinish with the correct content', async () => {
+  //     let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
+
+  //     const resultObject = streamText({
+  //       model: createTestModel({
+  //         stream: convertArrayToReadableStream([
+  //           { type: 'text-delta', textDelta: '{ ' },
+  //           { type: 'text-delta', textDelta: '"value": ' },
+  //           { type: 'text-delta', textDelta: `"Hello, ` },
+  //           { type: 'text-delta', textDelta: `world!" ` },
+  //           { type: 'text-delta', textDelta: '}' },
+  //           {
+  //             type: 'finish',
+  //             finishReason: 'stop',
+  //             usage: { completionTokens: 10, promptTokens: 3 },
+  //           },
+  //         ]),
+  //       }),
+  //       experimental_output: object({
+  //         schema: z.object({ value: z.string() }),
+  //       }),
+  //       prompt: 'prompt',
+  //       onFinish: async event => {
+  //         result = event as unknown as typeof result;
+  //       },
+  //       experimental_generateMessageId: mockId({ prefix: 'msg' }),
+  //       _internal: {
+  //         generateId: mockId({ prefix: 'id' }),
+  //         currentDate: () => new Date(0),
+  //       },
+  //     });
+
+  //     resultObject.consumeStream();
+
+  //     await resultObject.consumeStream();
+
+  //     expect(result).toMatchSnapshot();
+  //   });
+  // });
 }
