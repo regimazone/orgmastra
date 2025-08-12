@@ -1715,6 +1715,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           try {
             // Add LLM response messages to the list
             let responseMessages = result.response.messages;
+            console.log('responseMessages', responseMessages)
             if (!responseMessages && result.object) {
               responseMessages = [
                 {
@@ -2158,6 +2159,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     };
   }
 
+
+
   async generate(
     messages: string | string[] | CoreMessage[] | AiMessageType[] | UIMessageWithMetadata[],
     args?: AgentGenerateOptions<undefined, undefined> & { output?: never; experimental_output?: never },
@@ -2388,6 +2391,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         ...llmOptions,
         onFinish: async result => {
           try {
+            console.log('result zzzzz', result)
             const outputText = result.text;
             await after({
               result,
