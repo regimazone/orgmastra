@@ -73,7 +73,7 @@ export function mergeIntoDataStreamTests({ executeFn, runId }: { executeFn: type
     });
   });
 
-  describe.skip('result.consumeStream', () => {
+  describe('result.consumeStream', () => {
     it('should ignore AbortError during stream consumption', async () => {
       const result = await executeFn({
         runId,
@@ -139,7 +139,7 @@ export function mergeIntoDataStreamTests({ executeFn, runId }: { executeFn: type
       await expect(result.aisdk.v4.consumeStream()).resolves.not.toThrow();
     });
 
-    it('should call the onError callback with the error', async () => {
+    it.skip('should call the onError callback with the error', async () => {
       const onErrorCallback = vi.fn();
       const result = await executeFn({
         runId,
