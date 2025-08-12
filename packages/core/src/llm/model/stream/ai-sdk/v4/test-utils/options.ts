@@ -915,7 +915,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   });
 
   describe('options.headers', () => {
-    it.skip('should set headers', async () => {
+    it('should set headers', async () => {
       const result = await executeFn({
         runId,
         model: new MockLanguageModelV1({
