@@ -3584,7 +3584,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       `);
     });
 
-    it.skip('should send sources', async () => {
+    it('should send sources', async () => {
       let result!: any;
 
       const resultObject = await executeFn({

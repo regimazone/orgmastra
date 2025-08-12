@@ -291,7 +291,6 @@ export class AISDKV5OutputStream {
     messageList.add(response.messages, 'response');
 
     const formattedMessages = messageList.get.response.aiV5.model().filter((message: any) => message.role !== 'user');
-    console.log('message_list', JSON.stringify(formattedMessages, null, 2));
 
     const hasTools = formattedMessages.some(
       (message: any) =>
