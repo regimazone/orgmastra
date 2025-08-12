@@ -1,17 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { LanguageModelV1Message } from '@ai-sdk/provider';
 import type { LanguageModelV2Prompt } from '@ai-sdk/provider-v5';
-import type { CoreMessage as CoreMessageV4, IdGenerator, UIMessage as UIMessageV4, LanguageModelV1Prompt } from 'ai';
 import * as AIV4 from 'ai';
-import type {
-  UIMessage as UIMessageV5,
-  CoreMessage as CoreMessageV5,
-  UIMessagePart,
-  ModelMessage as ModelMessageV5,
-} from 'ai-v5';
+import type * as AIV4Type from 'ai';
 import * as AIV5 from 'ai-v5';
 
-type UIMessagePartV5 = UIMessagePart<any, any>;
+type UIMessagePartV5 = AIV5Type.UIMessagePart<any, any>;
+import type * as AIV5Type from 'ai-v5';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import { getToolName } from './ai-sdk-5';
 import { convertToV1Messages } from './prompt/convert-to-mastra-v1';
@@ -30,12 +25,12 @@ type MastraMessageShared = {
 
 export type MastraMessageContentV2 = {
   format: 2; // format 2 === UIMessage in AI SDK v4
-  parts: UIMessageV4['parts'];
-  experimental_attachments?: UIMessageV4['experimental_attachments'];
-  content?: UIMessageV4['content'];
-  toolInvocations?: UIMessageV4['toolInvocations'];
-  reasoning?: UIMessageV4['reasoning'];
-  annotations?: UIMessageV4['annotations'];
+  parts: AIV4Type.UIMessage['parts'];
+  experimental_attachments?: AIV4Type.UIMessage['experimental_attachments'];
+  content?: AIV4Type.UIMessage['content'];
+  toolInvocations?: AIV4Type.UIMessage['toolInvocations'];
+  reasoning?: AIV4Type.UIMessage['reasoning'];
+  annotations?: AIV4Type.UIMessage['annotations'];
   metadata?: Record<string, unknown>;
 };
 
@@ -46,19 +41,19 @@ export type MastraMessageV2 = MastraMessageShared & {
 
 export type MastraMessageContentV3 = {
   format: 3; // format 3 === UIMessage in AI SDK v5
-  parts: UIMessageV5['parts'];
-  metadata?: UIMessageV5['metadata'];
+  parts: AIV5Type.UIMessage['parts'];
+  metadata?: AIV5Type.UIMessage['metadata'];
 };
 
 // maps to AI SDK V5 UIMessage
 export type MastraMessageV3 = MastraMessageShared & {
-  role: UIMessageV5['role'];
+  role: AIV5Type.UIMessage['role'];
   content: MastraMessageContentV3;
 };
 
 export type MastraMessageV1 = {
   id: string;
-  content: string | CoreMessageV4['content'];
+  content: string | AIV4Type.CoreMessage['content'];
   role: 'system' | 'user' | 'assistant' | 'tool';
   createdAt: Date;
   threadId?: string;
@@ -70,16 +65,16 @@ export type MastraMessageV1 = {
 };
 
 // Extend UIMessage to include optional metadata field
-export type UIMessageWithMetadata = UIMessageV5 & {
+export type UIMessageWithMetadata = AIV4Type.UIMessage & {
   metadata?: Record<string, unknown>;
 };
 
 export type MessageInput =
-  | UIMessageV5
-  | ModelMessageV5
+  | AIV5.UIMessage
+  | AIV5Type.ModelMessage
   | UIMessageWithMetadata
-  | UIMessageV4
-  | CoreMessageV4 // v4 CoreMessage support
+  | AIV4Type.UIMessage
+  | AIV4Type.CoreMessage // v4 CoreMessage support
   // db messages in various formats
   | MastraMessageV1
   | MastraMessageV2
@@ -94,9 +89,9 @@ export class MessageList {
   private messages: MastraMessageV3[] = [];
 
   // passed in by dev in input or context
-  private systemMessages: CoreMessageV5[] = [];
+  private systemMessages: AIV5Type.ModelMessage[] = [];
   // passed in by us for a specific purpose, eg memory system message
-  private taggedSystemMessages: Record<string, CoreMessageV5[]> = {};
+  private taggedSystemMessages: Record<string, AIV5Type.ModelMessage[]> = {};
 
   private memoryInfo: null | MemoryInfo = null;
 
@@ -106,7 +101,7 @@ export class MessageList {
   private newResponseMessages = new Set<MastraMessageV3>();
   private userContextMessages = new Set<MastraMessageV3>();
 
-  private generateMessageId?: IdGenerator;
+  private generateMessageId?: AIV4Type.IdGenerator;
   private _agentNetworkAppend = false;
 
   constructor({
@@ -115,7 +110,7 @@ export class MessageList {
     generateMessageId,
     // @ts-ignore Flag for agent network messages
     _agentNetworkAppend,
-  }: { threadId?: string; resourceId?: string; generateMessageId?: IdGenerator } = {}) {
+  }: { threadId?: string; resourceId?: string; generateMessageId?: AIV4Type.IdGenerator } = {}) {
     if (threadId) {
       this.memoryInfo = { threadId, resourceId };
     }
@@ -194,7 +189,7 @@ export class MessageList {
     });
   }
 
-  static aiV4CoreMessageToV1PromptMessage(coreMessage: CoreMessageV4): LanguageModelV1Message {
+  static aiV4CoreMessageToV1PromptMessage(coreMessage: AIV4Type.CoreMessage): LanguageModelV1Message {
     if (coreMessage.role === `system`) {
       return coreMessage;
     }
@@ -319,7 +314,7 @@ export class MessageList {
     );
   }
 
-  static aiV5ModelMessageToV2PromptMessage(modelMessage: AIV5.ModelMessage): AIV5LanguageModelV2Message {
+  static aiV5ModelMessageToV2PromptMessage(modelMessage: AIV5Type.ModelMessage): AIV5LanguageModelV2Message {
     if (modelMessage.role === `system`) {
       return modelMessage;
     }
@@ -446,7 +441,7 @@ export class MessageList {
 
     aiV5: {
       model: () => this.convertToModelMessages(this.all.aiV5.ui()),
-      ui: (): UIMessageV5[] => this.all.v3().map(MessageList.toUIMessage),
+      ui: (): AIV5Type.UIMessage[] => this.all.v3().map(MessageList.mastraMessageV3ToAIV5UIMessage),
 
       // Used when calling AI SDK streamText/generateText
       prompt: () => {
@@ -455,7 +450,7 @@ export class MessageList {
 
         const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
         if (needsDefaultUserMessage) {
-          const defaultMessage: CoreMessageV5 = {
+          const defaultMessage: AIV5Type.ModelMessage = {
             role: 'user',
             content: ' ',
           };
@@ -474,7 +469,7 @@ export class MessageList {
         // Ensure we have at least one user message
         const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
         if (needsDefaultUserMessage) {
-          const defaultMessage: CoreMessageV5 = {
+          const defaultMessage: AIV5Type.ModelMessage = {
             role: 'user',
             content: ' ',
           };
@@ -486,8 +481,8 @@ export class MessageList {
     },
 
     aiV4: {
-      ui: (): UIMessageV4[] => this.all.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
-      core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.all.aiV4.ui()),
+      ui: (): AIV4Type.UIMessage[] => this.all.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      core: (): AIV4Type.CoreMessage[] => this.aiV4UIMessagesToAIV4CoreMessages(this.all.aiV4.ui()),
 
       // Used when calling AI SDK streamText/generateText
       prompt: () => {
@@ -496,7 +491,7 @@ export class MessageList {
 
         const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
         if (needsDefaultUserMessage) {
-          const defaultMessage: CoreMessageV5 = {
+          const defaultMessage: AIV5Type.ModelMessage = {
             role: 'user',
             content: ' ',
           };
@@ -507,7 +502,7 @@ export class MessageList {
       },
 
       // Used for creating LLM prompt messages without AI SDK streamText/generateText
-      llmPrompt: (): LanguageModelV1Prompt => {
+      llmPrompt: (): AIV4Type.LanguageModelV1Prompt => {
         const coreMessages = this.all.aiV4.core();
 
         // kinda janky but we can pipe from v5model->mastra3->mastra2->v4ui->v4core to convert our v5 system messages to v4 system messages
@@ -516,7 +511,7 @@ export class MessageList {
           .map(m => this.aiV5ModelMessageToMastraMessageV3(m, 'system'))
           .map(MessageList.mastraMessageV3ToV2)
           .map(MessageList.mastraMessageV2ToAIV4UIMessage)
-          .map(m => this.convertToAIV4CoreMessages([m])[0]!);
+          .map(m => this.aiV4UIMessagesToAIV4CoreMessages([m])[0]!);
 
         const messages = [...systemMessages, ...coreMessages];
 
@@ -524,7 +519,7 @@ export class MessageList {
         const needsDefaultUserMessage = !messages.length || messages[0]?.role === 'assistant';
 
         if (needsDefaultUserMessage) {
-          const defaultMessage: CoreMessageV4 = {
+          const defaultMessage: AIV4Type.CoreMessage = {
             role: 'user',
             content: ' ',
           };
@@ -543,11 +538,11 @@ export class MessageList {
 
     aiV5: {
       model: () => this.convertToModelMessages(this.remembered.aiV5.ui()),
-      ui: (): UIMessageV5[] => this.remembered.v3().map(MessageList.toUIMessage),
+      ui: (): AIV5Type.UIMessage[] => this.remembered.v3().map(MessageList.mastraMessageV3ToAIV5UIMessage),
     },
 
     aiV4: {
-      ui: (): UIMessageV4[] => this.remembered.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      ui: (): AIV4Type.UIMessage[] => this.remembered.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
     },
   };
 
@@ -558,12 +553,12 @@ export class MessageList {
 
     aiV5: {
       model: () => this.convertToModelMessages(this.input.aiV5.ui()),
-      ui: (): UIMessageV5[] => this.input.v3().map(MessageList.toUIMessage),
+      ui: (): AIV5Type.UIMessage[] => this.input.v3().map(MessageList.mastraMessageV3ToAIV5UIMessage),
     },
 
     aiV4: {
-      ui: (): UIMessageV4[] => this.input.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
-      core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.input.aiV4.ui()),
+      ui: (): AIV4Type.UIMessage[] => this.input.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      core: (): AIV4Type.CoreMessage[] => this.aiV4UIMessagesToAIV4CoreMessages(this.input.aiV4.ui()),
     },
   };
 
@@ -574,12 +569,12 @@ export class MessageList {
 
     aiV5: {
       model: () => this.convertToModelMessages(this.response.aiV5.ui()),
-      ui: (): UIMessageV5[] => this.response.v3().map(MessageList.toUIMessage),
+      ui: (): AIV5Type.UIMessage[] => this.response.v3().map(MessageList.mastraMessageV3ToAIV5UIMessage),
     },
 
     aiV4: {
-      ui: (): UIMessageV4[] => this.response.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
-      core: (): CoreMessageV4[] => this.convertToAIV4CoreMessages(this.response.aiV4.ui()),
+      ui: (): AIV4Type.UIMessage[] => this.response.v2().map(MessageList.mastraMessageV2ToAIV4UIMessage),
+      core: (): AIV4Type.CoreMessage[] => this.aiV4UIMessagesToAIV4CoreMessages(this.response.aiV4.ui()),
     },
   };
 
@@ -598,7 +593,7 @@ export class MessageList {
     return Math.min(...unsavedMessages.map(m => new Date(m.createdAt).getTime()));
   }
 
-  public getSystemMessages(tag?: string): CoreMessageV5[] {
+  public getSystemMessages(tag?: string): AIV5Type.ModelMessage[] {
     if (tag) {
       return this.taggedSystemMessages[tag] || [];
     }
@@ -606,7 +601,14 @@ export class MessageList {
   }
 
   public addSystem(
-    messages: CoreMessageV4 | CoreMessageV5 | CoreMessageV5[] | CoreMessageV4[] | string | string[] | null,
+    messages:
+      | AIV4Type.CoreMessage
+      | AIV5Type.ModelMessage
+      | AIV5Type.ModelMessage[]
+      | AIV4Type.CoreMessage[]
+      | string
+      | string[]
+      | null,
     tag?: string,
   ) {
     if (!messages) return this;
@@ -616,10 +618,10 @@ export class MessageList {
     return this;
   }
 
-  private convertToAIV4CoreMessages(messages: UIMessageV4[]): CoreMessageV4[] {
+  private aiV4UIMessagesToAIV4CoreMessages(messages: AIV4Type.UIMessage[]): AIV4Type.CoreMessage[] {
     return AIV4.convertToCoreMessages(this.sanitizeAIV4UIMessages(messages));
   }
-  private sanitizeAIV4UIMessages(messages: UIMessageV4[]): UIMessageV4[] {
+  private sanitizeAIV4UIMessages(messages: AIV4Type.UIMessage[]): AIV4Type.UIMessage[] {
     const msgs = messages
       .map(m => {
         if (m.parts.length === 0) return false;
@@ -646,14 +648,14 @@ export class MessageList {
 
         return sanitized;
       })
-      .filter((m): m is UIMessageV4 => Boolean(m));
+      .filter((m): m is AIV4Type.UIMessage => Boolean(m));
     return msgs;
   }
 
-  private convertToModelMessages(messages: UIMessageV5[]): ModelMessageV5[] {
+  private convertToModelMessages(messages: AIV5Type.UIMessage[]): AIV5Type.ModelMessage[] {
     return AIV5.convertToModelMessages(this.sanitizeV5UIMessages(messages));
   }
-  private sanitizeV5UIMessages(messages: UIMessageV5[]): UIMessageV5[] {
+  private sanitizeV5UIMessages(messages: AIV5Type.UIMessage[]): AIV5Type.UIMessage[] {
     const msgs = messages
       .map(m => {
         if (m.parts.length === 0) return false;
@@ -679,18 +681,18 @@ export class MessageList {
 
         return sanitized;
       })
-      .filter((m): m is UIMessageV5 => Boolean(m));
+      .filter((m): m is AIV5.UIMessage => Boolean(m));
     return msgs;
   }
 
-  private addOneSystem(message: CoreMessageV4 | CoreMessageV5 | string, tag?: string) {
+  private addOneSystem(message: AIV4Type.CoreMessage | AIV5Type.ModelMessage | string, tag?: string) {
     if (typeof message === `string`) message = { role: 'system', content: message };
 
     const coreMessage = MessageList.isAIV5CoreMessage(message)
       ? message
       : // TODO: yikes this is rough, we need a cleaner way to map any message through to any other format
         this.convertToModelMessages([
-          MessageList.toUIMessage(
+          MessageList.mastraMessageV3ToAIV5UIMessage(
             this.mastraMessageV2ToMastraMessageV3(this.aiV4CoreMessageToMastraMessageV2(message, `system`)),
           ),
         ])[0]!;
@@ -703,7 +705,7 @@ export class MessageList {
     }
   }
 
-  private isDuplicateSystem(message: CoreMessageV5, tag?: string) {
+  private isDuplicateSystem(message: AIV5Type.ModelMessage, tag?: string) {
     if (tag) {
       if (!this.taggedSystemMessages[tag]) return false;
       return this.taggedSystemMessages[tag].some(
@@ -715,7 +717,7 @@ export class MessageList {
     );
   }
 
-  private static toUIMessage(m: MastraMessageV3): UIMessageV5 {
+  private static mastraMessageV3ToAIV5UIMessage(m: MastraMessageV3): AIV5.UIMessage {
     const metadata: Record<string, any> = {
       ...(m.content.metadata || {}),
     };
@@ -766,7 +768,10 @@ export class MessageList {
 
   private addOne(message: MessageInput, messageSource: MessageSource) {
     if (
-      (!(`content` in message) || (!message.content && typeof message.content !== 'string')) &&
+      (!(`content` in message) ||
+        (!message.content &&
+          // allow empty strings
+          typeof message.content !== 'string')) &&
       (!(`parts` in message) || !message.parts)
     ) {
       throw new MastraError({
@@ -791,7 +796,7 @@ export class MessageList {
         id: 'INVALID_SYSTEM_MESSAGE_FORMAT',
         domain: ErrorDomain.AGENT,
         category: ErrorCategory.USER,
-        text: `Invalid system message format. System messages must be CoreMessage format with 'role' and 'content' properties.`,
+        text: `Invalid system message format. System messages must be CoreMessage format with 'role' and 'content' properties. The content should be a string or valid content array.`,
         details: {
           messageSource,
           receivedMessage: JSON.stringify(message, null, 2),
@@ -805,18 +810,22 @@ export class MessageList {
 
     if (messageSource === `memory`) {
       for (const existingMessage of this.messages) {
+        // don't double store any messages
         if (MessageList.messagesAreEqual(existingMessage, messageV3)) {
           return;
         }
       }
     }
 
+    // If the last message is an assistant message and the new message is also an assistant message, merge them together and update tool calls with results
     const shouldAppendToLastAssistantMessage =
       latestMessage?.role === 'assistant' &&
       messageV3.role === 'assistant' &&
       latestMessage.threadId === messageV3.threadId &&
+      // If the message is from memory, don't append to the last assistant message
       messageSource !== 'memory';
 
+    // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
     const appendNetworkMessage =
       (this._agentNetworkAppend && latestMessage && !this.memoryMessages.has(latestMessage)) ||
       !this._agentNetworkAppend;
@@ -824,14 +833,17 @@ export class MessageList {
     if (shouldAppendToLastAssistantMessage && appendNetworkMessage) {
       latestMessage.createdAt = messageV3.createdAt || latestMessage.createdAt;
 
+      // Used for mapping indexes for messageV2 parts to corresponding indexes in latestMessage
       const toolResultAnchorMap = new Map<number, number>();
-      const partsToAdd = new Map<number, UIMessageV5['parts'][number]>();
+      const partsToAdd = new Map<number, AIV5Type.UIMessage['parts'][number]>();
 
       for (const [index, part] of messageV3.content.parts.entries()) {
+        // If the incoming part is a tool-invocation result, find the corresponding call in the latest message
         if (AIV5.isToolUIPart(part)) {
           const existingCallPart = [...latestMessage.content.parts]
             .reverse()
             .find(p => AIV5.isToolUIPart(p) && p.toolCallId === part.toolCallId);
+
           const existingCallToolInvocation = !!existingCallPart && AIV5.isToolUIPart(existingCallPart);
 
           if (existingCallToolInvocation) {
@@ -845,7 +857,7 @@ export class MessageList {
                   input: existingCallPart.input,
                   output: part.output,
                 };
-                latestMessage.content.parts[existingIndex] = updatedPart as UIMessageV5['parts'][number];
+                latestMessage.content.parts[existingIndex] = updatedPart as AIV5Type.UIMessage['parts'][number];
               }
 
               toolResultAnchorMap.set(index, existingIndex);
@@ -1071,17 +1083,21 @@ export class MessageList {
       return start;
     }
 
-    if (start && (messageSource === `memory` || messageSource === `response`)) {
+    if (start && messageSource === `memory`) {
+      // we don't want to modify start time if the message came from memory or we may accidentally re-order old messages
       return start;
     }
 
     const now = new Date();
     const nowTime = start?.getTime() || now.getTime();
+    // find the latest createdAt in all stored messages
     const lastTime = this.messages.reduce((p, m) => {
       if (m.createdAt.getTime() > p) return m.createdAt.getTime();
       return p;
     }, this.lastCreatedAt || 0);
 
+    // make sure our new message is created later than the latest known message time
+    // it's expected that messages are added to the list in order if they don't have a createdAt date on them
     if (nowTime <= lastTime) {
       const newDate = new Date(lastTime + 1);
       this.lastCreatedAt = newDate.getTime();
@@ -1488,9 +1504,9 @@ export class MessageList {
     return v2Msg;
   }
 
-  private static mastraMessageV2ToAIV4UIMessage(v2Msg: MastraMessageV2): UIMessageV4 {
-    const parts: UIMessageV4['parts'] = [];
-    const toolInvocations: UIMessageV4['toolInvocations'] = [];
+  private static mastraMessageV2ToAIV4UIMessage(v2Msg: MastraMessageV2): AIV4Type.UIMessage {
+    const parts: AIV4Type.UIMessage['parts'] = [];
+    const toolInvocations: AIV4Type.UIMessage['toolInvocations'] = [];
 
     for (const part of v2Msg.content.parts) {
       switch (part.type) {
@@ -1593,7 +1609,7 @@ export class MessageList {
       }
     }
 
-    const uiMessage: UIMessageV4 = {
+    const uiMessage: AIV4Type.UIMessage = {
       id: v2Msg.id,
       role: v2Msg.role,
       content: v2Msg.content.content !== undefined ? v2Msg.content.content : '',
@@ -1602,7 +1618,7 @@ export class MessageList {
     };
 
     if (!uiMessage.content) {
-      let lastTextPartInFinalStep: Extract<UIMessageV4['parts'][0], { type: 'text' }> | null = null;
+      let lastTextPartInFinalStep: Extract<AIV4Type.UIMessage['parts'][0], { type: 'text' }> | null = null;
       for (const part of parts) {
         if (part.type === `step-start`) lastTextPartInFinalStep = null;
         if (part.type === `text`) lastTextPartInFinalStep = part;
@@ -1638,7 +1654,7 @@ export class MessageList {
     return message;
   }
 
-  private aiV5UIMessageToMastraMessageV3(message: UIMessageV5, messageSource: MessageSource): MastraMessageV3 {
+  private aiV5UIMessageToMastraMessageV3(message: AIV5.UIMessage, messageSource: MessageSource): MastraMessageV3 {
     const content: MastraMessageContentV3 = {
       format: 3,
       parts: message.parts,
@@ -1662,7 +1678,7 @@ export class MessageList {
     }
 
     if (`experimental_attachments` in message && (message as any).experimental_attachments !== undefined) {
-      const attachments = (message as any).experimental_attachments as UIMessageV4['experimental_attachments'];
+      const attachments = (message as any).experimental_attachments as AIV4Type.UIMessage['experimental_attachments'];
       // Preserve experimental_attachments in metadata for round-trip (even if empty array)
       content.metadata = {
         ...(content.metadata || {}),
@@ -1689,9 +1705,12 @@ export class MessageList {
     } satisfies MastraMessageV3;
   }
 
-  private aiV5ModelMessageToMastraMessageV3(coreMessage: CoreMessageV5, messageSource: MessageSource): MastraMessageV3 {
+  private aiV5ModelMessageToMastraMessageV3(
+    coreMessage: AIV5Type.ModelMessage,
+    messageSource: MessageSource,
+  ): MastraMessageV3 {
     const id = `id` in coreMessage ? (coreMessage.id as string) : this.newMessageId();
-    const parts: UIMessageV5['parts'] = [];
+    const parts: AIV5Type.UIMessage['parts'] = [];
 
     // Add step-start for input messages
     if (messageSource === 'input' && coreMessage.role === 'user') {
@@ -1803,7 +1822,7 @@ export class MessageList {
     };
   }
 
-  private aiV4UIMessageToMastraMessageV2(message: UIMessageV4, messageSource: MessageSource): MastraMessageV2 {
+  private aiV4UIMessageToMastraMessageV2(message: AIV4Type.UIMessage, messageSource: MessageSource): MastraMessageV2 {
     const content: MastraMessageContentV2 = {
       format: 2,
       parts: message.parts,
@@ -1842,12 +1861,12 @@ export class MessageList {
   }
 
   private aiV4CoreMessageToMastraMessageV2(
-    coreMessage: AIV4.CoreMessage,
+    coreMessage: AIV4Type.CoreMessage,
     messageSource: MessageSource,
   ): MastraMessageV2 {
     const id = `id` in coreMessage ? (coreMessage.id as string) : this.newMessageId();
-    const parts: UIMessageV4['parts'] = [];
-    const experimentalAttachments: UIMessageV4['experimental_attachments'] = [];
+    const parts: AIV4Type.UIMessage['parts'] = [];
+    const experimentalAttachments: AIV4Type.UIMessage['experimental_attachments'] = [];
     const toolInvocations: any[] = [];
 
     if (typeof coreMessage.content === 'string') {
@@ -1983,7 +2002,7 @@ export class MessageList {
     };
   }
 
-  static hasAIV5UIMessageCharacteristics(msg: UIMessageV5 | UIMessageV4): msg is UIMessageV5 {
+  static hasAIV5UIMessageCharacteristics(msg: AIV5.UIMessage | AIV4Type.UIMessage): msg is AIV5.UIMessage {
     // ai v4 has these separated arrays of parts that don't record overall order
     // so we can check for their presence as a faster/early check
     if (
@@ -2021,7 +2040,7 @@ export class MessageList {
 
     return true;
   }
-  static isAIV5UIMessage(msg: MessageInput): msg is UIMessageV5 {
+  static isAIV5UIMessage(msg: MessageInput): msg is AIV5.UIMessage {
     return (
       !MessageList.isMastraMessage(msg) &&
       !MessageList.isAIV5CoreMessage(msg) &&
@@ -2030,7 +2049,7 @@ export class MessageList {
     );
   }
 
-  static isAIV4UIMessage(msg: MessageInput): msg is UIMessageV4 {
+  static isAIV4UIMessage(msg: MessageInput): msg is AIV4Type.UIMessage {
     return (
       !MessageList.isMastraMessage(msg) &&
       !MessageList.isAIV4CoreMessage(msg) &&
@@ -2039,7 +2058,9 @@ export class MessageList {
     );
   }
 
-  static hasAIV5CoreMessageCharacteristics(msg: CoreMessageV4 | ModelMessageV5): msg is ModelMessageV5 {
+  static hasAIV5CoreMessageCharacteristics(
+    msg: AIV4Type.CoreMessage | AIV5Type.ModelMessage,
+  ): msg is AIV5Type.ModelMessage {
     if (`experimental_providerMetadata` in msg) return false; // is v4 cause v5 doesn't have this property
 
     // it's compatible with either if content is a string, no difference
@@ -2065,7 +2086,7 @@ export class MessageList {
 
     return true;
   }
-  static isAIV5CoreMessage(msg: MessageInput): msg is CoreMessageV5 {
+  static isAIV5CoreMessage(msg: MessageInput): msg is AIV5Type.ModelMessage {
     return (
       !MessageList.isMastraMessage(msg) &&
       !(`parts` in msg) &&
@@ -2073,7 +2094,7 @@ export class MessageList {
       MessageList.hasAIV5CoreMessageCharacteristics(msg)
     );
   }
-  static isAIV4CoreMessage(msg: MessageInput): msg is CoreMessageV4 {
+  static isAIV4CoreMessage(msg: MessageInput): msg is AIV4Type.CoreMessage {
     // V4 CoreMessage has role and content like V5, but content can be array of parts
     return (
       !MessageList.isMastraMessage(msg) &&
@@ -2128,7 +2149,7 @@ export class MessageList {
     );
   }
 
-  private static cacheKeyFromAIV5Parts(parts: UIMessageV5['parts']): string {
+  private static cacheKeyFromAIV5Parts(parts: AIV5Type.UIMessage['parts']): string {
     let key = ``;
     for (const part of parts) {
       key += part.type;
@@ -2151,7 +2172,7 @@ export class MessageList {
     return key;
   }
 
-  private static coreContentToString(content: CoreMessageV5['content']): string {
+  private static coreContentToString(content: AIV5Type.ModelMessage['content']): string {
     if (typeof content === `string`) return content;
 
     return content.reduce((p, c) => {
@@ -2162,7 +2183,7 @@ export class MessageList {
     }, '');
   }
 
-  private static cacheKeyFromContent(content: CoreMessageV5['content']): string {
+  private static cacheKeyFromContent(content: AIV5Type.ModelMessage['content']): string {
     if (typeof content === `string`) return content;
     let key = ``;
     for (const part of content) {
