@@ -11,14 +11,12 @@ import type { ScoreRowData } from '@mastra/core/scores';
 
 import * as Dialog from '@radix-ui/react-dialog';
 
-import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
 import { useWorkflows } from '@/hooks/use-workflows';
 import { ClientScoreRowData } from '@mastra/client-js';
 import { CodeMirrorBlock } from '@/components/ui/code-mirror-block';
-import Markdown from 'react-markdown';
 
 export default function Scorer() {
   const { scorerId } = useParams()! as { scorerId: string };
