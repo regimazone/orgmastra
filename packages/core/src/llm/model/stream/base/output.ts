@@ -412,6 +412,10 @@ export class MastraModelOutput extends MastraBase {
                     files: this.aisdk.v5.files,
                     steps: this.aisdk.v5.transformSteps(this.#bufferedSteps),
                     response: this.aisdk.v5.transformResponse({ messages: messageList.get.response.v3() }, true),
+                    usage: chunk.payload.output.usage,
+                    totalUsage: self.totalUsage,
+                    toolCalls: this.aisdk.v5.toolCalls,
+                    toolResults: this.aisdk.v5.toolResults,
                   };
                 }
 

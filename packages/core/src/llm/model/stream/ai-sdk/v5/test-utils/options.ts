@@ -3367,17 +3367,16 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         {
           "content": [
             {
-              "providerMetadata": undefined,
               "text": "Hello, world!",
               "type": "text",
             },
             {
-              "input": {
-                "value": "value",
-              },
               "toolCallId": "call-1",
               "toolName": "tool1",
               "type": "tool-call",
+              "input": {
+                "value": "value",
+              },
             },
             {
               "input": {
