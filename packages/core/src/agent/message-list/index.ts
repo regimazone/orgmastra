@@ -1196,11 +1196,26 @@ export class MessageList {
           if (text || part.details?.length) {
             // Preserve the original details structure in the part for V3
             // V3 reasoning parts can have additional properties beyond just text
-            parts.push({
+            const p = {
               type: 'reasoning',
               text: text || '',
+              // @ts-ignore
               __details: part.details, // Preserve original details for round-trip
-            } as any);
+            } as const;
+
+            // @ts-ignore
+            if (part.providerMetadata) {
+              //@ts-ignore
+              p.providerMetadata = part.providerMetadata;
+            }
+
+            // @ts-ignore
+            if (part.providerOptions) {
+              //@ts-ignore
+              p.providerOptions = part.providerOptions;
+            }
+
+            parts.push(p);
           }
           break;
 
@@ -1361,6 +1376,16 @@ export class MessageList {
               case 'reasoning':
                 // Restore original details if preserved, otherwise create text detail
                 if ((p as any).__details) {
+                  // @ts-ignore
+                  if (p.providerMetadata || p.providerOptions) {
+                    return {
+                      type: 'reasoning',
+                      reasoning: '',
+                      details: (p as any).__details,
+                      // @ts-ignore
+                      providerMetadata: p.providerMetadata || p.providerOptions,
+                    };
+                  }
                   return {
                     type: 'reasoning',
                     reasoning: '',
@@ -1368,6 +1393,16 @@ export class MessageList {
                   };
                 }
                 if ((p as any).text === '') return null;
+                // @ts-ignore
+                if (p.providerMetadata || p.providerOptions) {
+                  return {
+                    type: 'reasoning',
+                    reasoning: '',
+                    // @ts-ignore
+                    providerMetadata: p.providerMetadata || p.providerOptions,
+                  };
+                }
+
                 return {
                   type: 'reasoning',
                   reasoning: '',
@@ -1515,11 +1550,24 @@ export class MessageList {
           break;
 
         case 'reasoning':
-          parts.push({
+          const p = {
             type: 'reasoning',
             reasoning: part.reasoning,
             details: part.details,
-          });
+          } as const;
+
+          //@ts-ignore
+          if (part.providerOptions) {
+            //@ts-ignore
+            p.providerOptions = part.providerOptions;
+          }
+          // @ts-ignore
+          if (part.providerMetadata || part.providerOptions) {
+            // @ts-ignore
+            p.providerMetadata = part.providerMetadata || part.providerOptions;
+          }
+
+          parts.push(p);
           break;
 
         case 'source':
@@ -1690,10 +1738,21 @@ export class MessageList {
             break;
 
           case 'reasoning':
-            parts.push({
+            const p = {
               type: 'reasoning',
               text: part.text,
-            });
+            } as const;
+            if (part.providerOptions) {
+              // @ts-ignore
+              p.providerOptions = part.providerOptions;
+            }
+            // @ts-ignore
+            if (part.providerMetadata || part.providerOptions) {
+              //@ts-ignore
+              p.providerMetadata = part.providerMetadata || part.providerOptions;
+            }
+            parts.push(p);
+
             break;
           case 'image':
             parts.push({ type: 'file', url: part.image.toString(), mediaType: part.mediaType || 'unknown' } as any);
@@ -1801,10 +1860,7 @@ export class MessageList {
       for (const part of coreMessage.content) {
         switch (part.type) {
           case 'text':
-            parts.push({
-              type: 'text',
-              text: part.text,
-            });
+            parts.push(part);
             break;
 
           case 'tool-call':
@@ -1835,11 +1891,24 @@ export class MessageList {
             break;
 
           case 'reasoning':
-            parts.push({
+            const p = {
               type: 'reasoning',
               reasoning: '',
               details: [{ type: 'text', text: part.text, signature: part.signature }],
-            });
+            } as const;
+
+            if (part.providerOptions) {
+              // @ts-ignore
+              p.providerOptions = part.providerOptions;
+            }
+
+            // @ts-ignore
+            if (part.providerMetadata || part.providerOptions) {
+              // @ts-ignore
+              p.providerMetadata = part.providerMetadata || part.providerOptions;
+            }
+            // @ts-ignore
+            parts.push(p);
             break;
           case 'redacted-reasoning':
             parts.push({
