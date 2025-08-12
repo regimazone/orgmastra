@@ -949,41 +949,39 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     });
   });
 
-  // describe('options.providerMetadata', () => {
-  //     it('should pass provider metadata to model', async () => {
-  //         const result = streamText({
-  //             model: new MockLanguageModelV1({
-  //                 doStream: async ({ providerMetadata }) => {
-  //                     expect(providerMetadata).toStrictEqual({
-  //                         aProvider: { someKey: 'someValue' },
-  //                     });
+  describe('options.providerMetadata', () => {
+    it('should pass provider metadata to model', async () => {
+      const result = await executeFn({
+        runId,
+        model: new MockLanguageModelV1({
+          doStream: async ({ providerMetadata }) => {
+            expect(providerMetadata).toStrictEqual({
+              aProvider: { someKey: 'someValue' },
+            });
 
-  //                     return {
-  //                         stream: convertArrayToReadableStream([
-  //                             { type: 'text-delta', textDelta: 'provider metadata test' },
-  //                             {
-  //                                 type: 'finish',
-  //                                 finishReason: 'stop',
-  //                                 logprobs: undefined,
-  //                                 usage: { completionTokens: 10, promptTokens: 3 },
-  //                             },
-  //                         ]),
-  //                         rawCall: { rawPrompt: 'prompt', rawSettings: {} },
-  //                     };
-  //                 },
-  //             }),
-  //             prompt: 'test-input',
-  //             providerOptions: {
-  //                 aProvider: { someKey: 'someValue' },
-  //             },
-  //         });
+            return {
+              stream: convertArrayToReadableStream([
+                { type: 'text-delta', textDelta: 'provider metadata test' },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            };
+          },
+        }),
+        prompt: 'test-input',
+        providerOptions: {
+          aProvider: { someKey: 'someValue' },
+        },
+      });
 
-  //         assert.deepStrictEqual(
-  //             await convertAsyncIterableToArray(result.textStream),
-  //             ['provider metadata test'],
-  //         );
-  //     });
-  // });
+      expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['provider metadata test']);
+    });
+  });
 
   // describe('options.abortSignal', () => {
   //     it('should forward abort signal to tool execution during streaming', async () => {
