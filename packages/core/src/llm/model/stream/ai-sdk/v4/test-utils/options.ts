@@ -1029,4 +1029,135 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   //         );
   //     });
   // });
+
+  describe('options.messages', () => {
+    it('should detect and convert ui messages', async () => {
+      const result = executeFn({
+        runId,
+        model: new MockLanguageModelV1({
+          doStream: async ({ prompt }) => {
+            console.log('prompt_in', JSON.stringify(prompt, null, 2));
+            expect(prompt).toStrictEqual([
+              {
+                content: [
+                  {
+                    text: 'prompt',
+                    type: 'text',
+                  },
+                ],
+                providerMetadata: undefined,
+                role: 'user',
+              },
+              {
+                content: [
+                  {
+                    args: {
+                      value: 'test-value',
+                    },
+                    providerMetadata: undefined,
+                    toolCallId: 'call-1',
+                    toolName: 'test-tool',
+                    type: 'tool-call',
+                  },
+                ],
+                providerMetadata: undefined,
+                role: 'assistant',
+              },
+              {
+                content: [
+                  {
+                    content: undefined,
+                    isError: undefined,
+                    providerMetadata: undefined,
+                    result: 'test result',
+                    toolCallId: 'call-1',
+                    toolName: 'test-tool',
+                    type: 'tool-result',
+                  },
+                ],
+                providerMetadata: undefined,
+                role: 'tool',
+              },
+            ]);
+
+            return {
+              stream: convertArrayToReadableStream([
+                { type: 'text-delta', textDelta: 'Hello' },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  logprobs: undefined,
+                  usage: { completionTokens: 10, promptTokens: 3 },
+                },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            };
+          },
+        }),
+        messages: [
+          {
+            role: 'user',
+            content: 'prompt',
+          },
+          {
+            role: 'assistant',
+            content: '',
+            toolInvocations: [
+              {
+                state: 'result',
+                toolCallId: 'call-1',
+                toolName: 'test-tool',
+                args: { value: 'test-value' },
+                result: 'test result',
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(await convertAsyncIterableToArray(result.textStream)).toStrictEqual(['Hello']);
+    });
+
+    it.skip('should support models that use "this" context in supportsUrl', async () => {
+      let supportsUrlCalled = false;
+      class MockLanguageModelWithImageSupport extends MockLanguageModelV1 {
+        readonly supportsImageUrls = false;
+
+        constructor() {
+          super({
+            supportsUrl(url: URL) {
+              supportsUrlCalled = true;
+              // Reference 'this' to verify context
+              return this.modelId === 'mock-model-id';
+            },
+            doStream: async () => ({
+              stream: convertArrayToReadableStream([
+                { type: 'text-delta', textDelta: 'Hello' },
+                { type: 'text-delta', textDelta: ', ' },
+                { type: 'text-delta', textDelta: 'world!' },
+              ]),
+              rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+            }),
+          });
+        }
+      }
+
+      const model = new MockLanguageModelWithImageSupport();
+      const result = executeFn({
+        runId,
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image', image: 'https://example.com/test.jpg' }],
+          },
+        ],
+      });
+
+      await result.aisdk.v4.consumeStream();
+
+      expect(supportsUrlCalled).toBe(true);
+      expect(await result.text).toBe('Hello, world!');
+    });
+  });
 }
