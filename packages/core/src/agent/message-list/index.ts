@@ -1983,33 +1983,103 @@ export class MessageList {
     };
   }
 
+  static hasAIV5UIMessageCharacteristics(msg: UIMessageV5 | UIMessageV4): msg is UIMessageV5 {
+    // ai v4 has these separated arrays of parts that don't record overall order
+    // so we can check for their presence as a faster/early check
+    if (
+      `toolInvocations` in msg ||
+      `reasoning` in msg ||
+      `experimental_attachments` in msg ||
+      `data` in msg ||
+      `annotations` in msg
+      // don't check `content` in msg because it fully narrows the type to v5 and there's a chance someone might mess up and add content to a v5 message, that's more likely than the other keys
+    )
+      return false;
+
+    for (const part of msg.parts) {
+      if (`metadata` in part) return true;
+
+      // tools are annoying cause ai v5 has the type as
+      // tool-${toolName}
+      // in v4 we had tool-invocation
+      // technically
+      // v4 tool
+      if (`toolInvocation` in part) return false;
+      // v5 tool
+      if (`toolCallId` in part) return true;
+
+      if (part.type === `source`) return false;
+      if (part.type === `source-url`) return true;
+
+      if (part.type === `reasoning`) {
+        if (`state` in part || `text` in part) return true; // v5
+        if (`reasoning` in part || `details` in part) return false; // v4
+      }
+
+      if (part.type === `file` && `mediaType` in part) return true;
+    }
+
+    return true;
+  }
   static isAIV5UIMessage(msg: MessageInput): msg is UIMessageV5 {
-    // V5 UIMessage has parts but no content field (content is derived from parts)
     return (
-      !MessageList.isMastraMessage(msg) && !MessageList.isAIV5CoreMessage(msg) && `parts` in msg && !(`content` in msg)
+      !MessageList.isMastraMessage(msg) &&
+      !MessageList.isAIV5CoreMessage(msg) &&
+      `parts` in msg &&
+      MessageList.hasAIV5UIMessageCharacteristics(msg)
     );
   }
 
   static isAIV4UIMessage(msg: MessageInput): msg is UIMessageV4 {
     return (
-      !MessageList.isMastraMessage(msg) && !MessageList.isAIV5CoreMessage(msg) && `parts` in msg && `content` in msg
+      !MessageList.isMastraMessage(msg) &&
+      !MessageList.isAIV4CoreMessage(msg) &&
+      `parts` in msg &&
+      !MessageList.hasAIV5UIMessageCharacteristics(msg)
     );
   }
 
+  static hasAIV5CoreMessageCharacteristics(msg: CoreMessageV4 | ModelMessageV5): msg is ModelMessageV5 {
+    if (`experimental_providerMetadata` in msg) return false; // is v4 cause v5 doesn't have this property
+
+    // it's compatible with either if content is a string, no difference
+    if (typeof msg.content === `string`) return true;
+
+    for (const part of msg.content) {
+      if (part.type === `tool-result` && `output` in part) return true; // v5 renamed result->output,
+      if (part.type === `tool-call` && `input` in part) return true; // v5 renamed args->input
+      if (part.type === `tool-result` && `result` in part) return false; // v5 renamed result->output,
+      if (part.type === `tool-call` && `args` in part) return false; // v5 renamed args->input
+
+      // for file and image
+      if (`mediaType` in part) return true; // v5 renamed mimeType->mediaType
+      if (`mimeType` in part) return false;
+
+      // applies to multiple part types
+      if (`experimental_providerMetadata` in part) return false; // was in v4 but deprecated for providerOptions, v4+5 have providerOptions though, can't check the other way
+
+      if (part.type === `reasoning` && `signature` in part) return false; // v5 doesn't have signature, which is optional in v4
+
+      if (part.type === `redacted-reasoning`) return false; // only in v4, seems like in v5 they add it to providerOptions or something? https://github.com/vercel/ai/blob/main/packages/codemod/src/codemods/v5/replace-redacted-reasoning-type.ts#L90
+    }
+
+    return true;
+  }
   static isAIV5CoreMessage(msg: MessageInput): msg is CoreMessageV5 {
     return (
-      !MessageList.isMastraMessage(msg) && !MessageList.isAIV4CoreMessage(msg) && !(`parts` in msg) && `content` in msg
+      !MessageList.isMastraMessage(msg) &&
+      !(`parts` in msg) &&
+      `content` in msg &&
+      MessageList.hasAIV5CoreMessageCharacteristics(msg)
     );
   }
-
   static isAIV4CoreMessage(msg: MessageInput): msg is CoreMessageV4 {
     // V4 CoreMessage has role and content like V5, but content can be array of parts
     return (
       !MessageList.isMastraMessage(msg) &&
       !(`parts` in msg) &&
       `content` in msg &&
-      `role` in msg &&
-      (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
+      !MessageList.hasAIV5CoreMessageCharacteristics(msg)
     );
   }
 
