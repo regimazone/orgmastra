@@ -343,7 +343,7 @@ export class AISDKV4OutputStream {
       ...this.#modelOutput.response,
       messages: this.#messageList.get.all
         .v1()
-        .slice(1)
+        .filter(message => message.role !== 'user')
         .map((message: any) => {
           return {
             id: message.id,
