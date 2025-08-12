@@ -190,8 +190,8 @@ function ScorerHeader({
       )}
     >
       <div className="grid gap-[1rem] w">
-        <h1 className="text-icon6 text-[1.25rem]">{scorer.scorer.name}</h1>
-        <p className="m-0 text-[0.875rem]">{scorer.scorer.description}</p>
+        <h1 className="text-icon6 text-[1.25rem]">{scorer?.scorer?.config?.name}</h1>
+        <p className="m-0 text-[0.875rem]">{scorer?.scorer?.config?.description}</p>
         <div
           className={cn(
             'flex gap-[1rem] mt-[1rem] text-[0.875rem] items-center mb-[0.25rem]',
@@ -257,7 +257,7 @@ function ScoreListHeader({
                 <SelectItem key={entity.id} value={`${idx}`}>
                   <div className="flex items-center gap-[0.5rem] [&>svg]:w-[1.2em] [&>svg]:h-[1.2em] [&>svg]:text-icon3">
                     {entity.type === 'WORKFLOW' ? <WorkflowIcon /> : <AgentIcon />}
-                    {entity.name}
+                    {entity.name || entity.id}
                   </div>
                 </SelectItem>
               ))}
@@ -441,8 +441,6 @@ function ScoreDetails({
     generateReasonPrompt: score?.generateReasonPrompt,
   };
 
-  console.log('Score details:', JSON.stringify(score, null, 2));
-
   return (
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Portal>
@@ -452,7 +450,7 @@ function ScoreDetails({
             'fixed top-0 bottom-0 right-0 border-l border-border1 w-[70rem] max-w-[calc(100vw-15rem)] z-[100] bg-surface4 px-[1rem] overflow-y-scroll',
           )}
         >
-          <div className="bg-surface4 border-b-2 border-border1 flex items-center py-[1.5rem] px-[1rem] top-0 sticky">
+          <div className="bg-surface4 border-b-2 border-border1 flex items-center py-[1.5rem] px-[1rem] top-0 sticky z-[100]">
             <h2 className=" w-full text-[0.875rem] !text-icon5 !font-normal flex items-center gap-[1rem]">
               <span>{score.id}</span>|<span>{format(new Date(score.createdAt), 'LLL do yyyy, hh:mm:ss bb')}</span>
             </h2>
@@ -498,13 +496,13 @@ function ScoreDetails({
             <section className="border border-border1 rounded-lg">
               <h3 className="p-[1rem] px-[1.5rem] border-b border-border1">Input</h3>
               {score.input && (
-                <div className="py-[1rem] px-[1.5rem] text-[0.875rem] text-icon4 break-all">
+                <div className={cn('overflow-auto text-icon4 text-[0.875rem] [&>div]:border-none break-all')}>
                   <CodeMirrorBlock value={JSON.stringify(score.input, null, 2)} />
                 </div>
               )}
             </section>
             <section className="border border-border1 rounded-lg">
-              <div className="border-b border-border1 last:border-b-0">
+              <div className="border-b border-border1 last:border-b-0 grid">
                 <div className="flex items-center justify-between border-b border-border1 p-[1rem] px-[1.5rem]">
                   <h3>Output</h3>
                   {score.output?.usage && (
@@ -523,8 +521,7 @@ function ScoreDetails({
                     </div>
                   )}
                 </div>
-                <div className="text-icon4 text-[0.875rem] p-[1.5rem] py-[1rem] break-all">
-                  {score.output?.text && <MarkdownRenderer>{score.output.text}</MarkdownRenderer>}
+                <div className={cn('overflow-auto text-icon4 text-[0.875rem] [&>div]:border-none break-all')}>
                   {score.output && <CodeMirrorBlock value={JSON.stringify(score.output, null, 2)} />}
                 </div>
               </div>
