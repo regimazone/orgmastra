@@ -3773,7 +3773,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
       `);
     });
 
-    it.skip('should send files', async () => {
+    it('should send files', async () => {
       let result!: any;
 
       const resultObject = await executeFn({
