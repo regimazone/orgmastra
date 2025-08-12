@@ -675,10 +675,10 @@ function createAgentWorkflow({
          * Assemble messages
          */
 
-        const allMessages = messageList.get.all.v1();
+        const allMessages = messageList.get.all.aiV5.model();
 
-        const userMessages = allMessages.filter(message => message.role === 'user');
-        const nonUserMessages = allMessages.filter(message => message.role !== 'user');
+        const userMessages = messageList.get.input.aiV5.model();
+        const nonUserMessages = messageList.get.response.aiV5.model();
 
         const finishReason = runState?.state?.stepResult?.reason ?? outputStream.finishReason;
         const hasErrored = runState.state.hasErrored;
@@ -688,7 +688,6 @@ function createAgentWorkflow({
 
         const steps = inputData.output?.steps || [];
 
-        // Convert v3 messages to CoreMessageV5 format for transformResponse
         const v5NonUserMessages = messageList.get.response.aiV5.model();
 
         steps.push(
