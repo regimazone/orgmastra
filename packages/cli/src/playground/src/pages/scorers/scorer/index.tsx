@@ -577,6 +577,10 @@ function parseJsonString(input: string) {
     .replace(/```/g, '')
     .trim();
 
-  // Parse into object
-  return JSON.parse(cleaned) || {};
+  try {
+    // Parse into object
+    return JSON.parse(cleaned) || {};
+  } catch (error) {
+    return null;
+  }
 }
