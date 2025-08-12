@@ -359,19 +359,22 @@ export class AISDKV5OutputStream {
     return this.transformResponse(this.#modelOutput.response, true);
   }
 
-  get steps() {
-    return this.#modelOutput.steps.map(step => {
+  transformSteps(steps: any[]) {
+    return steps.map(step => {
       return new DefaultStepResult({
-        content: this.transformResponse(step.response).messages[0]?.content ?? [],
+        content: this.transformResponse(step.response).messages?.flatMap((message: any) => message.content) ?? [],
         warnings: step.warnings ?? [],
         providerMetadata: step.providerMetadata,
-        // TODO: this as seems wrong
         finishReason: step.finishReason as StepResult<ToolSet>['finishReason'],
         response: this.transformResponse(step.response, true),
         request: step.request,
         usage: step.usage,
       });
     });
+  }
+
+  get steps() {
+    return this.transformSteps(this.#modelOutput.steps);
   }
 
   get content() {

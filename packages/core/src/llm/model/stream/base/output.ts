@@ -410,7 +410,8 @@ export class MastraModelOutput extends MastraBase {
                     reasoning: this.aisdk.v5.reasoning,
                     sources: this.aisdk.v5.sources,
                     files: this.aisdk.v5.files,
-                    steps: this.aisdk.v5.steps,
+                    steps: this.aisdk.v5.transformSteps(this.#bufferedSteps),
+                    response: this.aisdk.v5.transformResponse({ messages: messageList.get.response.v3() }),
                   };
                 }
 

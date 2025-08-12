@@ -3310,7 +3310,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
   });
 
   describe('options.onFinish', () => {
-    it.skip('should send correct information', async () => {
+    it('should send correct information', async () => {
       let result!: any;
 
       const resultObject = await executeFn({
@@ -3375,8 +3375,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
               "input": {
                 "value": "value",
               },
-              "providerExecuted": undefined,
-              "providerMetadata": undefined,
               "toolCallId": "call-1",
               "toolName": "tool1",
               "type": "tool-call",
@@ -3386,8 +3384,6 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
                 "value": "value",
               },
               "output": "value-result",
-              "providerExecuted": undefined,
-              "providerMetadata": undefined,
               "toolCallId": "call-1",
               "toolName": "tool1",
               "type": "tool-result",
