@@ -5,13 +5,53 @@ import z from "zod";
 import { RuntimeContext } from "../../runtime-context";
 import { createTool } from "../../tools";
 import { ModelAISDKV5 } from './model-aisdk'
+import { Agent } from "../../agent";
 
 describe('ModelAISDKV5', () => {
     const model = new ModelAISDKV5({
         model: openai('gpt-4o'),
     });
 
+    const spy = vi.fn();
+
+    const tool = createTool({
+        id: 'test',
+        inputSchema: z.object({ test: z.string() }),
+        description: 'Test tool description',
+        execute: async () => {
+            spy();
+            return 'Test';
+        },
+    })
+
+    const agent = new Agent({
+        instructions: 'You are a helpful assistant.',
+        name: 'test',
+        model: openai('gpt-4o'),
+        tools: {
+            test: tool,
+        },
+    })
+
     const runtimeContext = new RuntimeContext();
+
+    describe.only('generate', () => {
+        it('should generate text', async () => {
+            const result = await agent.generate('Hello, how are you?');
+            console.log(result.text);
+        });
+
+        it('should call tool', async () => {
+            const result = await agent.generate('test message with tool call', {
+                temperature: 0.7,
+            });
+
+            console.log(result.text);
+            console.log(result);
+
+            expect(spy).toHaveBeenCalled();
+        })
+    });
 
     describe('text', () => {
         it('should generate text', async () => {

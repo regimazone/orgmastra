@@ -118,6 +118,8 @@ export class ModelAISDKV5 extends MastraLLMBase {
 
         let schema: z.ZodType<inferOutput<Z>> | Schema<inferOutput<Z>> | undefined = undefined;
 
+        console.log(experimental_output, 'SUHH')
+
         if (experimental_output) {
             this.logger.debug('[LLM] - Using experimental output', {
                 runId,
