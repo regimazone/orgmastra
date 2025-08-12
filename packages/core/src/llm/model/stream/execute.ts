@@ -1,5 +1,6 @@
 import { ReadableStream } from 'stream/web';
 import { generateId } from 'ai';
+import type { CoreMessage } from 'ai';
 import { z } from 'zod';
 import { MessageList } from '../../../agent';
 import type { MessageListAddInput } from '../../../agent/message-list';
@@ -42,6 +43,7 @@ const llmIterationOutputSchema = z.object({
 
 function createAgentWorkflow({
   messageId,
+  messageList,
   model,
   runId,
   providerMetadata,
@@ -62,7 +64,7 @@ function createAgentWorkflow({
       id: 'toolCallStep',
       inputSchema: toolCallInpuSchema,
       outputSchema: toolCallOutputSchema,
-      execute: async ({ inputData, getStepResult }) => {
+      execute: async ({ inputData }) => {
         const tool =
           tools?.[inputData.toolName] ||
           Object.values(tools || {})?.find(tool => `id` in tool && tool.id === inputData.toolName);
@@ -71,11 +73,11 @@ function createAgentWorkflow({
           throw new Error(`Tool ${inputData.toolName} not found`);
         }
 
-        const initialResult = getStepResult({
-          id: 'generateText',
-        } as any);
+        // const initialResult = getStepResult({
+        //   id: 'generateText',
+        // } as any);
 
-        const messageList = new MessageList().add(initialResult.messages.user, 'input');
+        // messageList.add(initialResult.messages.user, 'input');
 
         if (tool && 'onInputAvailable' in tool) {
           try {
@@ -162,8 +164,8 @@ function createAgentWorkflow({
       }),
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData }) => {
-        const messagesToUse = inputData.messages.all;
-        const messageList = new MessageList().add(messagesToUse, 'input');
+        // const messagesToUse = inputData.messages.all;
+        // messageList.add(messagesToUse, 'input');
 
         const runState = new AgenticRunState({
           _internal: _internal!,
@@ -261,6 +263,7 @@ function createAgentWorkflow({
             version: model.specificationVersion,
           },
           stream: modelResult!,
+          messageList,
           options: {
             toolCallStreaming,
             experimental_telemetry,
@@ -289,7 +292,7 @@ function createAgentWorkflow({
                         providerOptions: chunk.payload.providerMetadata ?? runState.state.providerOptions,
                       },
                     ],
-                  },
+                  } satisfies CoreMessage & { id: string },
                   'response',
                 );
               }
@@ -675,11 +678,6 @@ function createAgentWorkflow({
          * Assemble messages
          */
 
-        const allMessages = messageList.get.all.aiV5.model();
-
-        const userMessages = messageList.get.input.aiV5.model();
-        const nonUserMessages = messageList.get.response.aiV5.model();
-
         const finishReason = runState?.state?.stepResult?.reason ?? outputStream.finishReason;
         const hasErrored = runState.state.hasErrored;
         const usage = outputStream.usage;
@@ -725,9 +723,9 @@ function createAgentWorkflow({
             steps,
           },
           messages: {
-            all: allMessages,
-            user: userMessages,
-            nonUser: nonUserMessages,
+            all: messageList.get.all.v3(),
+            user: messageList.get.input.v3(),
+            nonUser: messageList.get.response.v3(),
           },
         };
       },
@@ -741,8 +739,6 @@ function createAgentWorkflow({
       outputSchema: llmIterationOutputSchema,
       execute: async ({ inputData, getStepResult, bail }) => {
         const initialResult = getStepResult(llmExecutionStep);
-
-        const messageList = new MessageList().add(initialResult.messages.all || [], 'input');
 
         if (inputData?.every(toolCall => toolCall?.result === undefined)) {
           const errorResults = inputData.filter(toolCall => toolCall?.error);
@@ -858,8 +854,8 @@ function createAgentWorkflow({
           ...initialResult,
           messages: {
             all: messageList.get.all.v3(),
-            user: messageList.get.all.v3().filter(message => message.role === 'user'),
-            nonUser: messageList.get.all.v3().filter(message => message.role !== 'user'),
+            user: messageList.get.input.v3(),
+            nonUser: messageList.get.response.v3(),
           },
         };
       },
@@ -897,6 +893,7 @@ function createStreamExecutor({
   tools,
   toolChoice = 'auto',
   inputMessages,
+  messageList,
   options,
   maxRetries = 2,
   stopWhen,
@@ -949,6 +946,7 @@ function createStreamExecutor({
         tools,
         toolChoice,
         inputMessages,
+        messageList,
         _internal,
         experimental_generateMessageId,
         experimental_telemetry,
@@ -994,8 +992,7 @@ function createStreamExecutor({
             payload: inputData,
           });
 
-          const telemetryMessages = new MessageList();
-          telemetryMessages.add(inputData.messages.user, 'input');
+          // messageList.add(inputData.messages.user, 'input');
 
           console.log('user_msgs', JSON.stringify(inputData.messages.user, null, 2));
           rootSpan.setAttributes({
@@ -1012,7 +1009,7 @@ function createStreamExecutor({
               ? {
                   'stream.response.text': inputData.output.text,
                   'stream.prompt.messages': JSON.stringify(
-                    telemetryMessages.get.all.v1().map((message: MastraMessageV1) => ({
+                    messageList.get.input.v1().map((message: MastraMessageV1) => ({
                       role: message.role,
                       content: message.content,
                     })),
@@ -1032,7 +1029,7 @@ function createStreamExecutor({
           return inputData.stepResult.isContinued && stepCount <= maxSteps;
         })
         .map(({ inputData }) => {
-          const toolCalls = inputData.messages.nonUser.filter((message: any) => message.role === 'tool');
+          const toolCalls = messageList.get.response.v3().filter((message: any) => message.role === 'tool');
           const hasFinishedSteps = stepCount >= maxSteps;
 
           inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
@@ -1108,7 +1105,7 @@ export type ExecuteParams = {
 } & {
   resourceId?: string;
   threadId?: string;
-} & Omit<StreamExecutorProps, 'inputMessages' | 'startTimestamp'>;
+} & Omit<StreamExecutorProps, 'inputMessages' | 'startTimestamp' | 'messageList'>;
 
 export function execute(props: ExecuteParams) {
   const { messages = [], system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
@@ -1162,6 +1159,7 @@ export function execute(props: ExecuteParams) {
     inputMessages: modelPromptMessages,
     logger: loggerToUse,
     startTimestamp: startTimestamp!,
+    messageList,
     ...rest,
   };
 
@@ -1212,6 +1210,7 @@ export function execute(props: ExecuteParams) {
       version: rest.model.specificationVersion,
     },
     stream: executor,
+    messageList,
     options: {
       experimental_telemetry: rest.experimental_telemetry,
       rootSpan,

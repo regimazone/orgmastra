@@ -5,6 +5,7 @@ import type { CallSettings, TelemetrySettings, ToolSet as ToolSetV5, StopConditi
 import type { MastraLogger } from '../../../logger';
 import type { ChunkType } from '../../../stream/types';
 import type { ToolsForExecution } from '../../../tools';
+import type { MessageList } from '../../../agent';
 
 export type OnResult = (result: { warnings: any; request: any; rawResponse: any }) => void;
 
@@ -61,6 +62,7 @@ export type ExecutionProps = {
 export type AgentWorkflowProps = {
   messageId: string;
   controller: ReadableStreamDefaultController<ChunkType>;
+  messageList: MessageList;
 } & ExecutionProps;
 
 export type StreamExecutorProps = {
@@ -68,4 +70,5 @@ export type StreamExecutorProps = {
   stopWhen?: StopCondition<ToolSetV5> | StopCondition<ToolSetV5>[];
   maxRetries?: number;
   startTimestamp: number;
+  messageList: MessageList;
 } & ExecutionProps;

@@ -2,7 +2,7 @@ import { TransformStream } from 'stream/web';
 import { createTextStreamResponse, createUIMessageStream, createUIMessageStreamResponse } from 'ai-v5';
 import type { TextStreamPart, ToolSet, UIMessage, UIMessageStreamOptions, StepResult } from 'ai-v5';
 
-import { MessageList } from '../../../../../agent/message-list';
+import type { MessageList } from '../../../../../agent/message-list';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import type { ConsumeStreamOptions } from '../v4/compat';
@@ -100,10 +100,20 @@ export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOL
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
   #options: { toolCallStreaming?: boolean };
+  #messageList: MessageList;
 
-  constructor({ modelOutput, options }: { modelOutput: MastraModelOutput; options: { toolCallStreaming?: boolean } }) {
+  constructor({
+    modelOutput,
+    options,
+    messageList,
+  }: {
+    modelOutput: MastraModelOutput;
+    options: { toolCallStreaming?: boolean };
+    messageList: MessageList;
+  }) {
     this.#modelOutput = modelOutput;
     this.#options = options;
+    this.#messageList = messageList;
   }
 
   toTextStreamResponse(init?: ResponseInit): Response {
@@ -277,10 +287,9 @@ export class AISDKV5OutputStream {
 
   transformResponse(response: any, isMessages: boolean = false) {
     const newResponse = { ...response };
-    const messageList = new MessageList();
-    messageList.add(response.messages, 'response');
+    // this.#messageList.add(response.messages, 'response');
 
-    const formattedMessages = messageList.get.all.aiV5.model();
+    const formattedMessages = this.#messageList.get.response.aiV5.model();
 
     const hasTools = formattedMessages.some(
       (message: any) =>

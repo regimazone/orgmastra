@@ -17,7 +17,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.log('result.warnings', result.warnings);
+      // console.log('result.warnings', result.warnings);
 
       expect(result.warnings).toStrictEqual([{ type: 'other', message: 'test-warning' }]);
     });
@@ -114,7 +114,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.log('result.response.messages', JSON.stringify(result.response.messages, null, 2));
+      // console.log('result.response.messages', JSON.stringify(result.response.messages, null, 2));
 
       expect(result.aisdk.v4.response.messages).toMatchSnapshot();
     });
@@ -180,7 +180,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
 
       await result.aisdk.v4.consumeStream();
 
-      console.log('result.response', JSON.stringify(result.response, null, 2));
+      // console.log('result.response', JSON.stringify(result.response, null, 2));
 
       expect(result.aisdk.v4.response).toMatchSnapshot();
     });

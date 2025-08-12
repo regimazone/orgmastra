@@ -357,7 +357,7 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
       await result.aisdk.v5.consumeStream();
 
       const steps = result.aisdk.v5.steps;
-      console.log('test-steps', JSON.stringify(steps, null, 2));
+      // console.log('test-steps', JSON.stringify(steps, null, 2));
 
       expect(steps).toMatchInlineSnapshot(`
             [
@@ -552,7 +552,6 @@ export function resultObjectTests({ executeFn, runId }: { executeFn: typeof exec
       await result.aisdk.v5.consumeStream();
 
       const steps = result.aisdk.v5.steps;
-      console.log('test-steps', JSON.stringify(steps, null, 2));
 
       expect(steps).toMatchInlineSnapshot(`
             [

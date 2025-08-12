@@ -1,19 +1,29 @@
 import { TransformStream, TextEncoderStream, TextDecoderStream } from 'stream/web';
 import type { DataStreamOptions, DataStreamWriter, LanguageModelV1StreamPart, StreamData } from 'ai';
+import type { MessageList } from '../../../../../agent/message-list';
 import type { ChunkType } from '../../../../../stream/types';
 import type { MastraModelOutput } from '../../base';
 import { consumeStream, getErrorMessage, getErrorMessageV4, mergeStreams, prepareResponseHeaders } from './compat';
 import type { ConsumeStreamOptions } from './compat';
 import { convertFullStreamChunkToAISDKv4 } from './transforms';
-import { MessageList } from '../../../../../agent/message-list';
 
 export class AISDKV4OutputStream {
   #modelOutput: MastraModelOutput;
   #options: { toolCallStreaming?: boolean };
+  #messageList: MessageList;
 
-  constructor({ modelOutput, options }: { modelOutput: MastraModelOutput; options: { toolCallStreaming?: boolean } }) {
+  constructor({
+    modelOutput,
+    options,
+    messageList,
+  }: {
+    modelOutput: MastraModelOutput;
+    options: { toolCallStreaming?: boolean };
+    messageList: MessageList;
+  }) {
     this.#modelOutput = modelOutput;
     this.#options = options;
+    this.#messageList = messageList;
   }
 
   toTextStreamResponse(init?: ResponseInit): Response {
@@ -266,8 +276,7 @@ export class AISDKV4OutputStream {
 
   get steps() {
     return this.#modelOutput.steps.map(step => {
-      const messageList = new MessageList();
-      messageList.add(step.response.messages, 'response');
+      // this.#messageList.add(step.response.messages, 'response');
 
       return {
         ...step,
@@ -313,14 +322,14 @@ export class AISDKV4OutputStream {
         }),
         response: {
           ...step.response,
-          messages: messageList.get.all.v1().map((message: any) => {
+          messages: this.#messageList.get.all.v1().map((message: any) => {
             return {
               id: message.id,
               role: message.role,
               content:
-                typeof message.content !== `string`
-                  ? message.content.filter((part: any) => part.type !== 'source')
-                  : message.content,
+                typeof message.content === `string`
+                  ? message.content
+                  : message.content.filter((part: any) => part.type !== 'source'),
             };
           }),
         },
@@ -329,16 +338,16 @@ export class AISDKV4OutputStream {
   }
 
   get response() {
-    const messageList = new MessageList();
-    messageList.add(this.#modelOutput.response.messages, 'response');
-
     return {
       ...this.#modelOutput.response,
-      messages: messageList.get.all.v1().map((message: any) => {
+      messages: this.#messageList.get.all.v1().map((message: any) => {
         return {
           id: message.id,
           role: message.role,
-          content: message.content.filter((part: any) => part.type !== 'source'),
+          content:
+            typeof message.content === `string`
+              ? message.content
+              : message.content.filter((part: any) => part.type !== 'source'),
         };
       }),
     };

@@ -2,8 +2,7 @@ import type { ReadableStream } from 'stream/web';
 import { TransformStream } from 'stream/web';
 import type { Span } from '@opentelemetry/api';
 import type { ReasoningUIPart, TelemetrySettings } from 'ai-v5';
-import { MessageList } from '../../../../agent/message-list';
-import type { MastraMessageV3 } from '../../../../agent/message-list';
+import type { MessageList, MastraMessageV3 } from '../../../../agent/message-list';
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
@@ -97,6 +96,7 @@ export class MastraModelOutput extends MastraBase {
     stream,
     options,
     model,
+    messageList,
   }: {
     model: {
       modelId: string;
@@ -104,6 +104,7 @@ export class MastraModelOutput extends MastraBase {
       version: 'v1' | 'v2';
     };
     stream: ReadableStream<ChunkType>;
+    messageList: MessageList;
     options: {
       rootSpan?: Span;
       experimental_telemetry?: TelemetrySettings;
@@ -225,9 +226,7 @@ export class MastraModelOutput extends MastraBase {
 
               let stepResultPayload;
               if (model.version === 'v1') {
-                const stepResultMessages = new MessageList();
-                stepResultMessages.add(stepResult.response.messages, 'response');
-
+                // messageList.add(stepResult.response.messages, 'response');
                 stepResultPayload = {
                   ...stepResult,
                   files: stepResult.files.map((file: any) => {
@@ -273,11 +272,14 @@ export class MastraModelOutput extends MastraBase {
                   request: request || {},
                   response: {
                     ...otherMetadata,
-                    messages: stepResultMessages.get.all.v1().map((message: any) => {
+                    messages: messageList.get.response.v1().map((message: any) => {
                       return {
                         id: message.id,
                         role: message.role,
-                        content: message.content,
+                        content:
+                          typeof message.content === `string`
+                            ? message.content
+                            : message.content.filter((part: any) => part.type !== 'source'),
                       };
                     }),
                   },
@@ -328,10 +330,8 @@ export class MastraModelOutput extends MastraBase {
 
                 let onFinishPayload: any = {};
 
+                messageList.add(chunk.payload.messages.all, 'response');
                 if (model.version === 'v1') {
-                  const chunkMessages = new MessageList();
-                  chunkMessages.add(chunk.payload.messages.all, 'response');
-
                   onFinishPayload = {
                     text: baseFinishStep.text,
                     warnings: baseFinishStep.warnings,
@@ -384,16 +384,16 @@ export class MastraModelOutput extends MastraBase {
                     request: request || {},
                     response: {
                       ...otherMetadata,
-                      messages: chunkMessages.get.all
-                        .v1()
-                        .slice(1)
-                        .map((message: any) => {
-                          return {
-                            id: message.id,
-                            role: message.role,
-                            content: message.content,
-                          };
-                        }),
+                      messages: messageList.get.response.v1().map((message: any) => {
+                        return {
+                          id: message.id,
+                          role: message.role,
+                          content:
+                            typeof message.content === `string`
+                              ? message.content
+                              : message.content.filter((part: any) => part.type !== 'source'),
+                        };
+                      }),
                     },
                     steps: self.aisdk.v4.steps,
                     usage: self.usage,
@@ -480,6 +480,7 @@ export class MastraModelOutput extends MastraBase {
 
     this.#aisdkv4 = new AISDKV4OutputStream({
       modelOutput: this as MastraModelOutput,
+      messageList,
       options: {
         toolCallStreaming: options?.toolCallStreaming,
       },
@@ -487,6 +488,7 @@ export class MastraModelOutput extends MastraBase {
 
     this.#aisdkv5 = new AISDKV5OutputStream({
       modelOutput: this,
+      messageList,
       options: {
         toolCallStreaming: options?.toolCallStreaming,
       },
