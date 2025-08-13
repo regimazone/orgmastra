@@ -24,17 +24,17 @@ export default meta;
 type Story = StoryObj<typeof Button>;
 
 export const Default: Story = {
-  parameters: {
-    chromatic: {
-      disableSnapshot: true,
-    },
-  },
   args: {
     children: 'Button',
   },
 };
 
 export const Primary: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: 'Primary Button',
     variant: 'primary',
@@ -42,6 +42,11 @@ export const Primary: Story = {
 };
 
 export const Outline: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: 'Outline Button (Default)',
     variant: 'outline',
@@ -49,6 +54,11 @@ export const Outline: Story = {
 };
 
 export const Ghost: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: 'Ghost Button',
     variant: 'ghost',
@@ -56,6 +66,11 @@ export const Ghost: Story = {
 };
 
 export const WithIcon: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: (
       <>
@@ -68,6 +83,11 @@ export const WithIcon: Story = {
 };
 
 export const IconOnly: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: <SettingsIcon />,
     variant: 'ghost',
@@ -76,6 +96,11 @@ export const IconOnly: Story = {
 };
 
 export const Disabled: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: 'Disabled Button',
     disabled: true,
@@ -84,7 +109,7 @@ export const Disabled: Story = {
 
 export const AsLink: Story = {
   args: {
-    children: 'Link Button',
+    children: 'Link Button - Outline',
     as: 'a',
     href: '#',
     variant: 'outline',
