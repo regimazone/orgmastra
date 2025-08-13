@@ -7,9 +7,6 @@ const meta: Meta<typeof Button> = {
   component: Button,
   parameters: {
     layout: 'centered',
-    chromatic: {
-      disableSnapshot: true,
-    },
   },
   tags: ['autodocs'],
   argTypes: {
@@ -46,7 +43,7 @@ export const Primary: Story = {
 
 export const Outline: Story = {
   args: {
-    children: 'Outline Button',
+    children: 'Outline Button (Default)',
     variant: 'outline',
   },
 };
