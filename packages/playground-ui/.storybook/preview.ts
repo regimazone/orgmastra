@@ -1,6 +1,7 @@
 import type { Preview } from '@storybook/react-vite';
 import { themes } from 'storybook/theming';
 import '../src/index.css'; // Import Tailwind CSS
+import '../../../packages/cli/src/playground/src/index.css'; // Import CLI styles
 
 const preview: Preview = {
   parameters: {
