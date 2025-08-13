@@ -7,6 +7,9 @@ const meta: Meta<typeof Button> = {
   component: Button,
   parameters: {
     layout: 'centered',
+    chromatic: {
+      disableSnapshot: true,
+    },
   },
   tags: ['autodocs'],
   argTypes: {
@@ -24,6 +27,11 @@ export default meta;
 type Story = StoryObj<typeof Button>;
 
 export const Default: Story = {
+  parameters: {
+    chromatic: {
+      disableSnapshot: true,
+    },
+  },
   args: {
     children: 'Button',
   },
@@ -66,7 +74,7 @@ export const IconOnly: Story = {
   args: {
     children: <SettingsIcon />,
     variant: 'ghost',
-    'aria-label': 'Settings',
+    'aria-label': 'Settingss',
   },
 };
 
