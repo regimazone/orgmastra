@@ -56,6 +56,7 @@ function createAgentWorkflow({
   experimental_generateMessageId,
   controller,
   options,
+  includeRawChunks,
   doStreamSpan,
   headers,
 }: AgentWorkflowProps) {
@@ -191,6 +192,7 @@ function createAgentWorkflow({
               toolChoice,
               _internal,
               options,
+              includeRawChunks,
               onResult: ({
                 warnings: warningsFromStream,
                 request: requestFromStream,
@@ -225,6 +227,7 @@ function createAgentWorkflow({
               _internal,
               options,
               experimental_telemetry,
+              includeRawChunks,
               onResult: ({
                 warnings: warningsFromStream,
                 request: requestFromStream,
@@ -267,6 +270,7 @@ function createAgentWorkflow({
           options: {
             toolCallStreaming,
             experimental_telemetry,
+            includeRawChunks,
           },
         });
 
@@ -603,6 +607,7 @@ function createAgentWorkflow({
                 'tool-call',
                 'tool-call-input-streaming-start',
                 'tool-call-delta',
+                'raw',
               ].includes(chunk.type)
             ) {
               if (model.specificationVersion === 'v1') {
@@ -624,6 +629,10 @@ function createAgentWorkflow({
                   sendUsage: true,
                   getErrorMessage: (error: string) => error,
                 });
+                if (chunk.type === 'raw' && !includeRawChunks) {
+                  return;
+                }
+
                 await options?.onChunk?.({ chunk: transformedChunk } as any);
               }
             }
@@ -905,6 +914,7 @@ function createStreamExecutor({
   },
   headers,
   startTimestamp,
+  includeRawChunks,
 }: StreamExecutorProps) {
   return new ReadableStream<ChunkType>({
     start: async controller => {
@@ -955,6 +965,7 @@ function createStreamExecutor({
         logger,
         doStreamSpan: rootSpan,
         headers,
+        includeRawChunks,
       });
 
       const mainWorkflow = createWorkflow({
@@ -1108,7 +1119,18 @@ export type ExecuteParams = {
 } & Omit<StreamExecutorProps, 'inputMessages' | 'startTimestamp' | 'messageList'>;
 
 export function execute(props: ExecuteParams) {
-  const { messages = [], system, prompt, resourceId, threadId, runId, _internal, logger, ...rest } = props;
+  const {
+    messages = [],
+    system,
+    prompt,
+    resourceId,
+    threadId,
+    runId,
+    _internal,
+    logger,
+    includeRawChunks = false,
+    ...rest
+  } = props;
 
   let loggerToUse =
     logger ||
@@ -1160,6 +1182,7 @@ export function execute(props: ExecuteParams) {
     logger: loggerToUse,
     startTimestamp: startTimestamp!,
     messageList,
+    includeRawChunks,
     ...rest,
   };
 
@@ -1217,6 +1240,7 @@ export function execute(props: ExecuteParams) {
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,
       onStepFinish: rest.options?.onStepFinish,
+      includeRawChunks,
     },
   });
 }

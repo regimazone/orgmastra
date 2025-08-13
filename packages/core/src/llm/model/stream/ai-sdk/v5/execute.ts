@@ -15,6 +15,7 @@ export function executeV5({
   onResult,
   doStreamSpan,
   experimental_telemetry,
+  includeRawChunks,
 }: Omit<ExecutionProps, 'inputMessages'> & {
   model: LanguageModelV2;
   inputMessages: LanguageModelV2Prompt;
@@ -47,6 +48,7 @@ export function executeV5({
           prompt: inputMessages,
           providerOptions: providerMetadata,
           abortSignal: options?.abortSignal,
+          includeRawChunks,
         });
         return stream as any;
       } catch (error) {

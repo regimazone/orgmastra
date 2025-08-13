@@ -92,6 +92,8 @@ export class MastraModelOutput extends MastraBase {
   #request: any | undefined;
   #usageCount: Record<string, number> = {};
 
+  #options: { includeRawChunks?: boolean };
+
   constructor({
     stream,
     options,
@@ -111,9 +113,11 @@ export class MastraModelOutput extends MastraBase {
       toolCallStreaming?: boolean;
       onFinish?: (event: any) => Promise<void> | void;
       onStepFinish?: (event: any) => Promise<void> | void;
+      includeRawChunks?: boolean;
     };
   }) {
     super({ component: 'LLM', name: 'MastraModelOutput' });
+    this.#options = options;
     const self = this;
 
     this.#baseStream = stream.pipeThrough(
@@ -551,9 +555,15 @@ export class MastraModelOutput extends MastraBase {
   }
 
   get fullStream() {
+    const self = this;
+
     return this.teeStream().pipeThrough(
       new TransformStream<ChunkType, ChunkType>({
         transform(chunk, controller) {
+          if (chunk.type === 'raw' && !self.#options.includeRawChunks) {
+            return;
+          }
+
           controller.enqueue(chunk);
         },
       }),

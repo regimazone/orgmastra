@@ -57,6 +57,7 @@ export type ExecutionProps = {
   logger?: MastraLogger;
   experimental_telemetry?: TelemetrySettings;
   doStreamSpan?: Span;
+  includeRawChunks?: boolean;
 };
 
 export type AgentWorkflowProps = {

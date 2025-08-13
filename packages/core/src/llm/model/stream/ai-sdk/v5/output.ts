@@ -99,7 +99,7 @@ export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOL
 
 export class AISDKV5OutputStream {
   #modelOutput: MastraModelOutput;
-  #options: { toolCallStreaming?: boolean };
+  #options: { toolCallStreaming?: boolean; includeRawChunks?: boolean };
   #messageList: MessageList;
 
   constructor({
@@ -108,7 +108,7 @@ export class AISDKV5OutputStream {
     messageList,
   }: {
     modelOutput: MastraModelOutput;
-    options: { toolCallStreaming?: boolean };
+    options: { toolCallStreaming?: boolean; includeRawChunks?: boolean };
     messageList: MessageList;
   }) {
     this.#modelOutput = modelOutput;

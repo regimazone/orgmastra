@@ -5913,7 +5913,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
     });
   });
 
-  describe.skip('raw chunks forwarding', () => {
+  describe('raw chunks forwarding', () => {
     it('should forward raw chunks when includeRawChunks is enabled', async () => {
       const modelWithRawChunks = createTestModel({
         stream: convertArrayToReadableStream([
@@ -5949,7 +5949,7 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         includeRawChunks: true,
       });
 
-      const chunks = await convertAsyncIterableToArray(result.fullStream);
+      const chunks = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
 
       expect(chunks.filter(chunk => chunk.type === 'raw')).toMatchInlineSnapshot(`
           [
@@ -5992,13 +5992,14 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         ]),
       });
 
-      const result = streamText({
+      const result = executeFn({
+        runId,
         model: modelWithRawChunks,
         prompt: 'test prompt',
         includeRawChunks: false,
       });
 
-      const chunks = await convertAsyncIterableToArray(result.fullStream);
+      const chunks = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
 
       expect(chunks.filter(chunk => chunk.type === 'raw')).toHaveLength(0);
     });
@@ -6019,11 +6020,12 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         },
       });
 
-      await streamText({
+      await executeFn({
+        runId,
         model,
         prompt: 'test prompt',
         includeRawChunks: true,
-      }).consumeStream();
+      }).aisdk.v5.consumeStream();
 
       expect(capturedOptions.includeRawChunks).toBe(true);
     });
@@ -6075,16 +6077,19 @@ export function optionsTests({ executeFn, runId }: { executeFn: typeof execute; 
         ]),
       });
 
-      const result = streamText({
+      const result = executeFn({
+        runId,
         model: modelWithRawChunks,
         prompt: 'test prompt',
         includeRawChunks: true,
-        onChunk({ chunk }) {
-          onChunkCalls.push(chunk);
+        options: {
+          onChunk({ chunk }) {
+            onChunkCalls.push(chunk);
+          },
         },
       });
 
-      await result.consumeStream();
+      await result.aisdk.v5.consumeStream();
 
       expect(onChunkCalls).toMatchInlineSnapshot(`
         [

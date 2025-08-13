@@ -1,7 +1,14 @@
 import { DefaultGeneratedFileWithType } from './file';
 
 export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string }) {
-  if (value.type === 'step-start') {
+  if (value.type === 'raw') {
+    return {
+      type: 'raw',
+      runId: ctx.runId,
+      from: 'AGENT',
+      payload: value.rawValue,
+    };
+  } else if (value.type === 'step-start') {
     return {
       type: 'step-start',
       runId: ctx.runId,
@@ -260,6 +267,7 @@ export function convertFullStreamChunkToMastra(value: any, ctx: { runId: string 
 
 export function convertFullStreamChunkToAISDKv5({
   chunk,
+  includeRawChunks,
   // sendReasoning,
   // sendSources,
   // sendUsage = true,
@@ -272,9 +280,16 @@ export function convertFullStreamChunkToAISDKv5({
   sendSources: boolean;
   sendUsage: boolean;
   experimental_sendFinish?: boolean;
+  includeRawChunks?: boolean;
   toolCallArgsDeltas?: Record<string, string[]>;
   getErrorMessage: (error: string) => string;
 }) {
+  if (chunk.type === 'raw') {
+    return {
+      type: 'raw',
+      rawValue: chunk.payload,
+    };
+  }
   if (chunk.type === 'text-delta') {
     return {
       type: 'text-delta',
