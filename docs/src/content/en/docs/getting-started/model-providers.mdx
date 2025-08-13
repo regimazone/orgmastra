@@ -9,6 +9,11 @@ import { Callout } from 'nextra/components'
 
 Model providers are used to interact with different language models. Mastra uses [Vercel's AI SDK](https://sdk.vercel.ai) as a model routing layer to provide a similar syntax for many models:
 
+<Callout type="info">
+Mastra supports `ai` **^4** with `@ai-sdk/<provider>` ^1.<br />
+Support for `ai` **^5** and `@ai-sdk/<provider>` ^2 is in development.
+</Callout>
+
 ```typescript showLineNumbers copy {1,7} filename="src/mastra/agents/weather-agent.ts"
 import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
