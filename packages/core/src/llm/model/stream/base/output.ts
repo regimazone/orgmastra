@@ -6,7 +6,7 @@ import type { MessageList, MastraMessageV3 } from '../../../../agent/message-lis
 import { MastraBase } from '../../../../base';
 import type { ChunkType } from '../../../../stream/types';
 import { AISDKV4OutputStream, convertFullStreamChunkToAISDKv4 } from '../ai-sdk/v4';
-import { AISDKV5OutputStream } from '../ai-sdk/v5/output';
+import { AISDKV5OutputStream, transformResponse, transformSteps } from '../ai-sdk/v5/output';
 
 interface StepBufferItem {
   stepType: 'initial' | 'tool-result';
@@ -408,19 +408,16 @@ export class MastraModelOutput extends MastraBase {
                     warnings: baseFinishStep.warnings ?? [],
                     finishReason: chunk.payload.stepResult.reason,
                     content:
-                      this.aisdk.v5
-                        .transformResponse({ messages: messageList.get.response.v3() })
-                        .messages?.flatMap((message: any) => message.content) ?? [],
+                      transformResponse({ messages: messageList.get.response.v3() }).messages?.flatMap(
+                        (message: any) => message.content,
+                      ) ?? [],
                     request: this.request,
                     reasoning: this.aisdk.v5.reasoning,
                     reasoningText: !this.aisdk.v5.reasoningText ? undefined : this.aisdk.v5.reasoningText,
                     sources: this.aisdk.v5.sources,
                     files: this.aisdk.v5.files,
-                    steps: this.aisdk.v5.transformSteps(this.#bufferedSteps),
-                    response: this.aisdk.v5.transformResponse(
-                      { ...this.response, messages: messageList.get.response.v3() },
-                      true,
-                    ),
+                    steps: transformSteps(this.#bufferedSteps),
+                    response: transformResponse({ ...this.response, messages: messageList.get.response.v3() }, true),
                     usage: chunk.payload.output.usage,
                     totalUsage: self.totalUsage,
                     toolCalls: this.aisdk.v5.toolCalls,

@@ -290,6 +290,11 @@ export function convertFullStreamChunkToAISDKv5({
       rawValue: chunk.payload,
     };
   }
+  if (chunk.type === 'abort') {
+    return {
+      type: 'abort',
+    };
+  }
   if (chunk.type === 'text-delta') {
     return {
       type: 'text-delta',

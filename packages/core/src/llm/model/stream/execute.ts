@@ -1,4 +1,5 @@
 import { ReadableStream } from 'stream/web';
+import { isAbortError } from '@ai-sdk/provider-utils';
 import { generateId } from 'ai';
 import type { CoreMessage } from 'ai';
 import { z } from 'zod';
@@ -11,7 +12,7 @@ import { createStep, createWorkflow } from '../../../workflows';
 import { assembleOperationName, getBaseTelemetryAttributes, getTracer } from './ai-sdk/telemetry';
 import { convertFullStreamChunkToAISDKv4, executeV4 } from './ai-sdk/v4';
 import { executeV5 } from './ai-sdk/v5/execute';
-import { DefaultStepResult } from './ai-sdk/v5/output';
+import { DefaultStepResult, transformResponse, transformSteps } from './ai-sdk/v5/output';
 import { convertFullStreamChunkToAISDKv5 } from './ai-sdk/v5/transforms';
 import { MastraModelOutput } from './base';
 import { AgenticRunState } from './run-state';
@@ -164,7 +165,7 @@ function createAgentWorkflow({
         stepResult: z.any(),
       }),
       outputSchema: llmIterationOutputSchema,
-      execute: async ({ inputData }) => {
+      execute: async ({ inputData, bail }) => {
         // const messagesToUse = inputData.messages.all;
         // messageList.add(messagesToUse, 'input');
 
@@ -366,6 +367,10 @@ function createAgentWorkflow({
               }
 
               case 'error':
+                if (isAbortError(chunk.payload.error) && options?.abortSignal?.aborted) {
+                  break;
+                }
+
                 runState.setState({
                   hasErrored: true,
                 });
@@ -642,6 +647,44 @@ function createAgentWorkflow({
             }
           }
         } catch (error) {
+          if (isAbortError(error) && options?.abortSignal?.aborted) {
+            await options?.onAbort?.({
+              steps: inputData?.output?.steps ?? [],
+            });
+
+            controller.enqueue({ type: 'abort', runId, from: 'AGENT', payload: {} });
+
+            const usage = outputStream.usage;
+            const responseMetadata = runState.state.responseMetadata;
+            const text = outputStream.text;
+
+            return bail({
+              messageId,
+              stepResult: {
+                reason: 'abort',
+                warnings,
+                isContinued: false,
+              },
+              metadata: {
+                providerMetadata: providerMetadata,
+                ...responseMetadata,
+                headers: rawResponse?.headers,
+                request,
+              },
+              output: {
+                text,
+                toolCalls: [],
+                usage: usage ?? inputData.output?.usage,
+                steps: [],
+              },
+              messages: {
+                all: messageList.get.all.v3(),
+                user: messageList.get.input.v3(),
+                nonUser: messageList.get.response.v3(),
+              },
+            });
+          }
+
           console.log('Error in LLM Execution Step', error);
 
           runState.setState({
@@ -702,11 +745,8 @@ function createAgentWorkflow({
             warnings: outputStream.warnings,
             providerMetadata: providerMetadata,
             finishReason: runState.state.stepResult?.reason,
-            content: outputStream.aisdk.v5.transformResponse({ ...responseMetadata, messages: v5NonUserMessages }),
-            response: outputStream.aisdk.v5.transformResponse(
-              { ...responseMetadata, messages: v5NonUserMessages },
-              true,
-            ),
+            content: transformResponse({ ...responseMetadata, messages: v5NonUserMessages }),
+            response: transformResponse({ ...responseMetadata, messages: v5NonUserMessages }, true),
             request: request,
             usage: outputStream.usage as any,
           }),
@@ -996,12 +1036,14 @@ function createStreamExecutor({
 
           inputData.stepResult.isContinued = hasFinishedSteps ? false : inputData.stepResult.isContinued;
 
-          controller.enqueue({
-            type: 'step-finish',
-            runId,
-            from: 'AGENT',
-            payload: inputData,
-          });
+          if (inputData.stepResult.reason !== 'abort') {
+            controller.enqueue({
+              type: 'step-finish',
+              runId,
+              from: 'AGENT',
+              payload: inputData,
+            });
+          }
 
           // messageList.add(inputData.messages.user, 'input');
 
@@ -1085,6 +1127,12 @@ function createStreamExecutor({
       });
 
       if (executionResult.status !== 'success') {
+        controller.close();
+        return;
+      }
+
+      if (executionResult.result.stepResult.reason === 'abort') {
+        console.log('aborted_result', JSON.stringify(executionResult.result, null, 2));
         controller.close();
         return;
       }

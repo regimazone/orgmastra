@@ -10,6 +10,89 @@ import { consumeStream, getErrorMessage } from '../v4/compat';
 import { convertFullStreamChunkToUIMessageStream, getErrorMessageV5, getResponseUIMessageId } from './compat';
 import { convertFullStreamChunkToAISDKv5 } from './transforms';
 
+export function transformSteps(steps: any[]) {
+  return steps.map(step => {
+    return new DefaultStepResult({
+      content: transformResponse(step.response).messages?.flatMap((message: any) => message.content) ?? [],
+      warnings: step.warnings ?? [],
+      providerMetadata: step.providerMetadata,
+      finishReason: step.finishReason as StepResult<ToolSet>['finishReason'],
+      response: transformResponse(step.response, true),
+      request: step.request,
+      usage: step.usage,
+    });
+  });
+}
+
+export function transformResponse(response: any, isMessages: boolean = false) {
+  const newResponse = { ...response };
+  const messageList = new MessageList();
+  messageList.add(response.messages, 'response');
+
+  const formattedMessages = messageList.get.response.aiV5.model().filter((message: any) => message.role !== 'user');
+
+  const hasTools = formattedMessages.some(
+    (message: any) =>
+      Array.isArray(message.content) && message.content.some((part: any) => part.type === 'tool-result'),
+  );
+  newResponse.messages = formattedMessages.map((message: any) => {
+    // Handle string content
+    if (typeof message.content === 'string') {
+      return message;
+    }
+
+    let newContent = message.content.map((part: any) => {
+      if (part.type === 'file') {
+        if (isMessages) {
+          return {
+            type: 'file',
+            mediaType: part.mediaType,
+            data: part.data,
+            providerOptions: part.providerOptions,
+          };
+        }
+        const transformedFile = convertFullStreamChunkToAISDKv5({
+          chunk: {
+            type: 'file',
+            payload: {
+              data: part.data,
+              mimeType: part.mediaType,
+            },
+          },
+          sendReasoning: false,
+          sendSources: false,
+          sendUsage: false,
+          getErrorMessage: getErrorMessage,
+        });
+
+        return transformedFile;
+      }
+
+      if (!isMessages) {
+        const { providerOptions, providerMetadata, ...rest } = part;
+        const providerMetadataValue = providerMetadata ?? providerOptions;
+        return {
+          ...rest,
+          ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
+        };
+      }
+
+      return part;
+    });
+
+    if (isMessages && !hasTools) {
+      newContent = newContent.filter((part: any) => part.type !== 'source');
+    }
+
+    return {
+      ...message,
+      content: newContent,
+    };
+  });
+
+  return newResponse;
+}
+
 export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOLS> {
   readonly content: StepResult<TOOLS>['content'];
   readonly finishReason: StepResult<TOOLS>['finishReason'];
@@ -285,99 +368,16 @@ export class AISDKV5OutputStream {
     return this.#modelOutput.reasoningDetails;
   }
 
-  transformResponse(response: any, isMessages: boolean = false) {
-    const newResponse = { ...response };
-    const messageList = new MessageList();
-    messageList.add(response.messages, 'response');
-
-    const formattedMessages = messageList.get.response.aiV5.model().filter((message: any) => message.role !== 'user');
-
-    const hasTools = formattedMessages.some(
-      (message: any) =>
-        Array.isArray(message.content) && message.content.some((part: any) => part.type === 'tool-result'),
-    );
-    newResponse.messages = formattedMessages.map((message: any) => {
-      // Handle string content
-      if (typeof message.content === 'string') {
-        return message;
-      }
-
-      let newContent = message.content.map((part: any) => {
-        if (part.type === 'file') {
-          if (isMessages) {
-            return {
-              type: 'file',
-              mediaType: part.mediaType,
-              data: part.data,
-              providerOptions: part.providerOptions,
-            };
-          }
-          const transformedFile = convertFullStreamChunkToAISDKv5({
-            chunk: {
-              type: 'file',
-              payload: {
-                data: part.data,
-                mimeType: part.mediaType,
-              },
-            },
-            sendReasoning: false,
-            sendSources: false,
-            sendUsage: false,
-            getErrorMessage: getErrorMessage,
-          });
-
-          return transformedFile;
-        }
-
-        if (!isMessages) {
-          const { providerOptions, providerMetadata, ...rest } = part;
-          const providerMetadataValue = providerMetadata ?? providerOptions;
-          return {
-            ...rest,
-            ...(providerMetadataValue ? { providerMetadata: providerMetadataValue } : {}),
-          };
-        }
-
-        return part;
-      });
-
-      if (isMessages && !hasTools) {
-        newContent = newContent.filter((part: any) => part.type !== 'source');
-      }
-
-      return {
-        ...message,
-        content: newContent,
-      };
-    });
-
-    return newResponse;
-  }
-
   get response() {
-    return this.transformResponse(this.#modelOutput.response, true);
-  }
-
-  transformSteps(steps: any[]) {
-    return steps.map(step => {
-      return new DefaultStepResult({
-        content: this.transformResponse(step.response).messages?.flatMap((message: any) => message.content) ?? [],
-        warnings: step.warnings ?? [],
-        providerMetadata: step.providerMetadata,
-        finishReason: step.finishReason as StepResult<ToolSet>['finishReason'],
-        response: this.transformResponse(step.response, true),
-        request: step.request,
-        usage: step.usage,
-      });
-    });
+    return transformResponse(this.#modelOutput.response, true);
   }
 
   get steps() {
-    return this.transformSteps(this.#modelOutput.steps);
+    return transformSteps(this.#modelOutput.steps);
   }
 
   get content() {
-    return this.transformResponse(this.response, true).messages?.flatMap((message: any) => message.content) ?? [];
+    return transformResponse(this.response, true).messages?.flatMap((message: any) => message.content) ?? [];
   }
 
   get fullStream() {
