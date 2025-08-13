@@ -25,12 +25,12 @@ const supportAgent = new Agent({
 
     return `You are a customer support agent for our SaaS platform.
     The current user is on the ${userTier} tier and prefers ${language} language.
-    
+
     For ${userTier} tier users:
     ${userTier === "free" ? "- Provide basic support and documentation links" : ""}
     ${userTier === "pro" ? "- Offer detailed technical support and best practices" : ""}
     ${userTier === "enterprise" ? "- Provide priority support with custom solutions" : ""}
-    
+
     Always respond in ${language} language.`;
   },
 
@@ -58,7 +58,7 @@ const supportAgent = new Agent({
 
   memory: ({ runtimeContext }) => {
     const userTier = runtimeContext.get("user-tier");
-    
+
     if (userTier === "enterprise") {
       return new Memory({
         storage: new LibSQLStore({ url: "file:enterprise.db" }),
@@ -76,7 +76,7 @@ const supportAgent = new Agent({
         },
       });
     }
-    
+
     // Basic memory for free tier
     return new Memory({
       storage: new LibSQLStore({ url: "file:free.db" }),
@@ -100,3 +100,8 @@ In this example, the agent:
 This demonstrates how a single agent can handle different types of users and scenarios by leveraging runtime context, making it more flexible and maintainable than creating separate agents for each use case.
 
 For a complete implementation example including API routes, middleware setup, and runtime context handling, see our [Dynamic Agents Example](/examples/agents/dynamic-agents).
+
+
+# Related
+
+[Model Providers](../getting-started/model-providers.mdx)
