@@ -1,5 +1,5 @@
 import { createV4CompatibleResponse } from '@mastra/core/agent';
-import type { Agent } from '@mastra/core/agent';
+import type { Agent, MastraLanguageModel } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { stringify } from 'superjson';
 import zodToJsonSchema from 'zod-to-json-schema';
@@ -374,5 +374,32 @@ export function streamVNextGenerateHandler({
     return streamResult;
   } catch (error) {
     return handleError(error, 'error streaming agent response');
+  }
+}
+
+export function updateAgentModelHandler({
+  mastra,
+  agentId,
+  body,
+}: Context & {
+  agentId: string;
+  body: {
+    model: MastraLanguageModel;
+  };
+}): { message: string } {
+  try {
+    const agent = mastra.getAgent(agentId);
+
+    if (!agent) {
+      throw new HTTPException(404, { message: 'Agent not found' });
+    }
+
+    const { model } = body;
+
+    agent.__updateModel({ model });
+
+    return { message: 'Agent model updated' };
+  } catch (error) {
+    return handleError(error, 'error updating agent model');
   }
 }
