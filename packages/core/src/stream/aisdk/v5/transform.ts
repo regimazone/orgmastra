@@ -369,11 +369,9 @@ export function convertMastraChunkToAISDKv5({
       return {
         type: 'source',
         id: chunk.payload.id,
-        mediaType: chunk.payload.mediaType,
         sourceType: chunk.payload.sourceType,
         title: chunk.payload.title,
         url: chunk.payload.url,
-        filename: chunk.payload.filename,
         providerMetadata: chunk.payload.providerMetadata,
       };
     case 'file':

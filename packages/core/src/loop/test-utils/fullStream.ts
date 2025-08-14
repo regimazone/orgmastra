@@ -349,93 +349,98 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         `);
     });
 
-    // it('should send sources', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: modelWithSources,
-    //     ...defaultSettings(),
-    //   });
+    it('should send sources', async () => {
+      const messageList = new MessageList();
 
-    //   expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
-    //       [
-    //         {
-    //           "type": "start",
-    //         },
-    //         {
-    //           "request": {},
-    //           "type": "start-step",
-    //           "warnings": [],
-    //         },
-    //         {
-    //           "id": "123",
-    //           "providerMetadata": {
-    //             "provider": {
-    //               "custom": "value",
-    //             },
-    //           },
-    //           "sourceType": "url",
-    //           "title": "Example",
-    //           "type": "source",
-    //           "url": "https://example.com",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-start",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "Hello!",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-end",
-    //         },
-    //         {
-    //           "id": "456",
-    //           "providerMetadata": {
-    //             "provider": {
-    //               "custom": "value2",
-    //             },
-    //           },
-    //           "sourceType": "url",
-    //           "title": "Example 2",
-    //           "type": "source",
-    //           "url": "https://example.com/2",
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "providerMetadata": undefined,
-    //           "response": {
-    //             "headers": undefined,
-    //             "id": "id-0",
-    //             "modelId": "mock-model-id",
-    //             "timestamp": 1970-01-01T00:00:00.000Z,
-    //           },
-    //           "type": "finish-step",
-    //           "usage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "totalUsage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //           "type": "finish",
-    //         },
-    //       ]
-    //     `);
-    // });
+      const result = await loopFn({
+        runId,
+        model: modelWithSources,
+        messageList,
+        ...defaultSettings(),
+      });
+
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "id": "123",
+              "providerMetadata": {
+                "provider": {
+                  "custom": "value",
+                },
+              },
+              "sourceType": "url",
+              "title": "Example",
+              "type": "source",
+              "url": "https://example.com",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-start",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "Hello!",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-end",
+            },
+            {
+              "id": "456",
+              "providerMetadata": {
+                "provider": {
+                  "custom": "value2",
+                },
+              },
+              "sourceType": "url",
+              "title": "Example 2",
+              "type": "source",
+              "url": "https://example.com/2",
+            },
+            {
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:00.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+            },
+            {
+              "finishReason": "stop",
+              "totalUsage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
 
     // it('should send files', async () => {
     //   const result = await loopFn({
