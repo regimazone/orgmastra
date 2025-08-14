@@ -7,6 +7,7 @@ import type { Context } from '../types';
 
 import { handleError } from './error';
 import { validateBody } from './utils';
+import type { AISDKV5OutputStream } from '@mastra/core/stream';
 
 type GetBody<
   T extends keyof Agent & { [K in keyof Agent]: Agent[K] extends (...args: any) => any ? K : never }[keyof Agent],
@@ -286,14 +287,13 @@ export async function vnext_generateHandler({
   runtimeContext,
   agentId,
   body,
-  format,
   abortSignal,
 }: Context & {
-  format: 'mastra' | 'aisdk';
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'generate'> & {
     runtimeContext?: Record<string, unknown>;
+    format: 'mastra' | 'aisdk';
   };
   abortSignal?: AbortSignal;
 }) {
@@ -316,7 +316,7 @@ export async function vnext_generateHandler({
     const result = await agent.generate_vnext(messages, {
       ...rest,
       runtimeContext: finalRuntimeContext,
-      format,
+      format: rest.format,
       abortSignal,
     });
 
@@ -430,6 +430,48 @@ export function vnext_streamGenerateHandler({
     });
 
     return streamResult;
+  } catch (error) {
+    return handleError(error, 'error streaming agent response');
+  }
+}
+
+export async function vnext_uiMessageHandler({
+  mastra,
+  runtimeContext,
+  agentId,
+  body,
+  abortSignal,
+}: Context & {
+  runtimeContext: RuntimeContext;
+  agentId: string;
+  body: GetBody<'stream_vnext'> & {
+    runtimeContext?: string;
+  };
+  abortSignal?: AbortSignal;
+}): Promise<Response | undefined> {
+  try {
+    const agent = mastra.getAgent(agentId);
+
+    if (!agent) {
+      throw new HTTPException(404, { message: 'Agent not found' });
+    }
+
+    const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(agentRuntimeContext ?? {})),
+    ]);
+
+    validateBody({ messages });
+
+    const streamResult = (await agent.stream_vnext(messages, {
+      ...rest,
+      runtimeContext: finalRuntimeContext,
+      abortSignal,
+      format: 'aisdk',
+    })) as AISDKV5OutputStream;
+
+    return streamResult.toUIMessageStreamResponse();
   } catch (error) {
     return handleError(error, 'error streaming agent response');
   }

@@ -2192,15 +2192,16 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   >(
     messages: MessageListInput,
     generateOptions: {
-      runtimeContext: RuntimeContext;
+      runtimeContext?: RuntimeContext;
       format: 'mastra' | 'aisdk';
       output?: OUTPUT;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
     },
   ) {
+    let runtimeContext = generateOptions.runtimeContext || new RuntimeContext();
     const defaultGenerateOptions = await this.getDefaultGenerateOptions({
-      runtimeContext: generateOptions.runtimeContext,
+      runtimeContext,
     });
 
     const mergedGenerateOptions = {
@@ -2260,7 +2261,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     if (!output || experimental_output) {
       const result = llmToUse.stream({
         messages: beforeResult.messages as ModelMessage[],
-        runtimeContext: mergedGenerateOptions.runtimeContext,
+        runtimeContext,
       });
 
       let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
@@ -2281,7 +2282,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const result = llmToUse.stream({
       messages: beforeResult.messages as ModelMessage[],
-      runtimeContext: mergedGenerateOptions.runtimeContext,
+      runtimeContext,
       objectOptions: {
         schema: output,
       },
