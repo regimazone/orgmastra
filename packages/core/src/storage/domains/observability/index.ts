@@ -1,0 +1,1 @@
+export { ObservabilityStorage } from './base';
