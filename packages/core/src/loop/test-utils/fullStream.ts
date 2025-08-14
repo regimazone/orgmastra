@@ -1032,105 +1032,116 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
       expect(fullStream).toMatchSnapshot();
     });
 
-    // it('should filter out empty text deltas', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: createTestModel({
-    //       stream: convertArrayToReadableStream([
-    //         {
-    //           type: 'response-metadata',
-    //           id: 'id-0',
-    //           modelId: 'mock-model-id',
-    //           timestamp: new Date(0),
-    //         },
-    //         { type: 'text-start', id: '1' },
-    //         { type: 'text-delta', id: '1', delta: '' },
-    //         { type: 'text-delta', id: '1', delta: 'Hello' },
-    //         { type: 'text-delta', id: '1', delta: '' },
-    //         { type: 'text-delta', id: '1', delta: ', ' },
-    //         { type: 'text-delta', id: '1', delta: '' },
-    //         { type: 'text-delta', id: '1', delta: 'world!' },
-    //         { type: 'text-delta', id: '1', delta: '' },
-    //         { type: 'text-end', id: '1' },
-    //         {
-    //           type: 'finish',
-    //           finishReason: 'stop',
-    //           usage: testUsage,
-    //         },
-    //       ]),
-    //     }),
-    //     prompt: 'test-input',
-    //   });
+    it.only('should filter out empty text deltas', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
 
-    //   const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+      const result = await loopFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            { type: 'text-start', id: '1' },
+            { type: 'text-delta', id: '1', delta: '' },
+            { type: 'text-delta', id: '1', delta: 'Hello' },
+            { type: 'text-delta', id: '1', delta: '' },
+            { type: 'text-delta', id: '1', delta: ', ' },
+            { type: 'text-delta', id: '1', delta: '' },
+            { type: 'text-delta', id: '1', delta: 'world!' },
+            { type: 'text-delta', id: '1', delta: '' },
+            { type: 'text-end', id: '1' },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage,
+            },
+          ]),
+        }),
+        messageList,
+      });
 
-    //   expect(fullStream).toMatchInlineSnapshot(`
-    //       [
-    //         {
-    //           "type": "start",
-    //         },
-    //         {
-    //           "request": {},
-    //           "type": "start-step",
-    //           "warnings": [],
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-start",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "Hello",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": ", ",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "world!",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-end",
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "providerMetadata": undefined,
-    //           "response": {
-    //             "headers": undefined,
-    //             "id": "id-0",
-    //             "modelId": "mock-model-id",
-    //             "timestamp": 1970-01-01T00:00:00.000Z,
-    //           },
-    //           "type": "finish-step",
-    //           "usage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "totalUsage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //           "type": "finish",
-    //         },
-    //       ]
-    //     `);
-    // });
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(fullStream).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-start",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "Hello",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": ", ",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "world!",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-end",
+            },
+            {
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:00.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+            },
+            {
+              "finishReason": "stop",
+              "totalUsage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
   });
 }
