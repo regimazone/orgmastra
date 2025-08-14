@@ -359,8 +359,8 @@ export class MessageList {
     aiV5: {
       ui: (): AIV5Type.UIMessage[] => this.response.v3().map(MessageList.mastraMessageV3ToAIV5UIMessage),
       model: (): AIV5ResponseMessage[] =>
-        MessageList.mastraMessagesV2ToAIV5ResponseMessages(
-          this.aiV5UIMessagesToAIV5ModelMessages(this.response.aiV5.ui()),
+        this.aiV5UIMessagesToAIV5ModelMessages(this.response.aiV5.ui()).filter(
+          m => m.role === `tool` || m.role === `assistant`,
         ),
       modelContent: (): AIV5Type.StepResult<any>['content'] => {
         return this.response.aiV5.model().map(this.response.aiV5.stepContent).flat();
@@ -2433,9 +2433,5 @@ export class MessageList {
       }
     }
     return key;
-  }
-
-  private static mastraMessagesV2ToAIV5ResponseMessages(messages: AIV5.ModelMessage[]): AIV5ResponseMessage[] {
-    return messages.filter(m => m.role === `tool` || m.role === `assistant`);
   }
 }
