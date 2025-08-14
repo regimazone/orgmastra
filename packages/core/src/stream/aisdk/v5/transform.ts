@@ -6,6 +6,8 @@ import type {
 } from '@ai-sdk/provider-v5';
 import type { TextStreamPart, ToolSet } from 'ai-v5';
 import type { ChunkType } from '../../types';
+import { transformResponse } from './output-helpers';
+import { DefaultGeneratedFileWithType } from './file';
 
 type StreamPart =
   | Exclude<LanguageModelV2StreamPart, { type: 'finish' }>
@@ -75,19 +77,16 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
       };
 
     case 'reasoning-delta':
-      if (value.delta) {
-        return {
-          type: 'reasoning-delta',
-          runId: ctx.runId,
-          from: 'AGENT',
-          payload: {
-            id: value.id,
-            providerMetadata: value.providerMetadata,
-            text: value.delta,
-          },
-        };
-      }
-      return;
+      return {
+        type: 'reasoning-delta',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: {
+          id: value.id,
+          providerMetadata: value.providerMetadata,
+          text: value.delta,
+        },
+      };
 
     case 'reasoning-end':
       return {
@@ -220,6 +219,13 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
           ...rest,
         },
       };
+    case 'error':
+      return {
+        type: 'error',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: value,
+      };
   }
   return;
   // if (value.type === 'step-start') {
@@ -332,7 +338,7 @@ export function convertMastraChunkToAISDKv5({
         type: 'finish',
         finishReason: chunk.payload.stepResult.reason,
         totalUsage: chunk.payload.output.usage,
-      };
+      } as any;
     }
     case 'reasoning-start':
       return {
@@ -371,21 +377,20 @@ export function convertMastraChunkToAISDKv5({
       return {
         type: 'source',
         id: chunk.payload.id,
-        mediaType: chunk.payload.mediaType,
         sourceType: chunk.payload.sourceType,
+        filename: chunk.payload.filename,
+        mediaType: chunk.payload.mimeType,
         title: chunk.payload.title,
         url: chunk.payload.url,
-        filename: chunk.payload.filename,
         providerMetadata: chunk.payload.providerMetadata,
       };
     case 'file':
       return {
         type: 'file',
-        file: {
-          base64: chunk.payload.base64,
-          uint8Array: chunk.payload.uint8Array,
-          mediaType: chunk.payload.mediaType,
-        },
+        file: new DefaultGeneratedFileWithType({
+          data: chunk.payload.data,
+          mediaType: chunk.payload.mimeType,
+        }),
       };
     case 'tool-call':
       return {
@@ -401,7 +406,7 @@ export function convertMastraChunkToAISDKv5({
         type: 'tool-input-start',
         id: chunk.payload.toolCallId,
         toolName: chunk.payload.toolName,
-        dynamic: chunk.payload.dynamic,
+        dynamic: !!chunk.payload.dynamic,
         providerMetadata: chunk.payload.providerMetadata,
         providerExecuted: chunk.payload.providerExecuted,
       };
@@ -418,14 +423,16 @@ export function convertMastraChunkToAISDKv5({
         delta: chunk.payload.argsTextDelta,
         providerMetadata: chunk.payload.providerMetadata,
       };
-    case 'step-finish':
+    case 'step-finish': {
+      const { request: _request, providerMetadata, ...rest } = chunk.payload.metadata;
       return {
         type: 'finish-step',
-        response: chunk.payload.response,
+        response: rest,
         usage: chunk.payload.output.usage, // ?
         finishReason: chunk.payload.stepResult.reason,
-        providerMetadata: chunk.payload.providerMetadata,
+        providerMetadata,
       };
+    }
     case 'text-delta':
       return {
         type: 'text-delta',

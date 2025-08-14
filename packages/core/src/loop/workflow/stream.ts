@@ -1,3 +1,4 @@
+import { ReadableStream } from 'stream/web';
 import z from 'zod';
 import type { ChunkType } from '../../stream/types';
 import { createWorkflow } from '../../workflows';

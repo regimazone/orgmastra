@@ -120,21 +120,21 @@ export function transformResponse({
 }) {
   const newResponse = { ...response };
   const messageList = new MessageList();
-  messageList.add(response.messages, 'response');
+  messageList.add(response?.messages ?? [], 'response');
 
   const formattedMessages = messageList.get.response.v2().filter((message: any) => message.role !== 'user');
 
-  const hasTools = formattedMessages.some(
+  const hasTools = formattedMessages?.some(
     (message: any) =>
       Array.isArray(message.content) && message.content.some((part: any) => part.type === 'tool-result'),
   );
-  newResponse.messages = formattedMessages.map((message: any) => {
+  newResponse.messages = formattedMessages?.map((message: any) => {
     // Handle string content
     if (typeof message.content === 'string') {
       return message;
     }
 
-    let newContent = message.content.map((part: any) => {
+    let newContent = message?.content?.parts?.map((part: any) => {
       if (part.type === 'file') {
         if (isMessages) {
           return {
@@ -175,9 +175,10 @@ export function transformResponse({
       newContent = newContent.filter((part: any) => part.type !== 'source');
     }
 
+    message.content.parts = newContent;
+
     return {
       ...message,
-      content: newContent,
     };
   });
 
