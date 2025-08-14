@@ -4,6 +4,7 @@ import { fullStreamTests } from './test-utils/fullStream';
 import { resultObjectTests } from './test-utils/resultObject';
 import { textStreamTests } from './test-utils/textStream';
 import { toUIMessageStreamTests } from './test-utils/toUIMessageStream';
+import { optionsTests } from './test-utils/options';
 
 describe('Loop Tests', () => {
   describe('AISDK v5', () => {
@@ -11,6 +12,7 @@ describe('Loop Tests', () => {
     fullStreamTests({ loopFn: loop, runId: 'test-run-id' });
     toUIMessageStreamTests({ loopFn: loop, runId: 'test-run-id' });
     resultObjectTests({ loopFn: loop, runId: 'test-run-id' });
+    optionsTests({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });
