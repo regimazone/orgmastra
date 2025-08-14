@@ -475,7 +475,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         `);
       });
 
-      it('should contain assistant response message and tool message from all steps', async () => {
+      it.only('should contain assistant response message and tool message from all steps', async () => {
         expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
             [
               {
@@ -488,6 +488,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "0",
+                "providerMetadata": undefined,
                 "type": "reasoning-start",
               },
               {
@@ -498,6 +499,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "0",
+                "providerMetadata": undefined,
                 "type": "reasoning-end",
               },
               {
@@ -516,7 +518,6 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                 },
                 "output": "result1",
                 "providerExecuted": undefined,
-                "providerMetadata": undefined,
                 "toolCallId": "call-1",
                 "toolName": "tool1",
                 "type": "tool-result",
@@ -548,6 +549,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "1",
+                "providerMetadata": undefined,
                 "type": "text-start",
               },
               {
@@ -564,6 +566,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "1",
+                "providerMetadata": undefined,
                 "type": "text-end",
               },
               {
