@@ -1,6 +1,7 @@
 import { describe } from 'vitest';
 import { loop } from './loop';
 import { fullStreamTests } from './test-utils/fullStream';
+import { resultObjectTests } from './test-utils/resultObject';
 import { textStreamTests } from './test-utils/textStream';
 import { toUIMessageStreamTests } from './test-utils/toUIMessageStream';
 
@@ -9,6 +10,7 @@ describe('Loop Tests', () => {
     textStreamTests({ loopFn: loop, runId: 'test-run-id' });
     fullStreamTests({ loopFn: loop, runId: 'test-run-id' });
     toUIMessageStreamTests({ loopFn: loop, runId: 'test-run-id' });
+    resultObjectTests({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });
