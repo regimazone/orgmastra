@@ -15,7 +15,7 @@ import { llmIterationOutputSchema } from './schema';
 
 type ProcessOutputStreamOptions = {
   model: LanguageModelV2;
-  tools: ToolSet;
+  tools?: ToolSet;
   messageId: string;
   includeRawChunks?: boolean;
   messageList: MessageList;
@@ -359,7 +359,7 @@ export function createLLMExecutionStep({
         model,
       });
 
-      console.log(inputData, runState.state);
+      console.log('Starting LLM Execution Step');
 
       let modelResult;
       let warnings: any;
@@ -443,6 +443,7 @@ export function createLLMExecutionStep({
           },
         });
       } catch (error) {
+        console.log('Error in LLM Execution Step', error);
         if (isAbortError(error) && options?.abortSignal?.aborted) {
           await options?.onAbort?.({
             steps: inputData?.output?.steps ?? [],
@@ -480,8 +481,6 @@ export function createLLMExecutionStep({
             },
           });
         }
-
-        console.log('Error in LLM Execution Step', error);
 
         runState.setState({
           hasErrored: true,
@@ -530,7 +529,7 @@ export function createLLMExecutionStep({
 
       const steps = inputData.output?.steps || [];
 
-      const v5NonUserMessages = messageList.get.response.aiV5.model();
+      const v5NonUserMessages = messageList.get.response.aiV5.ui();
 
       steps.push(
         new DefaultStepResult({
@@ -552,6 +551,12 @@ export function createLLMExecutionStep({
         }),
       );
 
+      const messages = {
+        all: messageList.get.all.v3(),
+        user: messageList.get.input.v3(),
+        nonUser: messageList.get.response.v3(),
+      };
+
       return {
         messageId,
         stepResult: {
@@ -571,11 +576,7 @@ export function createLLMExecutionStep({
           usage: usage ?? inputData.output?.usage,
           steps,
         },
-        messages: {
-          all: messageList.get.all.v3(),
-          user: messageList.get.input.v3(),
-          nonUser: messageList.get.response.v3(),
-        },
+        messages,
       };
     },
   });

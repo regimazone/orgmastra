@@ -332,7 +332,8 @@ export function convertMastraChunkToAISDKv5({
         type: 'finish',
         finishReason: chunk.payload.stepResult.reason,
         totalUsage: chunk.payload.output.usage,
-      };
+        messages: chunk.payload.messages,
+      } as any;
     }
     case 'reasoning-start':
       return {

@@ -36,7 +36,7 @@ export type LoopOptions = {
   toolChoice?: ToolChoice<any>;
   options?: LoopConfig;
   providerOptions?: SharedV2ProviderOptions;
-  tools: ToolSet;
+  tools?: ToolSet;
   experimental_generateMessageId?: () => string;
   stopWhen?: StopCondition<NoInfer<ToolSet>> | Array<StopCondition<NoInfer<ToolSet>>>;
 };

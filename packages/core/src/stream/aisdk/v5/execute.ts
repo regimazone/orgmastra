@@ -10,7 +10,7 @@ type ExecutionProps = {
   model: LanguageModelV2;
   providerOptions?: SharedV2ProviderOptions;
   inputMessages: LanguageModelV2Prompt;
-  tools: ToolSet;
+  tools?: ToolSet;
   toolChoice?: ToolChoice<ToolSet>;
   options?: {
     activeTools?: string[];
