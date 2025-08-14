@@ -4147,12 +4147,15 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           {
             "dynamic": false,
             "id": "2",
+            "providerExecuted": undefined,
+            "providerMetadata": undefined,
             "toolName": "tool1",
             "type": "tool-input-start",
           },
           {
             "delta": "{"value": "",
             "id": "2",
+            "providerMetadata": undefined,
             "type": "tool-input-delta",
           },
           {
@@ -4164,15 +4167,19 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           {
             "delta": "test",
             "id": "2",
+            "providerMetadata": undefined,
             "type": "tool-input-delta",
           },
           {
             "delta": ""}",
             "id": "2",
+            "providerMetadata": undefined,
             "type": "tool-input-delta",
           },
           {
+            "filename": undefined,
             "id": "123",
+            "mediaType": undefined,
             "providerMetadata": {
               "provider": {
                 "custom": "value",
@@ -4209,11 +4216,6 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
             },
             "output": "test-result",
             "providerExecuted": undefined,
-            "providerMetadata": {
-              "provider": {
-                "custom": "value",
-              },
-            },
             "toolCallId": "2",
             "toolName": "tool1",
             "type": "tool-result",
