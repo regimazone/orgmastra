@@ -11,7 +11,7 @@ import type {
 } from 'ai-v5';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
-import type { ObjectOptions } from '../../loop/types';
+import type { LoopConfig, ObjectOptions } from '../../loop/types';
 import type { RuntimeContext } from '../../runtime-context';
 import type { ToolAction, VercelTool, VercelToolV5 } from '../../tools';
 import type { inferOutput, TripwireProperties } from './shared.types';
@@ -62,6 +62,7 @@ export type StreamTextWithMessagesArgs<
 > = {
   messages: UIMessage[] | ModelMessage[];
   objectOptions?: ObjectOptions;
+  options?: LoopConfig;
 } & StreamTextOptions<Tools, Output>;
 
 export type StreamTextResult<

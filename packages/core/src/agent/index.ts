@@ -2196,6 +2196,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       format: 'mastra' | 'aisdk';
       output?: OUTPUT;
       experimental_output?: EXPERIMENTAL_OUTPUT;
+      abortSignal?: AbortSignal;
     },
   ) {
     const defaultGenerateOptions = await this.getDefaultGenerateOptions({
@@ -2311,6 +2312,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext: RuntimeContext;
       format: 'mastra' | 'aisdk';
       output?: OUTPUT;
+      abortSignal?: AbortSignal;
     },
   ) {
     const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions?.runtimeContext });
@@ -2408,20 +2410,22 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         // ...llmOptions,
         messages: beforeResult.messages as ModelMessage[],
         runtimeContext: mergedStreamOptions.runtimeContext!,
-        onFinish: async (result: any) => {
-          try {
-            const outputText = result.text;
-            await after({
-              result,
-              outputText,
-            });
-          } catch (e) {
-            this.logger.error('Error saving memory on finish', {
-              error: e,
-              runId,
-            });
-          }
-          await onFinish?.({ ...result, runId } as any);
+        options: {
+          onFinish: async (result: any) => {
+            try {
+              const outputText = result.text;
+              await after({
+                result,
+                outputText,
+              });
+            } catch (e) {
+              this.logger.error('Error saving memory on finish', {
+                error: e,
+                runId,
+              });
+            }
+            await onFinish?.({ ...result, runId } as any);
+          },
         },
         runId,
         // experimental_output,

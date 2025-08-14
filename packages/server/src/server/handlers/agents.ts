@@ -281,6 +281,51 @@ export async function generateHandler({
   }
 }
 
+export async function vnext_generateHandler({
+  mastra,
+  runtimeContext,
+  agentId,
+  body,
+  format,
+  abortSignal,
+}: Context & {
+  format: 'mastra' | 'aisdk';
+  runtimeContext: RuntimeContext;
+  agentId: string;
+  body: GetBody<'generate'> & {
+    runtimeContext?: Record<string, unknown>;
+  };
+  abortSignal?: AbortSignal;
+}) {
+  try {
+    const agent = mastra.getAgent(agentId);
+
+    if (!agent) {
+      throw new HTTPException(404, { message: 'Agent not found' });
+    }
+
+    const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
+
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(agentRuntimeContext ?? {})),
+    ]);
+
+    validateBody({ messages });
+
+    const result = await agent.generate_vnext(messages, {
+      ...rest,
+      runtimeContext: finalRuntimeContext,
+      format,
+      abortSignal,
+    });
+
+    return result;
+  } catch (error) {
+    return handleError(error, 'Error generating from agent');
+  }
+}
+
 export async function streamGenerateHandler({
   mastra,
   runtimeContext,
@@ -341,6 +386,50 @@ export async function streamGenerateHandler({
         });
 
     return streamResponse;
+  } catch (error) {
+    return handleError(error, 'error streaming agent response');
+  }
+}
+
+export function vnext_streamGenerateHandler({
+  mastra,
+  runtimeContext,
+  agentId,
+  body,
+  abortSignal,
+  format = 'mastra',
+}: Context & {
+  runtimeContext: RuntimeContext;
+  agentId: string;
+  body: GetBody<'stream_vnext'> & {
+    runtimeContext?: string;
+  };
+  abortSignal?: AbortSignal;
+  format?: 'mastra' | 'aisdk';
+}): ReturnType<Agent['stream_vnext']> {
+  try {
+    const agent = mastra.getAgent(agentId);
+
+    if (!agent) {
+      throw new HTTPException(404, { message: 'Agent not found' });
+    }
+
+    const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
+    const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
+      ...Array.from(runtimeContext.entries()),
+      ...Array.from(Object.entries(agentRuntimeContext ?? {})),
+    ]);
+
+    validateBody({ messages });
+
+    const streamResult = agent.stream_vnext(messages, {
+      ...rest,
+      runtimeContext: finalRuntimeContext,
+      abortSignal,
+      format,
+    });
+
+    return streamResult;
   } catch (error) {
     return handleError(error, 'error streaming agent response');
   }

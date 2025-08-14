@@ -121,8 +121,6 @@ export class MastraLLMVNext extends MastraBase {
 
   stream<Tools extends ToolSet, Z extends ZodSchema | JSONSchema7 | undefined = undefined>({
     messages,
-    onStepFinish,
-    onFinish,
     stopWhen = stepCountIs(5),
     tools = {},
     runId,
@@ -133,6 +131,7 @@ export class MastraLLMVNext extends MastraBase {
     threadId,
     resourceId,
     objectOptions,
+    options,
     // ...rest
   }: StreamTextWithMessagesArgs<Tools, Z>): MastraModelOutput {
     const model = this.#model;
@@ -182,9 +181,10 @@ export class MastraLLMVNext extends MastraBase {
         },
         objectOptions,
         options: {
+          ...options,
           onStepFinish: async props => {
             try {
-              await onStepFinish?.({ ...props, runId: runId! });
+              await options?.onStepFinish?.({ ...props, runId: runId! });
             } catch (e: unknown) {
               const mastraError = new MastraError(
                 {
@@ -229,7 +229,7 @@ export class MastraLLMVNext extends MastraBase {
 
           onFinish: async props => {
             try {
-              await onFinish?.({ ...props, runId: runId! });
+              await options?.onFinish?.({ ...props, runId: runId! });
             } catch (e: unknown) {
               const mastraError = new MastraError(
                 {
