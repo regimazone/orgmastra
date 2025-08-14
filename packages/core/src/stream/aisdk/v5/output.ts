@@ -173,6 +173,14 @@ export class AISDKV5OutputStream {
       .filter(Boolean);
   }
 
+  get text() {
+    return this.#modelOutput.text;
+  }
+
+  get objectStream() {
+    return this.#modelOutput.objectStream;
+  }
+
   get toolCalls() {
     return this.#modelOutput.toolCalls.map(toolCall => {
       return convertMastraChunkToAISDKv5({

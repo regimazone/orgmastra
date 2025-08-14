@@ -1,3 +1,4 @@
+import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import type { GenerateTextOnStepFinishCallback, LanguageModelV1, TelemetrySettings } from 'ai';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
@@ -34,7 +35,7 @@ export type ToolsInput = Record<string, ToolAction<any, any, any> | VercelTool |
 
 export type ToolsetsInput = Record<string, ToolsInput>;
 
-export type MastraLanguageModel = LanguageModelV1;
+export type MastraLanguageModel = LanguageModelV1 | LanguageModelV2;
 
 export interface AgentConfig<
   TAgentId extends string = string,
