@@ -397,15 +397,14 @@ export function vnext_streamGenerateHandler({
   agentId,
   body,
   abortSignal,
-  format = 'mastra',
 }: Context & {
   runtimeContext: RuntimeContext;
   agentId: string;
   body: GetBody<'stream_vnext'> & {
     runtimeContext?: string;
+    format?: 'aisdk' | 'mastra';
   };
   abortSignal?: AbortSignal;
-  format?: 'mastra' | 'aisdk';
 }): ReturnType<Agent['stream_vnext']> {
   try {
     const agent = mastra.getAgent(agentId);
@@ -426,7 +425,7 @@ export function vnext_streamGenerateHandler({
       ...rest,
       runtimeContext: finalRuntimeContext,
       abortSignal,
-      format,
+      format: body.format ?? 'mastra',
     });
 
     return streamResult;
