@@ -129,6 +129,26 @@ export const SCORERS_SCHEMA: Record<string, StorageColumn> = {
   },
 };
 
+export const AI_TRACES_SCHEMA: Record<string, StorageColumn> = {
+  id: { type: 'text', nullable: false, primaryKey: true },
+  parentSpanId: { type: 'text', nullable: true },
+  name: { type: 'text', nullable: false },
+  traceId: { type: 'text', nullable: false },
+  // scope: { type: 'text', nullable: false },
+  spanType: { type: 'integer', nullable: false }, // WORKFLOW_RUN, WORKFLOW_STEP, AGENT_RUN, AGENT_STEP, TOOL_RUN, TOOL_STEP, etc.
+  attributes: { type: 'jsonb', nullable: true },
+  metadata: { type: 'jsonb', nullable: true },
+  events: { type: 'jsonb', nullable: true },
+  links: { type: 'jsonb', nullable: true },
+  other: { type: 'text', nullable: true },
+  startTime: { type: 'bigint', nullable: false },
+  endTime: { type: 'bigint', nullable: false },
+  createdAt: { type: 'timestamp', nullable: false },
+  input: { type: 'jsonb', nullable: true },
+  output: { type: 'jsonb', nullable: true },
+  error: { type: 'jsonb', nullable: true },
+};
+
 export const TABLE_SCHEMAS: Record<TABLE_NAMES, Record<string, StorageColumn>> = {
   [TABLE_WORKFLOW_SNAPSHOT]: {
     workflow_name: {
