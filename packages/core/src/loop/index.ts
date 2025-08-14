@@ -1,5 +1,6 @@
 import { generateId } from 'ai-v5';
 import { ConsoleLogger } from '../logger';
+import { MastraModelOutput } from '../stream/base/output';
 import { getRootSpan } from './telemetry';
 import type { LoopOptions, LoopRun, StreamInternal } from './types';
 import { workflowLoopStream } from './workflow/stream';
@@ -69,9 +70,22 @@ export async function loop({
 
   const streamFn = workflowLoopStream(workflowLoopProps);
 
-  return {
-    rootSpan,
-    workflowLoopProps,
-    streamFn,
-  };
+  return new MastraModelOutput({
+    model: {
+      modelId: model.modelId,
+      provider: model.provider,
+      version: model.specificationVersion,
+    },
+    stream: streamFn,
+    messageList,
+    options: {
+      runId: runIdToUse!,
+      telemetry_settings,
+      rootSpan,
+      toolCallStreaming: rest.toolCallStreaming,
+      onFinish: rest.options?.onFinish,
+      onStepFinish: rest.options?.onStepFinish,
+      includeRawChunks,
+    },
+  });
 }
