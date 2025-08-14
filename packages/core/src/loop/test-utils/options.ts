@@ -475,7 +475,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         `);
       });
 
-      it.only('should contain assistant response message and tool message from all steps', async () => {
+      it('should contain assistant response message and tool message from all steps', async () => {
         expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
             [
               {
