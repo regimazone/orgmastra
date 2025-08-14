@@ -208,12 +208,7 @@ export class AISDKV5OutputStream {
   }
 
   get content() {
-    const content =
-      this.#modelOutput.response.messages?.flatMap((message: any) => {
-        return message.content?.parts;
-      }) ?? [];
-
-    return content;
+    return this.#messageList.get.response.aiV5.modelContent();
   }
 
   get fullStream() {
