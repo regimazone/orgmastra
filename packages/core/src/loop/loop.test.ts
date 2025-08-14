@@ -1,10 +1,12 @@
 import { describe } from 'vitest';
 import { loop } from './loop';
 import { textStreamTests } from './test-utils/textStream';
+import { fullStreamTests } from './test-utils/fullStream';
 
 describe('Loop Tests', () => {
   describe('AISDK v5', () => {
     textStreamTests({ loopFn: loop, runId: 'test-run-id' });
+    fullStreamTests({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });

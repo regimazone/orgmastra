@@ -6,6 +6,7 @@ import type {
 } from '@ai-sdk/provider-v5';
 import type { TextStreamPart, ToolSet } from 'ai-v5';
 import type { ChunkType } from '../../types';
+import { transformResponse } from './output-helpers';
 
 type StreamPart =
   | Exclude<LanguageModelV2StreamPart, { type: 'finish' }>
@@ -332,7 +333,6 @@ export function convertMastraChunkToAISDKv5({
         type: 'finish',
         finishReason: chunk.payload.stepResult.reason,
         totalUsage: chunk.payload.output.usage,
-        messages: chunk.payload.messages,
       } as any;
     }
     case 'reasoning-start':
@@ -419,14 +419,16 @@ export function convertMastraChunkToAISDKv5({
         delta: chunk.payload.argsTextDelta,
         providerMetadata: chunk.payload.providerMetadata,
       };
-    case 'step-finish':
+    case 'step-finish': {
+      const { request: _request, providerMetadata, ...rest } = chunk.payload.metadata;
       return {
         type: 'finish-step',
-        response: chunk.payload.response,
+        response: rest,
         usage: chunk.payload.output.usage, // ?
         finishReason: chunk.payload.stepResult.reason,
-        providerMetadata: chunk.payload.providerMetadata,
+        providerMetadata,
       };
+    }
     case 'text-delta':
       return {
         type: 'text-delta',
