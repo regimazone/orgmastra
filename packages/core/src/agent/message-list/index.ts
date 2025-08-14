@@ -372,9 +372,6 @@ export class MessageList {
           return [{ type: 'text', text: latest.content }];
         }
         return latest.content.map(c => {
-          if (c.type === `text`) return c;
-          if (c.type === `reasoning`) return c;
-          if (c.type === `tool-call`) return c;
           if (c.type === `tool-result`)
             return {
               type: 'tool-result',
@@ -396,7 +393,21 @@ export class MessageList {
                 mediaType: c.mediaType,
               }),
             } satisfies Extract<AIV5Type.StepResult<any>['content'][number], { type: 'file' }>;
-          throw new Error();
+          if (c.type === `image`) {
+            return {
+              type: 'file',
+              file: new DefaultGeneratedFileWithType({
+                data:
+                  typeof c.image === `string`
+                    ? c.image
+                    : c.image instanceof URL
+                      ? c.image.toString()
+                      : convertDataContentToBase64String(c.image),
+                mediaType: c.mediaType || 'unknown',
+              }),
+            };
+          }
+          return c;
         });
       },
     },
