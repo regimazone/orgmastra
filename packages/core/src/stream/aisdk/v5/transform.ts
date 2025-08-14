@@ -219,6 +219,13 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
           ...rest,
         },
       };
+    case 'error':
+      return {
+        type: 'error',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: value,
+      };
   }
   return;
   // if (value.type === 'step-start') {
@@ -371,6 +378,8 @@ export function convertMastraChunkToAISDKv5({
         type: 'source',
         id: chunk.payload.id,
         sourceType: chunk.payload.sourceType,
+        filename: chunk.payload.filename,
+        mediaType: chunk.payload.mimeType,
         title: chunk.payload.title,
         url: chunk.payload.url,
         providerMetadata: chunk.payload.providerMetadata,

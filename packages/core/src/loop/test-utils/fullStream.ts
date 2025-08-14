@@ -370,7 +370,9 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
               "warnings": [],
             },
             {
+              "filename": undefined,
               "id": "123",
+              "mediaType": undefined,
               "providerMetadata": {
                 "provider": {
                   "custom": "value",
@@ -398,7 +400,9 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
               "type": "text-end",
             },
             {
+              "filename": undefined,
               "id": "456",
+              "mediaType": undefined,
               "providerMetadata": {
                 "provider": {
                   "custom": "value2",
@@ -1032,7 +1036,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
       expect(fullStream).toMatchSnapshot();
     });
 
-    it.only('should filter out empty text deltas', async () => {
+    it('should filter out empty text deltas', async () => {
       const messageList = new MessageList();
       messageList.add(
         {
