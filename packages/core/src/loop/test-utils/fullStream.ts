@@ -442,89 +442,94 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         `);
     });
 
-    // it('should send files', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: modelWithFiles,
-    //     ...defaultSettings(),
-    //   });
+    it('should send files', async () => {
+      const messageList = new MessageList();
 
-    //   const converted = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+      const result = await loopFn({
+        runId,
+        messageList,
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
 
-    //   expect(converted).toMatchInlineSnapshot(`
-    //       [
-    //         {
-    //           "type": "start",
-    //         },
-    //         {
-    //           "request": {},
-    //           "type": "start-step",
-    //           "warnings": [],
-    //         },
-    //         {
-    //           "file": DefaultGeneratedFileWithType {
-    //             "base64Data": "Hello World",
-    //             "mediaType": "text/plain",
-    //             "type": "file",
-    //             "uint8ArrayData": undefined,
-    //           },
-    //           "type": "file",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-start",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "Hello!",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-end",
-    //         },
-    //         {
-    //           "file": DefaultGeneratedFileWithType {
-    //             "base64Data": "QkFVRw==",
-    //             "mediaType": "image/jpeg",
-    //             "type": "file",
-    //             "uint8ArrayData": undefined,
-    //           },
-    //           "type": "file",
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "providerMetadata": undefined,
-    //           "response": {
-    //             "headers": undefined,
-    //             "id": "id-0",
-    //             "modelId": "mock-model-id",
-    //             "timestamp": 1970-01-01T00:00:00.000Z,
-    //           },
-    //           "type": "finish-step",
-    //           "usage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "totalUsage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //           "type": "finish",
-    //         },
-    //       ]
-    //     `);
-    // });
+      const converted = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(converted).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "file": DefaultGeneratedFileWithType {
+                "base64Data": "Hello World",
+                "mediaType": "text/plain",
+                "type": "file",
+                "uint8ArrayData": undefined,
+              },
+              "type": "file",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-start",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "Hello!",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-end",
+            },
+            {
+              "file": DefaultGeneratedFileWithType {
+                "base64Data": "QkFVRw==",
+                "mediaType": "image/jpeg",
+                "type": "file",
+                "uint8ArrayData": undefined,
+              },
+              "type": "file",
+            },
+            {
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:00.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+            },
+            {
+              "finishReason": "stop",
+              "totalUsage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
 
     // it('should use fallback response metadata when response metadata is not provided', async () => {
     //   const result = await loopFn({

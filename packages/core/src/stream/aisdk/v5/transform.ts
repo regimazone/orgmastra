@@ -7,6 +7,7 @@ import type {
 import type { TextStreamPart, ToolSet } from 'ai-v5';
 import type { ChunkType } from '../../types';
 import { transformResponse } from './output-helpers';
+import { DefaultGeneratedFileWithType } from './file';
 
 type StreamPart =
   | Exclude<LanguageModelV2StreamPart, { type: 'finish' }>
@@ -377,11 +378,10 @@ export function convertMastraChunkToAISDKv5({
     case 'file':
       return {
         type: 'file',
-        file: {
-          base64: chunk.payload.base64,
-          uint8Array: chunk.payload.uint8Array,
-          mediaType: chunk.payload.mediaType,
-        },
+        file: new DefaultGeneratedFileWithType({
+          data: chunk.payload.data,
+          mediaType: chunk.payload.mimeType,
+        }),
       };
     case 'tool-call':
       return {
