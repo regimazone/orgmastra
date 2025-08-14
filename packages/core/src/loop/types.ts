@@ -39,6 +39,7 @@ export type LoopOptions = {
   tools?: ToolSet;
   experimental_generateMessageId?: () => string;
   stopWhen?: StopCondition<NoInfer<ToolSet>> | Array<StopCondition<NoInfer<ToolSet>>>;
+  _internal?: StreamInternal;
 };
 
 export type LoopRun = LoopOptions & {

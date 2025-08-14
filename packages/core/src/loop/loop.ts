@@ -15,6 +15,7 @@ export async function loop({
   includeRawChunks,
   modelSettings,
   tools,
+  _internal,
   ...rest
 }: LoopOptions) {
   let loggerToUse =
@@ -29,13 +30,13 @@ export async function loop({
     runIdToUse = idGenerator?.() || crypto.randomUUID();
   }
 
-  const _internal: StreamInternal = {
-    now: () => Date.now(),
-    generateId: () => generateId(),
-    currentDate: () => new Date(),
+  const internalToUse: StreamInternal = {
+    now: _internal?.now || (() => Date.now()),
+    generateId: _internal?.generateId || (() => generateId()),
+    currentDate: _internal?.currentDate || (() => new Date()),
   };
 
-  let startTimestamp = _internal.now?.();
+  let startTimestamp = internalToUse.now?.();
 
   const { rootSpan } = getRootSpan({
     operationId: `mastra.stream`,
@@ -62,7 +63,7 @@ export async function loop({
     startTimestamp: startTimestamp!,
     messageList,
     includeRawChunks,
-    _internal,
+    _internal: internalToUse,
     tools,
     modelStreamSpan: rootSpan,
     ...rest,

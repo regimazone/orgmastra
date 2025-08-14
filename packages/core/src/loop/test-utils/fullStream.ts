@@ -531,451 +531,506 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         `);
     });
 
-    // it('should use fallback response metadata when response metadata is not provided', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: new MockLanguageModelV2({
-    //       doStream: async ({ prompt }) => {
-    //         expect(prompt).toStrictEqual([
-    //           {
-    //             role: 'user',
-    //             content: [{ type: 'text', text: 'test-input' }],
-    //             // providerOptions: undefined,
-    //           },
-    //         ]);
+    it('should use fallback response metadata when response metadata is not provided', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
 
-    //         return {
-    //           stream: convertArrayToReadableStream([
-    //             { type: 'text-start', id: '1' },
-    //             { type: 'text-delta', id: '1', delta: 'Hello' },
-    //             { type: 'text-delta', id: '1', delta: ', ' },
-    //             { type: 'text-delta', id: '1', delta: `world!` },
-    //             { type: 'text-end', id: '1' },
-    //             {
-    //               type: 'finish',
-    //               finishReason: 'stop',
-    //               usage: testUsage,
-    //             },
-    //           ]),
-    //         };
-    //       },
-    //     }),
-    //     prompt: 'test-input',
-    //     _internal: {
-    //       currentDate: mockValues(new Date(2000)),
-    //       generateId: mockValues('id-2000'),
-    //     },
-    //   });
+      const result = await loopFn({
+        runId,
+        messageList,
+        model: new MockLanguageModelV2({
+          doStream: async ({ prompt }) => {
+            expect(prompt).toStrictEqual([
+              {
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
+                // providerOptions: undefined,
+              },
+            ]);
 
-    //   expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
-    //       [
-    //         {
-    //           "type": "start",
-    //         },
-    //         {
-    //           "request": {},
-    //           "type": "start-step",
-    //           "warnings": [],
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-start",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "Hello",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": ", ",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "providerMetadata": undefined,
-    //           "text": "world!",
-    //           "type": "text-delta",
-    //         },
-    //         {
-    //           "id": "1",
-    //           "type": "text-end",
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "providerMetadata": undefined,
-    //           "response": {
-    //             "headers": undefined,
-    //             "id": "id-2000",
-    //             "modelId": "mock-model-id",
-    //             "timestamp": 1970-01-01T00:00:02.000Z,
-    //           },
-    //           "type": "finish-step",
-    //           "usage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //         },
-    //         {
-    //           "finishReason": "stop",
-    //           "totalUsage": {
-    //             "cachedInputTokens": undefined,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": undefined,
-    //             "totalTokens": 13,
-    //           },
-    //           "type": "finish",
-    //         },
-    //       ]
-    //     `);
-    // });
+            return {
+              stream: convertArrayToReadableStream([
+                { type: 'text-start', id: '1' },
+                { type: 'text-delta', id: '1', delta: 'Hello' },
+                { type: 'text-delta', id: '1', delta: ', ' },
+                { type: 'text-delta', id: '1', delta: `world!` },
+                { type: 'text-end', id: '1' },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  usage: testUsage,
+                },
+              ]),
+            };
+          },
+        }),
+        _internal: {
+          currentDate: mockValues(new Date(2000)),
+          generateId: mockValues('id-2000'),
+        },
+      });
 
-    // it('should send tool calls', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: new MockLanguageModelV2({
-    //       doStream: async ({ prompt, tools, toolChoice }) => {
-    //         expect(tools).toStrictEqual([
-    //           {
-    //             type: 'function',
-    //             name: 'tool1',
-    //             description: undefined,
-    //             inputSchema: {
-    //               $schema: 'http://json-schema.org/draft-07/schema#',
-    //               additionalProperties: false,
-    //               properties: { value: { type: 'string' } },
-    //               required: ['value'],
-    //               type: 'object',
-    //             },
-    //             providerOptions: undefined,
-    //           },
-    //         ]);
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-start",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "Hello",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": ", ",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "text": "world!",
+              "type": "text-delta",
+            },
+            {
+              "id": "1",
+              "providerMetadata": undefined,
+              "type": "text-end",
+            },
+            {
+              "finishReason": "stop",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-2000",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:02.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+            },
+            {
+              "finishReason": "stop",
+              "totalUsage": {
+                "cachedInputTokens": undefined,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": undefined,
+                "totalTokens": 13,
+              },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
 
-    //         expect(toolChoice).toStrictEqual({ type: 'required' });
+    it('should send tool calls', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
 
-    //         expect(prompt).toStrictEqual([
-    //           {
-    //             role: 'user',
-    //             content: [{ type: 'text', text: 'test-input' }],
-    //             // providerOptions: undefined,
-    //           },
-    //         ]);
+      const result = await loopFn({
+        runId,
+        messageList,
+        model: new MockLanguageModelV2({
+          doStream: async ({ prompt, tools, toolChoice }) => {
+            expect(tools).toStrictEqual([
+              {
+                type: 'function',
+                name: 'tool1',
+                description: undefined,
+                inputSchema: {
+                  $schema: 'http://json-schema.org/draft-07/schema#',
+                  additionalProperties: false,
+                  properties: { value: { type: 'string' } },
+                  required: ['value'],
+                  type: 'object',
+                },
+                providerOptions: undefined,
+              },
+            ]);
 
-    //         console.log('prompt', prompt);
+            expect(toolChoice).toStrictEqual({ type: 'required' });
 
-    //         return {
-    //           stream: convertArrayToReadableStream([
-    //             {
-    //               type: 'response-metadata',
-    //               id: 'id-0',
-    //               modelId: 'mock-model-id',
-    //               timestamp: new Date(0),
-    //             },
-    //             {
-    //               type: 'tool-call',
-    //               toolCallId: 'call-1',
-    //               toolName: 'tool1',
-    //               input: `{ "value": "value" }`,
-    //               providerMetadata: {
-    //                 testProvider: {
-    //                   signature: 'sig',
-    //                 },
-    //               },
-    //             },
-    //             {
-    //               type: 'finish',
-    //               finishReason: 'stop',
-    //               usage: testUsage,
-    //             },
-    //           ]),
-    //         };
-    //       },
-    //     }),
-    //     tools: {
-    //       tool1: tool({
-    //         inputSchema: z.object({ value: z.string() }),
-    //       }),
-    //     },
-    //     toolChoice: 'required',
-    //     prompt: 'test-input',
-    //   });
+            expect(prompt).toStrictEqual([
+              {
+                role: 'user',
+                content: [{ type: 'text', text: 'test-input' }],
+                // providerOptions: undefined,
+              },
+            ]);
 
-    //   expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchSnapshot();
-    // });
+            return {
+              stream: convertArrayToReadableStream([
+                {
+                  type: 'response-metadata',
+                  id: 'id-0',
+                  modelId: 'mock-model-id',
+                  timestamp: new Date(0),
+                },
+                {
+                  type: 'tool-call',
+                  toolCallId: 'call-1',
+                  toolName: 'tool1',
+                  input: `{ "value": "value" }`,
+                  providerMetadata: {
+                    testProvider: {
+                      signature: 'sig',
+                    },
+                  },
+                },
+                {
+                  type: 'finish',
+                  finishReason: 'stop',
+                  usage: testUsage,
+                },
+              ]),
+            };
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({ value: z.string() }),
+          }),
+        },
+        toolChoice: 'required',
+      });
 
-    // it('should send tool call deltas', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: createTestModel({
-    //       stream: convertArrayToReadableStream([
-    //         {
-    //           type: 'response-metadata',
-    //           id: 'id-0',
-    //           modelId: 'mock-model-id',
-    //           timestamp: new Date(0),
-    //         },
-    //         {
-    //           type: 'tool-input-start',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           toolName: 'test-tool',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: '{"',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: 'value',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: '":"',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: 'Spark',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: 'le',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: ' Day',
-    //         },
-    //         {
-    //           type: 'tool-input-delta',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           delta: '"}',
-    //         },
-    //         {
-    //           type: 'tool-input-end',
-    //           id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //         },
-    //         {
-    //           type: 'tool-call',
-    //           toolCallId: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
-    //           toolName: 'test-tool',
-    //           input: '{"value":"Sparkle Day"}',
-    //         },
-    //         {
-    //           type: 'finish',
-    //           finishReason: 'tool-calls',
-    //           usage: testUsage2,
-    //         },
-    //       ]),
-    //     }),
-    //     tools: {
-    //       'test-tool': tool({
-    //         inputSchema: z.object({ value: z.string() }),
-    //       }),
-    //     },
-    //     toolChoice: 'required',
-    //     prompt: 'test-input',
-    //   });
+      expect(await convertAsyncIterableToArray(result.aisdk.v5.fullStream)).toMatchSnapshot();
+    });
 
-    //   const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+    it('should send tool call deltas', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
 
-    //   console.dir({ fullStream }, { depth: null });
+      const result = await loopFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            {
+              type: 'tool-input-start',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              toolName: 'test-tool',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: '{"',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: 'value',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: '":"',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: 'Spark',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: 'le',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: ' Day',
+            },
+            {
+              type: 'tool-input-delta',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              delta: '"}',
+            },
+            {
+              type: 'tool-input-end',
+              id: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+            },
+            {
+              type: 'tool-call',
+              toolCallId: 'call_O17Uplv4lJvD6DVdIvFFeRMw',
+              toolName: 'test-tool',
+              input: '{"value":"Sparkle Day"}',
+            },
+            {
+              type: 'finish',
+              finishReason: 'tool-calls',
+              usage: testUsage2,
+            },
+          ]),
+        }),
+        tools: {
+          'test-tool': tool({
+            inputSchema: z.object({ value: z.string() }),
+          }),
+        },
+        toolChoice: 'required',
+        messageList,
+      });
 
-    //   expect(fullStream).toMatchInlineSnapshot(`
-    //       [
-    //         {
-    //           "type": "start",
-    //         },
-    //         {
-    //           "request": {},
-    //           "type": "start-step",
-    //           "warnings": [],
-    //         },
-    //         {
-    //           "dynamic": false,
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "toolName": "test-tool",
-    //           "type": "tool-input-start",
-    //         },
-    //         {
-    //           "delta": "{"",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": "value",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": "":"",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": "Spark",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": "le",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": " Day",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "delta": ""}",
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-delta",
-    //         },
-    //         {
-    //           "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "type": "tool-input-end",
-    //         },
-    //         {
-    //           "input": {
-    //             "value": "Sparkle Day",
-    //           },
-    //           "providerExecuted": undefined,
-    //           "providerMetadata": undefined,
-    //           "toolCallId": "call_O17Uplv4lJvD6DVdIvFFeRMw",
-    //           "toolName": "test-tool",
-    //           "type": "tool-call",
-    //         },
-    //         {
-    //           "finishReason": "tool-calls",
-    //           "providerMetadata": undefined,
-    //           "response": {
-    //             "headers": undefined,
-    //             "id": "id-0",
-    //             "modelId": "mock-model-id",
-    //             "timestamp": 1970-01-01T00:00:00.000Z,
-    //           },
-    //           "type": "finish-step",
-    //           "usage": {
-    //             "cachedInputTokens": 3,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": 10,
-    //             "totalTokens": 23,
-    //           },
-    //         },
-    //         {
-    //           "finishReason": "tool-calls",
-    //           "totalUsage": {
-    //             "cachedInputTokens": 3,
-    //             "inputTokens": 3,
-    //             "outputTokens": 10,
-    //             "reasoningTokens": 10,
-    //             "totalTokens": 23,
-    //           },
-    //           "type": "finish",
-    //         },
-    //       ]
-    //     `);
-    // });
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
 
-    // it('should send tool results', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: createTestModel({
-    //       stream: convertArrayToReadableStream([
-    //         {
-    //           type: 'response-metadata',
-    //           id: 'id-0',
-    //           modelId: 'mock-model-id',
-    //           timestamp: new Date(0),
-    //         },
-    //         {
-    //           type: 'tool-call',
-    //           toolCallId: 'call-1',
-    //           toolName: 'tool1',
-    //           input: `{ "value": "value" }`,
-    //         },
-    //         {
-    //           type: 'finish',
-    //           finishReason: 'stop',
-    //           usage: testUsage,
-    //         },
-    //       ]),
-    //     }),
-    //     tools: {
-    //       tool1: tool({
-    //         inputSchema: z.object({ value: z.string() }),
-    //         execute: async (input, options) => {
-    //           console.log('TOOL 1', input, options);
+      console.dir({ fullStream }, { depth: null });
 
-    //           expect(input).toStrictEqual({ value: 'value' });
-    //           expect(options.messages).toStrictEqual([
-    //             { role: 'user', content: [{ type: 'text', text: 'test-input' }] },
-    //           ]);
-    //           return `${input.value}-result`;
-    //         },
-    //       }),
-    //     },
-    //     prompt: 'test-input',
-    //   });
+      expect(fullStream).toMatchInlineSnapshot(`
+          [
+            {
+              "type": "start",
+            },
+            {
+              "request": {},
+              "type": "start-step",
+              "warnings": [],
+            },
+            {
+              "dynamic": false,
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerExecuted": undefined,
+              "providerMetadata": undefined,
+              "toolName": "test-tool",
+              "type": "tool-input-start",
+            },
+            {
+              "delta": "{"",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": "value",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": "":"",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": "Spark",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": "le",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": " Day",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "delta": ""}",
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-delta",
+            },
+            {
+              "id": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "providerMetadata": undefined,
+              "type": "tool-input-end",
+            },
+            {
+              "input": {
+                "value": "Sparkle Day",
+              },
+              "providerExecuted": undefined,
+              "providerMetadata": undefined,
+              "toolCallId": "call_O17Uplv4lJvD6DVdIvFFeRMw",
+              "toolName": "test-tool",
+              "type": "tool-call",
+            },
+            {
+              "finishReason": "tool-calls",
+              "providerMetadata": undefined,
+              "response": {
+                "headers": undefined,
+                "id": "id-0",
+                "modelId": "mock-model-id",
+                "timestamp": 1970-01-01T00:00:00.000Z,
+              },
+              "type": "finish-step",
+              "usage": {
+                "cachedInputTokens": 3,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": 10,
+                "totalTokens": 23,
+              },
+            },
+            {
+              "finishReason": "tool-calls",
+              "totalUsage": {
+                "cachedInputTokens": 3,
+                "inputTokens": 3,
+                "outputTokens": 10,
+                "reasoningTokens": 10,
+                "totalTokens": 23,
+              },
+              "type": "finish",
+            },
+          ]
+        `);
+    });
 
-    //   const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+    it('should send tool results', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
 
-    //   console.dir({ fullStream }, { depth: null });
+      const result = await loopFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            {
+              type: 'tool-call',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              input: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage,
+            },
+          ]),
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({ value: z.string() }),
+            execute: async (input, options) => {
+              console.log('TOOL 1', input, options);
 
-    //   expect(fullStream).toMatchSnapshot();
-    // });
+              expect(input).toStrictEqual({ value: 'value' });
+              expect(options.messages).toStrictEqual([
+                { role: 'user', content: [{ type: 'text', text: 'test-input' }] },
+              ]);
+              return `${input.value}-result`;
+            },
+          }),
+        },
+        messageList,
+      });
 
-    // it('should send delayed asynchronous tool results', async () => {
-    //   const result = await loopFn({
-    //     runId,
-    //     model: createTestModel({
-    //       stream: convertArrayToReadableStream([
-    //         {
-    //           type: 'response-metadata',
-    //           id: 'id-0',
-    //           modelId: 'mock-model-id',
-    //           timestamp: new Date(0),
-    //         },
-    //         {
-    //           type: 'tool-call',
-    //           toolCallId: 'call-1',
-    //           toolName: 'tool1',
-    //           input: `{ "value": "value" }`,
-    //         },
-    //         {
-    //           type: 'finish',
-    //           finishReason: 'stop',
-    //           usage: testUsage,
-    //         },
-    //       ]),
-    //     }),
-    //     tools: {
-    //       tool1: {
-    //         inputSchema: z.object({ value: z.string() }),
-    //         execute: async ({ value }: { value: string }) => {
-    //           await delay(50); // delay to show bug where step finish is sent before tool result
-    //           return `${value}-result`;
-    //         },
-    //       },
-    //     },
-    //     prompt: 'test-input',
-    //   });
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
 
-    //   const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+      console.dir({ fullStream }, { depth: null });
 
-    //   expect(fullStream).toMatchSnapshot();
-    // });
+      expect(fullStream).toMatchSnapshot();
+    });
+
+    it('should send delayed asynchronous tool results', async () => {
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'test-input' }],
+        },
+        'input',
+      );
+
+      const result = await loopFn({
+        runId,
+        model: createTestModel({
+          stream: convertArrayToReadableStream([
+            {
+              type: 'response-metadata',
+              id: 'id-0',
+              modelId: 'mock-model-id',
+              timestamp: new Date(0),
+            },
+            {
+              type: 'tool-call',
+              toolCallId: 'call-1',
+              toolName: 'tool1',
+              input: `{ "value": "value" }`,
+            },
+            {
+              type: 'finish',
+              finishReason: 'stop',
+              usage: testUsage,
+            },
+          ]),
+        }),
+        tools: {
+          tool1: {
+            inputSchema: z.object({ value: z.string() }),
+            execute: async ({ value }: { value: string }) => {
+              await delay(50); // delay to show bug where step finish is sent before tool result
+              return `${value}-result`;
+            },
+          },
+        },
+        messageList,
+      });
+
+      const fullStream = await convertAsyncIterableToArray(result.aisdk.v5.fullStream);
+
+      expect(fullStream).toMatchSnapshot();
+    });
 
     // it('should filter out empty text deltas', async () => {
     //   const result = await loopFn({

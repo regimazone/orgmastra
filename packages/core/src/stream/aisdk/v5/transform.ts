@@ -397,7 +397,7 @@ export function convertMastraChunkToAISDKv5({
         type: 'tool-input-start',
         id: chunk.payload.toolCallId,
         toolName: chunk.payload.toolName,
-        dynamic: chunk.payload.dynamic,
+        dynamic: !!chunk.payload.dynamic,
         providerMetadata: chunk.payload.providerMetadata,
         providerExecuted: chunk.payload.providerExecuted,
       };
