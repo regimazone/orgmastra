@@ -1,6 +1,7 @@
 import { describe } from 'vitest';
 import { loop } from './loop';
 import { fullStreamTests } from './test-utils/fullStream';
+import { generateTextTestsV5 } from './test-utils/generateText';
 import { optionsTests } from './test-utils/options';
 import { resultObjectTests } from './test-utils/resultObject';
 import { telemetryTests } from './test-utils/telemetry';
@@ -15,6 +16,7 @@ describe('Loop Tests', () => {
     resultObjectTests({ loopFn: loop, runId: 'test-run-id' });
     optionsTests({ loopFn: loop, runId: 'test-run-id' });
     // telemetryTests({ loopFn: loop, runId: 'test-run-id' });
+    generateTextTestsV5({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });
