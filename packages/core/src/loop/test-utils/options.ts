@@ -239,7 +239,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     });
   });
 
-  describe.skip('options.stopWhen', () => {
+  describe('options.stopWhen', () => {
     let result: any;
     let onFinishResult: any;
     let onStepFinishResults: any[];
