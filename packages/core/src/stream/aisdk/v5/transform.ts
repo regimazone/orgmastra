@@ -5,7 +5,140 @@ import type {
   SharedV2ProviderMetadata,
 } from '@ai-sdk/provider-v5';
 import type { TextStreamPart, ToolSet } from 'ai-v5';
-import type { ChunkType } from '../../types';
+
+type TextStreamPartPayload<T extends TextStreamPart<ToolSet>['type']> = Omit<
+  Extract<TextStreamPart<ToolSet>, { type: T }>,
+  'type'
+>;
+type LanguageModelV2StreamPartPayload<T extends LanguageModelV2StreamPart['type']> = Omit<
+  Extract<LanguageModelV2StreamPart, { type: T }>,
+  'type'
+>;
+type StreamPartType = TextStreamPart<ToolSet>['type'] | LanguageModelV2StreamPart['type'];
+type StreamPartPayload<T extends StreamPartType> = T extends LanguageModelV2StreamPart['type']
+  ? LanguageModelV2StreamPartPayload<T>
+  : T extends TextStreamPart<ToolSet>['type']
+    ? TextStreamPartPayload<T>
+    : never;
+
+type ChunkType<T extends string, P = Record<string, any>> = {
+  type: T;
+  runId: string;
+  from: 'AGENT';
+  payload: P;
+};
+
+type MastraFinishStreamPart = {
+  type: 'finish';
+  stepResult: {
+    reason: LanguageModelV2FinishReason;
+  };
+  output: {
+    usage: LanguageModelV2Usage;
+  };
+  metadata: {
+    providerMetadata: SharedV2ProviderMetadata;
+  };
+  messages: {
+    all: any[];
+    user: any[];
+    nonUser: any[];
+  };
+};
+
+export type MastraStreamChunk =
+  | ChunkType<'text-start', StreamPartPayload<'text-start'>>
+  | ChunkType<
+      'text-delta',
+      Omit<StreamPartPayload<'text-delta'>, 'delta'> & {
+        /**
+         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it remames to 'text' in TextStreamPart (consumer API)
+         * Mastra standardizes on 'text' internally for consistency across all interfaces
+         */
+        text: string;
+      }
+    >
+  | ChunkType<'start', {}>
+  | ChunkType<
+      'step-start',
+      StreamPartPayload<'start-step'> & {
+        /**
+         * Mastra adds messageId to all step-start chunks
+         */
+        messageId?: string;
+      }
+    >
+  | ChunkType<'raw', unknown>
+  | ChunkType<'response-metadata', StreamPartPayload<'response-metadata'>>
+  | ChunkType<'text-end', StreamPartPayload<'text-end'>>
+  | ChunkType<'reasoning-start', StreamPartPayload<'reasoning-start'>>
+  | ChunkType<
+      'reasoning-delta',
+      Omit<StreamPartPayload<'reasoning-delta'>, 'delta'> & {
+        /**
+         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it remames to 'text' in TextStreamPart (consumer API)
+         * Mastra standardizes on 'text' internally for consistency across all interfaces
+         */
+        text: string;
+      }
+    >
+  | ChunkType<'reasoning-end', StreamPartPayload<'reasoning-end'>>
+  | ChunkType<
+      'source',
+      // StreamPartPayload<'source'>
+      // TODO: are we sticking with mimeType over mediaType?
+      {
+        id: string;
+        sourceType: 'document' | 'url';
+        title?: string;
+        mimeType?: string;
+        filename?: string;
+        url?: string;
+        providerMetadata?: SharedV2ProviderMetadata;
+      }
+    >
+  | ChunkType<
+      'file',
+      {
+        data?: string | Uint8Array<ArrayBufferLike>;
+        base64?: string;
+        mimeType?: string;
+        providerMetadata?: SharedV2ProviderMetadata;
+      }
+    >
+  | ChunkType<
+      'tool-call',
+      Omit<StreamPartPayload<'tool-call'>, 'input'> & {
+        args: unknown;
+      }
+    >
+  | ChunkType<'tool-result', StreamPartPayload<'tool-result'>>
+  | ChunkType<
+      'tool-call-input-streaming-start',
+      Omit<StreamPartPayload<'tool-input-start'>, 'id'> & {
+        toolCallId: string;
+      }
+    >
+  | ChunkType<
+      'tool-call-delta',
+      {
+        toolCallId: string; // from 'id'
+        argsTextDelta: string; // from 'delta
+        providerMetadata?: SharedV2ProviderMetadata;
+      }
+    >
+  | ChunkType<
+      'tool-call-input-streaming-end',
+      {
+        toolCallId: string; // from 'id'
+        providerMetadata?: SharedV2ProviderMetadata;
+      }
+    >
+  | ChunkType<'tool-error', StreamPartPayload<'tool-error'>>
+  | ChunkType<'finish', MastraFinishStreamPart>
+  | ChunkType<'step-finish', StreamPartPayload<'finish-step'>>
+  | ChunkType<'abort', {}>
+  | ChunkType<'error', StreamPartPayload<'error'>>;
 
 type StreamPart =
   | Exclude<LanguageModelV2StreamPart, { type: 'finish' }>
@@ -21,14 +154,21 @@ type StreamPart =
       };
     };
 
-export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: string }) {
+export function convertFullStreamChunkToMastra(
+  value: StreamPart,
+  ctx: { runId: string },
+): MastraStreamChunk | undefined {
   switch (value.type) {
     case 'response-metadata':
       return {
         type: 'response-metadata',
         runId: ctx.runId,
         from: 'AGENT',
-        payload: value,
+        payload: {
+          modelId: value.modelId ?? 'unknown',
+          timestamp: value.timestamp,
+          id: value.id,
+        },
       };
     case 'text-start':
       return {
@@ -109,6 +249,7 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
           id: value.id,
           sourceType: value.sourceType,
           title: value.title,
+          // TODO: are we sticking with mimeType over mediaType?
           mimeType: value.sourceType === 'document' ? value.mediaType : undefined,
           filename: value.sourceType === 'document' ? value.filename : undefined,
           url: value.sourceType === 'url' ? value.url : undefined,
@@ -303,7 +444,7 @@ export function convertMastraChunkToAISDKv5({
   chunk,
   includeRawChunks,
 }: {
-  chunk: ChunkType;
+  chunk: MastraStreamChunk;
   includeRawChunks?: boolean;
 }): OutputChunkType {
   switch (chunk.type) {
@@ -313,6 +454,7 @@ export function convertMastraChunkToAISDKv5({
       };
     case 'step-start':
       const { messageId: _messageId, ...rest } = chunk.payload;
+
       return {
         type: 'start-step',
         request: rest.request,
@@ -347,46 +489,44 @@ export function convertMastraChunkToAISDKv5({
         text: chunk.payload.text,
         providerMetadata: chunk.payload.providerMetadata,
       };
-    case 'reasoning-signature':
-      throw new Error('AISDKv5 chunk type "reasoning-signature" not supported');
-    // return {
-    //   type: 'reasoning-signature' as const,
-    //   id: chunk.payload.id,
-    //   signature: chunk.payload.signature,
-    // };
-    case 'redacted-reasoning':
-      throw new Error('AISDKv5 chunk type "redacted-reasoning" not supported');
-    // return {
-    //   type: 'redacted-reasoning',
-    //   id: chunk.payload.id,
-    //   data: chunk.payload.data,
-    // };
     case 'reasoning-end':
       return {
-        type: 'reasoning-end',
+        type: 'reasoning-end' as const,
         id: chunk.payload.id,
         providerMetadata: chunk.payload.providerMetadata,
       };
     case 'source':
-      return {
-        type: 'source',
-        id: chunk.payload.id,
-        mediaType: chunk.payload.mediaType,
-        sourceType: chunk.payload.sourceType,
-        title: chunk.payload.title,
-        url: chunk.payload.url,
-        filename: chunk.payload.filename,
-        providerMetadata: chunk.payload.providerMetadata,
-      };
-    case 'file':
-      return {
-        type: 'file',
-        file: {
-          base64: chunk.payload.base64,
-          uint8Array: chunk.payload.uint8Array,
-          mediaType: chunk.payload.mediaType,
-        },
-      };
+      if (chunk.payload.sourceType === 'url') {
+        return {
+          type: 'source',
+          sourceType: 'url',
+          id: chunk.payload.id,
+          url: chunk.payload.url!,
+          title: chunk.payload.title,
+          providerMetadata: chunk.payload.providerMetadata,
+        };
+      } else {
+        return {
+          type: 'source',
+          sourceType: 'document',
+          id: chunk.payload.id,
+          // TODO: Are we sicking with mimeType in Mastra stream chunks?
+          mediaType: chunk.payload.mimeType || '',
+          title: chunk.payload.title || '',
+          filename: chunk.payload.filename,
+          providerMetadata: chunk.payload.providerMetadata,
+        };
+      }
+    // TODO: add DefaultGeneratedFile
+    // case 'file':
+    //   return {
+    //     type: 'file',
+    //     file: {
+    //       base64: chunk.payload.base64,
+    //       uint8Array: chunk.payload.uint8Array,
+    //       mediaType: chunk.payload.mediaType,
+    //     },
+    //   };
     case 'tool-call':
       return {
         type: 'tool-call',
@@ -418,14 +558,16 @@ export function convertMastraChunkToAISDKv5({
         delta: chunk.payload.argsTextDelta,
         providerMetadata: chunk.payload.providerMetadata,
       };
-    case 'step-finish':
+    case 'step-finish': {
+      const reason = chunk.payload.stepResult.reason;
       return {
         type: 'finish-step',
         response: chunk.payload.response,
-        usage: chunk.payload.output.usage, // ?
-        finishReason: chunk.payload.stepResult.reason,
+        usage: chunk.payload.output.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        finishReason: (reason === 'continue' || reason === 'abort' ? 'other' : reason) as LanguageModelV2FinishReason,
         providerMetadata: chunk.payload.providerMetadata,
       };
+    }
     case 'text-delta':
       return {
         type: 'text-delta',
