@@ -76,19 +76,16 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
       };
 
     case 'reasoning-delta':
-      if (value.delta) {
-        return {
-          type: 'reasoning-delta',
-          runId: ctx.runId,
-          from: 'AGENT',
-          payload: {
-            id: value.id,
-            providerMetadata: value.providerMetadata,
-            text: value.delta,
-          },
-        };
-      }
-      return;
+      return {
+        type: 'reasoning-delta',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: {
+          id: value.id,
+          providerMetadata: value.providerMetadata,
+          text: value.delta,
+        },
+      };
 
     case 'reasoning-end':
       return {

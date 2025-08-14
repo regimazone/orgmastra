@@ -1,7 +1,7 @@
 import { describe } from 'vitest';
 import { loop } from './loop';
-import { textStreamTests } from './test-utils/textStream';
 import { fullStreamTests } from './test-utils/fullStream';
+import { textStreamTests } from './test-utils/textStream';
 
 describe('Loop Tests', () => {
   describe('AISDK v5', () => {
