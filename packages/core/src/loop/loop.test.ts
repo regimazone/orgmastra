@@ -1,10 +1,11 @@
 import { describe } from 'vitest';
 import { loop } from './loop';
 import { fullStreamTests } from './test-utils/fullStream';
+import { optionsTests } from './test-utils/options';
 import { resultObjectTests } from './test-utils/resultObject';
+import { telemetryTests } from './test-utils/telemetry';
 import { textStreamTests } from './test-utils/textStream';
 import { toUIMessageStreamTests } from './test-utils/toUIMessageStream';
-import { optionsTests } from './test-utils/options';
 
 describe('Loop Tests', () => {
   describe('AISDK v5', () => {
@@ -13,6 +14,7 @@ describe('Loop Tests', () => {
     toUIMessageStreamTests({ loopFn: loop, runId: 'test-run-id' });
     resultObjectTests({ loopFn: loop, runId: 'test-run-id' });
     optionsTests({ loopFn: loop, runId: 'test-run-id' });
+    // telemetryTests({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });
