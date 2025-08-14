@@ -52,7 +52,7 @@ export type MastraStreamChunk =
       'text-delta',
       Omit<StreamPartPayload<'text-delta'>, 'delta'> & {
         /**
-         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it remames to 'text' in TextStreamPart (consumer API)
+         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it renames to 'text' in TextStreamPart (consumer API)
          * Mastra standardizes on 'text' internally for consistency across all interfaces
          */
         text: string;
@@ -76,7 +76,7 @@ export type MastraStreamChunk =
       'reasoning-delta',
       Omit<StreamPartPayload<'reasoning-delta'>, 'delta'> & {
         /**
-         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it remames to 'text' in TextStreamPart (consumer API)
+         * AI SDK v5 uses 'delta' in LanguageModelV2StreamPart (provider interface) but it renames to 'text' in TextStreamPart (consumer API)
          * Mastra standardizes on 'text' internally for consistency across all interfaces
          */
         text: string;
