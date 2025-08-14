@@ -62,7 +62,7 @@ export async function loop({
     logger: loggerToUse,
     startTimestamp: startTimestamp!,
     messageList,
-    includeRawChunks,
+    includeRawChunks: !!includeRawChunks,
     _internal: internalToUse,
     tools,
     modelStreamSpan: rootSpan,
@@ -86,7 +86,7 @@ export async function loop({
       toolCallStreaming: rest.toolCallStreaming,
       onFinish: rest.options?.onFinish,
       onStepFinish: rest.options?.onStepFinish,
-      includeRawChunks,
+      includeRawChunks: !!includeRawChunks,
     },
   });
 }

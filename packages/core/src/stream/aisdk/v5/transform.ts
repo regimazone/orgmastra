@@ -226,6 +226,14 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
         from: 'AGENT',
         payload: value,
       };
+
+    case 'raw':
+      return {
+        type: 'raw',
+        runId: ctx.runId,
+        from: 'AGENT',
+        payload: value.rawValue as any,
+      };
   }
   return;
   // if (value.type === 'step-start') {
@@ -305,13 +313,7 @@ export function convertFullStreamChunkToMastra(value: StreamPart, ctx: { runId: 
 
 type OutputChunkType = TextStreamPart<ToolSet> | undefined;
 
-export function convertMastraChunkToAISDKv5({
-  chunk,
-  includeRawChunks,
-}: {
-  chunk: ChunkType;
-  includeRawChunks?: boolean;
-}): OutputChunkType {
+export function convertMastraChunkToAISDKv5({ chunk }: { chunk: ChunkType }): OutputChunkType {
   switch (chunk.type) {
     case 'start':
       return {
@@ -325,13 +327,10 @@ export function convertMastraChunkToAISDKv5({
         warnings: rest.warnings,
       };
     case 'raw':
-      if (includeRawChunks) {
-        return {
-          type: 'raw',
-          rawValue: chunk.payload,
-        };
-      }
-      return;
+      return {
+        type: 'raw',
+        rawValue: chunk.payload,
+      };
 
     case 'finish': {
       return {

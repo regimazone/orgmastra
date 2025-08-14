@@ -6388,10 +6388,12 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "0",
+                "providerMetadata": undefined,
                 "type": "reasoning-start",
               },
               {
                 "id": "1",
+                "providerMetadata": undefined,
                 "type": "text-start",
               },
               {
@@ -6414,6 +6416,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "2",
+                "providerMetadata": undefined,
                 "type": "text-start",
               },
               {
@@ -6430,6 +6433,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "3",
+                "providerMetadata": undefined,
                 "type": "reasoning-start",
               },
               {
@@ -6458,6 +6462,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "0",
+                "providerMetadata": undefined,
                 "type": "reasoning-end",
               },
               {
@@ -6468,14 +6473,17 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "2",
+                "providerMetadata": undefined,
                 "type": "text-end",
               },
               {
                 "id": "3",
+                "providerMetadata": undefined,
                 "type": "reasoning-end",
               },
               {
                 "id": "1",
+                "providerMetadata": undefined,
                 "type": "text-end",
               },
               {
@@ -6717,6 +6725,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               },
               {
                 "id": "1",
+                "providerMetadata": undefined,
                 "type": "text-start",
               },
               {
