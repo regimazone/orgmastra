@@ -8,7 +8,7 @@ import type { MastraModelOutput } from '../../base/output';
 import type { ChunkType } from '../../types';
 import type { ConsumeStreamOptions } from './compat';
 import { getResponseUIMessageId, convertFullStreamChunkToUIMessageStream } from './compat';
-import { transformResponse, transformSteps } from './output-helpers';
+import { transformSteps } from './output-helpers';
 import { convertMastraChunkToAISDKv5 } from './transform';
 import type { OutputChunkType } from './transform';
 
@@ -198,33 +198,18 @@ export class AISDKV5OutputStream {
   }
 
   get response() {
-    const response = transformResponse({
-      response: this.#modelOutput.response,
-      isMessages: true,
-      runId: this.#modelOutput.runId,
-    });
-    const newResponse = {
-      ...response,
-      messages: response.messages?.map((message: any) => ({
-        role: message.role,
-        content: message.content?.parts,
-      })),
+    return {
+      ...this.#modelOutput.response,
     };
-
-    return newResponse;
   }
 
   get steps() {
-    return transformSteps({ steps: this.#modelOutput.steps, runId: this.#modelOutput.runId });
+    return transformSteps({ steps: this.#modelOutput.steps });
   }
 
   get content() {
     const content =
-      transformResponse({
-        response: this.#modelOutput.response,
-        isMessages: false,
-        runId: this.#modelOutput.runId,
-      }).messages?.flatMap((message: any) => {
+      this.#modelOutput.response.messages?.flatMap((message: any) => {
         return message.content?.parts;
       }) ?? [];
 

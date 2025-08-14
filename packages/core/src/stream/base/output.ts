@@ -11,7 +11,7 @@ import type { ConsumeStreamOptions } from '../aisdk/v5/compat';
 import { getResponseFormat } from '../aisdk/v5/object/schema';
 import { createJsonTextStreamTransformer, createObjectStreamTransformer } from '../aisdk/v5/object/stream-object';
 import { AISDKV5OutputStream } from '../aisdk/v5/output';
-import { reasoningDetailsFromMessages, transformResponse, transformSteps } from '../aisdk/v5/output-helpers';
+import { reasoningDetailsFromMessages, transformSteps } from '../aisdk/v5/output-helpers';
 import type { BufferedByStep, ChunkType, StepBufferItem } from '../types';
 
 type MastraModelOutputOptions = {
@@ -191,6 +191,8 @@ export class MastraModelOutput extends MastraBase {
                 response: { ...otherMetadata, messages: chunk.payload.messages.nonUser },
                 request: request,
                 usage: chunk.payload.output.usage,
+                // TODO: need to be able to pass a step id into this fn to get the content for a specific step id
+                content: messageList.get.response.aiV5.stepContent(),
               };
 
               await options?.onStepFinish?.(stepResult);
@@ -242,22 +244,15 @@ export class MastraModelOutput extends MastraBase {
                     text: baseFinishStep.text,
                     warnings: baseFinishStep.warnings ?? [],
                     finishReason: chunk.payload.stepResult.reason,
-                    content: transformResponse({
-                      response: { ...this.response, messages: messageList.get.response.v2() },
-                      isMessages: true,
-                      runId: chunk.runId,
-                    }),
+                    // TODO: we should add handling for step IDs in message list so you can retrieve step content by step id. And on finish should the content here be from all steps?
+                    content: messageList.get.response.aiV5.stepContent(),
                     request: this.request,
                     reasoning: this.aisdk.v5.reasoning,
                     reasoningText: !this.aisdk.v5.reasoningText ? undefined : this.aisdk.v5.reasoningText,
                     sources: this.aisdk.v5.sources,
                     files: this.aisdk.v5.files,
-                    steps: transformSteps({ steps: this.#bufferedSteps, runId: chunk.runId }),
-                    response: transformResponse({
-                      response: { ...this.response, messages: messageList.get.response.v2() },
-                      isMessages: true,
-                      runId: chunk.runId,
-                    }),
+                    steps: transformSteps({ steps: this.#bufferedSteps }),
+                    response: { ...this.response, messages: messageList.get.response.aiV5.model() },
                     usage: chunk.payload.output.usage,
                     totalUsage: self.totalUsage,
                     toolCalls: this.aisdk.v5.toolCalls,
