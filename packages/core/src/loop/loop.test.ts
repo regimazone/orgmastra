@@ -6,6 +6,7 @@ import { optionsTests } from './test-utils/options';
 import { resultObjectTests } from './test-utils/resultObject';
 import { telemetryTests } from './test-utils/telemetry';
 import { textStreamTests } from './test-utils/textStream';
+import { toolsTests } from './test-utils/tools';
 import { toUIMessageStreamTests } from './test-utils/toUIMessageStream';
 
 describe('Loop Tests', () => {
@@ -17,6 +18,7 @@ describe('Loop Tests', () => {
     optionsTests({ loopFn: loop, runId: 'test-run-id' });
     // telemetryTests({ loopFn: loop, runId: 'test-run-id' });
     generateTextTestsV5({ loopFn: loop, runId: 'test-run-id' });
+    toolsTests({ loopFn: loop, runId: 'test-run-id' });
   });
 
   // toolsTestsV5({ executeFn: execute, runId });
