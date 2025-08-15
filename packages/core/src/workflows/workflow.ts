@@ -11,8 +11,8 @@ import { RuntimeContext } from '../di';
 import { RegisteredLogger } from '../logger';
 import type { MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
-import type { ChunkType } from '../stream/MastraAgentStream';
 import { MastraWorkflowStream } from '../stream/MastraWorkflowStream';
+import type { ChunkType } from '../stream/types';
 import { Tool } from '../tools';
 import type { ToolExecutionContext } from '../tools/types';
 import type { DynamicArgument } from '../types';
@@ -1210,7 +1210,7 @@ export class Workflow<
     const nestedAbortCb = () => {
       abort();
     };
-    run.abortController?.signal.addEventListener('abort', nestedAbortCb);
+    run.abortController.signal.addEventListener('abort', nestedAbortCb);
     abortSignal.addEventListener('abort', async () => {
       run.abortController.signal.removeEventListener('abort', nestedAbortCb);
       await run.cancel();
@@ -1337,7 +1337,7 @@ export class Run<
   TInput extends z.ZodType<any> = z.ZodType<any>,
   TOutput extends z.ZodType<any> = z.ZodType<any>,
 > {
-  public abortController: AbortController;
+  #abortController?: AbortController;
   protected emitter: EventEmitter;
   /**
    * Unique identifier for this workflow
@@ -1406,7 +1406,14 @@ export class Run<
     this.emitter = new EventEmitter();
     this.retryConfig = params.retryConfig;
     this.cleanup = params.cleanup;
-    this.abortController = new AbortController();
+  }
+
+  public get abortController(): AbortController {
+    if (!this.#abortController) {
+      this.#abortController = new AbortController();
+    }
+
+    return this.#abortController;
   }
 
   /**

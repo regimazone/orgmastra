@@ -14,11 +14,11 @@ import type { ZodSchema } from 'zod';
 import { z } from 'zod';
 
 import type { MastraPrimitives } from '../../action';
+import { MastraBase } from '../../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../../error';
 import type { Mastra } from '../../mastra';
 import { delay } from '../../utils';
 
-import { MastraLLMBase } from './base';
 import type {
   GenerateObjectWithMessagesArgs,
   GenerateTextResult,
@@ -31,14 +31,14 @@ import type {
   StreamTextWithMessagesArgs,
   StreamTextResult,
   OriginalStreamTextOptions,
-  inferOutput,
   StreamObjectWithMessagesArgs,
   OriginalStreamObjectOptions,
   StreamObjectResult,
   StreamReturn,
 } from './base.types';
+import type { inferOutput } from './shared.types';
 
-export class MastraLLM extends MastraLLMBase {
+export class MastraLLMV1 extends MastraBase {
   #model: LanguageModel;
   #mastra?: Mastra;
 
@@ -87,13 +87,18 @@ export class MastraLLM extends MastraLLMBase {
     const schemaCompatLayers = [];
 
     if (model) {
+      const modelInfo = {
+        modelId: model.modelId,
+        supportsStructuredOutputs: model.supportsStructuredOutputs ?? false,
+        provider: model.provider,
+      };
       schemaCompatLayers.push(
-        new OpenAIReasoningSchemaCompatLayer(model),
-        new OpenAISchemaCompatLayer(model),
-        new GoogleSchemaCompatLayer(model),
-        new AnthropicSchemaCompatLayer(model),
-        new DeepSeekSchemaCompatLayer(model),
-        new MetaSchemaCompatLayer(model),
+        new OpenAIReasoningSchemaCompatLayer(modelInfo),
+        new OpenAISchemaCompatLayer(modelInfo),
+        new GoogleSchemaCompatLayer(modelInfo),
+        new AnthropicSchemaCompatLayer(modelInfo),
+        new DeepSeekSchemaCompatLayer(modelInfo),
+        new MetaSchemaCompatLayer(modelInfo),
       );
     }
 
@@ -601,6 +606,27 @@ export class MastraLLM extends MastraLLMBase {
       );
       throw mastraError;
     }
+  }
+
+  convertToMessages(messages: string | string[] | CoreMessage[]): CoreMessage[] {
+    if (Array.isArray(messages)) {
+      return messages.map(m => {
+        if (typeof m === 'string') {
+          return {
+            role: 'user',
+            content: m,
+          };
+        }
+        return m;
+      });
+    }
+
+    return [
+      {
+        role: 'user',
+        content: messages,
+      },
+    ];
   }
 
   async generate<

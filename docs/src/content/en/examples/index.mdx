@@ -11,18 +11,17 @@ import { Tabs } from "nextra/components";
 The Examples section is a short list of example projects demonstrating basic AI engineering with Mastra, including text generation, structured output, streaming responses, retrieval‐augmented generation (RAG), and voice.
 
 <CardItems
-  titles={["Agent", "Workflow", "legacyWorkflow", "Memory", "RAG", "Evals", "Scorers (Experimental)", "Voice"]}
+  titles={["Agent", "Workflow", "Tool", "legacyWorkflow", "Memory", "RAG", "Evals", "Scorers (Experimental)", "Voice"]}
   items={{
     Agent: [
-      { title: "Giving a System Prompt", href: "/examples/agents/system-prompt" },
-      { title: "Workflow as Tools", href: "/examples/agents/workflow-as-tools" },
-      { title: "Using a Tool", href: "/examples/agents/using-a-tool" },
+      { title: "Calling Agents", href: "/examples/agents/calling-agents" },
+      { title: "Agent System Prompt", href: "/examples/agents/system-prompt" },
+      { title: "Agents with Tools", href: "/examples/agents/using-a-tool" },
       { title: "Hierarchical Multi-Agent System", href: "/examples/agents/hierarchical-multi-agent" },
-      { title: "Multi-Agent Workflow", href: "/examples/agents/multi-agent-workflow" },
-      { title: "Bird Checker", href: "/examples/agents/bird-checker" },
-      { title: "Give your Agent a voice", href: "/examples/agents/adding-voice-capabilities" },
-      { title: "Deploying an MCPServer", href: "/examples/agents/deploying-mcp-server" },
+      { title: "Image Analysis Agent", href: "/examples/agents/image-analysis" },
+      { title: "Voice Agents", href: "/examples/agents/adding-voice-capabilities" },
       { title: "Dynamic Agents", href: "/examples/agents/dynamic-agents" },
+      { title: "Deploying an MCPServer", href: "/examples/agents/deploying-mcp-server" },
       { title: "AI SDK v5 Integration", href: "/examples/agents/ai-sdk-v5-integration" }
     ],
     Workflow: [
@@ -36,6 +35,11 @@ The Examples section is a short list of example projects demonstrating basic AI 
       { title: "Tool as Step", href: "/examples/workflows/tool-as-step" },
       { title: "Human in the Loop", href: "/examples/workflows/human-in-the-loop" },
       { title: "Inngest Workflow", href: "/examples/workflows/inngest-workflow" }
+    ],
+    Tool: [
+      { title: "Calling Tools", href: "/examples/tools/calling-tools" },
+      { title: "Dynamic Tools", href: "/examples/tools/dynamic-tools" },
+      { title: "Tools with Workflows", href: "/examples/tools/workflow-as-tools" }
     ],
     legacyWorkflow: [
       { title: "Creating a Workflow", href: "/examples/workflows_legacy/creating-a-workflow" },
@@ -99,6 +103,7 @@ The Examples section is a short list of example projects demonstrating basic AI 
       { title: "Native JavaScript", href: "/examples/evals/custom-native-javascript-eval" }
     ],
     "Scorers (Experimental)": [
+      { title: "Custom Scorer", href: "/examples/scorers/custom-scorer" },
       { title: "Answer Relevancy", href: "/examples/scorers/answer-relevancy" },
       { title: "Bias", href: "/examples/scorers/bias" },
       { title: "Completeness", href: "/examples/scorers/completeness" },
@@ -108,9 +113,7 @@ The Examples section is a short list of example projects demonstrating basic AI 
       { title: "Keyword Coverage", href: "/examples/scorers/keyword-coverage" },
       { title: "Textual Difference", href: "/examples/scorers/textual-difference" },
       { title: "Tone Consistency", href: "/examples/scorers/tone-consistency" },
-      { title: "Toxicity", href: "/examples/scorers/toxicity" },
-      { title: "LLM as a Judge", href: "/examples/scorers/custom-llm-judge-eval" },
-      { title: "Native JavaScript", href: "/examples/scorers/custom-native-javascript-eval" }
+      { title: "Toxicity", href: "/examples/scorers/toxicity" }
     ],
     Voice: [
       { title: "Text to Speech", href: "/examples/voice/text-to-speech" },
