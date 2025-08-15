@@ -57,7 +57,7 @@ type StreamTextOptions<Tools extends ToolSet, Output extends ZodSchema | JSONSch
     experimental_output?: Output;
   };
 
-export type StreamTextWithMessagesArgs<
+export type ModelLoopStreamArgs<
   Tools extends ToolSet,
   Output extends ZodSchema | JSONSchema7 | undefined = undefined,
 > = {

@@ -25,7 +25,7 @@ import type { Mastra } from '../../mastra';
 import type { MastraModelOutput } from '../../stream/base/output';
 import { delay } from '../../utils';
 
-import type { StreamTextWithMessagesArgs } from './model.loop.types';
+import type { ModelLoopStreamArgs } from './model.loop.types';
 
 export class MastraLLMVNext extends MastraBase {
   #model: LanguageModelV2;
@@ -133,7 +133,7 @@ export class MastraLLMVNext extends MastraBase {
     objectOptions,
     options,
     // ...rest
-  }: StreamTextWithMessagesArgs<Tools, Z>): MastraModelOutput {
+  }: ModelLoopStreamArgs<Tools, Z>): MastraModelOutput {
     const model = this.#model;
     this.logger.debug(`[LLM] - Streaming text`, {
       runId,
@@ -163,7 +163,10 @@ export class MastraLLMVNext extends MastraBase {
     }
 
     try {
-      const messageList = new MessageList();
+      const messageList = new MessageList({
+        threadId,
+        resourceId,
+      });
       messageList.add(messages, 'input');
 
       const loopOptions: LoopOptions<Tools> = {

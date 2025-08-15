@@ -17,14 +17,15 @@ import type {
   GenerateReturn,
   GenerateObjectResult,
   GenerateTextResult,
-  StreamTextWithMessagesArgs,
   StreamObjectWithMessagesArgs,
+  StreamTextWithMessagesArgs,
   StreamReturn,
   ToolSet,
   OriginalStreamTextOnFinishEventArg,
   OriginalStreamObjectOnFinishEventArg,
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
+import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import type { Mastra } from '../mastra';
@@ -60,6 +61,7 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
+import type { LoopConfig } from '../loop/types';
 export type { ChunkType } from '../stream/types';
 export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
@@ -1399,6 +1401,7 @@ export class Agent<
     runId?: string;
   }) {
     try {
+      console.log('result.response.messages', result.response.messages);
       messageList.add(result.response.messages, 'response');
       await saveQueueManager.batchMessages(messageList, threadId, memoryConfig);
     } catch (e) {
@@ -2139,6 +2142,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 threadExists = true;
               }
 
+              console.log('props onStepFinish', props);
+
               await this.saveStepMessages({
                 saveQueueManager,
                 result: props,
@@ -2192,6 +2197,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   >(
     messages: MessageListInput,
     generateOptions?: {
+      // @TODO: NEED TO SUPPORT
+      savePerStep?: boolean;
+      onStepFinish?: LoopConfig['onStepFinish'];
       runtimeContext?: RuntimeContext;
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
@@ -2264,15 +2272,24 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         : GenerateObjectResult<OUTPUT>;
     }
 
+    const loopOptions: ModelLoopStreamArgs<any, any> = {
+      messages: beforeResult.messages as ModelMessage[],
+      runtimeContext,
+      toolChoice: mergedGenerateOptions.toolChoice,
+      tools: beforeResult.tools,
+      stopWhen: mergedGenerateOptions.stopWhen,
+      resourceId: beforeResult.resourceId,
+      threadId: beforeResult.threadId,
+      options: {
+        onStepFinish: (beforeResult as any).onStepFinish,
+      },
+    };
+
     const { experimental_output, output } = beforeResult;
 
     if (!output || experimental_output) {
       const result = llmToUse.stream({
-        messages: beforeResult.messages as ModelMessage[],
-        runtimeContext,
-        toolChoice: mergedGenerateOptions.toolChoice,
-        tools: beforeResult.tools,
-        stopWhen: mergedGenerateOptions.stopWhen,
+        ...loopOptions,
       });
 
       let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
@@ -2292,14 +2309,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     }
 
     const result = llmToUse.stream({
-      messages: beforeResult.messages as ModelMessage[],
-      runtimeContext,
-      toolChoice: mergedGenerateOptions.toolChoice,
-      tools: beforeResult.tools,
+      ...loopOptions,
       objectOptions: {
         schema: output,
       },
-      stopWhen: mergedGenerateOptions.stopWhen,
     });
 
     let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
@@ -2420,35 +2433,39 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const { experimental_output, output, runId, onFinish } = beforeResult;
 
+    const loopOptions: ModelLoopStreamArgs<any, any> = {
+      messages: beforeResult.messages as ModelMessage[],
+      runtimeContext: mergedStreamOptions.runtimeContext!,
+      runId,
+      toolChoice: mergedStreamOptions.toolChoice,
+      tools: beforeResult.tools,
+      options: {
+        onFinish: async (result: any) => {
+          try {
+            const outputText = result.text;
+            await after({
+              result,
+              outputText,
+            });
+          } catch (e) {
+            this.logger.error('Error saving memory on finish', {
+              error: e,
+              runId,
+            });
+          }
+          await onFinish?.({ ...result, runId } as any);
+        },
+        onStepFinish: (beforeResult as any).onStepFinish,
+      },
+    };
+
     if (!output || experimental_output) {
       this.logger.debug(`Starting agent ${this.name} llm stream call`, {
         runId,
       });
 
       const streamResult = llmToUse.stream({
-        // ...llmOptions,
-        messages: beforeResult.messages as ModelMessage[],
-        runtimeContext: mergedStreamOptions.runtimeContext!,
-        options: {
-          onFinish: async (result: any) => {
-            try {
-              const outputText = result.text;
-              await after({
-                result,
-                outputText,
-              });
-            } catch (e) {
-              this.logger.error('Error saving memory on finish', {
-                error: e,
-                runId,
-              });
-            }
-            await onFinish?.({ ...result, runId } as any);
-          },
-        },
-        runId,
-        toolChoice: mergedStreamOptions.toolChoice,
-        tools: beforeResult.tools,
+        ...loopOptions,
         // experimental_output,
       });
 
@@ -2460,13 +2477,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     }
 
     const result = llmToUse.stream({
-      messages: beforeResult.messages as ModelMessage[],
-      runtimeContext: mergedStreamOptions.runtimeContext!,
+      ...loopOptions,
       objectOptions: {
         schema: output,
       },
-      toolChoice: mergedStreamOptions.toolChoice,
-      tools: beforeResult.tools,
     });
 
     if (mergedStreamOptions.format === 'aisdk') {
