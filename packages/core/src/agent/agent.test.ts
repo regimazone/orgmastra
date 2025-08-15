@@ -3183,6 +3183,148 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
       expect(thread?.metadata).toEqual({ client: 'updated' });
     });
+
+    it('should not update metadata if it is the same using generate', async () => {
+      const mockMemory = new MockMemory();
+      const initialThread: StorageThreadType = {
+        id: 'thread-1',
+        resourceId: 'user-1',
+        metadata: { client: 'same' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      await mockMemory.saveThread({ thread: initialThread });
+
+      const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
+
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'test',
+        model: dummyModel,
+        memory: mockMemory,
+      });
+
+      if (version === 'v1') {
+        await agent.generate('hello', {
+          memory: {
+            resource: 'user-1',
+            thread: {
+              id: 'thread-1',
+              metadata: { client: 'same' },
+            },
+          },
+        });
+      } else {
+        await agent.generate_vnext('hello', {
+          memory: {
+            resource: 'user-1',
+            thread: {
+              id: 'thread-1',
+              metadata: { client: 'same' },
+            },
+          },
+        });
+      }
+
+      expect(saveThreadSpy).not.toHaveBeenCalled();
+    });
+
+    it('should create a new thread with metadata using stream', async () => {
+      const mockMemory = new MockMemory();
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'test',
+        model: dummyModel,
+        memory: mockMemory,
+      });
+
+      let res;
+      if (version === 'v1') {
+        res = await agent.stream('hello', {
+          memory: {
+            resource: 'user-1',
+            thread: {
+              id: 'thread-1',
+              metadata: { client: 'test-stream' },
+            },
+          },
+        });
+      } else {
+        res = await agent.stream_vnext('hello', {
+          memory: {
+            resource: 'user-1',
+            thread: {
+              id: 'thread-1',
+              metadata: { client: 'test-stream' },
+            },
+          },
+        });
+      }
+
+      await res.consumeStream();
+
+      const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
+      expect(thread).toBeDefined();
+      expect(thread?.metadata).toEqual({ client: 'test-stream' });
+      expect(thread?.resourceId).toBe('user-1');
+    });
+
+    it('generate - should still work with deprecated threadId and resourceId', async () => {
+      const mockMemory = new MockMemory();
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'test',
+        model: dummyModel,
+        memory: mockMemory,
+      });
+
+      if (version === 'v1') {
+        await agent.generate('hello', {
+          resourceId: 'user-1',
+          threadId: 'thread-1',
+        });
+      } else {
+        await agent.generate_vnext('hello', {
+          resourceId: 'user-1',
+          threadId: 'thread-1',
+        });
+      }
+
+      const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
+      expect(thread).toBeDefined();
+      expect(thread?.id).toBe('thread-1');
+      expect(thread?.resourceId).toBe('user-1');
+    });
+
+    it('stream - should still work with deprecated threadId and resourceId', async () => {
+      const mockMemory = new MockMemory();
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'test',
+        model: dummyModel,
+        memory: mockMemory,
+      });
+
+      let stream;
+      if (version === 'v1') {
+        stream = await agent.stream('hello', {
+          resourceId: 'user-1',
+          threadId: 'thread-1',
+        });
+      } else {
+        stream = await agent.stream_vnext('hello', {
+          resourceId: 'user-1',
+          threadId: 'thread-1',
+        });
+      }
+
+      await stream.consumeStream();
+
+      const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
+      expect(thread).toBeDefined();
+      expect(thread?.id).toBe('thread-1');
+      expect(thread?.resourceId).toBe('user-1');
+    });
   });
 }
 
@@ -3440,92 +3582,6 @@ describe('Agent Tests', () => {
   agentTests({ version: 'v2' });
 });
 
-//   it('generate - should pass and call client side tools with experimental output', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.generate('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => {
-//             console.log('SUHHH');
-//           },
-//         },
-//       },
-//       experimental_output: z.object({
-//         color: z.string(),
-//       }),
-//     });
-
-//     expect(result.toolCalls.length).toBeGreaterThan(0);
-//   });
-
-//   it('streamVNext - should pass and call client side tools', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.streamVNext('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => { },
-//         },
-//       },
-//       onFinish: props => {
-//         expect(props.toolCalls.length).toBeGreaterThan(0);
-//       },
-//     });
-
-//     expect(await result.finishReason).toBe('tool-calls');
-//   });
-
-//   it('stream - should pass and call client side tools with experimental output', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.stream('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => {
-//             console.log('SUHHH');
-//           },
-//         },
-//       },
-//       onFinish: props => {
-//         expect(props.toolCalls.length).toBeGreaterThan(0);
-//       },
-//       experimental_output: z.object({
-//         color: z.string(),
-//       }),
-//     });
-
-//     for await (const _ of result.fullStream) {
-//     }
-//   });
-
 //     it('should accept and execute both Mastra and Vercel tools in Agent constructor', async () => {
 //       const mastraExecute = vi.fn().mockResolvedValue({ result: 'mastra' });
 //       const vercelExecute = vi.fn().mockResolvedValue({ result: 'vercel' });
@@ -3618,67 +3674,6 @@ describe('Agent Tests', () => {
 //   }, 500000);
 // });
 
-//   it('should not update metadata if it is the same using generate', async () => {
-//     const mockMemory = new MockMemory();
-//     const initialThread: StorageThreadType = {
-//       id: 'thread-1',
-//       resourceId: 'user-1',
-//       metadata: { client: 'same' },
-//       createdAt: new Date(),
-//       updatedAt: new Date(),
-//     };
-//     await mockMemory.saveThread({ thread: initialThread });
-
-//     const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
-
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: 'test',
-//       model: dummyModel,
-//       memory: mockMemory,
-//     });
-
-//     await agent.generate('hello', {
-//       memory: {
-//         resource: 'user-1',
-//         thread: {
-//           id: 'thread-1',
-//           metadata: { client: 'same' },
-//         },
-//       },
-//     });
-
-//     expect(saveThreadSpy).not.toHaveBeenCalled();
-//   });
-
-//   it('should create a new thread with metadata using stream', async () => {
-//     const mockMemory = new MockMemory();
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: 'test',
-//       model: dummyModel,
-//       memory: mockMemory,
-//     });
-
-//     const res = await agent.stream('hello', {
-//       memory: {
-//         resource: 'user-1',
-//         thread: {
-//           id: 'thread-1',
-//           metadata: { client: 'test-stream' },
-//         },
-//       },
-//     });
-
-//     for await (const _ of res.fullStream) {
-//     }
-
-//     const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
-//     expect(thread).toBeDefined();
-//     expect(thread?.metadata).toEqual({ client: 'test-stream' });
-//     expect(thread?.resourceId).toBe('user-1');
-//   });
-
 //   it('should create a new thread with metadata using streamVNext', async () => {
 //     const mockMemory = new MockMemory();
 //     const agent = new Agent({
@@ -3705,27 +3700,6 @@ describe('Agent Tests', () => {
 //     expect(thread?.metadata).toEqual({ client: 'test-stream' });
 //     expect(thread?.resourceId).toBe('user-1');
 //   });
-
-//   it('should still work with deprecated threadId and resourceId', async () => {
-//     const mockMemory = new MockMemory();
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: 'test',
-//       model: dummyModel,
-//       memory: mockMemory,
-//     });
-
-//     await agent.generate('hello', {
-//       resourceId: 'user-1',
-//       threadId: 'thread-1',
-//     });
-
-//     const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
-//     expect(thread).toBeDefined();
-//     expect(thread?.id).toBe('thread-1');
-//     expect(thread?.resourceId).toBe('user-1');
-//   });
-// });
 
 // describe('Agent save message parts', () => {
 //   // Model that emits 10 parts
@@ -5995,3 +5969,89 @@ describe('Agent Tests', () => {
 //     expect(secondUserMessage?.content.metadata).toBeUndefined();
 //   });
 // });
+
+//   it('generate - should pass and call client side tools with experimental output', async () => {
+//     const userAgent = new Agent({
+//       name: 'User agent',
+//       instructions: 'You are an agent that can get list of users using client side tools.',
+//       model: openai('gpt-4o'),
+//     });
+
+//     const result = await userAgent.generate('Make it green', {
+//       clientTools: {
+//         changeColor: {
+//           id: 'changeColor',
+//           description: 'This is a test tool that returns the name and email',
+//           inputSchema: z.object({
+//             color: z.string(),
+//           }),
+//           execute: async () => {
+//             console.log('SUHHH');
+//           },
+//         },
+//       },
+//       experimental_output: z.object({
+//         color: z.string(),
+//       }),
+//     });
+
+//     expect(result.toolCalls.length).toBeGreaterThan(0);
+//   });
+
+//   it('streamVNext - should pass and call client side tools', async () => {
+//     const userAgent = new Agent({
+//       name: 'User agent',
+//       instructions: 'You are an agent that can get list of users using client side tools.',
+//       model: openai('gpt-4o'),
+//     });
+
+//     const result = await userAgent.streamVNext('Make it green', {
+//       clientTools: {
+//         changeColor: {
+//           id: 'changeColor',
+//           description: 'This is a test tool that returns the name and email',
+//           inputSchema: z.object({
+//             color: z.string(),
+//           }),
+//           execute: async () => { },
+//         },
+//       },
+//       onFinish: props => {
+//         expect(props.toolCalls.length).toBeGreaterThan(0);
+//       },
+//     });
+
+//     expect(await result.finishReason).toBe('tool-calls');
+//   });
+
+//   it('stream - should pass and call client side tools with experimental output', async () => {
+//     const userAgent = new Agent({
+//       name: 'User agent',
+//       instructions: 'You are an agent that can get list of users using client side tools.',
+//       model: openai('gpt-4o'),
+//     });
+
+//     const result = await userAgent.stream('Make it green', {
+//       clientTools: {
+//         changeColor: {
+//           id: 'changeColor',
+//           description: 'This is a test tool that returns the name and email',
+//           inputSchema: z.object({
+//             color: z.string(),
+//           }),
+//           execute: async () => {
+//             console.log('SUHHH');
+//           },
+//         },
+//       },
+//       onFinish: props => {
+//         expect(props.toolCalls.length).toBeGreaterThan(0);
+//       },
+//       experimental_output: z.object({
+//         color: z.string(),
+//       }),
+//     });
+
+//     for await (const _ of result.fullStream) {
+//     }
+//   });

@@ -2195,6 +2195,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext?: RuntimeContext;
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
+      resourceId?: string;
+      threadId?: string;
       memory?: AgentMemoryOption;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
@@ -2211,6 +2213,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const mergedGenerateOptions = {
       ...defaultGenerateOptions,
       ...generateOptions,
+      resourceId: generateOptions?.resourceId!,
+      threadId: generateOptions?.threadId!,
     };
 
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedGenerateOptions);
@@ -2320,6 +2324,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext?: RuntimeContext;
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
+      resourceId?: string;
+      threadId?: string;
+      memory?: AgentMemoryOption;
       abortSignal?: AbortSignal;
       toolChoice?: ToolChoice<any>;
       clientTools?: ToolsInput;
@@ -2330,6 +2337,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const mergedStreamOptions = {
       ...defaultStreamOptions,
       ...streamOptions,
+      resourceId: streamOptions?.resourceId!,
+      threadId: streamOptions?.threadId!,
     };
 
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedStreamOptions);
