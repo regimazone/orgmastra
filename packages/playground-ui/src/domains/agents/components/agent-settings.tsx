@@ -23,11 +23,24 @@ export const AgentSettings = () => {
         <Entry label="Chat Method">
           <RadioGroup
             orientation="horizontal"
-            value={settings?.modelSettings?.chatWithGenerate ? 'generate' : 'stream'}
+            value={
+              settings?.modelSettings?.chatWithGenerateVNext
+                ? 'generate-vnext'
+                : settings?.modelSettings?.chatWithStreamVNext
+                  ? 'stream-vnext'
+                  : settings?.modelSettings?.chatWithGenerate
+                    ? 'generate'
+                    : 'stream'
+            }
             onValueChange={(value: string) =>
               setSettings({
                 ...settings,
-                modelSettings: { ...settings?.modelSettings, chatWithGenerate: value === 'generate' },
+                modelSettings: {
+                  ...settings?.modelSettings,
+                  chatWithGenerate: value === 'generate',
+                  chatWithGenerateVNext: value === 'generate-vnext',
+                  chatWithStreamVNext: value === 'stream-vnext',
+                },
               })
             }
             className="flex flex-row gap-4"
@@ -39,9 +52,21 @@ export const AgentSettings = () => {
               </Label>
             </div>
             <div className="flex items-center gap-2">
+              <RadioGroupItem value="generate-vnext" id="generate-vnext" className="text-icon6" />
+              <Label className="text-icon6 text-ui-md" htmlFor="generate-vnext">
+                Generate vNext
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
               <RadioGroupItem value="stream" id="stream" className="text-icon6" />
               <Label className="text-icon6 text-ui-md" htmlFor="stream">
                 Stream
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="stream-vnext" id="stream-vnext" className="text-icon6" />
+              <Label className="text-icon6 text-ui-md" htmlFor="stream-vnext">
+                Stream vNext
               </Label>
             </div>
           </RadioGroup>

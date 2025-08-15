@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
 import type { CoreMessage, StreamObjectResult, TextPart, Tool, UIMessage } from 'ai';
-import { asSchema, type ModelMessage, type StopCondition, type ToolChoice } from 'ai-v5';
+import { asSchema } from 'ai-v5';
+import type { ModelMessage, StopCondition, ToolChoice } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';
-import { ZodArray, type ZodSchema, type z } from 'zod';
+import type { ZodSchema, z } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
@@ -1829,7 +1830,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runId,
           result: resToLog,
           threadId,
+          resourceId,
         });
+
+        console.log({ responseMessages: result.response.messages }, 'result.response.messages');
+
         const messageListResponses = new MessageList({
           threadId,
           resourceId,
@@ -1891,6 +1896,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 resourceId: thread.resourceId,
               });
             }
+
+            console.log({ threadId, resourceId, memoryConfig }, 'ZZZZZZZZZ');
+            console.log({ messageList: messageList.get.all.v2() }, 'messageList.get.all.v2()');
 
             // Parallelize title generation and message saving
             const promises: Promise<any>[] = [saveQueueManager.flushMessages(messageList, threadId, memoryConfig)];
@@ -2337,6 +2345,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       threadId: generateOptions?.threadId!,
     };
 
+    console.log('mergedGenerateOptions', mergedGenerateOptions);
+
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedGenerateOptions);
 
     if (llm.getModel().specificationVersion !== 'v2') {
@@ -2605,9 +2615,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       ...loopOptions,
       objectOptions: {
         schema: output,
-        output: 'object',
         // TODO: SIMPLIFY THIS BY NOT NEEDING IT
-        // output: asSchema(output).jsonSchema.type === 'array' ? 'array' : 'object',
+        output: asSchema(output).jsonSchema.type === 'array' ? 'array' : 'object',
       },
     });
 
