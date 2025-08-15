@@ -1731,6 +1731,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           .add(result.response.messages, 'response')
           .get.all.core();
 
+        console.log('MESSAGE LIST RESPONSES', JSON.stringify(messageListResponses, null, 2));
+
         const usedWorkingMemory = messageListResponses?.some(
           m => m.role === 'tool' && m?.content?.some(c => c?.toolName === 'updateWorkingMemory'),
         );
@@ -1759,12 +1761,17 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 },
               ];
             }
+
             if (responseMessages) {
               // Remove IDs from response messages to ensure the custom ID generator is used
-              const messagesWithoutIds = responseMessages.map((m: any) => {
-                const { id, ...messageWithoutId } = m;
-                return messageWithoutId;
-              });
+              // @TODO: PREV VERSION DIDNT RETURN USER MESSAGES, SO WE FILTER THEM OUT
+              const messagesWithoutIds = responseMessages
+                .map((m: any) => {
+                  const { id, ...messageWithoutId } = m;
+                  return messageWithoutId;
+                })
+                .filter((m: any) => m.role !== 'user');
+
               messageList.add(messagesWithoutIds, 'response');
             }
 

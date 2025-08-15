@@ -2,7 +2,7 @@ import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAI as createOpenAIV5 } from '@ai-sdk/openai-v5';
 import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
-import type { CoreMessage, LanguageModelV1 } from 'ai';
+import type { CoreMessage, LanguageModelV1, ToolInvocation } from 'ai';
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV1 } from 'ai/test';
 import { stepCountIs } from 'ai-v5';
@@ -19,8 +19,9 @@ import { RuntimeContext } from '../runtime-context';
 import { createTool } from '../tools';
 import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
-import { MockMemory } from './test-utils';
+import { assertNoDuplicateParts, MockMemory } from './test-utils';
 import { Agent } from './index';
+import { ToolInvocationUIPart } from '@ai-sdk/ui-utils';
 
 config();
 
@@ -3697,8 +3698,6 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           format: 'v2',
         });
 
-        console.log('MESSAGES FROM MOCK MEMORY', messages);
-
         // User message should be saved
         expect(messages.find(m => m.role === 'user')).toBeTruthy();
         // At least one assistant message (could be partial) should be saved
@@ -3719,6 +3718,220 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         expect(assistantWithToolInvocation).toBeTruthy();
         // There should be at least one save call (user and partial assistant/tool)
         expect(saveCallCount).toBeGreaterThanOrEqual(1);
+      });
+
+      it('should incrementally save messages across steps and tool calls', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const echoTool = createTool({
+          id: 'echoTool',
+          description: 'Echoes the input string.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input }),
+        });
+
+        const agent = new Agent({
+          name: 'test-agent-generate',
+          instructions: 'If the user prompt contains "Echo:", always call the echoTool. Be verbose in your response.',
+          model: openaiModel,
+          memory: mockMemory,
+          tools: { echoTool },
+        });
+
+        if (version === 'v1') {
+          await agent.generate('Echo: Please echo this long message and explain why.', {
+            threadId: 'thread-echo-generate',
+            resourceId: 'resource-echo-generate',
+            savePerStep: true,
+          });
+        } else {
+          await agent.generate_vnext('Echo: Please echo this long message and explain why.', {
+            threadId: 'thread-echo-generate',
+            resourceId: 'resource-echo-generate',
+            savePerStep: true,
+          });
+        }
+
+        expect(saveCallCount).toBeGreaterThan(1);
+        const messages = await mockMemory.getMessages({
+          threadId: 'thread-echo-generate',
+          resourceId: 'resource-echo-generate',
+          format: 'v2',
+        });
+        expect(messages.length).toBeGreaterThan(0);
+
+        const assistantMsg = messages.find(m => m.role === 'assistant');
+        expect(assistantMsg).toBeDefined();
+        assertNoDuplicateParts(assistantMsg!.content.parts);
+
+        const toolResultIds = new Set(
+          assistantMsg!.content.parts
+            .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
+            .map(p => (p as ToolInvocationUIPart).toolInvocation.toolCallId),
+        );
+        expect(assistantMsg!.content.toolInvocations?.length).toBe(toolResultIds.size);
+      }, 500000);
+
+      it('should incrementally save messages with multiple tools and multi-step generation', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const echoTool = createTool({
+          id: 'echoTool',
+          description: 'Echoes the input string.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input }),
+        });
+
+        const uppercaseTool = createTool({
+          id: 'uppercaseTool',
+          description: 'Converts input to uppercase.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input.toUpperCase() }),
+        });
+
+        const agent = new Agent({
+          name: 'test-agent-multi-generate',
+          instructions: [
+            'If the user prompt contains "Echo:", call the echoTool.',
+            'If the user prompt contains "Uppercase:", call the uppercaseTool.',
+            'If both are present, call both tools and explain the results.',
+            'Be verbose in your response.',
+          ].join(' '),
+          model: openaiModel,
+          memory: mockMemory,
+          tools: { echoTool, uppercaseTool },
+        });
+
+        if (version === 'v1') {
+          await agent.generate(
+            'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
+            {
+              threadId: 'thread-multi-generate',
+              resourceId: 'resource-multi-generate',
+              savePerStep: true,
+            },
+          );
+        } else {
+          await agent.generate_vnext(
+            'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
+            {
+              threadId: 'thread-multi-generate',
+              resourceId: 'resource-multi-generate',
+              savePerStep: true,
+            },
+          );
+        }
+        expect(saveCallCount).toBeGreaterThan(1);
+        const messages = await mockMemory.getMessages({
+          threadId: 'thread-multi-generate',
+          resourceId: 'resource-multi-generate',
+          format: 'v2',
+        });
+        expect(messages.length).toBeGreaterThan(0);
+        const assistantMsg = messages.find(m => m.role === 'assistant');
+        expect(assistantMsg).toBeDefined();
+        assertNoDuplicateParts(assistantMsg!.content.parts);
+
+        const toolResultIds = new Set(
+          assistantMsg!.content.parts
+            .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
+            .map(p => (p as ToolInvocationUIPart).toolInvocation.toolCallId),
+        );
+        expect(assistantMsg!.content.toolInvocations?.length).toBe(toolResultIds.size);
+      }, 500000);
+
+      it('should persist the full message after a successful run', async () => {
+        const mockMemory = new MockMemory();
+        const agent = new Agent({
+          name: 'test-agent-generate',
+          instructions: 'test',
+          model: dummyResponseModel,
+          memory: mockMemory,
+        });
+        if (version === 'v1') {
+          await agent.generate('repeat tool calls', {
+            threadId: 'thread-1-generate',
+            resourceId: 'resource-1-generate',
+          });
+        } else {
+          await agent.generate_vnext('repeat tool calls', {
+            threadId: 'thread-1-generate',
+            resourceId: 'resource-1-generate',
+          });
+        }
+
+        const messages = await mockMemory.getMessages({
+          threadId: 'thread-1-generate',
+          resourceId: 'resource-1-generate',
+          format: 'v2',
+        });
+        // Check that the last message matches the expected final output
+        expect(
+          messages[messages.length - 1]?.content?.parts?.some(
+            p => p.type === 'text' && p.text?.includes('Dummy response'),
+          ),
+        ).toBe(true);
+      });
+
+      it.only('should only call saveMessages for the user message when no assistant parts are generated', async () => {
+        const mockMemory = new MockMemory();
+
+        let messages = await mockMemory.getMessages({
+          threadId: `thread-2-${version}-generate`,
+          resourceId: `resource-2-${version}-generate`,
+          format: 'v2',
+        });
+
+        let saveCallCount = 0;
+
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const agent = new Agent({
+          name: 'no-progress-agent-generate',
+          instructions: 'test',
+          model: emptyResponseModel,
+          memory: mockMemory,
+        });
+
+        if (version === 'v1') {
+          await agent.generate('no progress', {
+            threadId: `thread-2-${version}-generate`,
+            resourceId: `resource-2-${version}-generate`,
+          });
+        } else {
+          await agent.generate_vnext('no progress', {
+            threadId: `thread-2-${version}-generate`,
+            resourceId: `resource-2-${version}-generate`,
+          });
+        }
+
+        expect(saveCallCount).toBe(1);
+
+        messages = await mockMemory.getMessages({
+          threadId: `thread-2-${version}-generate`,
+          resourceId: `resource-2-${version}-generate`,
+          format: 'v2',
+        });
+
+        expect(messages.length).toBe(1);
+        expect(messages[0].role).toBe('user');
+        expect(messages[0].content.content).toBe('no progress');
       });
     }, 500000);
   });
@@ -4096,240 +4309,6 @@ describe('Agent Tests', () => {
 //     expect(thread?.metadata).toEqual({ client: 'test-stream' });
 //     expect(thread?.resourceId).toBe('user-1');
 //   });
-
-// describe('Agent save message parts', () => {
-//   // Model that emits 10 parts
-//   const dummyResponseModel = new MockLanguageModelV1({
-//     doGenerate: async _options => ({
-//       text: Array.from({ length: 10 }, (_, count) => `Dummy response ${count}`).join(' '),
-//       finishReason: 'stop',
-//       usage: { promptTokens: 10, completionTokens: 10, totalTokens: 20 },
-//       rawCall: { rawPrompt: null, rawSettings: {} },
-//     }),
-//     doStream: async _options => {
-//       let count = 0;
-//       const stream = new ReadableStream({
-//         pull(controller) {
-//           if (count < 10) {
-//             controller.enqueue({
-//               type: 'text-delta',
-//               textDelta: `Dummy response ${count}`,
-//               createdAt: new Date(Date.now() + count * 1000).toISOString(),
-//             });
-//             count++;
-//           } else {
-//             controller.close();
-//           }
-//         },
-//       });
-//       return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
-//     },
-//   });
-
-//   // Model never emits any parts
-//   const emptyResponseModel = new MockLanguageModelV1({
-//     doGenerate: async _options => ({
-//       text: undefined,
-//       finishReason: 'stop',
-//       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-//       rawCall: { rawPrompt: null, rawSettings: {} },
-//     }),
-//     doStream: async () => ({
-//       stream: simulateReadableStream({
-//         chunks: [],
-//       }),
-//       rawCall: { rawPrompt: null, rawSettings: {} },
-//     }),
-//   });
-
-//   // Model throws immediately before emitting any part
-//   const errorResponseModel = new MockLanguageModelV1({
-//     doGenerate: async _options => {
-//       throw new Error('Immediate interruption');
-//     },
-//     doStream: async _options => {
-//       const stream = new ReadableStream({
-//         pull() {
-//           throw new Error('Immediate interruption');
-//         },
-//       });
-//       return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
-//     },
-//   });
-
-//     }, 500000);
-
-//     it('should incrementally save messages across steps and tool calls', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const echoTool = createTool({
-//         id: 'echoTool',
-//         description: 'Echoes the input string.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input }),
-//       });
-
-//       const agent = new Agent({
-//         name: 'test-agent-generate',
-//         instructions: 'If the user prompt contains "Echo:", always call the echoTool. Be verbose in your response.',
-//         model: openai('gpt-4o'),
-//         memory: mockMemory,
-//         tools: { echoTool },
-//       });
-
-//       await agent.generate('Echo: Please echo this long message and explain why.', {
-//         threadId: 'thread-echo-generate',
-//         resourceId: 'resource-echo-generate',
-//         savePerStep: true,
-//       });
-
-//       expect(saveCallCount).toBeGreaterThan(1);
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-echo-generate',
-//         resourceId: 'resource-echo-generate',
-//       });
-//       expect(messages.length).toBeGreaterThan(0);
-
-//       const assistantMsg = messages.find(m => m.role === 'assistant');
-//       expect(assistantMsg).toBeDefined();
-//       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-//       const toolResultIds = new Set(
-//         assistantMsg!.content.parts
-//           .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-//           .map(p => p.toolInvocation.toolCallId),
-//       );
-//       expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
-//     }, 500000);
-
-//     it('should incrementally save messages with multiple tools and multi-step generation', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const echoTool = createTool({
-//         id: 'echoTool',
-//         description: 'Echoes the input string.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input }),
-//       });
-
-//       const uppercaseTool = createTool({
-//         id: 'uppercaseTool',
-//         description: 'Converts input to uppercase.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input.toUpperCase() }),
-//       });
-
-//       const agent = new Agent({
-//         name: 'test-agent-multi-generate',
-//         instructions: [
-//           'If the user prompt contains "Echo:", call the echoTool.',
-//           'If the user prompt contains "Uppercase:", call the uppercaseTool.',
-//           'If both are present, call both tools and explain the results.',
-//           'Be verbose in your response.',
-//         ].join(' '),
-//         model: openai('gpt-4o'),
-//         memory: mockMemory,
-//         tools: { echoTool, uppercaseTool },
-//       });
-
-//       await agent.generate(
-//         'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
-//         {
-//           threadId: 'thread-multi-generate',
-//           resourceId: 'resource-multi-generate',
-//           savePerStep: true,
-//         },
-//       );
-
-//       expect(saveCallCount).toBeGreaterThan(1);
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-multi-generate',
-//         resourceId: 'resource-multi-generate',
-//       });
-//       expect(messages.length).toBeGreaterThan(0);
-//       const assistantMsg = messages.find(m => m.role === 'assistant');
-//       expect(assistantMsg).toBeDefined();
-//       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-//       const toolResultIds = new Set(
-//         assistantMsg!.content.parts
-//           .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-//           .map(p => p.toolInvocation.toolCallId),
-//       );
-//       expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
-//     }, 500000);
-
-//     it('should persist the full message after a successful run', async () => {
-//       const mockMemory = new MockMemory();
-//       const agent = new Agent({
-//         name: 'test-agent-generate',
-//         instructions: 'test',
-//         model: dummyResponseModel,
-//         memory: mockMemory,
-//       });
-//       await agent.generate('repeat tool calls', {
-//         threadId: 'thread-1-generate',
-//         resourceId: 'resource-1-generate',
-//       });
-
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-1-generate',
-//         resourceId: 'resource-1-generate',
-//         format: 'v2',
-//       });
-//       // Check that the last message matches the expected final output
-//       expect(
-//         messages[messages.length - 1]?.content?.parts?.some(
-//           p => p.type === 'text' && p.text?.includes('Dummy response'),
-//         ),
-//       ).toBe(true);
-//     });
-
-//     it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const agent = new Agent({
-//         name: 'no-progress-agent-generate',
-//         instructions: 'test',
-//         model: emptyResponseModel,
-//         memory: mockMemory,
-//       });
-
-//       await agent.generate('no progress', {
-//         threadId: 'thread-2-generate',
-//         resourceId: 'resource-2-generate',
-//       });
-
-//       expect(saveCallCount).toBe(1);
-
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-2-generate',
-//         resourceId: 'resource-2-generate',
-//         format: 'v2',
-//       });
-//       expect(messages.length).toBe(1);
-//       expect(messages[0].role).toBe('user');
-//       expect(messages[0].content.content).toBe('no progress');
-//     });
 
 //     it('should not save any message if interrupted before any part is emitted', async () => {
 //       const mockMemory = new MockMemory();
