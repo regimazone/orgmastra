@@ -2191,15 +2191,15 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
     messages: MessageListInput,
-    generateOptions: {
+    generateOptions?: {
       runtimeContext?: RuntimeContext;
-      format: 'mastra' | 'aisdk';
+      format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
     },
   ) {
-    let runtimeContext = generateOptions.runtimeContext || new RuntimeContext();
+    let runtimeContext = generateOptions?.runtimeContext || new RuntimeContext();
     const defaultGenerateOptions = await this.getDefaultGenerateOptions({
       runtimeContext,
     });
