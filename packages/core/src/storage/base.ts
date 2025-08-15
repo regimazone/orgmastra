@@ -15,6 +15,7 @@ import {
   TABLE_RESOURCES,
   TABLE_SCORERS,
   TABLE_SCHEMAS,
+  TABLE_AI_SPAN,
 } from './constants';
 import type { TABLE_NAMES } from './constants';
 import type {
@@ -24,6 +25,7 @@ import type {
   TracesStorage,
   MemoryStorage,
   LegacyEvalsStorage,
+  ObservabilityStorage,
 } from './domains';
 import type {
   EvalRow,
@@ -38,6 +40,7 @@ import type {
   StorageGetTracesArg,
   PaginationArgs,
   StorageGetTracesPaginatedArg,
+  StorageGetAiSpansPaginatedArg,
 } from './types';
 
 export type StorageDomains = {
@@ -47,6 +50,7 @@ export type StorageDomains = {
   scores: ScoresStorage;
   traces: TracesStorage;
   memory: MemoryStorage;
+  observability: ObservabilityStorage;
 };
 
 export function ensureDate(date: Date | string | undefined): Date | undefined {
@@ -291,6 +295,26 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract getTracesPaginated(args: StorageGetTracesPaginatedArg): Promise<PaginationInfo & { traces: Trace[] }>;
 
+  /**
+   * OBSERVABILITY - AI SPANS
+   */
+
+  abstract createAiSpan(span: Record<string, any>): Promise<void>;
+
+  abstract getAiSpan(id: string): Promise<Record<string, any> | null>;
+
+  abstract getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }>;
+
+  abstract updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void>;
+
+  abstract deleteAiSpan(id: string): Promise<void>;
+
+  abstract batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void>;
+
+  abstract batchAiSpanUpdate(args: { records: { id: string; updates: Partial<Record<string, any>> }[] }): Promise<void>;
+
+  abstract batchAiSpanDelete(args: { ids: string[] }): Promise<void>;
+
   async init(): Promise<void> {
     // to prevent race conditions, await any current init
     if (this.shouldCacheInit && (await this.hasInitialized)) {
@@ -326,6 +350,11 @@ export abstract class MastraStorage extends MastraBase {
       this.createTable({
         tableName: TABLE_SCORERS,
         schema: TABLE_SCHEMAS[TABLE_SCORERS],
+      }),
+
+      this.createTable({
+        tableName: TABLE_AI_SPAN,
+        schema: TABLE_SCHEMAS[TABLE_AI_SPAN],
       }),
     ];
 

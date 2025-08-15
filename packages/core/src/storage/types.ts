@@ -133,6 +133,13 @@ export type StorageGetTracesPaginatedArg = {
   filters?: Record<string, any>;
 } & PaginationArgs;
 
+export type StorageGetAiSpansPaginatedArg = {
+  name?: string;
+  scope?: Record<string, string>;
+  attributes?: Record<string, string>;
+  filters?: Record<string, any>;
+} & PaginationArgs;
+
 export type StorageResourceType = {
   id: string;
   workingMemory?: string;

@@ -321,3 +321,24 @@ export interface AISpanProcessor {
   /** Shutdown processor */
   shutdown(): Promise<void>;
 }
+
+export interface AISpanDatabaseRecord {
+  id: string;
+  traceId: string;
+  spanId: string;
+  parentSpanId: string | null;
+  name: string;
+  scope: Record<string, any> | null;
+  spanType: number;
+  attributes: Record<string, any> | null;
+  metadata: Record<string, any> | null;
+  events: Record<string, any> | null;
+  links: Record<string, any> | null;
+  other: string | null;
+  startTime: number;
+  endTime: number;
+  createdAt: Date;
+  input: Record<string, any> | null;
+  output: Record<string, any> | null;
+  error: Record<string, any> | null;
+};

@@ -4,6 +4,7 @@ export * from './workflows';
 export * from './traces';
 export * from './memory';
 export * from './legacy-evals';
+export * from './observability';
 
 export function safelyParseJSON(jsonParam: any): any {
   // If already an object (and not null), return as-is
