@@ -3,18 +3,24 @@
 export type NodeID = string;
 export type EdgeID = string;
 
+export interface EmbeddingInfo {
+  metadata: Record<string, any>;
+  embedding: number[];
+}
+
 export interface KGNode {
   id: NodeID;
   type: string; // e.g., 'Document', 'Person', 'Concept', etc.
   labels?: string[];
   properties?: Record<string, any>;
-  embedding?: number[]; // Optional vector for semantic search
+  vectorId?: string; // Reference to vector DB
   createdAt?: string;
   updatedAt?: string;
   status?: 'active' | 'deprecated' | string;
   version?: number;
   parentId?: NodeID;
   childIds?: NodeID[];
+  _embeddingInfo?: EmbeddingInfo; // In-memory only, not serialized
 }
 
 export type SupportedEdgeType = 'semantic'; // Extendable
@@ -70,12 +76,17 @@ export interface KGSchema {
 }
 
 // Utility types for graph construction/query
-export interface GraphChunk {
-  id?: string;
-  text: string;
-  metadata: Record<string, any>;
-  embedding?: number[];
-}
+export type GraphChunk =
+  | {
+      id?: string;
+      vectorId: string;
+      embedding: number[];
+      metadata: Record<string, any>;
+    }
+  | {
+      id?: string;
+      metadata: Record<string, any>;
+    };
 
 export interface RankedNode extends KGNode {
   score: number;

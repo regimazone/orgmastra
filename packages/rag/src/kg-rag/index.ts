@@ -42,10 +42,13 @@ export class KGRag {
     }
     if (this.schema) this.validateNode(node);
     if (this.options.requireEmbedding) {
-      if (!node.embedding) {
+      if (!node._embeddingInfo?.embedding) {
         throw new Error(`Node ${node.id} must have an embedding.`);
       }
-      if (this.options.embeddingDimension !== undefined && node.embedding.length !== this.options.embeddingDimension) {
+      if (
+        this.options.embeddingDimension !== undefined &&
+        node._embeddingInfo.embedding.length !== this.options.embeddingDimension
+      ) {
         throw new Error(`Node ${node.id} embedding dimension must be ${this.options.embeddingDimension}.`);
       }
     }
@@ -242,8 +245,9 @@ export class KGRag {
         id: chunk.id ?? randomUUID(),
         type: nodeType,
         labels: [],
-        properties: { text: chunk.text, ...chunk.metadata },
-        embedding: chunk.embedding,
+        properties: {},
+        ...('vectorId' in chunk ? { vectorId: chunk.vectorId } : {}),
+        ...('embedding' in chunk ? { _embeddingInfo: { embedding: chunk.embedding, metadata: chunk.metadata } } : {}),
         createdAt: new Date().toISOString(),
       };
       newNodes.push(node);
@@ -268,7 +272,9 @@ export class KGRag {
   }
 
   private hasValidEmbedding(node: KGNode): node is KGNode {
-    return Array.isArray(node.embedding) && node.embedding.every(e => typeof e === 'number');
+    return (
+      Array.isArray(node._embeddingInfo?.embedding) && node._embeddingInfo.embedding.every(e => typeof e === 'number')
+    );
   }
 
   addEdgesByCosineSimilarity(nodes: KGNode[], threshold: number = 0.7, edgeType: SupportedEdgeType = 'semantic') {
@@ -280,7 +286,10 @@ export class KGRag {
       seen.add(firstNode.id);
       for (const secondNode of embeddingNodes) {
         if (firstNode.id === secondNode.id || seen.has(secondNode.id)) continue;
-        const sim = this.cosineSimilarity(firstNode.embedding as number[], secondNode.embedding as number[]);
+        const sim = this.cosineSimilarity(
+          firstNode._embeddingInfo!.embedding as number[],
+          secondNode._embeddingInfo!.embedding as number[],
+        );
         if (sim > threshold) {
           newEdges.push({
             id: `${firstNode.id}__${secondNode.id}__${edgeType}`,
@@ -402,10 +411,12 @@ export class KGRag {
     }
     // Compute similarities
     const similarities = Array.from(this.nodes.values())
-      .filter(node => Array.isArray(node.embedding) && node.embedding.length === query.length)
+      .filter(
+        node => Array.isArray(node._embeddingInfo?.embedding) && node._embeddingInfo.embedding.length === query.length,
+      )
       .map(node => ({
         node,
-        similarity: this.cosineSimilarity(query, node.embedding!),
+        similarity: this.cosineSimilarity(query, node._embeddingInfo!.embedding!),
       }));
     similarities.sort((a, b) => b.similarity - a.similarity);
     const topNodes = similarities.slice(0, topK);
