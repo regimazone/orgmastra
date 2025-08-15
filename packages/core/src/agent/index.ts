@@ -2408,6 +2408,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         ? result.aisdk.v5.getFullOutput()
         : result.getFullOutput());
 
+      const error = fullOutput.error;
+
+      if (fullOutput.finishReason === 'error' && error) {
+        throw error;
+      }
+
       await after({
         result: fullOutput as unknown as OUTPUT extends undefined
           ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
@@ -2431,6 +2437,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
       ? result.aisdk.v5.getFullOutput()
       : result.getFullOutput());
+
+    const error = fullOutput.error;
+
+    if (fullOutput.finishReason === 'error' && error) {
+      throw error;
+    }
 
     await after({
       result: fullOutput as unknown as OUTPUT extends undefined

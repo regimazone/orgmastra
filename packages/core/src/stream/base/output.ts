@@ -26,6 +26,7 @@ type MastraModelOutputOptions = {
 };
 export class MastraModelOutput extends MastraBase {
   #aisdkv5: AISDKV5OutputStream;
+  #error: Error | string | { message: string; stack: string } | undefined;
   #baseStream: ReadableStream<any>;
   #bufferedSteps: StepBufferItem[] = [];
   #bufferedReasoningDetails: Record<
@@ -330,6 +331,11 @@ export class MastraModelOutput extends MastraBase {
               }
 
               break;
+
+            case 'error':
+              console.log('RECEIVED ERROR IN FULLSTREAM', JSON.stringify(chunk, null, 2));
+              self.#error = chunk.payload.error;
+              break;
           }
 
           controller.enqueue(chunk);
@@ -439,6 +445,16 @@ export class MastraModelOutput extends MastraBase {
     return this.#request;
   }
 
+  get error() {
+    if (typeof this.#error === 'object') {
+      const error = new Error(this.#error.message);
+      error.stack = this.#error.stack;
+      return error;
+    }
+
+    return this.#error;
+  }
+
   updateUsageCount(usage: Record<string, number>) {
     if (!usage) {
       return;
@@ -507,6 +523,7 @@ export class MastraModelOutput extends MastraBase {
       response: this.response,
       totalUsage: this.totalUsage,
       object,
+      error: this.error,
       // experimental_output: // TODO
     };
   }

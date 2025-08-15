@@ -310,9 +310,14 @@ export class AISDKV5OutputStream {
       response: this.response,
       content: this.content,
       totalUsage: this.#modelOutput.totalUsage,
+      error: this.error,
       ...(object ? { object } : {}),
       // experimental_output: // TODO
     };
+  }
+
+  get error() {
+    return this.#modelOutput.error;
   }
 
   get object() {

@@ -125,6 +125,7 @@ export class SaveQueueManager {
   async flushMessages(messageList: MessageList, threadId?: string, memoryConfig?: MemoryConfig) {
     if (!threadId) return;
     this.clearDebounce(threadId);
+    console.trace('persistUnsavedMessages');
     return this.enqueueSave(threadId, messageList, memoryConfig);
   }
 }

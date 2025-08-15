@@ -91,7 +91,10 @@ export function execute({
             start: async controller => {
               controller.enqueue({
                 type: 'error',
-                error,
+                error: {
+                  message: error instanceof Error ? error.message : JSON.stringify(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                },
               });
               controller.close();
             },

@@ -3934,6 +3934,109 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         expect(messages[0].content.content).toBe('no progress');
       });
     }, 500000);
+
+    it('should not save any message if interrupted before any part is emitted', async () => {
+      const mockMemory = new MockMemory();
+      let saveCallCount = 0;
+
+      mockMemory.saveMessages = async function (...args) {
+        saveCallCount++;
+        return MockMemory.prototype.saveMessages.apply(this, args);
+      };
+
+      const agent = new Agent({
+        name: 'immediate-interrupt-agent-generate',
+        instructions: 'test',
+        model: errorResponseModel,
+        memory: mockMemory,
+      });
+
+      try {
+        if (version === 'v1') {
+          await agent.generate('interrupt before step', {
+            threadId: 'thread-3-generate',
+            resourceId: 'resource-3-generate',
+          });
+        } else {
+          await agent.generate_vnext('interrupt before step', {
+            threadId: 'thread-3-generate',
+            resourceId: 'resource-3-generate',
+          });
+        }
+      } catch (err: any) {
+        expect(err.message).toBe('Immediate interruption');
+      }
+
+      const messages = await mockMemory.getMessages({
+        threadId: 'thread-3-generate',
+        resourceId: 'resource-3-generate',
+      });
+      console.log('MESSAGES', JSON.stringify(messages, null, 2));
+      expect(messages.length).toBe(0);
+
+      expect(saveCallCount).toBe(0);
+    });
+
+    it('should not save thread if error occurs after starting response but before completion', async () => {
+      const mockMemory = new MockMemory();
+      const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
+
+      let errorModel: MockLanguageModelV1 | MockLanguageModelV2;
+      if (version === 'v1') {
+        errorModel = new MockLanguageModelV1({
+          doGenerate: async () => {
+            throw new Error('Simulated error during response');
+          },
+        });
+      } else {
+        errorModel = new MockLanguageModelV2({
+          doGenerate: async () => {
+            throw new Error('Simulated error during response');
+          },
+          doStream: async () => {
+            throw new Error('Simulated error during response');
+          },
+        });
+      }
+
+      const agent = new Agent({
+        name: 'error-agent',
+        instructions: 'test',
+        model: errorModel,
+        memory: mockMemory,
+      });
+
+      let errorCaught = false;
+      try {
+        if (version === 'v1') {
+          await agent.generate('trigger error', {
+            memory: {
+              resource: 'user-err',
+              thread: {
+                id: 'thread-err',
+              },
+            },
+          });
+        } else {
+          await agent.generate_vnext('trigger error', {
+            memory: {
+              resource: 'user-err',
+              thread: {
+                id: 'thread-err',
+              },
+            },
+          });
+        }
+      } catch (err: any) {
+        errorCaught = true;
+        expect(err.message).toMatch(/Simulated error/);
+      }
+      expect(errorCaught).toBe(true);
+
+      expect(saveThreadSpy).not.toHaveBeenCalled();
+      const thread = await mockMemory.getThreadById({ threadId: 'thread-err' });
+      expect(thread).toBeNull();
+    });
   });
 }
 
@@ -4187,7 +4290,7 @@ describe('Agent Tests', () => {
     expect(finalCoreMessages.length).toBe(4); // Assistant call for tool-1, Tool result for tool-1, Assistant call for tool-2, Tool result for tool-2
   });
 
-  // agentTests({ version: 'v1' });
+  agentTests({ version: 'v1' });
   agentTests({ version: 'v2' });
 });
 
@@ -4233,153 +4336,8 @@ describe('Agent Tests', () => {
 //       expect(vercelExecute).toHaveBeenCalled();
 //     });
 
-//   it('should make runtimeContext available to tools when injected in streamVNext', async () => {
-//     const testRuntimeContext = new RuntimeContext([['test-value', 'runtimeContext-value']]);
-//     let capturedValue: string | null = null;
-
-//     const testTool = createTool({
-//       id: 'runtimeContext-test-tool',
-//       description: 'A tool that verifies runtimeContext is available',
-//       inputSchema: z.object({
-//         query: z.string(),
-//       }),
-//       execute: ({ runtimeContext }) => {
-//         capturedValue = runtimeContext.get('test-value')!;
-
-//         return Promise.resolve({
-//           success: true,
-//           runtimeContextAvailable: !!runtimeContext,
-//           runtimeContextValue: capturedValue,
-//         });
-//       },
-//     });
-
-//     const agent = new Agent({
-//       name: 'runtimeContext-test-agent',
-//       instructions: 'You are an agent that tests runtimeContext availability.',
-//       model: openai('gpt-4o'),
-//       tools: { testTool },
-//     });
-
-//     const mastra = new Mastra({
-//       agents: { agent },
-//       logger: false,
-//     });
-
-//     const testAgent = mastra.getAgent('agent');
-
-//     const stream = await testAgent.streamVNext('Use the runtimeContext-test-tool with query "test"', {
-//       toolChoice: 'required',
-//       runtimeContext: testRuntimeContext,
-//     });
-
-//     await stream.text;
-
-//     const toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
-
-//     expect(toolCall?.result?.runtimeContextAvailable).toBe(true);
-//     expect(toolCall?.result?.runtimeContextValue).toBe('runtimeContext-value');
-//     expect(capturedValue).toBe('runtimeContext-value');
-//   }, 500000);
 // });
 
-//   it('should create a new thread with metadata using streamVNext', async () => {
-//     const mockMemory = new MockMemory();
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: 'test',
-//       model: dummyModel,
-//       memory: mockMemory,
-//     });
-
-//     const res = await agent.streamVNext('hello', {
-//       memory: {
-//         resource: 'user-1',
-//         thread: {
-//           id: 'thread-1',
-//           metadata: { client: 'test-stream' },
-//         },
-//       },
-//     });
-
-//     await res.text;
-
-//     const thread = await mockMemory.getThreadById({ threadId: 'thread-1' });
-//     expect(thread).toBeDefined();
-//     expect(thread?.metadata).toEqual({ client: 'test-stream' });
-//     expect(thread?.resourceId).toBe('user-1');
-//   });
-
-//     it('should not save any message if interrupted before any part is emitted', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const agent = new Agent({
-//         name: 'immediate-interrupt-agent-generate',
-//         instructions: 'test',
-//         model: errorResponseModel,
-//         memory: mockMemory,
-//       });
-
-//       try {
-//         await agent.generate('interrupt before step', {
-//           threadId: 'thread-3-generate',
-//           resourceId: 'resource-3-generate',
-//         });
-//       } catch (err: any) {
-//         expect(err.message).toBe('Immediate interruption');
-//       }
-
-//       expect(saveCallCount).toBe(0);
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-3-generate',
-//         resourceId: 'resource-3-generate',
-//       });
-//       expect(messages.length).toBe(0);
-//     });
-
-//     it('should not save thread if error occurs after starting response but before completion', async () => {
-//       const mockMemory = new MockMemory();
-//       const saveThreadSpy = vi.spyOn(mockMemory, 'saveThread');
-
-//       const errorModel = new MockLanguageModelV1({
-//         doGenerate: async () => {
-//           throw new Error('Simulated error during response');
-//         },
-//       });
-
-//       const agent = new Agent({
-//         name: 'error-agent',
-//         instructions: 'test',
-//         model: errorModel,
-//         memory: mockMemory,
-//       });
-
-//       let errorCaught = false;
-//       try {
-//         await agent.generate('trigger error', {
-//           memory: {
-//             resource: 'user-err',
-//             thread: {
-//               id: 'thread-err',
-//             },
-//           },
-//         });
-//       } catch (err: any) {
-//         errorCaught = true;
-//         expect(err.message).toMatch(/Simulated error/);
-//       }
-//       expect(errorCaught).toBe(true);
-
-//       expect(saveThreadSpy).not.toHaveBeenCalled();
-//       const thread = await mockMemory.getThreadById({ threadId: 'thread-err' });
-//       expect(thread).toBeNull();
-//     });
 //   });
 //   describe('stream', () => {
 //     it('should rescue partial messages (including tool calls) if stream is aborted/interrupted', async () => {
