@@ -2195,6 +2195,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext?: RuntimeContext;
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
+      memory?: AgentMemoryOption;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
       toolChoice?: ToolChoice<any>;
