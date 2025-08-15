@@ -16,6 +16,7 @@ import type { LoopConfig, ObjectOptions } from '../../loop/types';
 import type { RuntimeContext } from '../../runtime-context';
 import type { ToolAction, VercelTool, VercelToolV5 } from '../../tools';
 import type { inferOutput, TripwireProperties } from './shared.types';
+import type { AgentMemoryOption } from '../../agent';
 
 type ToolsInput = Record<string, ToolAction<any, any, any> | VercelTool | VercelToolV5>;
 
