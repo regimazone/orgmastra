@@ -354,6 +354,7 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
   toolCallStreaming,
   controller,
   objectOptions,
+  headers,
 }: OuterLLMRun<Tools>) {
   return createStep({
     id: 'llm-execution',
@@ -384,6 +385,7 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
             telemetry_settings,
             includeRawChunks,
             objectOptions,
+            headers,
             onResult: ({
               warnings: warningsFromStream,
               request: requestFromStream,

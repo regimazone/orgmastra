@@ -577,11 +577,8 @@ export class MastraModelOutput extends MastraBase {
 
   get textStream() {
     const self = this;
-    if (self.#options.objectOptions) {
-      const responseFormat = getResponseFormat(self.#options.objectOptions);
-      if (responseFormat?.type === 'json') {
-        return this.fullStream.pipeThrough(createJsonTextStreamTransformer(self.#options.objectOptions));
-      }
+    if (self.#options.objectOptions?.output === 'array') {
+      return this.fullStream.pipeThrough(createJsonTextStreamTransformer(self.#options.objectOptions));
     }
 
     return this.teeStream().pipeThrough(

@@ -38,7 +38,7 @@ export function createObjectStreamTransformer({
 
   return new TransformStream({
     async transform(chunk, controller) {
-      if (!objectOptions) {
+      if (responseFormat.type !== 'json') {
         controller.enqueue(chunk);
         return;
       }
