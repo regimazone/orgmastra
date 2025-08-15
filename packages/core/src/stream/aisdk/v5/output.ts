@@ -8,7 +8,7 @@ import type { MastraModelOutput } from '../../base/output';
 import type { ChunkType } from '../../types';
 import type { ConsumeStreamOptions } from './compat';
 import { getResponseUIMessageId, convertFullStreamChunkToUIMessageStream } from './compat';
-import { transformResponse, transformSteps } from './output-helpers';
+import { transformSteps } from './output-helpers';
 import { convertMastraChunkToAISDKv5 } from './transform';
 import type { OutputChunkType } from './transform';
 
@@ -181,6 +181,22 @@ export class AISDKV5OutputStream {
     return this.#modelOutput.objectStream;
   }
 
+  get generateTextFiles() {
+    return this.#modelOutput.files
+      .map(file => {
+        if (file.type === 'file') {
+          return (
+            convertMastraChunkToAISDKv5({
+              chunk: file,
+              mode: 'generate',
+            }) as any
+          )?.file;
+        }
+        return;
+      })
+      .filter(Boolean);
+  }
+
   get toolCalls() {
     return this.#modelOutput.toolCalls.map(toolCall => {
       return convertMastraChunkToAISDKv5({
@@ -206,37 +222,21 @@ export class AISDKV5OutputStream {
   }
 
   get response() {
-    const response = transformResponse({
-      response: this.#modelOutput.response,
-      isMessages: true,
-      runId: this.#modelOutput.runId,
-    });
-    const newResponse = {
-      ...response,
-      messages: response.messages?.map((message: any) => ({
-        role: message.role,
-        content: message.content?.parts,
-      })),
+    return {
+      ...this.#modelOutput.response,
     };
-
-    return newResponse;
   }
 
   get steps() {
-    return transformSteps({ steps: this.#modelOutput.steps, runId: this.#modelOutput.runId });
+    return transformSteps({ steps: this.#modelOutput.steps });
+  }
+
+  get generateTextSteps() {
+    return transformSteps({ steps: this.#modelOutput.steps });
   }
 
   get content() {
-    const content =
-      transformResponse({
-        response: this.#modelOutput.response,
-        isMessages: false,
-        runId: this.#modelOutput.runId,
-      }).messages?.flatMap((message: any) => {
-        return message.content?.parts;
-      }) ?? [];
-
-    return content;
+    return this.#messageList.get.response.aiV5.modelContent();
   }
 
   get textStream() {
@@ -296,7 +296,7 @@ export class AISDKV5OutputStream {
     return {
       text: this.#modelOutput.text,
       usage: this.#modelOutput.usage,
-      steps: this.steps,
+      steps: this.generateTextSteps,
       finishReason: this.#modelOutput.finishReason,
       warnings: this.#modelOutput.warnings,
       providerMetadata: this.#modelOutput.providerMetadata,
@@ -306,7 +306,7 @@ export class AISDKV5OutputStream {
       toolCalls: this.toolCalls,
       toolResults: this.toolResults,
       sources: this.sources,
-      files: this.files,
+      files: this.generateTextFiles,
       response: this.response,
       content: this.content,
       totalUsage: this.#modelOutput.totalUsage,
