@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
 import type { CoreMessage, StreamObjectResult, StreamTextResult, TextPart, Tool, UIMessage } from 'ai';
-import type { ModelMessage } from 'ai-v5';
+import type { ModelMessage, StopCondition, ToolChoice } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema, z } from 'zod';
@@ -2197,6 +2197,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       output?: OUTPUT;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
+      toolChoice?: ToolChoice<any>;
+      stopWhen?: StopCondition<any>;
+      clientTools?: ToolsInput;
     },
   ) {
     let runtimeContext = generateOptions?.runtimeContext || new RuntimeContext();
@@ -2262,6 +2265,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       const result = llmToUse.stream({
         messages: beforeResult.messages as ModelMessage[],
         runtimeContext,
+        toolChoice: mergedGenerateOptions.toolChoice,
+        tools: beforeResult.tools,
+        stopWhen: mergedGenerateOptions.stopWhen,
       });
 
       let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
@@ -2283,9 +2289,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const result = llmToUse.stream({
       messages: beforeResult.messages as ModelMessage[],
       runtimeContext,
+      toolChoice: mergedGenerateOptions.toolChoice,
+      tools: beforeResult.tools,
       objectOptions: {
         schema: output,
       },
+      stopWhen: mergedGenerateOptions.stopWhen,
     });
 
     let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
@@ -2311,6 +2320,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
       abortSignal?: AbortSignal;
+      toolChoice?: ToolChoice<any>;
+      clientTools?: ToolsInput;
     },
   ) {
     const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions?.runtimeContext });
@@ -2426,6 +2437,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           },
         },
         runId,
+        toolChoice: mergedStreamOptions.toolChoice,
+        tools: beforeResult.tools,
         // experimental_output,
       });
 
@@ -2442,6 +2455,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       objectOptions: {
         schema: output,
       },
+      toolChoice: mergedStreamOptions.toolChoice,
+      tools: beforeResult.tools,
     });
 
     if (mergedStreamOptions.format === 'aisdk') {

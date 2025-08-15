@@ -8,6 +8,7 @@ import type {
   StreamTextResult as OriginalStreamTextResult,
   StreamTextOnFinishCallback as OriginalStreamTextOnFinishCallback,
   StreamTextOnStepFinishCallback as OriginalStreamTextOnStepFinishCallback,
+  StopCondition,
 } from 'ai-v5';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
@@ -63,6 +64,7 @@ export type StreamTextWithMessagesArgs<
   messages: UIMessage[] | ModelMessage[];
   objectOptions?: ObjectOptions;
   options?: LoopConfig;
+  stopWhen?: StopCondition<any>;
 } & StreamTextOptions<Tools, Output>;
 
 export type StreamTextResult<

@@ -1,5 +1,6 @@
 import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI as createOpenAIV5 } from '@ai-sdk/openai-v5';
 import type { CoreMessage } from 'ai';
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV1 } from 'ai/test';
@@ -19,6 +20,7 @@ import { MockMemory } from './test-utils';
 import type { MastraMessageV2 } from './types';
 import { Agent } from './index';
 import { convertArrayToReadableStream, MockLanguageModelV2 } from 'ai-v5/test';
+import { stepCountIs } from 'ai-v5';
 
 config();
 
@@ -36,13 +38,16 @@ const mockFindUser = vi.fn().mockImplementation(async data => {
 });
 
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai_v5 = createOpenAIV5({ apiKey: process.env.OPENAI_API_KEY });
 
 function agentTests({ version }: { version: 'v1' | 'v2' }) {
+  const integration = new TestIntegration();
   describe(`agent - ${version}`, () => {
     let dummyModel: MockLanguageModelV1 | MockLanguageModelV2;
     let electionModel: MockLanguageModelV1 | MockLanguageModelV2;
     let obamaObjectModel: MockLanguageModelV1 | MockLanguageModelV2;
     let obamaObjectModel2: MockLanguageModelV1 | MockLanguageModelV2;
+    let openaiModel: MockLanguageModelV1 | MockLanguageModelV2;
 
     beforeEach(() => {
       if (version === 'v1') {
@@ -123,6 +128,8 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             text: `{"elements":[{"winner":"Barack Obama","year":"2012"},{"winner":"Donald Trump","year":"2016"}]}`,
           }),
         });
+
+        openaiModel = openai('gpt-4o');
       } else {
         dummyModel = new MockLanguageModelV2({
           doGenerate: async () => ({
@@ -210,6 +217,8 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             rawCall: { rawPrompt: null, rawSettings: {} },
           }),
         });
+
+        openaiModel = openai_v5('gpt-4o');
       }
     });
 
@@ -408,88 +417,250 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         expect(previousPartialObject['winner']).toBe('Barack Obama');
       }
     });
+
+    it('should call findUserTool', async () => {
+      const findUserTool = createTool({
+        id: 'Find user tool',
+        description: 'This is a test tool that returns the name and email',
+        inputSchema: z.object({
+          name: z.string(),
+        }),
+        execute: ({ context }) => {
+          return mockFindUser(context) as Promise<Record<string, any>>;
+        },
+      });
+
+      const userAgent = new Agent({
+        name: 'User agent',
+        instructions: 'You are an agent that can get list of users using findUserTool.',
+        model: openaiModel,
+        tools: { findUserTool },
+      });
+
+      const mastra = new Mastra({
+        agents: { userAgent },
+        logger: false,
+      });
+
+      const agentOne = mastra.getAgent('userAgent');
+
+      let toolCall;
+      let response;
+      if (version === 'v1') {
+        response = await agentOne.generate('Find the user with name - Dero Israel', {
+          maxSteps: 2,
+          toolChoice: 'required',
+        });
+        toolCall = response.toolResults.find((result: any) => result.toolName === 'findUserTool');
+      } else {
+        response = await agentOne.generate_vnext('Find the user with name - Dero Israel');
+        toolCall = response.toolResults.find((result: any) => result.payload.toolName === 'findUserTool').payload;
+      }
+
+      const name = toolCall?.result?.name;
+
+      expect(mockFindUser).toHaveBeenCalled();
+      expect(name).toBe('Dero Israel');
+    }, 500000);
+
+    it('generate - should pass and call client side tools', async () => {
+      const userAgent = new Agent({
+        name: 'User agent',
+        instructions: 'You are an agent that can get list of users using client side tools.',
+        model: openaiModel,
+      });
+
+      let result;
+      if (version === 'v1') {
+        result = await userAgent.generate('Make it green', {
+          clientTools: {
+            changeColor: {
+              id: 'changeColor',
+              description: 'This is a test tool that returns the name and email',
+              inputSchema: z.object({
+                color: z.string(),
+              }),
+              execute: async () => {},
+            },
+          },
+        });
+      } else {
+        result = await userAgent.generate_vnext('Make it green', {
+          clientTools: {
+            changeColor: {
+              id: 'changeColor',
+              description: 'This is a test tool that returns the name and email',
+              inputSchema: z.object({
+                color: z.string(),
+              }),
+              execute: async () => {},
+            },
+          },
+        });
+      }
+
+      expect(result.toolCalls.length).toBeGreaterThan(0);
+    });
+
+    it('stream - should pass and call client side tools', async () => {
+      const userAgent = new Agent({
+        name: 'User agent',
+        instructions: 'You are an agent that can get list of users using client side tools.',
+        model: openaiModel,
+      });
+
+      let result;
+
+      if (version === 'v1') {
+        result = await userAgent.stream('Make it green', {
+          clientTools: {
+            changeColor: {
+              id: 'changeColor',
+              description: 'This is a test tool that returns the name and email',
+              inputSchema: z.object({
+                color: z.string(),
+              }),
+              execute: async () => {},
+            },
+          },
+          onFinish: props => {
+            expect(props.toolCalls.length).toBeGreaterThan(0);
+          },
+        });
+      } else {
+        result = await userAgent.stream_vnext('Make it green', {
+          clientTools: {
+            changeColor: {
+              id: 'changeColor',
+              description: 'This is a test tool that returns the name and email',
+              inputSchema: z.object({
+                color: z.string(),
+              }),
+              execute: async () => {},
+            },
+          },
+        });
+      }
+
+      for await (const _ of result.fullStream) {
+      }
+
+      expect(await result.finishReason).toBe('tool-calls');
+    });
+
+    it('should generate with default max steps', { timeout: 10000 }, async () => {
+      const findUserTool = createTool({
+        id: 'Find user tool',
+        description: 'This is a test tool that returns the name and email',
+        inputSchema: z.object({
+          name: z.string(),
+        }),
+        execute: async ({ context }) => {
+          return mockFindUser(context) as Promise<Record<string, any>>;
+        },
+      });
+
+      const userAgent = new Agent({
+        name: 'User agent',
+        instructions: 'You are an agent that can get list of users using findUserTool.',
+        model: openaiModel,
+        tools: { findUserTool },
+      });
+
+      const mastra = new Mastra({
+        agents: { userAgent },
+        logger: false,
+      });
+
+      const agentOne = mastra.getAgent('userAgent');
+
+      let res;
+      let toolCall;
+
+      if (version === 'v1') {
+        res = await agentOne.generate(
+          'Use the "findUserTool" to Find the user with name - Joe and return the name and email',
+        );
+        toolCall = res.steps[0].toolResults.find((result: any) => result.toolName === 'findUserTool');
+      } else {
+        res = await agentOne.generate_vnext(
+          'Use the "findUserTool" to Find the user with name - Joe and return the name and email',
+        );
+        toolCall = res.toolResults.find((result: any) => result.payload.toolName === 'findUserTool').payload;
+      }
+
+      expect(res.steps.length > 1);
+      expect(res.text.includes('joe@mail.com'));
+      expect(toolCall?.result?.email).toBe('joe@mail.com');
+      expect(mockFindUser).toHaveBeenCalled();
+    });
+
+    it('should reach default max steps', async () => {
+      const agent = new Agent({
+        name: 'Test agent',
+        instructions: 'Test agent',
+        model: openaiModel,
+        tools: integration.getStaticTools(),
+        defaultGenerateOptions: {
+          maxSteps: 7,
+        },
+      });
+
+      let response;
+
+      if (version === 'v1') {
+        response = await agent.generate('Call testTool 10 times.', {
+          toolChoice: 'required',
+        });
+      } else {
+        response = await agent.generate_vnext('Call testTool 10 times.', {
+          toolChoice: 'required',
+          stopWhen: stepCountIs(7),
+        });
+      }
+
+      expect(response.steps.length).toBe(7);
+    }, 500000);
+
+    it('should call testTool from TestIntegration', async () => {
+      const testAgent = new Agent({
+        name: 'Test agent',
+        instructions: 'You are an agent that call testTool',
+        model: openaiModel,
+        tools: integration.getStaticTools(),
+      });
+
+      const mastra = new Mastra({
+        agents: {
+          testAgent,
+        },
+        logger: false,
+      });
+
+      const agentOne = mastra.getAgent('testAgent');
+
+      let response;
+      let toolCall;
+
+      if (version === 'v1') {
+        response = await agentOne.generate('Call testTool', {
+          toolChoice: 'required',
+        });
+        toolCall = response.toolResults.find((result: any) => result.toolName === 'testTool');
+      } else {
+        response = await agentOne.generate_vnext('Call testTool');
+        toolCall = response.toolResults.find((result: any) => result.payload.toolName === 'testTool').payload;
+      }
+
+      const message = toolCall?.result?.message;
+
+      expect(message).toBe('Executed successfully');
+    }, 500000);
   });
 }
 
 agentTests({ version: 'v1' });
 agentTests({ version: 'v2' });
-
-// describe('agent', () => {
-//   const integration = new TestIntegration();
-
-//   let dummyModel: MockLanguageModelV1;
-//   beforeEach(() => {
-//     dummyModel = new MockLanguageModelV1({
-//       doGenerate: async () => ({
-//         rawCall: { rawPrompt: null, rawSettings: {} },
-//         finishReason: 'stop',
-//         usage: { promptTokens: 10, completionTokens: 20 },
-//         text: `Dummy response`,
-//       }),
-//     });
-//   });
-
-//   it('should call findUserTool', async () => {
-//     const findUserTool = createTool({
-//       id: 'Find user tool',
-//       description: 'This is a test tool that returns the name and email',
-//       inputSchema: z.object({
-//         name: z.string(),
-//       }),
-//       execute: ({ context }) => {
-//         return mockFindUser(context) as Promise<Record<string, any>>;
-//       },
-//     });
-
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using findUserTool.',
-//       model: openai('gpt-4o'),
-//       tools: { findUserTool },
-//     });
-
-//     const mastra = new Mastra({
-//       agents: { userAgent },
-//       logger: false,
-//     });
-
-//     const agentOne = mastra.getAgent('userAgent');
-
-//     const response = await agentOne.generate('Find the user with name - Dero Israel', {
-//       maxSteps: 2,
-//       toolChoice: 'required',
-//     });
-
-//     const toolCall: any = response.toolResults.find((result: any) => result.toolName === 'findUserTool');
-
-//     const name = toolCall?.result?.name;
-
-//     expect(mockFindUser).toHaveBeenCalled();
-//     expect(name).toBe('Dero Israel');
-//   }, 500000);
-
-//   it('generate - should pass and call client side tools', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.generate('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => { },
-//         },
-//       },
-//     });
-
-//     expect(result.toolCalls.length).toBeGreaterThan(0);
-//   });
 
 //   it('generate - should pass and call client side tools with experimental output', async () => {
 //     const userAgent = new Agent({
@@ -517,35 +688,6 @@ agentTests({ version: 'v2' });
 //     });
 
 //     expect(result.toolCalls.length).toBeGreaterThan(0);
-//   });
-
-//   it('stream - should pass and call client side tools', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.stream('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => { },
-//         },
-//       },
-//       onFinish: props => {
-//         expect(props.toolCalls.length).toBeGreaterThan(0);
-//       },
-//     });
-
-//     for await (const _ of result.fullStream) {
-//     }
-
-//     expect(await result.finishReason).toBe('tool-calls');
 //   });
 
 //   it('streamVNext - should pass and call client side tools', async () => {
@@ -605,89 +747,6 @@ agentTests({ version: 'v2' });
 //     for await (const _ of result.fullStream) {
 //     }
 //   });
-
-//   it('should generate with default max steps', { timeout: 10000 }, async () => {
-//     const findUserTool = createTool({
-//       id: 'Find user tool',
-//       description: 'This is a test tool that returns the name and email',
-//       inputSchema: z.object({
-//         name: z.string(),
-//       }),
-//       execute: async ({ context }) => {
-//         return mockFindUser(context) as Promise<Record<string, any>>;
-//       },
-//     });
-
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using findUserTool.',
-//       model: openai('gpt-4o'),
-//       tools: { findUserTool },
-//     });
-
-//     const mastra = new Mastra({
-//       agents: { userAgent },
-//       logger: false,
-//     });
-
-//     const agentOne = mastra.getAgent('userAgent');
-
-//     const res = await agentOne.generate(
-//       'Use the "findUserTool" to Find the user with name - Joe and return the name and email',
-//     );
-
-//     const toolCall: any = res.steps[0].toolResults.find((result: any) => result.toolName === 'findUserTool');
-
-//     expect(res.steps.length > 1);
-//     expect(res.text.includes('joe@mail.com'));
-//     expect(toolCall?.result?.email).toBe('joe@mail.com');
-//     expect(mockFindUser).toHaveBeenCalled();
-//   });
-
-//   it('should call testTool from TestIntegration', async () => {
-//     const testAgent = new Agent({
-//       name: 'Test agent',
-//       instructions: 'You are an agent that call testTool',
-//       model: openai('gpt-4o'),
-//       tools: integration.getStaticTools(),
-//     });
-
-//     const mastra = new Mastra({
-//       agents: {
-//         testAgent,
-//       },
-//       logger: false,
-//     });
-
-//     const agentOne = mastra.getAgent('testAgent');
-
-//     const response = await agentOne.generate('Call testTool', {
-//       toolChoice: 'required',
-//     });
-
-//     const toolCall: any = response.toolResults.find((result: any) => result.toolName === 'testTool');
-
-//     const message = toolCall?.result?.message;
-
-//     expect(message).toBe('Executed successfully');
-//   }, 500000);
-
-//   it('should reach default max steps', async () => {
-//     const agent = new Agent({
-//       name: 'Test agent',
-//       instructions: 'Test agent',
-//       model: openai('gpt-4o'),
-//       tools: integration.getStaticTools(),
-//       defaultGenerateOptions: {
-//         maxSteps: 7,
-//       },
-//     });
-
-//     const response = await agent.generate('Call testTool 10 times.', {
-//       toolChoice: 'required',
-//     });
-//     expect(response.steps.length).toBe(7);
-//   }, 500000);
 
 //   it('should properly sanitize incomplete tool calls from memory messages', () => {
 //     const messageList = new MessageList();

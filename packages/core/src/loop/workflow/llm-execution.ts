@@ -365,8 +365,6 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
         model,
       });
 
-      console.log('Starting LLM Execution Step');
-
       let modelResult;
       let warnings: any;
       let request: any;
