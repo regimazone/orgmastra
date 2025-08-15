@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
 import type { CoreMessage, StreamObjectResult, StreamTextResult, TextPart, Tool, UIMessage } from 'ai';
+import type { ModelMessage } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema, z } from 'zod';
@@ -23,6 +24,7 @@ import type {
   OriginalStreamTextOnFinishEventArg,
   OriginalStreamObjectOnFinishEventArg,
 } from '../llm/model/base.types';
+import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { TripwireProperties } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import type { Mastra } from '../mastra';
@@ -58,8 +60,6 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
-import { MastraLLMVNext } from '../llm/model/model.loop';
-import type { ModelMessage } from 'ai-v5';
 export type { ChunkType } from '../stream/types';
 export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
@@ -2256,7 +2256,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         : GenerateObjectResult<OUTPUT>;
     }
 
-    const { experimental_output, output, ...llmOptions } = beforeResult;
+    const { experimental_output, output } = beforeResult;
 
     if (!output || experimental_output) {
       const result = llmToUse.stream({
@@ -2304,10 +2304,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       : GenerateObjectResult<OUTPUT>;
   }
 
-  async stream_vnext<
-    OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
-    EXPERIMENTAL_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
-  >(
+  async stream_vnext<OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined>(
     messages: MessageListInput,
     streamOptions?: {
       runtimeContext: RuntimeContext;
@@ -2400,7 +2397,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       return emptyResult;
     }
 
-    const { experimental_output, output, runId, onFinish, ...llmOptions } = beforeResult;
+    const { experimental_output, output, runId, onFinish } = beforeResult;
 
     if (!output || experimental_output) {
       this.logger.debug(`Starting agent ${this.name} llm stream call`, {

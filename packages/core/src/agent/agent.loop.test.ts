@@ -1,9 +1,9 @@
 import { openai } from '@ai-sdk/openai-v5';
 import { MockLanguageModelV2 } from 'ai-v5/test';
 import { describe, expect, it } from 'vitest';
+import z from 'zod';
 import { RuntimeContext } from '../runtime-context';
 import { Agent } from './index';
-import z from 'zod';
 
 describe('Agent Loop Tests', () => {
   it('Should throw an error if the model is a v2 model', async () => {
