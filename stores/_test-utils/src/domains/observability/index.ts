@@ -23,9 +23,9 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.createAiSpan(span);
 
         // Verify the span was created
-        const retrievedSpan = await storage.getAiSpan(span.id);
+        const retrievedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
         expect(retrievedSpan).toBeDefined();
-        expect(retrievedSpan?.id).toBe(span.id);
+        expect(retrievedSpan?.id).toBe(`${span.traceId}-${span.spanId}`);
         expect(retrievedSpan?.name).toBe(span.name);
         expect(retrievedSpan?.spanType).toBe(span.spanType);
         expect(retrievedSpan?.traceId).toBe(span.traceId);
@@ -42,10 +42,10 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.createAiSpan(toolSpan);
         await storage.createAiSpan(workflowSpan);
 
-        expect(await storage.getAiSpan(agentSpan.id)).toBeDefined();
-        expect(await storage.getAiSpan(llmSpan.id)).toBeDefined();
-        expect(await storage.getAiSpan(toolSpan.id)).toBeDefined();
-        expect(await storage.getAiSpan(workflowSpan.id)).toBeDefined();
+        expect(await storage.getAiSpan(`${agentSpan.traceId}-${agentSpan.spanId}`)).toBeDefined();
+        expect(await storage.getAiSpan(`${llmSpan.traceId}-${llmSpan.spanId}`)).toBeDefined();
+        expect(await storage.getAiSpan(`${toolSpan.traceId}-${toolSpan.spanId}`)).toBeDefined();
+        expect(await storage.getAiSpan(`${workflowSpan.traceId}-${workflowSpan.spanId}`)).toBeDefined();
       });
 
       it('should handle spans with attributes and metadata', async () => {
@@ -57,7 +57,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
 
         await storage.createAiSpan(span);
 
-        const retrievedSpan = await storage.getAiSpan(span.id);
+        const retrievedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
         expect(retrievedSpan?.attributes?.environment).toBe('test');
         expect(retrievedSpan?.attributes?.version).toBe('1.0');
         expect(retrievedSpan?.metadata?.agentId).toBe('agent-123');
@@ -70,9 +70,9 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         const span = createSampleAgentRunSpan('test-span');
         await storage.createAiSpan(span);
 
-        const retrievedSpan = await storage.getAiSpan(span.id);
+        const retrievedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
         expect(retrievedSpan).toBeDefined();
-        expect(retrievedSpan?.id).toBe(span.id);
+        expect(retrievedSpan?.id).toBe(`${span.traceId}-${span.spanId}`);
       });
 
       it('should return null for non-existent span ID', async () => {
@@ -247,9 +247,9 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           metadata: { status: 'completed', result: 'success' },
         };
 
-        await storage.updateAiSpan(span.id, updates);
+        await storage.updateAiSpan(`${span.traceId}-${span.spanId}`, updates);
 
-        const updatedSpan = await storage.getAiSpan(span.id);
+        const updatedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
         expect(updatedSpan?.name).toBe('updated-span-name');
         expect(updatedSpan?.metadata?.status).toBe('completed');
         expect(updatedSpan?.metadata?.result).toBe('success');
@@ -268,9 +268,9 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         const span = createSampleAgentRunSpan('test-span');
         await storage.createAiSpan(span);
 
-        await storage.deleteAiSpan(span.id);
+        await storage.deleteAiSpan(`${span.traceId}-${span.spanId}`);
 
-        const deletedSpan = await storage.getAiSpan(span.id);
+        const deletedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
         expect(deletedSpan).toBeNull();
       });
 
@@ -293,9 +293,9 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.batchAiSpanCreate({ records: spans });
 
         for (const span of spans) {
-          const retrievedSpan = await storage.getAiSpan(span.id);
+          const retrievedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
           expect(retrievedSpan).toBeDefined();
-          expect(retrievedSpan?.id).toBe(span.id);
+          expect(retrievedSpan?.id).toBe(`${span.traceId}-${span.spanId}`);
         }
       });
 
@@ -311,8 +311,8 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         const updates = [
-          { id: spans[0].id, updates: { name: 'updated-1', metadata: { status: 'completed' } } },
-          { id: spans[1].id, updates: { name: 'updated-2', metadata: { status: 'completed' } } },
+          { id: `${spans[0].traceId}-${spans[0].spanId}`, updates: { name: 'updated-1', metadata: { status: 'completed' } } },
+          { id: `${spans[1].traceId}-${spans[1].spanId}`, updates: { name: 'updated-2', metadata: { status: 'completed' } } },
         ];
 
         await storage.batchAiSpanUpdate({ records: updates });
@@ -336,7 +336,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           await storage.createAiSpan(span);
         }
 
-        const idsToDelete = spans.map(span => span.id);
+        const idsToDelete = spans.map(span => `${span.traceId}-${span.spanId}`);
         await storage.batchAiSpanDelete({ ids: idsToDelete });
 
         for (const id of idsToDelete) {
@@ -348,10 +348,12 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
 
     describe('Edge Cases and Error Handling', () => {
       it('should handle spans with missing optional fields', async () => {
+        const spanId = `span-${randomUUID()}`;
+        const traceId = `trace-${randomUUID()}`;
         const minimalSpan = {
-          id: `span-${randomUUID()}`,
-          traceId: `trace-${randomUUID()}`,
-          spanId: `span-${randomUUID()}`,
+          id: `${traceId}-${spanId}`,
+          traceId,
+          spanId,
           parentSpanId: null,
           name: 'minimal-span',
           scope: null,

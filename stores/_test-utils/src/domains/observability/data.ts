@@ -9,8 +9,7 @@ export const createSampleAiSpan = (
   metadata?: Record<string, any>,
   createdAt?: Date,
   startTime?: number,
-): AISpanDatabaseRecord => ({
-  id: `span-${randomUUID()}`,
+): Omit<AISpanDatabaseRecord, 'id'> => ({
   traceId: `trace-${randomUUID()}`,
   spanId: `span-${randomUUID()}`,
   parentSpanId: null,
@@ -36,7 +35,7 @@ export const createSampleAgentRunSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): AISpanDatabaseRecord => 
+): Omit<AISpanDatabaseRecord, 'id'> =>
   createSampleAiSpan(name, 0, scope, attributes, metadata, createdAt);
 
 export const createSampleLLMSpan = (
@@ -45,7 +44,7 @@ export const createSampleLLMSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): AISpanDatabaseRecord => 
+): Omit<AISpanDatabaseRecord, 'id'> =>
   createSampleAiSpan(name, 1, scope, attributes, metadata, createdAt);
 
 export const createSampleToolSpan = (
@@ -54,7 +53,7 @@ export const createSampleToolSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): AISpanDatabaseRecord => 
+): Omit<AISpanDatabaseRecord, 'id'> =>
   createSampleAiSpan(name, 2, scope, attributes, metadata, createdAt);
 
 export const createSampleWorkflowSpan = (
@@ -63,5 +62,5 @@ export const createSampleWorkflowSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): AISpanDatabaseRecord => 
+): Omit<AISpanDatabaseRecord, 'id'> =>
   createSampleAiSpan(name, 3, scope, attributes, metadata, createdAt);

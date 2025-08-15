@@ -20,11 +20,8 @@ export class ObservabilityInMemory extends ObservabilityStorage {
   async createAiSpan(span: Record<string, any>): Promise<void> {
     this.logger.debug(`MockStore: createAiSpan called`, { span });
 
+    const id = `${span.traceId}-${span.spanId}`;
     // Ensure the span has required fields
-    if (!span.id) {
-      throw new Error('AI span must have an id');
-    }
-
     if (!span.name) {
       throw new Error('AI span must have a name');
     }
@@ -51,7 +48,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     }
 
     // Store the span in memory
-    this.spans.set(span.id, span as AISpanDatabaseRecord);
+    this.spans.set(id, {...span, id} as AISpanDatabaseRecord);
   }
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {
