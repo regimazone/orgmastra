@@ -2307,8 +2307,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   async stream_vnext<OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined>(
     messages: MessageListInput,
     streamOptions?: {
-      runtimeContext: RuntimeContext;
-      format: 'mastra' | 'aisdk';
+      runtimeContext?: RuntimeContext;
+      format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
       abortSignal?: AbortSignal;
     },
