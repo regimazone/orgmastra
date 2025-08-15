@@ -3326,6 +3326,131 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(thread?.resourceId).toBe('user-1');
     });
   });
+
+  describe.only('Dynamic instructions with mastra instance', () => {
+    let dummyModel: MockLanguageModelV1 | MockLanguageModelV2;
+    let mastra: Mastra;
+
+    beforeEach(() => {
+      if (version === 'v1') {
+        dummyModel = new MockLanguageModelV1({
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 20 },
+            text: `Logger test response`,
+          }),
+        });
+      } else {
+        dummyModel = new MockLanguageModelV2({
+          doGenerate: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            text: `Logger test response`,
+            content: [
+              {
+                type: 'text',
+                text: 'Logger test response',
+              },
+            ],
+            warnings: [],
+          }),
+          doStream: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            warnings: [],
+            stream: convertArrayToReadableStream([
+              { type: 'stream-start', warnings: [] },
+              { type: 'text-start', id: '1' },
+              { type: 'text-delta', id: '1', delta: 'Logger test response' },
+              { type: 'text-end', id: '1' },
+              { type: 'finish', finishReason: 'stop', usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 } },
+            ]),
+          }),
+        });
+      }
+      mastra = new Mastra({
+        logger: noopLogger,
+      });
+    });
+
+    it('should expose mastra instance in dynamic instructions', async () => {
+      let capturedMastra: Mastra | undefined;
+      let capturedRuntimeContext: RuntimeContext | undefined;
+
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: ({ runtimeContext, mastra }) => {
+          capturedRuntimeContext = runtimeContext;
+          capturedMastra = mastra;
+
+          const logger = mastra?.getLogger();
+          logger?.debug('Running with context', { info: runtimeContext.get('info') });
+
+          return 'You are a helpful assistant.';
+        },
+        model: dummyModel,
+        mastra,
+      });
+
+      const runtimeContext = new RuntimeContext();
+      runtimeContext.set('info', 'test-info');
+
+      let response;
+      if (version === 'v1') {
+        response = await agent.generate('hello', { runtimeContext });
+      } else {
+        response = await agent.generate_vnext('hello', { runtimeContext });
+      }
+
+      expect(response.text).toBe('Logger test response');
+      expect(capturedMastra).toBe(mastra);
+      expect(capturedRuntimeContext).toBe(runtimeContext);
+      expect(capturedRuntimeContext?.get('info')).toBe('test-info');
+    });
+
+    it('should work with static instructions (backward compatibility)', async () => {
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: 'You are a helpful assistant.',
+        model: dummyModel,
+        mastra,
+      });
+
+      let response;
+      if (version === 'v1') {
+        response = await agent.generate('hello');
+      } else {
+        response = await agent.generate_vnext('hello');
+      }
+
+      expect(response.text).toBe('Logger test response');
+    });
+
+    it('should handle dynamic instructions when mastra is undefined', async () => {
+      let capturedMastra: Mastra | undefined;
+
+      const agent = new Agent({
+        name: 'test-agent',
+        instructions: ({ mastra }) => {
+          capturedMastra = mastra;
+          return 'You are a helpful assistant.';
+        },
+        model: dummyModel,
+        // No mastra provided
+      });
+
+      let response;
+      if (version === 'v1') {
+        response = await agent.generate('hello');
+      } else {
+        response = await agent.generate_vnext('hello');
+      }
+
+      expect(response.text).toBe('Logger test response');
+      expect(capturedMastra).toBeUndefined();
+    });
+  });
 }
 
 describe('Agent Tests', () => {
@@ -5663,87 +5788,6 @@ describe('Agent Tests', () => {
 //       expect(invalidResult.tripwire).toBe(true);
 //       expect(invalidResult.tripwireReason).toBe('Content validation failed');
 //     });
-//   });
-// });
-
-// describe('Dynamic instructions with mastra instance', () => {
-//   let dummyModel: MockLanguageModelV1;
-//   let mastra: Mastra;
-
-//   beforeEach(() => {
-//     dummyModel = new MockLanguageModelV1({
-//       doGenerate: async () => ({
-//         rawCall: { rawPrompt: null, rawSettings: {} },
-//         finishReason: 'stop',
-//         usage: { promptTokens: 10, completionTokens: 20 },
-//         text: `Logger test response`,
-//       }),
-//     });
-
-//     mastra = new Mastra({
-//       logger: noopLogger,
-//     });
-//   });
-
-//   it('should expose mastra instance in dynamic instructions', async () => {
-//     let capturedMastra: Mastra | undefined;
-//     let capturedRuntimeContext: RuntimeContext | undefined;
-
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: ({ runtimeContext, mastra }) => {
-//         capturedRuntimeContext = runtimeContext;
-//         capturedMastra = mastra;
-
-//         const logger = mastra?.getLogger();
-//         logger?.debug('Running with context', { info: runtimeContext.get('info') });
-
-//         return 'You are a helpful assistant.';
-//       },
-//       model: dummyModel,
-//       mastra,
-//     });
-
-//     const runtimeContext = new RuntimeContext();
-//     runtimeContext.set('info', 'test-info');
-
-//     const response = await agent.generate('hello', { runtimeContext });
-
-//     expect(response.text).toBe('Logger test response');
-//     expect(capturedMastra).toBe(mastra);
-//     expect(capturedRuntimeContext).toBe(runtimeContext);
-//     expect(capturedRuntimeContext?.get('info')).toBe('test-info');
-//   });
-
-//   it('should work with static instructions (backward compatibility)', async () => {
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: 'You are a helpful assistant.',
-//       model: dummyModel,
-//       mastra,
-//     });
-
-//     const response = await agent.generate('hello');
-//     expect(response.text).toBe('Logger test response');
-//   });
-
-//   it('should handle dynamic instructions when mastra is undefined', async () => {
-//     let capturedMastra: Mastra | undefined;
-
-//     const agent = new Agent({
-//       name: 'test-agent',
-//       instructions: ({ mastra }) => {
-//         capturedMastra = mastra;
-//         return 'You are a helpful assistant.';
-//       },
-//       model: dummyModel,
-//       // No mastra provided
-//     });
-
-//     const response = await agent.generate('hello');
-
-//     expect(response.text).toBe('Logger test response');
-//     expect(capturedMastra).toBeUndefined();
 //   });
 // });
 
