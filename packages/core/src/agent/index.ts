@@ -1,10 +1,10 @@
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
 import type { CoreMessage, StreamObjectResult, TextPart, Tool, UIMessage } from 'ai';
-import type { ModelMessage, StopCondition, ToolChoice } from 'ai-v5';
+import { asSchema, type ModelMessage, type StopCondition, type ToolChoice } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';
-import type { ZodSchema, z } from 'zod';
+import { ZodArray, type ZodSchema, type z } from 'zod';
 import type { MastraPrimitives, MastraUnion } from '../action';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
@@ -1511,7 +1511,6 @@ export class Agent<
     runId?: string;
   }) {
     try {
-      console.log('result.response.messages', result.response.messages);
       messageList.add(result.response.messages, 'response');
       await saveQueueManager.batchMessages(messageList, threadId, memoryConfig);
     } catch (e) {
@@ -1840,8 +1839,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         })
           .add(result.response.messages, 'response')
           .get.all.core();
-
-        console.log('MESSAGE LIST RESPONSES', JSON.stringify(messageListResponses, null, 2));
 
         const usedWorkingMemory = messageListResponses?.some(
           m => m.role === 'tool' && m?.content?.some(c => c?.toolName === 'updateWorkingMemory'),
@@ -2259,8 +2256,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 threadExists = true;
               }
 
-              console.log('props onStepFinish', props);
-
               await this.saveStepMessages({
                 saveQueueManager,
                 result: props,
@@ -2429,6 +2424,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       ...loopOptions,
       objectOptions: {
         schema: output,
+        output: asSchema(output).jsonSchema.type === 'array' ? 'array' : 'object',
       },
     });
 
@@ -2597,6 +2593,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       ...loopOptions,
       objectOptions: {
         schema: output,
+        output: 'object',
+        // TODO: SIMPLIFY THIS BY NOT NEEDING IT
+        // output: asSchema(output).jsonSchema.type === 'array' ? 'array' : 'object',
       },
     });
 

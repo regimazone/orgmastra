@@ -342,11 +342,11 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(object.winner).toContain('Barack Obama');
     });
 
-    it.skip('should support ZodSchema structured output type', async () => {
+    it('should support ZodSchema structured output type', async () => {
       const electionAgent = new Agent({
         name: 'US Election agent',
         instructions: 'You know about the past US elections',
-        model: obamaObjectModel2,
+        model: openaiModel,
       });
 
       const mastra = new Mastra({
@@ -377,10 +377,10 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         });
       }
 
-      const { object } = response;
+      console.log(response.object);
 
-      expect(object.length).toBeGreaterThan(1);
-      expect(object).toMatchObject([
+      expect(response.object.length).toBeGreaterThan(1);
+      expect(response.object).toMatchObject([
         {
           year: '2012',
           winner: 'Barack Obama',
@@ -3886,7 +3886,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         ).toBe(true);
       });
 
-      it.only('should only call saveMessages for the user message when no assistant parts are generated', async () => {
+      it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
         const mockMemory = new MockMemory();
 
         let messages = await mockMemory.getMessages({
