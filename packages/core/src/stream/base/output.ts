@@ -531,23 +531,15 @@ export class MastraModelOutput extends MastraBase {
       throw new Error('objectStream requires objectOptions');
     }
 
-    return this.teeStream()
-      .pipeThrough(
-        createObjectStreamTransformer({
-          objectOptions: self.#options.objectOptions,
-          onFinish: data => self.#objectPromise.resolve(data),
-          onError: error => self.#objectPromise.reject(error),
-        }),
-      )
-      .pipeThrough(
-        new TransformStream<ChunkType | any, ChunkType>({
-          transform(chunk, controller) {
-            if (chunk.type === 'object') {
-              controller.enqueue(chunk.object);
-            }
-          },
-        }),
-      );
+    return this.fullStream.pipeThrough(
+      new TransformStream<ChunkType | any, ChunkType>({
+        transform(chunk, controller) {
+          if (chunk.type === 'object') {
+            controller.enqueue(chunk.object);
+          }
+        },
+      }),
+    );
   }
 
   get elementStream() {
@@ -557,33 +549,25 @@ export class MastraModelOutput extends MastraBase {
       throw new Error('elementStream requires objectOptions');
     }
 
-    return this.teeStream()
-      .pipeThrough(
-        createObjectStreamTransformer({
-          objectOptions: self.#options.objectOptions,
-          onFinish: data => self.#objectPromise.resolve(data),
-          onError: error => self.#objectPromise.reject(error),
-        }),
-      )
-      .pipeThrough(
-        new TransformStream({
-          transform(chunk, controller) {
-            switch (chunk.type) {
-              case 'object': {
-                const array = chunk.object;
-                // Only process arrays - stream individual elements as they become available
-                if (Array.isArray(array)) {
-                  // Publish new elements one by one
-                  for (; publishedElements < array.length; publishedElements++) {
-                    controller.enqueue(array[publishedElements]);
-                  }
+    return this.fullStream.pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          switch (chunk.type) {
+            case 'object': {
+              const array = (chunk as any).object;
+              // Only process arrays - stream individual elements as they become available
+              if (Array.isArray(array)) {
+                // Publish new elements one by one
+                for (; publishedElements < array.length; publishedElements++) {
+                  controller.enqueue(array[publishedElements]);
                 }
-                break;
               }
+              break;
             }
-          },
-        }),
-      );
+          }
+        },
+      }),
+    );
   }
 
   get textStream() {
@@ -591,15 +575,7 @@ export class MastraModelOutput extends MastraBase {
     if (self.#options.objectOptions) {
       const responseFormat = getResponseFormat(self.#options.objectOptions);
       if (responseFormat?.type === 'json') {
-        return this.teeStream()
-          .pipeThrough(
-            createObjectStreamTransformer({
-              objectOptions: self.#options.objectOptions,
-              onFinish: data => self.#objectPromise.resolve(data),
-              onError: error => self.#objectPromise.reject(error),
-            }),
-          )
-          .pipeThrough(createJsonTextStreamTransformer(self.#options.objectOptions));
+        return this.fullStream.pipeThrough(createJsonTextStreamTransformer(self.#options.objectOptions));
       }
     }
 

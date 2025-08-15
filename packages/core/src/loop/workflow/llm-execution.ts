@@ -47,7 +47,7 @@ async function processOutputStream({
     }
 
     if (chunk.type == 'object') {
-      controller.enqueue(chunk);
+      // controller.enqueue(chunk);
       continue;
     }
 
