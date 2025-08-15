@@ -132,6 +132,7 @@ export class MastraLLMVNext extends MastraBase {
     resourceId,
     objectOptions,
     options,
+    memory,
     // ...rest
   }: StreamTextWithMessagesArgs<Tools, Z>): MastraModelOutput {
     const model = this.#model;
@@ -163,7 +164,11 @@ export class MastraLLMVNext extends MastraBase {
     }
 
     try {
-      const messageList = new MessageList();
+      const messageList = new MessageList({
+        threadId: memory?.thread as string,
+        resourceId: memory?.resource,
+      });
+
       messageList.add(messages, 'input');
 
       const loopOptions: LoopOptions<Tools> = {

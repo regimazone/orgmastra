@@ -203,6 +203,96 @@ export class Agent extends BaseResource {
     return response;
   }
 
+  /**
+   * Generates a response from the agent
+   * @param params - Generation parameters including prompt
+   * @returns Promise containing the generated response
+   */
+  async generate_vnext(
+    params: GenerateParams<undefined> & { output?: never; experimental_output?: never },
+  ): Promise<GenerateReturn<any, undefined, undefined>>;
+  async generate_vnext<Output extends JSONSchema7 | ZodSchema>(
+    params: GenerateParams<Output> & { output: Output; experimental_output?: never },
+  ): Promise<GenerateReturn<any, Output, undefined>>;
+  async generate_vnext<StructuredOutput extends JSONSchema7 | ZodSchema>(
+    params: GenerateParams<StructuredOutput> & { output?: never; experimental_output: StructuredOutput },
+  ): Promise<GenerateReturn<any, undefined, StructuredOutput>>;
+  async generate_vnext<
+    Output extends JSONSchema7 | ZodSchema | undefined = undefined,
+    StructuredOutput extends JSONSchema7 | ZodSchema | undefined = undefined,
+  >(params: GenerateParams<Output>): Promise<GenerateReturn<any, Output, StructuredOutput>> {
+    const processedParams = {
+      ...params,
+      output: params.output ? zodToJsonSchema(params.output) : undefined,
+      experimental_output: params.experimental_output ? zodToJsonSchema(params.experimental_output) : undefined,
+      runtimeContext: parseClientRuntimeContext(params.runtimeContext),
+      clientTools: processClientTools(params.clientTools),
+    };
+
+    const { runId, resourceId, threadId, runtimeContext } = processedParams as GenerateParams;
+
+    const response: GenerateReturn<any, Output, StructuredOutput> = await this.request(
+      `/api/agents/${this.agentId}/generate/vnext`,
+      {
+        method: 'POST',
+        body: processedParams,
+      },
+    );
+
+    if (response.finishReason === 'tool-calls') {
+      const toolCalls = (
+        response as unknown as {
+          toolCalls: { toolName: string; args: any; toolCallId: string }[];
+          messages: CoreMessage[];
+        }
+      ).toolCalls;
+
+      if (!toolCalls || !Array.isArray(toolCalls)) {
+        return response;
+      }
+
+      for (const toolCall of toolCalls) {
+        const clientTool = params.clientTools?.[toolCall.toolName] as Tool;
+
+        if (clientTool && clientTool.execute) {
+          const result = await clientTool.execute(
+            { context: toolCall?.args, runId, resourceId, threadId, runtimeContext: runtimeContext as RuntimeContext },
+            {
+              messages: (response as unknown as { messages: CoreMessage[] }).messages,
+              toolCallId: toolCall?.toolCallId,
+            },
+          );
+
+          const updatedMessages = [
+            {
+              role: 'user',
+              content: params.messages,
+            },
+            ...(response.response as unknown as { messages: CoreMessage[] }).messages,
+            {
+              role: 'tool',
+              content: [
+                {
+                  type: 'tool-result',
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  result,
+                },
+              ],
+            },
+          ];
+          // @ts-ignore
+          return this.generate({
+            ...params,
+            messages: updatedMessages,
+          });
+        }
+      }
+    }
+
+    return response;
+  }
+
   private async processChatResponse({
     stream,
     update,

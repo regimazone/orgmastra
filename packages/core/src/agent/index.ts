@@ -1717,7 +1717,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runId,
           result: resToLog,
           threadId,
+          resourceId,
         });
+
+        console.log({ responseMessages: result.response.messages }, 'result.response.messages');
+
         const messageListResponses = new MessageList({
           threadId,
           resourceId,
@@ -1774,6 +1778,9 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 resourceId: thread.resourceId,
               });
             }
+
+            console.log({ threadId, resourceId, memoryConfig }, 'ZZZZZZZZZ');
+            console.log({ messageList: messageList.get.all.v2() }, 'messageList.get.all.v2()');
 
             // Parallelize title generation and message saving
             const promises: Promise<any>[] = [saveQueueManager.flushMessages(messageList, threadId, memoryConfig)];
@@ -2197,6 +2204,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       output?: OUTPUT;
       experimental_output?: EXPERIMENTAL_OUTPUT;
       abortSignal?: AbortSignal;
+      memory?: AgentMemoryOption;
     },
   ) {
     let runtimeContext = generateOptions.runtimeContext || new RuntimeContext();
@@ -2208,6 +2216,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       ...defaultGenerateOptions,
       ...generateOptions,
     };
+
+    console.log('mergedGenerateOptions', mergedGenerateOptions);
 
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedGenerateOptions);
 
@@ -2286,6 +2296,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       objectOptions: {
         schema: output,
       },
+      memory: mergedGenerateOptions.memory,
     });
 
     let fullOutput = await (mergedGenerateOptions.format === 'aisdk'
