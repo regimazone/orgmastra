@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { ReadableStream, WritableStream } from 'stream/web';
-import type { CoreMessage, StreamObjectResult, StreamTextResult, TextPart, Tool, UIMessage } from 'ai';
+import type { CoreMessage, StreamObjectResult, TextPart, Tool, UIMessage } from 'ai';
 import type { ModelMessage, StopCondition, ToolChoice } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';
@@ -23,14 +23,19 @@ import type {
   ToolSet,
   OriginalStreamTextOnFinishEventArg,
   OriginalStreamObjectOnFinishEventArg,
+  StreamTextResult,
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
+import type { LoopConfig } from '../loop/types';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MemoryConfig, StorageThreadType } from '../memory/types';
+import type { InputProcessor, OutputProcessor } from '../processors/index';
+import { StructuredOutputProcessor } from '../processors/processors/structured-output';
+import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
@@ -46,8 +51,6 @@ import { DefaultVoice } from '../voice';
 import type { Workflow } from '../workflows';
 import { agentToStep, LegacyStep as Step } from '../workflows/legacy';
 import type { AgentVNextStreamOptions } from './agent.types';
-import type { InputProcessor } from './input-processor';
-import { runInputProcessors } from './input-processor/runner';
 import { MessageList } from './message-list';
 import type { MessageInput, MessageListInput, UIMessageWithMetadata } from './message-list';
 import { SaveQueueManager } from './save-queue';
@@ -61,7 +64,6 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
-import type { LoopConfig } from '../loop/types';
 export type { ChunkType } from '../stream/types';
 export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
@@ -99,6 +101,8 @@ function resolveThreadIdFromArgs(args: {
     '__registerMastra',
     '__registerPrimitives',
     '__runInputProcessors',
+    '__runOutputProcessors',
+    'getProcessorRunner',
     '__setTools',
     '__setLogger',
     '__setTelemetry',
@@ -136,6 +140,7 @@ export class Agent<
   #scorers: DynamicArgument<MastraScorers>;
   #voice: CompositeVoice;
   #inputProcessors?: DynamicArgument<InputProcessor[]>;
+  #outputProcessors?: DynamicArgument<OutputProcessor[]>;
 
   // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
   private _agentNetworkAppend = false;
@@ -212,8 +217,48 @@ export class Agent<
       this.#inputProcessors = config.inputProcessors;
     }
 
+    if (config.outputProcessors) {
+      this.#outputProcessors = config.outputProcessors;
+    }
+
     // @ts-ignore Flag for agent network messages
     this._agentNetworkAppend = config._agentNetworkAppend || false;
+  }
+
+  private async getProcessorRunner({
+    runtimeContext,
+    inputProcessorOverrides,
+    outputProcessorOverrides,
+  }: {
+    runtimeContext: RuntimeContext;
+    inputProcessorOverrides?: InputProcessor[];
+    outputProcessorOverrides?: OutputProcessor[];
+  }): Promise<ProcessorRunner> {
+    // Use overrides if provided, otherwise fall back to agent's default processors
+    const inputProcessors =
+      inputProcessorOverrides ??
+      (this.#inputProcessors
+        ? typeof this.#inputProcessors === 'function'
+          ? await this.#inputProcessors({ runtimeContext })
+          : this.#inputProcessors
+        : []);
+
+    const outputProcessors =
+      outputProcessorOverrides ??
+      (this.#outputProcessors
+        ? typeof this.#outputProcessors === 'function'
+          ? await this.#outputProcessors({ runtimeContext })
+          : this.#outputProcessors
+        : []);
+
+    this.logger.debug('outputProcessors', outputProcessors);
+
+    return new ProcessorRunner({
+      inputProcessors,
+      outputProcessors,
+      logger: this.logger,
+      agentName: this.name,
+    });
   }
 
   public hasOwnMemory(): boolean {
@@ -946,9 +991,11 @@ export class Agent<
   private async __runInputProcessors({
     runtimeContext,
     messageList,
+    inputProcessorOverrides,
   }: {
     runtimeContext: RuntimeContext;
     messageList: MessageList;
+    inputProcessorOverrides?: InputProcessor[];
   }): Promise<{
     messageList: MessageList;
     tripwireTriggered: boolean;
@@ -957,36 +1004,35 @@ export class Agent<
     let tripwireTriggered = false;
     let tripwireReason = '';
 
-    if (this.#inputProcessors) {
-      const processors =
-        typeof this.#inputProcessors === 'function'
-          ? await this.#inputProcessors({ runtimeContext })
-          : this.#inputProcessors;
-
+    if (inputProcessorOverrides?.length || this.#inputProcessors) {
+      const runner = await this.getProcessorRunner({
+        runtimeContext,
+        inputProcessorOverrides,
+      });
       // Create traced version of runInputProcessors similar to workflow _runStep pattern
-      const tracedRunInputProcessors = (processors: any[], messageList: MessageList) => {
+      const tracedRunInputProcessors = (messageList: MessageList) => {
         const telemetry = this.#mastra?.getTelemetry();
         if (!telemetry) {
-          return runInputProcessors(processors, messageList, undefined);
+          return runner.runInputProcessors(messageList, undefined);
         }
 
         return telemetry.traceMethod(
-          async (data: { processors: any[]; messageList: MessageList }) => {
-            return runInputProcessors(data.processors, data.messageList, telemetry);
+          async (data: { messageList: MessageList }) => {
+            return runner.runInputProcessors(data.messageList, telemetry);
           },
           {
             spanName: `agent.${this.name}.inputProcessors`,
             attributes: {
               'agent.name': this.name,
-              'inputProcessors.count': processors.length.toString(),
-              'inputProcessors.names': processors.map(p => p.name).join(','),
+              'inputProcessors.count': runner.inputProcessors.length.toString(),
+              'inputProcessors.names': runner.inputProcessors.map(p => p.name).join(','),
             },
           },
-        )({ processors, messageList });
+        )({ messageList });
       };
 
       try {
-        messageList = await tracedRunInputProcessors(processors, messageList);
+        messageList = await tracedRunInputProcessors(messageList);
       } catch (error) {
         if (error instanceof TripWire) {
           tripwireTriggered = true;
@@ -1001,6 +1047,70 @@ export class Agent<
             },
             error,
           );
+        }
+      }
+    }
+
+    return {
+      messageList,
+      tripwireTriggered,
+      tripwireReason,
+    };
+  }
+
+  private async __runOutputProcessors({
+    runtimeContext,
+    messageList,
+    outputProcessorOverrides,
+  }: {
+    runtimeContext: RuntimeContext;
+    messageList: MessageList;
+    outputProcessorOverrides?: OutputProcessor[];
+  }): Promise<{
+    messageList: MessageList;
+    tripwireTriggered: boolean;
+    tripwireReason: string;
+  }> {
+    let tripwireTriggered = false;
+    let tripwireReason = '';
+
+    if (outputProcessorOverrides?.length || this.#outputProcessors) {
+      const runner = await this.getProcessorRunner({
+        runtimeContext,
+        outputProcessorOverrides,
+      });
+
+      // Create traced version of runOutputProcessors similar to workflow _runStep pattern
+      const tracedRunOutputProcessors = (messageList: MessageList) => {
+        const telemetry = this.#mastra?.getTelemetry();
+        if (!telemetry) {
+          return runner.runOutputProcessors(messageList, undefined);
+        }
+
+        return telemetry.traceMethod(
+          async (data: { messageList: MessageList }) => {
+            return runner.runOutputProcessors(data.messageList, telemetry);
+          },
+          {
+            spanName: `agent.${this.name}.outputProcessors`,
+            attributes: {
+              'agent.name': this.name,
+              'outputProcessors.count': runner.outputProcessors.length.toString(),
+              'outputProcessors.names': runner.outputProcessors.map(p => p.name).join(','),
+            },
+          },
+        )({ messageList });
+      };
+
+      try {
+        messageList = await tracedRunOutputProcessors(messageList);
+      } catch (e) {
+        if (e instanceof TripWire) {
+          tripwireTriggered = true;
+          tripwireReason = e.message;
+          this.logger.debug(`[Agent:${this.name}] - Output processor tripwire triggered: ${e.message}`);
+        } else {
+          throw e;
         }
       }
     }
@@ -2583,17 +2693,116 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const { experimental_output, output, ...llmOptions } = beforeResult;
 
+    // Handle structuredOutput option by creating an StructuredOutputProcessor
+    let finalOutputProcessors = mergedGenerateOptions.outputProcessors;
+    if (mergedGenerateOptions.structuredOutput) {
+      const structuredProcessor = new StructuredOutputProcessor(mergedGenerateOptions.structuredOutput);
+      finalOutputProcessors = finalOutputProcessors
+        ? [...finalOutputProcessors, structuredProcessor]
+        : [structuredProcessor];
+    }
+
     if (!output || experimental_output) {
-      const result = await llmToUse.__text({
+      const result = await llmToUse.__text<any, EXPERIMENTAL_OUTPUT>({
         ...llmOptions,
         experimental_output,
       });
+
+      const outputProcessorResult = await this.__runOutputProcessors({
+        runtimeContext: mergedGenerateOptions.runtimeContext || new RuntimeContext(),
+        outputProcessorOverrides: finalOutputProcessors,
+        messageList: new MessageList({
+          threadId: llmOptions.threadId || '',
+          resourceId: llmOptions.resourceId || '',
+        }).add(
+          {
+            role: 'assistant',
+            content: [{ type: 'text', text: result.text }],
+          },
+          'response',
+        ),
+      });
+
+      // Handle tripwire for output processors
+      if (outputProcessorResult.tripwireTriggered) {
+        const tripwireResult = {
+          text: '',
+          object: undefined,
+          usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
+          finishReason: 'other',
+          response: {
+            id: randomUUID(),
+            timestamp: new Date(),
+            modelId: 'tripwire',
+            messages: [],
+          },
+          responseMessages: [],
+          toolCalls: [],
+          toolResults: [],
+          warnings: undefined,
+          request: {
+            body: JSON.stringify({ messages: [] }),
+          },
+          experimental_output: undefined,
+          steps: undefined,
+          experimental_providerMetadata: undefined,
+          tripwire: true,
+          tripwireReason: outputProcessorResult.tripwireReason,
+        };
+
+        return tripwireResult as unknown as OUTPUT extends undefined
+          ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+          : GenerateObjectResult<OUTPUT>;
+      }
+
+      const newText = outputProcessorResult.messageList.get.response
+        .v2()
+        .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
+        .join('');
+
+      // Update the result text with processed output
+      (result as any).text = newText;
+
+      // If there are output processors, check for structured data in message metadata
+      if (finalOutputProcessors && finalOutputProcessors.length > 0) {
+        // First check if any output processor provided structured data via metadata
+        const messages = outputProcessorResult.messageList.get.response.v2();
+        this.logger.debug(
+          'Checking messages for experimentalOutput metadata:',
+          messages.map(m => ({
+            role: m.role,
+            hasContentMetadata: !!m.content.metadata,
+            contentMetadata: m.content.metadata,
+          })),
+        );
+
+        const messagesWithStructuredData = messages.filter(
+          msg => msg.content.metadata && (msg.content.metadata as any).structuredOutput,
+        );
+
+        this.logger.debug('Messages with structured data:', messagesWithStructuredData.length);
+
+        if (messagesWithStructuredData[0] && messagesWithStructuredData[0].content.metadata?.structuredOutput) {
+          // Use structured data from processor metadata for result.object
+          (result as any).object = messagesWithStructuredData[0].content.metadata.structuredOutput;
+          this.logger.debug('Using structured data from processor metadata for result.object');
+        } else {
+          // Fallback: try to parse text as JSON (original behavior)
+          try {
+            const processedOutput = JSON.parse(newText);
+            (result as any).object = processedOutput;
+            this.logger.debug('Using fallback JSON parsing for result.object');
+          } catch (error) {
+            this.logger.warn('Failed to parse processed output as JSON, updating text only', { error });
+          }
+        }
+      }
 
       await after({
         result: result as unknown as OUTPUT extends undefined
           ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
           : GenerateObjectResult<OUTPUT>,
-        outputText: result.text,
+        outputText: newText,
       });
 
       return result as unknown as OUTPUT extends undefined
@@ -2608,11 +2817,70 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const outputText = JSON.stringify(result.object);
 
+    const outputProcessorResult = await this.__runOutputProcessors({
+      runtimeContext: mergedGenerateOptions.runtimeContext || new RuntimeContext(),
+      messageList: new MessageList({
+        threadId: llmOptions.threadId || '',
+        resourceId: llmOptions.resourceId || '',
+      }).add(
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: outputText }],
+        },
+        'response',
+      ),
+    });
+
+    // Handle tripwire for output processors
+    if (outputProcessorResult.tripwireTriggered) {
+      const tripwireResult = {
+        text: '',
+        object: undefined,
+        usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
+        finishReason: 'other',
+        response: {
+          id: randomUUID(),
+          timestamp: new Date(),
+          modelId: 'tripwire',
+          messages: [],
+        },
+        responseMessages: [],
+        toolCalls: [],
+        toolResults: [],
+        warnings: undefined,
+        request: {
+          body: JSON.stringify({ messages: [] }),
+        },
+        experimental_output: undefined,
+        steps: undefined,
+        experimental_providerMetadata: undefined,
+        tripwire: true,
+        tripwireReason: outputProcessorResult.tripwireReason,
+      };
+
+      return tripwireResult as unknown as OUTPUT extends undefined
+        ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+        : GenerateObjectResult<OUTPUT>;
+    }
+
+    const newText = outputProcessorResult.messageList.get.response
+      .v2()
+      .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
+      .join('');
+
+    // Parse the processed text and update the result object
+    try {
+      const processedObject = JSON.parse(newText);
+      (result as any).object = processedObject;
+    } catch (error) {
+      this.logger.warn('Failed to parse processed output as JSON, keeping original result', { error });
+    }
+
     await after({
       result: result as unknown as OUTPUT extends undefined
         ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
         : GenerateObjectResult<OUTPUT>,
-      outputText,
+      outputText: newText,
       structuredOutput: true,
     });
 
@@ -2763,6 +3031,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
       const streamResult = llmToUse.__stream({
         ...llmOptions,
+        experimental_output,
         onFinish: async result => {
           try {
             const outputText = result.text;
@@ -2779,7 +3048,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           await onFinish?.({ ...result, runId } as any);
         },
         runId,
-        experimental_output,
       });
 
       return streamResult as
@@ -2850,7 +3118,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runId: defaultStreamOptions.runId!,
         };
       },
-      createStream: async (writer: WritableStream<ChunkType>, onResult: (result: ResolvedOutput) => void) => {
+      createStream: async (
+        writer: WritableStream<ChunkType>,
+        onResult: (result: ResolvedOutput) => void,
+      ): Promise<ReadableStream<any>> => {
         const defaultStreamOptions = await defaultStreamOptionsPromise;
         const mergedStreamOptions: AgentVNextStreamOptions<Output, StructuredOutput> & {
           writableStream: WritableStream<ChunkType>;
@@ -2876,17 +3147,67 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         const { onFinish, runId, output, experimental_output, ...llmOptions } = await before();
 
         let llmToUse = llm as MastraLLMV1;
+        // Use processor overrides if provided, otherwise fall back to agent's default
+        let effectiveOutputProcessors =
+          mergedStreamOptions.outputProcessors ||
+          (this.#outputProcessors
+            ? typeof this.#outputProcessors === 'function'
+              ? await this.#outputProcessors({
+                  runtimeContext: mergedStreamOptions.runtimeContext || new RuntimeContext(),
+                })
+              : this.#outputProcessors
+            : []);
+
+        // Handle structuredOutput option by creating an StructuredOutputProcessor
+        if (mergedStreamOptions.structuredOutput) {
+          const structuredProcessor = new StructuredOutputProcessor(mergedStreamOptions.structuredOutput);
+          effectiveOutputProcessors = effectiveOutputProcessors
+            ? [...effectiveOutputProcessors, structuredProcessor]
+            : [structuredProcessor];
+        }
 
         if (output) {
           const streamResult = llmToUse.__streamObject({
             ...llmOptions,
             onFinish: async result => {
-              onResult(result.object as ResolvedOutput);
               try {
                 const outputText = JSON.stringify(result.object);
+
+                // Process final stream result
+                const processedResult = await this.__runOutputProcessors({
+                  runtimeContext: mergedStreamOptions.runtimeContext || new RuntimeContext(),
+                  outputProcessorOverrides: effectiveOutputProcessors,
+                  messageList: new MessageList({
+                    threadId: llmOptions.threadId || '',
+                    resourceId: llmOptions.resourceId || '',
+                  }).add(
+                    {
+                      role: 'assistant',
+                      content: [{ type: 'text', text: outputText }],
+                    },
+                    'response',
+                  ),
+                });
+
+                // Extract processed text and update result object
+                const newText = processedResult.messageList.get.response
+                  .v2()
+                  .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
+                  .join('');
+
+                // Parse the processed text and update the result object
+                try {
+                  const processedObject = JSON.parse(newText);
+                  (result as any).object = processedObject;
+                  onResult(processedObject as ResolvedOutput);
+                } catch (error) {
+                  this.logger.warn('Failed to parse processed output as JSON, keeping original result', { error });
+                  onResult(result.object as ResolvedOutput);
+                }
+
                 await after({
                   result,
-                  outputText,
+                  outputText: newText,
                   structuredOutput: true,
                 });
               } catch (e) {
@@ -2894,6 +3215,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                   error: e,
                   runId,
                 });
+                onResult(result.object as ResolvedOutput);
               }
 
               await onFinish?.({ ...result, runId } as any);
@@ -2902,31 +3224,123 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
             structuredOutput: output,
           });
 
-          return streamResult.fullStream as unknown as ReadableStream<any>;
+          // If output processors are configured, transform the stream to process text chunks for structured output too
+          if (effectiveOutputProcessors?.length) {
+            const runner = await this.getProcessorRunner({
+              runtimeContext: mergedStreamOptions.runtimeContext || new RuntimeContext(),
+              outputProcessorOverrides: effectiveOutputProcessors,
+            });
+            return runner.runOutputProcessorsForStream(streamResult) as unknown as ReadableStream<any>;
+          }
+
+          return Promise.resolve(streamResult.fullStream as unknown as ReadableStream<any>);
         } else {
           const streamResult = llmToUse.__stream({
             ...llmOptions,
+            experimental_output,
             onFinish: async result => {
-              onResult(result.text as ResolvedOutput);
               try {
                 const outputText = result.text;
+
+                // Process final stream result
+                const processedResult = await this.__runOutputProcessors({
+                  runtimeContext: mergedStreamOptions.runtimeContext || new RuntimeContext(),
+                  outputProcessorOverrides: effectiveOutputProcessors,
+                  messageList: new MessageList({
+                    threadId: llmOptions.threadId || '',
+                    resourceId: llmOptions.resourceId || '',
+                  }).add(
+                    {
+                      role: 'assistant',
+                      content: [{ type: 'text', text: outputText }],
+                    },
+                    'response',
+                  ),
+                });
+
+                // Extract processed text and update result
+                const newText = processedResult.messageList.get.response
+                  .v2()
+                  .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
+                  .join('');
+
+                // Update the result text with processed output
+                (result as any).text = newText;
+
+                // Determine the final result object with proper priority
+                let finalObject: ResolvedOutput;
+
+                // Priority 1: Structured data from output processors
+                if (effectiveOutputProcessors && effectiveOutputProcessors.length > 0) {
+                  const messages = processedResult.messageList.get.response.v2();
+                  const messagesWithStructuredData = messages.filter(
+                    msg => msg.content.metadata && (msg.content.metadata as any).structuredOutput,
+                  );
+
+                  if (
+                    messagesWithStructuredData[0] &&
+                    messagesWithStructuredData[0].content.metadata?.structuredOutput
+                  ) {
+                    finalObject = messagesWithStructuredData[0].content.metadata.structuredOutput as ResolvedOutput;
+                  } else if (experimental_output) {
+                    // Priority 2: Parse experimental_output from processed text
+                    try {
+                      finalObject = JSON.parse(newText) as ResolvedOutput;
+                    } catch (error) {
+                      this.logger.warn('Failed to parse processed experimental_output as JSON, using null', { error });
+                      finalObject = null as ResolvedOutput;
+                    }
+                  } else {
+                    // Priority 3: Use processed text
+                    finalObject = newText as ResolvedOutput;
+                  }
+                } else if (experimental_output) {
+                  // No output processors, but experimental_output is specified
+                  try {
+                    finalObject = JSON.parse(newText) as ResolvedOutput;
+                  } catch (error) {
+                    this.logger.warn('Failed to parse processed experimental_output as JSON, using null', { error });
+                    finalObject = null as ResolvedOutput;
+                  }
+                } else {
+                  // No structured output, use text
+                  finalObject = newText as ResolvedOutput;
+                }
+
+                // Set the result object and call onResult only once
+                (result as any).object = finalObject;
+                onResult(finalObject);
+
                 await after({
                   result,
-                  outputText,
+                  outputText: newText,
                 });
               } catch (e) {
                 this.logger.error('Error saving memory on finish', {
                   error: e,
                   runId,
                 });
+                onResult(result.text as ResolvedOutput);
               }
               await onFinish?.({ ...result, runId } as any);
             },
             runId,
-            experimental_output,
           });
 
-          return streamResult.fullStream as unknown as ReadableStream<any>;
+          // If output processors are configured, transform the stream to process text chunks
+          if (effectiveOutputProcessors?.length) {
+            this.logger.debug('running output processors for stream');
+            const runner = await this.getProcessorRunner({
+              runtimeContext: mergedStreamOptions.runtimeContext || new RuntimeContext(),
+              outputProcessorOverrides: effectiveOutputProcessors,
+            });
+
+            return runner.runOutputProcessorsForStream(streamResult) as unknown as ReadableStream<any>;
+          }
+
+          this.logger.debug('no output processors for stream');
+
+          return Promise.resolve(streamResult.fullStream as unknown as ReadableStream<any>);
         }
       },
     });
