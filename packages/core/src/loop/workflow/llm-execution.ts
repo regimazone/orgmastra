@@ -490,6 +490,13 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
           });
         }
 
+        controller.enqueue({
+          type: 'error',
+          runId,
+          from: 'AGENT',
+          payload: { error },
+        });
+
         runState.setState({
           hasErrored: true,
           stepResult: {

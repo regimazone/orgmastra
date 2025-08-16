@@ -261,6 +261,7 @@ export class MastraModelOutput extends MastraBase {
                     // TODO: we should add handling for step IDs in message list so you can retrieve step content by step id. And on finish should the content here be from all steps?
                     content: messageList.get.response.aiV5.stepContent(),
                     request: this.request,
+                    error: self.error,
                     reasoning: this.aisdk.v5.reasoning,
                     reasoningText: !this.aisdk.v5.reasoningText ? undefined : this.aisdk.v5.reasoningText,
                     sources: this.aisdk.v5.sources,
@@ -346,7 +347,6 @@ export class MastraModelOutput extends MastraBase {
               break;
 
             case 'error':
-              console.log('RECEIVED ERROR IN FULLSTREAM', JSON.stringify(chunk, null, 2));
               self.#error = chunk.payload.error;
               break;
           }

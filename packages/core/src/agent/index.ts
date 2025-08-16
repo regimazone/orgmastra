@@ -2575,6 +2575,14 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       threadId: beforeResult.threadId,
       options: {
         onFinish: async (result: any) => {
+          if (result.finishReason === 'error') {
+            this.logger.error('Error in agent stream', {
+              error: result.error,
+              runId,
+            });
+            return;
+          }
+
           try {
             const outputText = result.text;
             await after({
