@@ -2464,6 +2464,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   async stream_vnext<OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined>(
     messages: MessageListInput,
     streamOptions?: {
+      savePerStep?: boolean;
       runtimeContext?: RuntimeContext;
       format?: 'mastra' | 'aisdk';
       output?: OUTPUT;
@@ -2473,6 +2474,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       abortSignal?: AbortSignal;
       toolChoice?: ToolChoice<any>;
       clientTools?: ToolsInput;
+      onStepFinish?: LoopConfig['onStepFinish'];
     },
   ) {
     const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions?.runtimeContext });
@@ -2569,6 +2571,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runId,
       toolChoice: mergedStreamOptions.toolChoice,
       tools: beforeResult.tools,
+      resourceId: beforeResult.resourceId,
+      threadId: beforeResult.threadId,
       options: {
         onFinish: async (result: any) => {
           try {

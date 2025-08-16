@@ -21,6 +21,7 @@ import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
 import { assertNoDuplicateParts, MockMemory } from './test-utils';
 import { Agent } from './index';
+import { delay } from '../utils';
 import { ToolInvocationUIPart } from '@ai-sdk/ui-utils';
 
 config();
@@ -376,8 +377,6 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           ),
         });
       }
-
-      console.log(response.object);
 
       expect(response.object.length).toBeGreaterThan(1);
       expect(response.object).toMatchObject([
@@ -3971,7 +3970,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         threadId: 'thread-3-generate',
         resourceId: 'resource-3-generate',
       });
-      console.log('MESSAGES', JSON.stringify(messages, null, 2));
+
       expect(messages.length).toBe(0);
 
       expect(saveCallCount).toBe(0);
@@ -4036,6 +4035,342 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(saveThreadSpy).not.toHaveBeenCalled();
       const thread = await mockMemory.getThreadById({ threadId: 'thread-err' });
       expect(thread).toBeNull();
+    });
+
+    describe(`${version} - stream`, () => {
+      it('should rescue partial messages (including tool calls) if stream is aborted/interrupted', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+        let savedMessages: any[] = [];
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          savedMessages.push(...args[0].messages);
+
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const errorTool = createTool({
+          id: 'errorTool',
+          description: 'Always throws an error.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async () => {
+            throw new Error('Tool failed!');
+          },
+        });
+
+        const echoTool = createTool({
+          id: 'echoTool',
+          description: 'Echoes the input string.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input }),
+        });
+
+        const agent = new Agent({
+          name: 'partial-rescue-agent',
+          instructions:
+            'Call each tool in a separate step. Do not use parallel tool calls. Always wait for the result of one tool before calling the next.',
+          model: openaiModel,
+          memory: mockMemory,
+          tools: { errorTool, echoTool },
+        });
+
+        agent.__setLogger(noopLogger);
+
+        let stepCount = 0;
+
+        let stream;
+        if (version === 'v1') {
+          stream = await agent.stream(
+            'Please echo this and then use the error tool. Be verbose and take multiple steps.',
+            {
+              threadId: 'thread-partial-rescue',
+              resourceId: 'resource-partial-rescue',
+              experimental_continueSteps: true,
+              savePerStep: true,
+              onStepFinish: (result: any) => {
+                if (result.toolCalls && result.toolCalls.length > 1) {
+                  throw new Error('Model attempted parallel tool calls; test requires sequential tool calls');
+                }
+                stepCount++;
+                if (stepCount === 2) {
+                  throw new Error('Simulated error in onStepFinish');
+                }
+              },
+            },
+          );
+        } else {
+          stream = await agent.stream_vnext(
+            'Please echo this and then use the error tool. Be verbose and you must take multiple steps. Call tools 2x in parallel.',
+            {
+              threadId: 'thread-partial-rescue',
+              resourceId: 'resource-partial-rescue',
+              savePerStep: true,
+              onStepFinish: (result: any) => {
+                if (result.toolCalls && result.toolCalls.length > 1) {
+                  throw new Error('Model attempted parallel tool calls; test requires sequential tool calls');
+                }
+                stepCount++;
+                if (stepCount === 2) {
+                  throw new Error('Simulated error in onStepFinish');
+                }
+              },
+            },
+          );
+        }
+
+        let caught = false;
+
+        await stream.consumeStream({
+          onError: err => {
+            caught = true;
+            expect(err.message).toMatch(/Simulated error in onStepFinish/i);
+          },
+        });
+
+        expect(caught).toBe(true);
+
+        // After interruption, check what was saved
+        let messages = await mockMemory.getMessages({
+          threadId: 'thread-partial-rescue',
+          resourceId: 'resource-partial-rescue',
+          format: 'v2',
+        });
+
+        // User message should be saved
+        expect(messages.find(m => m.role === 'user')).toBeTruthy();
+        // At least one assistant message (could be partial) should be saved
+        expect(messages.find(m => m.role === 'assistant')).toBeTruthy();
+        // At least one tool call (echoTool or errorTool) should be saved if the model got that far
+        const assistantWithToolInvocation = messages.find(
+          m =>
+            m.role === 'assistant' &&
+            m.content &&
+            Array.isArray(m.content.parts) &&
+            m.content.parts.some(
+              part =>
+                part.type === 'tool-invocation' &&
+                part.toolInvocation &&
+                (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
+            ),
+        );
+        expect(assistantWithToolInvocation).toBeTruthy();
+        // There should be at least one save call (user and partial assistant/tool)
+        expect(saveCallCount).toBeGreaterThanOrEqual(1);
+      }, 500000);
+
+      it('should incrementally save messages across steps and tool calls', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const echoTool = createTool({
+          id: 'echoTool',
+          description: 'Echoes the input string.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input }),
+        });
+
+        const agent = new Agent({
+          name: 'test-agent',
+          instructions: 'If the user prompt contains "Echo:", always call the echoTool. Be verbose in your response.',
+          model: openaiModel,
+          memory: mockMemory,
+          tools: { echoTool },
+        });
+
+        let stream;
+
+        if (version === 'v1') {
+          stream = await agent.stream('Echo: Please echo this long message and explain why.', {
+            threadId: 'thread-echo',
+            resourceId: 'resource-echo',
+            savePerStep: true,
+          });
+        } else {
+          stream = await agent.stream_vnext('Echo: Please echo this long message and explain why.', {
+            threadId: 'thread-echo',
+            resourceId: 'resource-echo',
+            savePerStep: true,
+          });
+        }
+
+        await stream.consumeStream();
+
+        expect(saveCallCount).toBeGreaterThan(1);
+        const messages = await mockMemory.getMessages({
+          threadId: 'thread-echo',
+          resourceId: 'resource-echo',
+          format: 'v2',
+        });
+        expect(messages.length).toBeGreaterThan(0);
+        const assistantMsg = messages.find(m => m.role === 'assistant');
+        expect(assistantMsg).toBeDefined();
+        assertNoDuplicateParts(assistantMsg!.content.parts);
+
+        const toolResultIds = new Set(
+          assistantMsg!.content.parts
+            .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
+            .map(p => (p as ToolInvocationUIPart).toolInvocation.toolCallId),
+        );
+        expect(assistantMsg!.content?.toolInvocations?.length).toBe(toolResultIds.size);
+      }, 500000);
+
+      it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const echoTool = createTool({
+          id: 'echoTool',
+          description: 'Echoes the input string.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input }),
+        });
+
+        const uppercaseTool = createTool({
+          id: 'uppercaseTool',
+          description: 'Converts input to uppercase.',
+          inputSchema: z.object({ input: z.string() }),
+          outputSchema: z.object({ output: z.string() }),
+          execute: async ({ context }) => ({ output: context.input.toUpperCase() }),
+        });
+
+        const agent = new Agent({
+          name: 'test-agent-multi',
+          instructions: [
+            'If the user prompt contains "Echo:", call the echoTool.',
+            'If the user prompt contains "Uppercase:", call the uppercaseTool.',
+            'If both are present, call both tools and explain the results.',
+            'Be verbose in your response.',
+          ].join(' '),
+          model: openaiModel,
+          memory: mockMemory,
+          tools: { echoTool, uppercaseTool },
+        });
+
+        let stream;
+        if (version === 'v1') {
+          stream = await agent.stream(
+            'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
+            {
+              threadId: 'thread-multi',
+              resourceId: 'resource-multi',
+              savePerStep: true,
+            },
+          );
+        } else {
+          stream = await agent.stream_vnext(
+            'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
+            {
+              threadId: 'thread-multi',
+              resourceId: 'resource-multi',
+              savePerStep: true,
+            },
+          );
+        }
+
+        await stream.consumeStream();
+
+        expect(saveCallCount).toBeGreaterThan(1);
+        const messages = await mockMemory.getMessages({
+          threadId: 'thread-multi',
+          resourceId: 'resource-multi',
+          format: 'v2',
+        });
+        expect(messages.length).toBeGreaterThan(0);
+        const assistantMsg = messages.find(m => m.role === 'assistant');
+        expect(assistantMsg).toBeDefined();
+        assertNoDuplicateParts(assistantMsg!.content.parts);
+
+        const toolResultIds = new Set(
+          assistantMsg!.content.parts
+            .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
+            .map(p => (p as ToolInvocationUIPart).toolInvocation.toolCallId),
+        );
+        expect(assistantMsg!.content?.toolInvocations?.length).toBe(toolResultIds.size);
+      }, 500000);
+
+      it('should persist the full message after a successful run', async () => {
+        const mockMemory = new MockMemory();
+        const agent = new Agent({
+          name: 'test-agent',
+          instructions: 'test',
+          model: dummyResponseModel,
+          memory: mockMemory,
+        });
+
+        let stream;
+        if (version === 'v1') {
+          stream = await agent.stream('repeat tool calls', {
+            threadId: 'thread-1',
+            resourceId: 'resource-1',
+          });
+        } else {
+          stream = await agent.stream_vnext('repeat tool calls', {
+            threadId: 'thread-1',
+            resourceId: 'resource-1',
+          });
+        }
+
+        await stream.consumeStream();
+
+        const messages = await mockMemory.getMessages({ threadId: 'thread-1', resourceId: 'resource-1', format: 'v2' });
+        // Check that the last message matches the expected final output
+        expect(
+          messages[messages.length - 1]?.content?.parts?.some(
+            p => p.type === 'text' && p.text?.includes('Dummy response'),
+          ),
+        ).toBe(true);
+      });
+
+      it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
+        const mockMemory = new MockMemory();
+        let saveCallCount = 0;
+
+        mockMemory.saveMessages = async function (...args) {
+          saveCallCount++;
+          return MockMemory.prototype.saveMessages.apply(this, args);
+        };
+
+        const agent = new Agent({
+          name: 'no-progress-agent',
+          instructions: 'test',
+          model: emptyResponseModel,
+          memory: mockMemory,
+        });
+
+        let stream;
+        if (version === 'v1') {
+          stream = await agent.stream('no progress', {
+            threadId: 'thread-2',
+            resourceId: 'resource-2',
+          });
+        } else {
+          stream = await agent.stream_vnext('no progress', {
+            threadId: 'thread-2',
+            resourceId: 'resource-2',
+          });
+        }
+
+        await stream.consumeStream();
+
+        expect(saveCallCount).toBe(1);
+
+        const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
+        expect(messages.length).toBe(1);
+        expect(messages[0].role).toBe('user');
+        expect(messages[0].content.content).toBe('no progress');
+      });
     });
   });
 }
@@ -4339,273 +4674,6 @@ describe('Agent Tests', () => {
 // });
 
 //   });
-//   describe('stream', () => {
-//     it('should rescue partial messages (including tool calls) if stream is aborted/interrupted', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-//       let savedMessages: any[] = [];
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         savedMessages.push(...args[0].messages);
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const errorTool = createTool({
-//         id: 'errorTool',
-//         description: 'Always throws an error.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async () => {
-//           throw new Error('Tool failed!');
-//         },
-//       });
-
-//       const echoTool = createTool({
-//         id: 'echoTool',
-//         description: 'Echoes the input string.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input }),
-//       });
-
-//       const agent = new Agent({
-//         name: 'partial-rescue-agent',
-//         instructions:
-//           'Call each tool in a separate step. Do not use parallel tool calls. Always wait for the result of one tool before calling the next.',
-//         model: openai('gpt-4o'),
-//         memory: mockMemory,
-//         tools: { errorTool, echoTool },
-//       });
-//       agent.__setLogger(noopLogger);
-
-//       let stepCount = 0;
-
-//       const stream = await agent.stream(
-//         'Please echo this and then use the error tool. Be verbose and take multiple steps.',
-//         {
-//           threadId: 'thread-partial-rescue',
-//           resourceId: 'resource-partial-rescue',
-//           experimental_continueSteps: true,
-//           savePerStep: true,
-//           onStepFinish: (result: any) => {
-//             if (result.toolCalls && result.toolCalls.length > 1) {
-//               throw new Error('Model attempted parallel tool calls; test requires sequential tool calls');
-//             }
-//             stepCount++;
-//             if (stepCount === 2) {
-//               throw new Error('Simulated error in onStepFinish');
-//             }
-//           },
-//         },
-//       );
-
-//       let caught = false;
-//       try {
-//         for await (const _part of stream.fullStream) {
-//         }
-//       } catch (err) {
-//         caught = true;
-//         expect(err.message).toMatch(/Simulated error in onStepFinish/i);
-//       }
-//       expect(caught).toBe(true);
-
-//       // After interruption, check what was saved
-//       const messages = await mockMemory.getMessages({
-//         threadId: 'thread-partial-rescue',
-//         resourceId: 'resource-partial-rescue',
-//         format: 'v2',
-//       });
-//       // User message should be saved
-//       expect(messages.find(m => m.role === 'user')).toBeTruthy();
-//       // At least one assistant message (could be partial) should be saved
-//       expect(messages.find(m => m.role === 'assistant')).toBeTruthy();
-//       // At least one tool call (echoTool or errorTool) should be saved if the model got that far
-//       const assistantWithToolInvocation = messages.find(
-//         m =>
-//           m.role === 'assistant' &&
-//           m.content &&
-//           Array.isArray(m.content.parts) &&
-//           m.content.parts.some(
-//             part =>
-//               part.type === 'tool-invocation' &&
-//               part.toolInvocation &&
-//               (part.toolInvocation.toolName === 'echoTool' || part.toolInvocation.toolName === 'errorTool'),
-//           ),
-//       );
-//       expect(assistantWithToolInvocation).toBeTruthy();
-//       // There should be at least one save call (user and partial assistant/tool)
-//       expect(saveCallCount).toBeGreaterThanOrEqual(1);
-//     }, 500000);
-
-//     it('should incrementally save messages across steps and tool calls', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const echoTool = createTool({
-//         id: 'echoTool',
-//         description: 'Echoes the input string.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input }),
-//       });
-
-//       const agent = new Agent({
-//         name: 'test-agent',
-//         instructions: 'If the user prompt contains "Echo:", always call the echoTool. Be verbose in your response.',
-//         model: openai('gpt-4o'),
-//         memory: mockMemory,
-//         tools: { echoTool },
-//       });
-
-//       const stream = await agent.stream('Echo: Please echo this long message and explain why.', {
-//         threadId: 'thread-echo',
-//         resourceId: 'resource-echo',
-//         savePerStep: true,
-//       });
-
-//       for await (const _part of stream.fullStream) {
-//       }
-
-//       expect(saveCallCount).toBeGreaterThan(1);
-//       const messages = await mockMemory.getMessages({ threadId: 'thread-echo', resourceId: 'resource-echo' });
-//       expect(messages.length).toBeGreaterThan(0);
-//       const assistantMsg = messages.find(m => m.role === 'assistant');
-//       expect(assistantMsg).toBeDefined();
-//       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-//       const toolResultIds = new Set(
-//         assistantMsg!.content.parts
-//           .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-//           .map(p => p.toolInvocation.toolCallId),
-//       );
-//       expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
-//     }, 500000);
-
-//     it('should incrementally save messages with multiple tools and multi-step streaming', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const echoTool = createTool({
-//         id: 'echoTool',
-//         description: 'Echoes the input string.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input }),
-//       });
-
-//       const uppercaseTool = createTool({
-//         id: 'uppercaseTool',
-//         description: 'Converts input to uppercase.',
-//         inputSchema: z.object({ input: z.string() }),
-//         outputSchema: z.object({ output: z.string() }),
-//         execute: async ({ context }) => ({ output: context.input.toUpperCase() }),
-//       });
-
-//       const agent = new Agent({
-//         name: 'test-agent-multi',
-//         instructions: [
-//           'If the user prompt contains "Echo:", call the echoTool.',
-//           'If the user prompt contains "Uppercase:", call the uppercaseTool.',
-//           'If both are present, call both tools and explain the results.',
-//           'Be verbose in your response.',
-//         ].join(' '),
-//         model: openai('gpt-4o'),
-//         memory: mockMemory,
-//         tools: { echoTool, uppercaseTool },
-//       });
-
-//       const stream = await agent.stream(
-//         'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
-//         {
-//           threadId: 'thread-multi',
-//           resourceId: 'resource-multi',
-//           savePerStep: true,
-//         },
-//       );
-
-//       for await (const _part of stream.fullStream) {
-//       }
-
-//       expect(saveCallCount).toBeGreaterThan(1);
-//       const messages = await mockMemory.getMessages({ threadId: 'thread-multi', resourceId: 'resource-multi' });
-//       expect(messages.length).toBeGreaterThan(0);
-//       const assistantMsg = messages.find(m => m.role === 'assistant');
-//       expect(assistantMsg).toBeDefined();
-//       assertNoDuplicateParts(assistantMsg!.content.parts);
-
-//       const toolResultIds = new Set(
-//         assistantMsg!.content.parts
-//           .filter(p => p.type === 'tool-invocation' && p.toolInvocation.state === 'result')
-//           .map(p => p.toolInvocation.toolCallId),
-//       );
-//       expect(assistantMsg!.content.toolInvocations.length).toBe(toolResultIds.size);
-//     }, 500000);
-
-//     it('should persist the full message after a successful run', async () => {
-//       const mockMemory = new MockMemory();
-//       const agent = new Agent({
-//         name: 'test-agent',
-//         instructions: 'test',
-//         model: dummyResponseModel,
-//         memory: mockMemory,
-//       });
-//       const stream = await agent.stream('repeat tool calls', {
-//         threadId: 'thread-1',
-//         resourceId: 'resource-1',
-//       });
-
-//       for await (const _part of stream.fullStream) {
-//       }
-
-//       const messages = await mockMemory.getMessages({ threadId: 'thread-1', resourceId: 'resource-1', format: 'v2' });
-//       // Check that the last message matches the expected final output
-//       expect(
-//         messages[messages.length - 1]?.content?.parts?.some(
-//           p => p.type === 'text' && p.text?.includes('Dummy response'),
-//         ),
-//       ).toBe(true);
-//     });
-
-//     it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
-//       const mockMemory = new MockMemory();
-//       let saveCallCount = 0;
-
-//       mockMemory.saveMessages = async function (...args) {
-//         saveCallCount++;
-//         return MockMemory.prototype.saveMessages.apply(this, args);
-//       };
-
-//       const agent = new Agent({
-//         name: 'no-progress-agent',
-//         instructions: 'test',
-//         model: emptyResponseModel,
-//         memory: mockMemory,
-//       });
-
-//       const stream = await agent.stream('no progress', {
-//         threadId: 'thread-2',
-//         resourceId: 'resource-2',
-//       });
-
-//       for await (const _part of stream.fullStream) {
-//         // Should not yield any parts
-//       }
-
-//       expect(saveCallCount).toBe(1);
-
-//       const messages = await mockMemory.getMessages({ threadId: 'thread-2', resourceId: 'resource-2', format: 'v2' });
-//       expect(messages.length).toBe(1);
-//       expect(messages[0].role).toBe('user');
-//       expect(messages[0].content.content).toBe('no progress');
-//     });
 
 //     it('should not save any message if interrupted before any part is emitted', async () => {
 //       const mockMemory = new MockMemory();
