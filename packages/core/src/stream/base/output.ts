@@ -1,5 +1,5 @@
 import type { ReadableStream } from 'stream/web';
-import { TransformStream } from 'stream/web';
+import { TextEncoderStream, TransformStream } from 'stream/web';
 import type { Span } from '@opentelemetry/api';
 import { consumeStream } from 'ai-v5';
 import type { TelemetrySettings } from 'ai-v5';
@@ -13,6 +13,19 @@ import { createJsonTextStreamTransformer, createObjectStreamTransformer } from '
 import { AISDKV5OutputStream } from '../aisdk/v5/output';
 import { reasoningDetailsFromMessages, transformSteps } from '../aisdk/v5/output-helpers';
 import type { BufferedByStep, ChunkType, StepBufferItem } from '../types';
+
+export class JsonToSseTransformStream extends TransformStream<unknown, string> {
+  constructor() {
+    super({
+      transform(part, controller) {
+        controller.enqueue(`data: ${JSON.stringify(part)}\n\n`);
+      },
+      flush(controller) {
+        controller.enqueue('data: [DONE]\n\n');
+      },
+    });
+  }
+}
 
 type MastraModelOutputOptions = {
   runId: string;
@@ -476,6 +489,14 @@ export class MastraModelOutput extends MastraBase {
       }
     }
   }
+
+  // toUIMessageStreamResponse() {
+  //   const stream = this.teeStream()
+  //     .pipeThrough(new JsonToSseTransformStream())
+  //     .pipeThrough(new TextEncoderStream())
+
+  //   return new Response(stream as BodyInit);
+  // }
 
   async consumeStream(options?: ConsumeStreamOptions): Promise<void> {
     try {

@@ -1833,8 +1833,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           resourceId,
         });
 
-        console.log({ responseMessages: result.response.messages }, 'result.response.messages');
-
         const messageListResponses = new MessageList({
           threadId,
           resourceId,
@@ -1896,9 +1894,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 resourceId: thread.resourceId,
               });
             }
-
-            console.log({ threadId, resourceId, memoryConfig }, 'ZZZZZZZZZ');
-            console.log({ messageList: messageList.get.all.v2() }, 'messageList.get.all.v2()');
 
             // Parallelize title generation and message saving
             const promises: Promise<any>[] = [saveQueueManager.flushMessages(messageList, threadId, memoryConfig)];
