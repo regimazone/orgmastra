@@ -4673,8 +4673,6 @@ describe('Agent Tests', () => {
 
 // });
 
-//   });
-
 //     it('should not save any message if interrupted before any part is emitted', async () => {
 //       const mockMemory = new MockMemory();
 //       let saveCallCount = 0;
