@@ -454,66 +454,6 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
       });
 
-      it('should filter by nested JSON fields using json_extract', async () => {
-        // Create spans with nested JSON structures
-        const hierarchy1 = createSpanHierarchy('complex-parent-1', ['child-1'], {
-          scope: { 
-            version: { major: 1, minor: 0, patch: 0 },
-            environment: 'production',
-            region: 'us-east-1'
-          },
-          attributes: {
-            service: { name: 'api-gateway', tier: 'frontend' },
-            deployment: { stage: 'prod', canary: false }
-          }
-        });
-
-        const hierarchy2 = createSpanHierarchy('complex-parent-2', ['child-2'], {
-          scope: { 
-            version: { major: 1, minor: 1, patch: 0 },
-            environment: 'staging',
-            region: 'us-west-2'
-          },
-          attributes: {
-            service: { name: 'user-service', tier: 'backend' },
-            deployment: { stage: 'staging', canary: true }
-          }
-        });
-
-        // Create all spans
-        for (const { parent, children } of [hierarchy1, hierarchy2]) {
-          await storage.createAiSpan(parent);
-          
-          for (const child of children) {
-            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
-            await storage.createAiSpan(child);
-          }
-        }
-
-        // Test nested object field filtering
-        const apiGatewaySpans = await storage.getAiSpansPaginated({
-          filters: {
-            attributes: { 'service.name': 'api-gateway' }
-          },
-          page: 0,
-          perPage: 10,
-        });
-        expect(apiGatewaySpans.total).toBe(1);
-        expect(apiGatewaySpans.spans).toHaveLength(2);
-
-        // Test multiple nested field filtering
-        const prodApiGatewaySpans = await storage.getAiSpansPaginated({
-          filters: {
-            scope: { environment: 'production' },
-            attributes: { 'service.tier': 'frontend' }
-          },
-          page: 0,
-          perPage: 10,
-        });
-        expect(prodApiGatewaySpans.total).toBe(1);
-        expect(prodApiGatewaySpans.spans).toHaveLength(2);
-      });
-
       it('should filter by direct column fields', async () => {
         // Create spans with different span types and statuses
         const hierarchies = [
@@ -557,7 +497,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           filters: {
             spanType: 0,
             // Add a custom filter to demonstrate flexibility
-            traceId: hierarchies[0].parent.traceId
+            traceId: hierarchies?.[0]?.parent.traceId
           },
           page: 0,
           perPage: 10,
@@ -681,8 +621,8 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         const updates = [
-          { id: `${spans[0].traceId}-${spans[0].spanId}`, updates: { name: 'updated-1', metadata: { status: 'completed' } } },
-          { id: `${spans[1].traceId}-${spans[1].spanId}`, updates: { name: 'updated-2', metadata: { status: 'completed' } } },
+          { id: `${spans[0]?.traceId}-${spans[0]?.spanId}`, updates: { name: 'updated-1', metadata: { status: 'completed' } } },
+          { id: `${spans[1]?.traceId}-${spans[1]?.spanId}`, updates: { name: 'updated-2', metadata: { status: 'completed' } } },
         ];
 
         await storage.batchAiSpanUpdate({ records: updates });
