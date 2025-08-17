@@ -59,59 +59,115 @@ export class ObservabilityInMemory extends ObservabilityStorage {
   async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     this.logger.debug(`MockStore: getAiSpansPaginated called`);
 
-    const { page = 0, perPage = 10, name, scope, attributes, filters, dateRange } = args;
+    const { page = 0, perPage = 10, filters, dateRange } = args;
 
-    let spans = Array.from(this.collection.values());
+    // Get all spans first
+    let allSpans = Array.from(this.collection.values());
 
-    // Apply filters - following the same pattern as traces
-    if (name) {
-      spans = spans.filter(span => span.name?.startsWith(name));
-    }
+    // Separate parent and child spans first
+    const allParentSpans = allSpans.filter(span => !span.parentSpanId);
+    const allChildSpans = allSpans.filter(span => span.parentSpanId);
 
-    if (scope) {
-      // For scope filtering, we need to check if the span's scope has matching key-value pairs
-      spans = spans.filter(span => {
-        if (typeof scope === 'object' && scope !== null) {
-          return Object.entries(scope).every(([key, value]) =>
-            span.scope?.[key] === value
-          );
-        }
-        return false;
-      });
-    }
-
-    if (attributes) {
-      spans = spans.filter(span =>
-        Object.entries(attributes).every(([key, value]) => span.attributes?.[key] === value)
-      );
-    }
+    let filteredParentSpans = [...allParentSpans];
 
     if (filters) {
-      spans = spans.filter(span =>
-        Object.entries(filters).every(([key, value]) => span[key as keyof AISpanDatabaseRecord] === value)
-      );
+      if (filters.name && typeof filters.name === 'string') {
+        filteredParentSpans = filteredParentSpans.filter(span => span.name?.startsWith(filters.name!));
+      }
+
+      if (filters.attributes && typeof filters.attributes === 'object') {
+        filteredParentSpans = filteredParentSpans.filter(span =>
+          Object.entries(filters.attributes!).every(([key, value]) => {
+            if (key.includes('.')) {
+
+              const keys = key.split('.');
+              let currentValue: any = span.attributes;
+              for (const k of keys) {
+                if (currentValue && typeof currentValue === 'object') {
+                  currentValue = currentValue[k];
+                } else {
+                  return false;
+                }
+              }
+              return currentValue === value;
+            } else {
+              return span.attributes?.[key] === value;
+            }
+          })
+        );
+      }
+
+      if (filters.error && typeof filters.error === 'object') {
+        filteredParentSpans = filteredParentSpans.filter(span =>
+          Object.entries(filters.error!).every(([key, value]) => {
+            if (key.includes('.')) {
+              const keys = key.split('.');
+              let currentValue: any = span.error;
+              for (const k of keys) {
+                if (currentValue && typeof currentValue === 'object') {
+                  currentValue = currentValue[k];
+                } else {
+                  return false;
+                }
+              }
+              return currentValue === value;
+            } else {
+              return span.error?.[key] === value;
+            }
+          })
+        );
+      }
+
+      // CreatedAt filtering
+      if (filters.createdAt !== undefined) {
+        if (filters.createdAt instanceof Date) {
+          filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) >= filters.createdAt!);
+        } else {
+          filteredParentSpans = filteredParentSpans.filter(span => span.createdAt === filters.createdAt!);
+        }
+      }
+
+      // TraceId filtering
+      if (filters.traceId !== undefined) {
+        filteredParentSpans = filteredParentSpans.filter(span => span.traceId === filters.traceId);
+      }
+
+      // SpanType filtering
+      if (filters.spanType !== undefined) {
+        filteredParentSpans = filteredParentSpans.filter(span => span.spanType === filters.spanType);
+      }
     }
 
-    // Use createdAt for date filtering like traces implementation
+    // Use createdAt for date filtering on parent spans only
     if (dateRange?.start) {
-      spans = spans.filter(span => new Date(span.createdAt) >= dateRange.start!);
+      filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) >= dateRange.start!);
     }
 
     if (dateRange?.end) {
-      spans = spans.filter(span => new Date(span.createdAt) <= dateRange.end!);
+      filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) <= dateRange.end!);
     }
 
-    // Apply pagination and sort - startTime is a number, so we can sort directly
-    spans.sort((a, b) => b.startTime - a.startTime);
+    // Sort parent spans by creation time (newest first)
+    filteredParentSpans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Apply pagination to filtered parent spans only
     const start = page * perPage;
     const end = start + perPage;
+    const paginatedParentSpans = filteredParentSpans.slice(start, end);
+
+    // Get all child spans for the paginated parent spans
+    const traceIds = paginatedParentSpans.map(span => span.traceId);
+    const relatedChildSpans = allChildSpans.filter(span => traceIds.includes(span.traceId));
+
+    // Combine paginated parent spans with their children
+    const resultSpans = [...paginatedParentSpans, ...relatedChildSpans];
 
     return {
-      spans: spans.slice(start, end),
-      total: spans.length,
+      spans: resultSpans,
+      total: filteredParentSpans.length, // Total count of filtered parent spans only
       page,
       perPage,
-      hasMore: spans.length > end,
+      hasMore: filteredParentSpans.length > end,
     };
   }
 

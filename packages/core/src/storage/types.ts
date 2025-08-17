@@ -134,10 +134,15 @@ export type StorageGetTracesPaginatedArg = {
 } & PaginationArgs;
 
 export type StorageGetAiSpansPaginatedArg = {
-  name?: string;
-  scope?: Record<string, string>;
-  attributes?: Record<string, string>;
-  filters?: Record<string, any>;
+  filters?: Record<string, any> & {
+    name?: string;
+    attributes?: Record<string, string | number | boolean | null>;
+    error?: Record<string, string | number | boolean | null>;
+
+    spanType?: number;
+    traceId?: string;
+    createdAt?: Date | string;
+  };
 } & PaginationArgs;
 
 export type StorageResourceType = {

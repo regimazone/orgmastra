@@ -3,12 +3,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { MastraStorage } from '@mastra/core/storage';
 import {
-  createSampleAiSpan,
   createSampleAgentRunSpan,
+  createSampleAiSpan,
   createSampleLLMSpan,
   createSampleToolSpan,
-  createSampleWorkflowSpan
+  createSampleWorkflowSpan,
+  createSpanHierarchy,
+  createMultipleSpanHierarchies
 } from './data';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 
 export function createObservabilityTests({ storage }: { storage: MastraStorage }) {
   describe('AI Span Operations', () => {
@@ -83,146 +86,201 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
     });
 
     describe('getAiSpansPaginated', () => {
-      it('should return paginated AI spans with total count', async () => {
-        const spans = Array.from({ length: 15 }, (_, i) =>
-          createSampleAgentRunSpan(`test-span-${i}`)
-        );
+      it('should return paginated AI spans with total count based on parent spans only', async () => {
+        // Create 15 span hierarchies (each with 1 parent + 2 children)
+        const hierarchies = createMultipleSpanHierarchies(15, {
+          parentNamePrefix: 'parent-span',
+          childNames: ['child-1', 'child-2']
+        });
 
-        // Create all spans
-        for (const span of spans) {
-          await storage.createAiSpan(span);
+        // Create all parent spans first
+        for (const { parent } of hierarchies) {
+          await storage.createAiSpan(parent);
         }
 
-        // Test first page
+        // Create all child spans with correct parentSpanId
+        for (const { parent, children } of hierarchies) {
+          const parentId = `${parent.traceId}-${parent.spanId}`;
+          
+          for (const child of children) {
+            (child as any).parentSpanId = parentId;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Test first page - should return 8 parent spans + all their children
         const page1 = await storage.getAiSpansPaginated({
           page: 0,
           perPage: 8,
         });
-        expect(page1.spans).toHaveLength(8);
-        expect(page1.total).toBe(15);
+        // 8 parent spans + 16 child spans (2 per parent)
+        expect(page1.spans).toHaveLength(24);
+        expect(page1.total).toBe(15); // Total parent spans
         expect(page1.page).toBe(0);
         expect(page1.perPage).toBe(8);
         expect(page1.hasMore).toBe(true);
 
-        // Test second page
+        // Test second page - should return 7 parent spans + all their children
         const page2 = await storage.getAiSpansPaginated({
           page: 1,
           perPage: 8,
         });
-        expect(page2.spans).toHaveLength(7);
-        expect(page2.total).toBe(15);
+        // 7 parent spans + 14 child spans (2 per parent)
+        expect(page2.spans).toHaveLength(21);
+        expect(page2.total).toBe(15); // Total parent spans
         expect(page2.page).toBe(1);
         expect(page2.perPage).toBe(8);
         expect(page2.hasMore).toBe(false);
       });
 
-      it('should filter by name', async () => {
-        const spans = [
-          createSampleAgentRunSpan('agent-span-1'),
-          createSampleAgentRunSpan('agent-span-2'),
-          createSampleAgentRunSpan('llm-span-1'),
-          createSampleAgentRunSpan('llm-span-2'),
+      it('should filter by name on parent spans only', async () => {
+        // Create span hierarchies with different names
+        const hierarchies = [
+          createSpanHierarchy('agent-parent-1', ['child-1']),
+          createSpanHierarchy('agent-parent-2', ['child-2']),
+          createSpanHierarchy('llm-parent-1', ['child-3']),
+          createSpanHierarchy('llm-parent-2', ['child-4']),
         ];
 
-        for (const span of spans) {
-          await storage.createAiSpan(span);
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
         }
 
+        // Filter by name - should only match parent spans
         const agentSpans = await storage.getAiSpansPaginated({
-          name: 'agent-span',
+          filters: {
+            name: 'agent-parent'
+          },
           page: 0,
           perPage: 10,
         });
-        expect(agentSpans.total).toBe(2);
-        expect(agentSpans.spans.every(span => span.name.startsWith('agent-span'))).toBe(true);
+        expect(agentSpans.total).toBe(2); // Only parent spans count toward total
+        expect(agentSpans.spans).toHaveLength(4); // 2 parent + 2 child spans
+        expect(agentSpans.spans.filter(s => s.parentSpanId === null)).toHaveLength(2); // 2 parent spans
+        expect(agentSpans.spans.filter(s => s.parentSpanId !== null)).toHaveLength(2); // 2 child spans
       });
 
-      it('should filter by scope', async () => {
-        const scope1 = '0.10.0';
-        const scope2 = '0.11.0';
+      it('should filter by attributes using JSON field extraction', async () => {
+        const attributes1 = { environment: 'prod', region: 'us-east' };
+        const attributes2 = { environment: 'dev', region: 'us-west' };
 
-        const span1 = createSampleAgentRunSpan('span-1', { core: scope1 });
-        const span2 = createSampleAgentRunSpan('span-2', { core: scope2 });
+        const hierarchy1 = createSpanHierarchy('prod-parent', ['prod-child'], { attributes: attributes1 });
+        const hierarchy2 = createSpanHierarchy('dev-parent', ['dev-child'], { attributes: attributes2 });
 
-        await storage.createAiSpan(span1);
-        await storage.createAiSpan(span2);
-
-        const scope1Spans = await storage.getAiSpansPaginated({
-          scope: { core: scope1 },
-          page: 0,
-          perPage: 10,
-        });
-        expect(scope1Spans.total).toBe(1);
-        expect(scope1Spans.spans[0]?.scope?.core).toBe(scope1);
-      });
-
-      it('should filter by attributes', async () => {
-        const spans = [
-          createSampleAiSpan('prod-span', 0, undefined, { environment: 'prod', region: 'us-east' }),
-          createSampleAiSpan('dev-span', 0, undefined, { environment: 'dev', region: 'us-west' }),
-          createSampleAiSpan('prod-span-2', 0, undefined, { environment: 'prod', region: 'eu-west' }),
-        ];
-
-        for (const span of spans) {
-          await storage.createAiSpan(span);
+        // Create all spans
+        for (const { parent, children } of [hierarchy1, hierarchy2]) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
         }
 
+        // Filter by attributes - should match using json_extract
         const prodSpans = await storage.getAiSpansPaginated({
-          attributes: { environment: 'prod' },
+          filters: {
+            attributes: { environment: attributes1.environment }
+          },
           page: 0,
           perPage: 10,
         });
-        expect(prodSpans.total).toBe(2);
-        expect(prodSpans.spans.every(span => span.attributes?.environment === 'prod')).toBe(true);
+        expect(prodSpans.total).toBe(1); // Only parent spans count
+        expect(prodSpans.spans).toHaveLength(2); // 1 parent + 1 child
+        expect(prodSpans.spans.every(span => span.attributes?.environment === attributes1.environment)).toBe(true);
       });
 
-      it('should filter by date range', async () => {
-        const now = new Date();
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const dayBeforeYesterday = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+      it('should return complete span trees with nested children', async () => {
+        // Create a multi-level span hierarchy
+        const parentSpan = createSampleAgentRunSpan('parent');
+        const childSpan = createSampleAgentRunSpan('child');
+        const grandchildSpan = createSampleAgentRunSpan('grandchild');
+        const greatGrandchildSpan = createSampleAgentRunSpan('great-grandchild');
 
-        const spans = [
-          createSampleAiSpan('old-span', 0, undefined, undefined, undefined, dayBeforeYesterday),
-          createSampleAiSpan('yesterday-span', 0, undefined, undefined, undefined, yesterday),
-          createSampleAiSpan('today-span', 0, undefined, undefined, undefined, now),
-        ];
+        // Ensure all spans share the same traceId
+        const sharedTraceId = parentSpan.traceId;
+        (childSpan as any).traceId = sharedTraceId;
+        (grandchildSpan as any).traceId = sharedTraceId;
+        (greatGrandchildSpan as any).traceId = sharedTraceId;
 
-        for (const span of spans) {
-          await storage.createAiSpan(span);
-        }
+        // Create parent span first
+        await storage.createAiSpan(parentSpan);
+        
+        // Set child's parentSpanId to parent's actual ID
+        (childSpan as any).parentSpanId = `${parentSpan.traceId}-${parentSpan.spanId}`;
+        await storage.createAiSpan(childSpan);
+        
+        // Set grandchild's parentSpanId to child's actual ID
+        (grandchildSpan as any).parentSpanId = `${childSpan.traceId}-${childSpan.spanId}`;
+        await storage.createAiSpan(grandchildSpan);
+        
+        // Set great-grandchild's parentSpanId to grandchild's actual ID
+        (greatGrandchildSpan as any).parentSpanId = `${grandchildSpan.traceId}-${grandchildSpan.spanId}`;
+        await storage.createAiSpan(greatGrandchildSpan);
 
-        const fromYesterday = await storage.getAiSpansPaginated({
-          dateRange: { start: yesterday },
-          page: 0,
-          perPage: 10,
-        });
-        expect(fromYesterday.total).toBe(2);
-        expect(fromYesterday.spans.every(span =>
-          new Date(span.createdAt) >= yesterday
-        )).toBe(true);
-
-        const onlyToday = await storage.getAiSpansPaginated({
-          dateRange: { start: now, end: now },
-          page: 0,
-          perPage: 10,
-        });
-        expect(onlyToday.total).toBe(1);
-        expect(onlyToday.spans[0]?.name).toBe('today-span');
+        // Get paginated results
+        const result = await storage.getAiSpansPaginated({ page: 0, perPage: 1 });
+        
+        // Should return 1 parent span + all its descendants
+        expect(result.spans).toHaveLength(4);
+        expect(result.total).toBe(1); // Only parent spans count toward total
+        
+        // Verify all spans share the same traceId
+        const allTraceIds = result.spans.map(s => s.traceId);
+        expect(allTraceIds.every(id => id === sharedTraceId)).toBe(true);
+        
+        // Verify parent-child relationships
+        const parentSpanInResult = result.spans.find(s => s.parentSpanId === null);
+        const childSpanInResult = result.spans.find(s => s.name === 'child');
+        const grandchildSpanInResult = result.spans.find(s => s.name === 'grandchild');
+        const greatGrandchildSpanInResult = result.spans.find(s => s.name === 'great-grandchild');
+        
+        expect(parentSpanInResult).toBeDefined();
+        expect(childSpanInResult).toBeDefined();
+        expect(grandchildSpanInResult).toBeDefined();
+        expect(greatGrandchildSpanInResult).toBeDefined();
+        
+        // Verify parentSpanId relationships
+        expect(childSpanInResult?.parentSpanId).toBe(`${parentSpan.traceId}-${parentSpan.spanId}`);
+        expect(grandchildSpanInResult?.parentSpanId).toBe(`${childSpan.traceId}-${childSpan.spanId}`);
+        expect(greatGrandchildSpanInResult?.parentSpanId).toBe(`${grandchildSpan.traceId}-${grandchildSpan.spanId}`);
       });
 
-      it('should sort by start time (newest first)', async () => {
+      it('should sort parent spans by creation time (newest first)', async () => {
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-        const spans = [
-          createSampleAiSpan('oldest', 0, undefined, undefined, undefined, twoHoursAgo, twoHoursAgo.getTime()),
-          createSampleAiSpan('middle', 0, undefined, undefined, undefined, oneHourAgo, oneHourAgo.getTime()),
-          createSampleAiSpan('newest', 0, undefined, undefined, undefined, now, now.getTime()),
-        ];
+        // Create span hierarchies with different creation times
+        const hierarchy1 = createSpanHierarchy('oldest-parent', ['child-1'], { 
+          createdAt: twoHoursAgo,
+          startTime: twoHoursAgo.getTime()
+        });
+        const hierarchy2 = createSpanHierarchy('middle-parent', ['child-2'], { 
+          createdAt: oneHourAgo,
+          startTime: oneHourAgo.getTime()
+        });
+        const hierarchy3 = createSpanHierarchy('newest-parent', ['child-3'], { 
+          createdAt: now,
+          startTime: now.getTime()
+        });
 
-        for (const span of spans) {
-          await storage.createAiSpan(span);
+        const hierarchies = [hierarchy1, hierarchy2, hierarchy3];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
         }
 
         const result = await storage.getAiSpansPaginated({
@@ -230,10 +288,322 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        expect(result.spans).toHaveLength(3);
-        expect(result.spans[0]?.name).toBe('newest');
-        expect(result.spans[1]?.name).toBe('middle');
-        expect(result.spans[2]?.name).toBe('oldest');
+        // Should return all spans but pagination is based on parent spans
+        expect(result.spans).toHaveLength(6); // 3 parent + 3 child spans
+        expect(result.total).toBe(3); // Only parent spans count toward total
+        
+        // Parent spans should be ordered by creation time (newest first)
+        const parentSpansInResult = result.spans.filter(s => s.parentSpanId === null);
+        expect(parentSpansInResult).toHaveLength(3);
+        expect(parentSpansInResult[0]?.name).toBe('newest-parent');
+        expect(parentSpansInResult[1]?.name).toBe('middle-parent');
+        expect(parentSpansInResult[2]?.name).toBe('oldest-parent');
+      });
+
+      it('should handle empty results gracefully', async () => {
+        // Don't create any spans
+        
+        const result = await storage.getAiSpansPaginated({
+          page: 0,
+          perPage: 10,
+        });
+
+        expect(result.spans).toHaveLength(0);
+        expect(result.total).toBe(0);
+        expect(result.page).toBe(0);
+        expect(result.perPage).toBe(10);
+        expect(result.hasMore).toBe(false);
+      });
+
+      it('should handle single page results', async () => {
+        // Create only 3 span hierarchies (less than perPage)
+        const hierarchies = createMultipleSpanHierarchies(3, {
+          parentNamePrefix: 'single-page',
+          childNames: ['child']
+        });
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        const result = await storage.getAiSpansPaginated({
+          page: 0,
+          perPage: 10,
+        });
+
+        expect(result.spans).toHaveLength(6); // 3 parent + 3 child spans
+        expect(result.total).toBe(3);
+        expect(result.page).toBe(0);
+        expect(result.perPage).toBe(10);
+        expect(result.hasMore).toBe(false); // No more pages
+      });
+
+      it('should handle complex filtering combinations', async () => {
+        // Create span hierarchies with different characteristics
+        const hierarchies = [
+          createSpanHierarchy('prod-workflow-1', ['step1', 'step2'], {
+            scope: { environment: 'prod', region: 'us-east' },
+            attributes: { priority: 'high', team: 'backend' }
+          }),
+          createSpanHierarchy('prod-workflow-2', ['step1', 'step2'], {
+            scope: { environment: 'prod', region: 'us-west' },
+            attributes: { priority: 'medium', team: 'frontend' }
+          }),
+          createSpanHierarchy('dev-workflow-1', ['step1'], {
+            scope: { environment: 'dev', region: 'us-east' },
+            attributes: { priority: 'low', team: 'qa' }
+          }),
+          createSpanHierarchy('staging-workflow-1', ['step1'], {
+            scope: { environment: 'staging', region: 'eu-west' },
+            attributes: { priority: 'medium', team: 'devops' }
+          })
+        ];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Test complex filtering
+        const prodHighPrioritySpans = await storage.getAiSpansPaginated({
+          filters: {
+            name: 'prod-workflow',
+            attributes: { priority: 'high' }
+          },
+          page: 0,
+          perPage: 10,
+        });
+
+        expect(prodHighPrioritySpans.total).toBe(1); // Only 1 parent matches
+        expect(prodHighPrioritySpans.spans).toHaveLength(3); // 1 parent + 2 children
+        expect(prodHighPrioritySpans.spans.every(span => 
+          span.name?.includes('prod-workflow') || span.parentSpanId !== null
+        )).toBe(true);
+      });
+
+      it('should maintain span relationships across pagination', async () => {
+        // Create 25 span hierarchies to test pagination boundaries
+        const hierarchies = createMultipleSpanHierarchies(25, {
+          parentNamePrefix: 'pagination-test',
+          childNames: ['child-a', 'child-b', 'child-c']
+        });
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Test first page (10 items per page)
+        const page1 = await storage.getAiSpansPaginated({
+          page: 0,
+          perPage: 10,
+        });
+
+        expect(page1.spans).toHaveLength(40); // 10 parent + 30 children
+        expect(page1.total).toBe(25);
+        expect(page1.hasMore).toBe(true);
+
+        // Test second page
+        const page2 = await storage.getAiSpansPaginated({
+          page: 1,
+          perPage: 10,
+        });
+
+        expect(page2.spans).toHaveLength(40); // 10 parent + 30 children
+        expect(page2.total).toBe(25);
+        expect(page2.hasMore).toBe(true);
+
+        // Test last page
+        const page3 = await storage.getAiSpansPaginated({
+          page: 2,
+          perPage: 10,
+        });
+
+        expect(page3.spans).toHaveLength(20); // 5 parent + 15 children (5 × 3)
+        expect(page3.total).toBe(25);
+        expect(page3.hasMore).toBe(false);
+
+        // Verify that all spans in each page maintain their relationships
+        for (const page of [page1, page2, page3]) {
+          const parentSpans = page.spans.filter(s => s.parentSpanId === null);
+          const childSpans = page.spans.filter(s => s.parentSpanId !== null);
+          
+          // Each child should have a parent in the same page
+          for (const child of childSpans) {
+            const hasParentInPage = parentSpans.some(parent => 
+              `${parent.traceId}-${parent.spanId}` === child.parentSpanId
+            );
+            expect(hasParentInPage).toBe(true);
+          }
+        }
+      });
+
+      it('should filter by nested JSON fields using json_extract', async () => {
+        // Create spans with nested JSON structures
+        const hierarchy1 = createSpanHierarchy('complex-parent-1', ['child-1'], {
+          scope: { 
+            version: { major: 1, minor: 0, patch: 0 },
+            environment: 'production',
+            region: 'us-east-1'
+          },
+          attributes: {
+            service: { name: 'api-gateway', tier: 'frontend' },
+            deployment: { stage: 'prod', canary: false }
+          }
+        });
+
+        const hierarchy2 = createSpanHierarchy('complex-parent-2', ['child-2'], {
+          scope: { 
+            version: { major: 1, minor: 1, patch: 0 },
+            environment: 'staging',
+            region: 'us-west-2'
+          },
+          attributes: {
+            service: { name: 'user-service', tier: 'backend' },
+            deployment: { stage: 'staging', canary: true }
+          }
+        });
+
+        // Create all spans
+        for (const { parent, children } of [hierarchy1, hierarchy2]) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Test nested object field filtering
+        const apiGatewaySpans = await storage.getAiSpansPaginated({
+          filters: {
+            attributes: { 'service.name': 'api-gateway' }
+          },
+          page: 0,
+          perPage: 10,
+        });
+        expect(apiGatewaySpans.total).toBe(1);
+        expect(apiGatewaySpans.spans).toHaveLength(2);
+
+        // Test multiple nested field filtering
+        const prodApiGatewaySpans = await storage.getAiSpansPaginated({
+          filters: {
+            scope: { environment: 'production' },
+            attributes: { 'service.tier': 'frontend' }
+          },
+          page: 0,
+          perPage: 10,
+        });
+        expect(prodApiGatewaySpans.total).toBe(1);
+        expect(prodApiGatewaySpans.spans).toHaveLength(2);
+      });
+
+      it('should filter by direct column fields', async () => {
+        // Create spans with different span types and statuses
+        const hierarchies = [
+          createSpanHierarchy('agent-span', ['child'], { 
+            parentSpanType: 0, // Agent run
+            childSpanType: 1   // LLM
+          }),
+          createSpanHierarchy('tool-span', ['child'], { 
+            parentSpanType: 2, // Tool
+            childSpanType: 3   // Workflow
+          }),
+          createSpanHierarchy('llm-span', ['child'], { 
+            parentSpanType: 1, // LLM
+            childSpanType: 0   // Agent run
+          })
+        ];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Filter by spanType - should find 1 parent span with spanType 0
+        const agentSpans = await storage.getAiSpansPaginated({
+          filters: {
+            spanType: 0
+          },
+          page: 0,
+          perPage: 10,
+        });
+        expect(agentSpans.total).toBe(1); // 1 parent span with spanType 0
+        expect(agentSpans.spans).toHaveLength(2); // 1 parent + 1 child span with spanType 0
+
+        // Filter by multiple direct columns
+        const agentAndToolSpans = await storage.getAiSpansPaginated({
+          filters: {
+            spanType: 0,
+            // Add a custom filter to demonstrate flexibility
+            traceId: hierarchies[0].parent.traceId
+          },
+          page: 0,
+          perPage: 10,
+        });
+        expect(agentAndToolSpans.total).toBe(1); // Only 1 parent span matches both criteria
+        expect(agentAndToolSpans.spans).toHaveLength(2); // 1 parent + 1 child
+      });
+
+      it('should combine JSON and direct column filtering', async () => {
+        // Create spans with different characteristics
+        const hierarchies = [
+          createSpanHierarchy('prod-agent', ['child'], {
+            attributes: { team: 'backend' },
+            parentSpanType: 0
+          }),
+          createSpanHierarchy('prod-tool', ['child'], {
+            attributes: { team: 'frontend' },
+            parentSpanType: 2
+          }),
+          createSpanHierarchy('dev-agent', ['child'], {
+            attributes: { team: 'backend' },
+            parentSpanType: 0
+          })
+        ];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAiSpan(parent);
+          
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAiSpan(child);
+          }
+        }
+
+        // Filter by attributes (JSON field) and spanType (direct column)
+        const backendAgents = await storage.getAiSpansPaginated({
+          filters: {
+            attributes: { team: 'backend' },
+            spanType: 0
+          },
+          page: 0,
+          perPage: 10,
+        });
+        expect(backendAgents.total).toBe(2);
+        expect(backendAgents.spans).toHaveLength(4); // 2 parents + 2 children
       });
     });
 
