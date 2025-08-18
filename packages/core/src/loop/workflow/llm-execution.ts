@@ -556,7 +556,7 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
           finishReason: runState.state.stepResult?.reason,
           content: messageList.get.response.aiV5.modelContent(),
           // @ts-ignore this is how it worked internally for transformResponse which was removed TODO: how should this actually work?
-          response: { ...responseMetadata, messages: messageList.get.response.aiV5.model() },
+          response: { ...responseMetadata, ...rawResponse, messages: messageList.get.response.aiV5.model() },
           request: request,
           usage: outputStream.usage as LanguageModelV2Usage,
         }),
@@ -578,6 +578,7 @@ export function createLLMExecutionStep<Tools extends ToolSet = ToolSet>({
         metadata: {
           providerMetadata: runState.state.providerOptions,
           ...responseMetadata,
+          ...rawResponse,
           headers: rawResponse?.headers,
           request,
         },

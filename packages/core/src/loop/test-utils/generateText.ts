@@ -563,11 +563,17 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
           },
           'input',
         );
+
         const result = await generateText({
           model: new MockLanguageModelV2({
-            doGenerate: async () => ({
+            doStream: async ({}) => ({
               ...dummyResponseValues,
-              content: [{ type: 'text', text: 'Hello, world!' }],
+              stream: convertArrayToReadableStream<LanguageModelV2StreamPart>([
+                { type: 'text-start', id: '1' },
+                { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+                { type: 'text-end', id: '1' },
+                { type: 'finish', finishReason: 'stop', usage: testUsage },
+              ]),
             }),
           }),
           messageList,
@@ -635,13 +641,18 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
       });
     });
 
-    describe.todo('result.request', () => {
+    describe('result.request', () => {
       it('should contain request body', async () => {
         const result = await generateText({
           model: new MockLanguageModelV2({
-            doGenerate: async ({}) => ({
+            doStream: async ({}) => ({
               ...dummyResponseValues,
-              content: [{ type: 'text', text: 'Hello, world!' }],
+              stream: convertArrayToReadableStream<LanguageModelV2StreamPart>([
+                { type: 'text-start', id: '1' },
+                { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+                { type: 'text-end', id: '1' },
+                { type: 'finish', finishReason: 'stop', usage: testUsage },
+              ]),
               request: {
                 body: 'test body',
               },
@@ -656,13 +667,18 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
       });
     });
 
-    describe.todo('result.response', () => {
+    describe('result.response', () => {
       it('should contain response body and headers', async () => {
         const result = await generateText({
           model: new MockLanguageModelV2({
-            doGenerate: async ({}) => ({
+            doStream: async ({}) => ({
               ...dummyResponseValues,
-              content: [{ type: 'text', text: 'Hello, world!' }],
+              stream: convertArrayToReadableStream<LanguageModelV2StreamPart>([
+                { type: 'text-start', id: '1' },
+                { type: 'text-delta', id: '1', delta: 'Hello, world!' },
+                { type: 'text-end', id: '1' },
+                { type: 'finish', finishReason: 'stop', usage: testUsage },
+              ]),
               response: {
                 id: 'test-id-from-model',
                 timestamp: new Date(10000),
