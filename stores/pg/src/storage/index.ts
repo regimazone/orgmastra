@@ -224,11 +224,15 @@ export class PostgresStore extends MastraStorage {
     return this.stores.observability.deleteAiSpan(id);
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.GetAiTracesPaginated(args);
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.getAiTracesPaginated(args);
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
     return this.stores.observability.batchAiSpanCreate(args);
   }
 

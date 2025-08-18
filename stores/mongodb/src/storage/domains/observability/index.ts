@@ -47,27 +47,25 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
       if (!existingSpan) {
-        throw new MastraError({
-          id: 'MONGODB_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-        }, `AI span not found for update: ${id}`);
+        throw new MastraError(
+          {
+            id: 'MONGODB_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.USER,
+          },
+          `AI span not found for update: ${id}`,
+        );
       }
 
       // Remove undefined values
-      const cleanUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([_, value]) => value !== undefined)
-      );
+      const cleanUpdates = Object.fromEntries(Object.entries(updates).filter(([_, value]) => value !== undefined));
 
       if (Object.keys(cleanUpdates).length === 0) {
         return; // No updates to make
       }
 
       const collection = await this.operations.getCollection(TABLE_AI_SPAN);
-      await collection.updateOne(
-        { id },
-        { $set: cleanUpdates }
-      );
+      await collection.updateOne({ id }, { $set: cleanUpdates });
     } catch (error) {
       if (error instanceof MastraError) {
         throw error;
@@ -104,7 +102,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
    * Supported filters:
    * - name: string (regex search with case-insensitive)
    * - attributes: object (JSON field filtering)
-   * - error: object (JSON field filtering) 
+   * - error: object (JSON field filtering)
    * - createdAt: Date (>= comparison) or string (exact match)
    * - traceId: string (exact match)
    * - spanType: number (exact match)
@@ -118,7 +116,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
 
     // Name filtering
     if (filters.name) {
-      query.name = new RegExp(filters.name, 'i'); // Case-insensitive regex
+      query.name = filters.name; // Exact match
     }
 
     // Attributes filtering (JSON field)
@@ -167,7 +165,9 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     return query;
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
       const { filters, page = 0, perPage = 10 } = args;
       const currentOffset = page * perPage;
@@ -208,11 +208,11 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
       let allSpans = [...parentSpans];
       if (parentSpans.length > 0) {
         const traceIds = parentSpans.map(span => span.traceId);
-        
+
         const childResult = await collection
           .find({
             traceId: { $in: traceIds },
-            parentSpanId: { $ne: null }
+            parentSpanId: { $ne: null },
           })
           .toArray();
 
@@ -253,7 +253,9 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     };
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }

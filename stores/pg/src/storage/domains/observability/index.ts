@@ -11,15 +11,7 @@ export class ObservabilityPG extends ObservabilityStorage {
   private operations: StoreOperationsPG;
   private schema?: string;
 
-  constructor({
-    client,
-    operations,
-    schema,
-  }: {
-    client: any;
-    operations: StoreOperationsPG;
-    schema?: string;
-  }) {
+  constructor({ client, operations, schema }: { client: any; operations: StoreOperationsPG; schema?: string }) {
     super();
     this.client = client;
     this.operations = operations;
@@ -63,11 +55,14 @@ export class ObservabilityPG extends ObservabilityStorage {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
       if (!existingSpan) {
-        throw new MastraError({
-          id: 'PG_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-        }, `AI span not found for update: ${id}`);
+        throw new MastraError(
+          {
+            id: 'PG_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.USER,
+          },
+          `AI span not found for update: ${id}`,
+        );
       }
 
       // Build update query dynamically
@@ -132,7 +127,7 @@ export class ObservabilityPG extends ObservabilityStorage {
    * Supported filters:
    * - name: string (LIKE search with % suffix)
    * - attributes: object (JSON field filtering)
-   * - error: object (JSON field filtering) 
+   * - error: object (JSON field filtering)
    * - createdAt: Date (>= comparison) or string (exact match)
    * - traceId: string (exact match)
    * - spanType: number (exact match)
@@ -148,8 +143,8 @@ export class ObservabilityPG extends ObservabilityStorage {
 
     // Name filtering
     if (filters.name) {
-      conditions.push(`name LIKE $${paramIndex++}`);
-      params.push(`${filters.name}%`);
+      conditions.push(`name = $${paramIndex++}`);
+      params.push(filters.name);
     }
 
     // Attributes filtering (JSON field)
@@ -160,7 +155,10 @@ export class ObservabilityPG extends ObservabilityStorage {
         } else {
           // Handle nested JSON paths like 'service.name'
           if (key.includes('.')) {
-            const jsonPath = key.split('.').map(k => `'${k}'`).join('->');
+            const jsonPath = key
+              .split('.')
+              .map(k => `'${k}'`)
+              .join('->');
             conditions.push(`attributes->${jsonPath} = $${paramIndex++}`);
           } else {
             conditions.push(`attributes->>'${key}' = $${paramIndex++}`);
@@ -170,8 +168,6 @@ export class ObservabilityPG extends ObservabilityStorage {
       });
     }
 
-
-
     // Error filtering (JSON field)
     if (filters.error && typeof filters.error === 'object') {
       Object.entries(filters.error).forEach(([key, value]) => {
@@ -180,7 +176,10 @@ export class ObservabilityPG extends ObservabilityStorage {
         } else {
           // Handle nested JSON paths like 'service.name'
           if (key.includes('.')) {
-            const jsonPath = key.split('.').map(k => `'${k}'`).join('->');
+            const jsonPath = key
+              .split('.')
+              .map(k => `'${k}'`)
+              .join('->');
             conditions.push(`error->${jsonPath} = $${paramIndex++}`);
           } else {
             conditions.push(`error->>'${key}' = $${paramIndex++}`);
@@ -216,7 +215,9 @@ export class ObservabilityPG extends ObservabilityStorage {
     return { conditions, params };
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
       const { filters, page = 0, perPage = 10 } = args;
       const currentOffset = page * perPage;
@@ -231,7 +232,7 @@ export class ObservabilityPG extends ObservabilityStorage {
         FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })}
         WHERE "parentSpanId" IS NULL${whereClause ? ` AND ${conditions.join(' AND ')}` : ''}
       `;
-      
+
       const countResult = await this.client.oneOrNone<{ count: string }>(countSql, params);
       const total = Number(countResult?.count ?? 0);
 
@@ -252,11 +253,12 @@ export class ObservabilityPG extends ObservabilityStorage {
         ORDER BY "createdAt" DESC 
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}
       `;
-      
-      const parentResult = await this.client.manyOrNone<Record<string, any>>(
-        parentSql,
-        [...params, perPage, currentOffset],
-      );
+
+      const parentResult = await this.client.manyOrNone<Record<string, any>>(parentSql, [
+        ...params,
+        perPage,
+        currentOffset,
+      ]);
 
       const parentSpans = parentResult.map((row: Record<string, any>) => this.transformRowToAISpan(row));
 
@@ -265,12 +267,12 @@ export class ObservabilityPG extends ObservabilityStorage {
       if (parentSpans.length > 0) {
         const traceIds = parentSpans.map((span: Record<string, any>) => span.traceId);
         const placeholders = traceIds.map((_: string, i: number) => `$${i + 1}`).join(',');
-        
+
         const childSql = `
           SELECT * FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })}
           WHERE "traceId" IN (${placeholders}) AND "parentSpanId" IS NOT NULL
         `;
-        
+
         const childResult = await this.client.manyOrNone<Record<string, any>>(childSql, traceIds);
         const childSpans = childResult.map((row: Record<string, any>) => this.transformRowToAISpan(row));
         allSpans = [...parentSpans, ...childSpans];
@@ -296,17 +298,7 @@ export class ObservabilityPG extends ObservabilityStorage {
   }
 
   private transformRowToAISpan(row: Record<string, any>): Record<string, any> {
-    const {
-      scope,
-      attributes,
-      metadata,
-      events,
-      links,
-      input,
-      output,
-      error,
-      ...rest
-    } = row;
+    const { scope, attributes, metadata, events, links, input, output, error, ...rest } = row;
 
     return {
       ...rest,
@@ -321,7 +313,9 @@ export class ObservabilityPG extends ObservabilityStorage {
     } as AISpanDatabaseRecord;
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }

@@ -191,7 +191,7 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
     return processed;
   }
 
-  async GetAiTracesPaginated(
+  async getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     // TODO: fix filtering for json properties

@@ -368,10 +368,10 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.observability.deleteAiSpan(id);
   }
 
-  async GetAiTracesPaginated(
+  async getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.GetAiTracesPaginated(args);
+    return this.stores.observability.getAiTracesPaginated(args);
   }
 
   async batchAiSpanCreate(args: {

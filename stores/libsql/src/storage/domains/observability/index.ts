@@ -1,30 +1,19 @@
-import type { Client, Row, InValue } from "@libsql/client";
-import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from "@mastra/core/storage";
-import type { StorageGetAiTracesPaginatedArg } from "@mastra/core/storage";
-import type { PaginationInfo } from "@mastra/core/storage";
-import type { Trace } from "@mastra/core/telemetry";
-import type { StoreOperationsLibSQL } from "../operations";
-import type { AISpanDatabaseRecord } from "@mastra/core/ai-tracing";
-import { ErrorCategory, ErrorDomain, MastraError } from "@mastra/core/error";
-
+import type { Client, Row, InValue } from '@libsql/client';
+import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
+import type { PaginationInfo } from '@mastra/core/storage';
+import type { Trace } from '@mastra/core/telemetry';
+import type { StoreOperationsLibSQL } from '../operations';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 
 export class ObservabilityLibSQL extends ObservabilityStorage {
   private client: Client;
   private operations: StoreOperationsLibSQL;
 
   private transformRowToAISpan(row: Row): AISpanDatabaseRecord {
-    const {
-      scope,
-      attributes,
-      metadata,
-      events,
-      links,
-      input,
-      output,
-      error,
-      ...rest
-    } = row;
- 
+    const { scope, attributes, metadata, events, links, input, output, error, ...rest } = row;
+
     return {
       ...rest,
       scope: safelyParseJSON(scope),
@@ -35,7 +24,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
       input: safelyParseJSON(input),
       output: safelyParseJSON(output),
       error: safelyParseJSON(error),
-    } as any
+    } as any;
   }
 
   constructor({ client, operations }: { client: Client; operations: StoreOperationsLibSQL }) {
@@ -65,7 +54,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
    * Supported filters:
    * - name: string (LIKE search with % suffix)
    * - attributes: object (JSON field filtering)
-   * - error: object (JSON field filtering) 
+   * - error: object (JSON field filtering)
    * - createdAt: Date (>= comparison) or string (exact match)
    * - traceId: string (exact match)
    * - spanType: number (exact match)
@@ -80,8 +69,8 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
 
     // Name filtering
     if (filters.name) {
-      conditions.push('name LIKE ?');
-      args.push(`${filters.name}%`);
+      conditions.push('name = ?');
+      args.push(filters.name);
     }
 
     // Attributes filtering (JSON field)
@@ -89,21 +78,29 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
       Object.entries(filters.attributes).forEach(([key, value]) => {
         const jsonPath = `$.${key}`;
         if (value === null) {
-          conditions.push(`(json_extract(attributes, '${jsonPath}') IS NULL OR json_type(attributes, '${jsonPath}') IS NULL)`);
-        } else if (value !== undefined && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+          conditions.push(
+            `(json_extract(attributes, '${jsonPath}') IS NULL OR json_type(attributes, '${jsonPath}') IS NULL)`,
+          );
+        } else if (
+          value !== undefined &&
+          (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+        ) {
           conditions.push(`json_extract(attributes, '${jsonPath}') = ?`);
           args.push(value);
         }
       });
     }
 
-    // Error filtering (JSON field)  
+    // Error filtering (JSON field)
     if (filters.error && typeof filters.error === 'object') {
       Object.entries(filters.error).forEach(([key, value]) => {
         const jsonPath = `$.${key}`;
         if (value === null) {
           conditions.push(`(json_extract(error, '${jsonPath}') IS NULL OR json_type(error, '${jsonPath}') IS NULL)`);
-        } else if (value !== undefined && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+        } else if (
+          value !== undefined &&
+          (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+        ) {
           conditions.push(`json_extract(error, '${jsonPath}') = ?`);
           args.push(value);
         }
@@ -136,7 +133,9 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     return { conditions, args };
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: AISpanDatabaseRecord[] }> {
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: AISpanDatabaseRecord[] }> {
     const { filters, page = 0, perPage = 10 } = args;
     const currentOffset = page * perPage;
 
@@ -150,7 +149,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
         sql: countSql,
         args: parentQueryArgs,
       });
-      const total = countResult.rows[0]?.count as number || 0;
+      const total = (countResult.rows[0]?.count as number) || 0;
 
       const parentSql = `
         SELECT * FROM ${TABLE_AI_SPAN} 
@@ -205,11 +204,14 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     // First check if the span exists
     const span = await this.getAiSpan(id);
     if (!span) {
-      throw new MastraError({
-        id: 'LIBSQL_STORE_UPDATE_AI_SPAN_NOT_FOUND',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.USER,
-      }, `AI span not found for update: ${id}`);
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_UPDATE_AI_SPAN_NOT_FOUND',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.USER,
+        },
+        `AI span not found for update: ${id}`,
+      );
     }
 
     // Use the batch update method for consistency
@@ -223,15 +225,20 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
         args: [id],
       });
     } catch (error) {
-      throw new MastraError({
-        id: 'LIBSQL_STORE_DELETE_AI_SPAN_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      }, `Failed to delete AI span: ${error}`);
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_DELETE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to delete AI span: ${error}`,
+      );
     }
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -247,11 +254,14 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
         records: recordsWithIds,
       });
     } catch (error) {
-      throw new MastraError({
-        id: 'LIBSQL_STORE_BATCH_AI_SPAN_CREATE_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      }, `Failed to batch create AI spans: ${error}`);
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_BATCH_AI_SPAN_CREATE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch create AI spans: ${error}`,
+      );
     }
   }
 
@@ -261,63 +271,65 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
 
     try {
-      const batchStatements = updates.map(({ id, updates: recordUpdates }) => {
-        const { scope, attributes, metadata, events, links, input, output, error, ...rest } = recordUpdates;
-        
-        const fieldUpdates: string[] = [];
-        const updateArgs: any[] = [];
-        
-        // Handle JSON fields
-        if (scope !== undefined) {
-          fieldUpdates.push('scope = ?');
-          updateArgs.push(scope ? JSON.stringify(scope) : null);
-        }
-        if (attributes !== undefined) {
-          fieldUpdates.push('attributes = ?');
-          updateArgs.push(attributes ? JSON.stringify(attributes) : null);
-        }
-        if (metadata !== undefined) {
-          fieldUpdates.push('metadata = ?');
-          updateArgs.push(metadata ? JSON.stringify(metadata) : null);
-        }
-        if (events !== undefined) {
-          fieldUpdates.push('events = ?');
-          updateArgs.push(events ? JSON.stringify(events) : null);
-        }
-        if (links !== undefined) {
-          fieldUpdates.push('links = ?');
-          updateArgs.push(links ? JSON.stringify(links) : null);
-        }
-        if (input !== undefined) {
-          fieldUpdates.push('input = ?');
-          updateArgs.push(input ? JSON.stringify(input) : null);
-        }
-        if (output !== undefined) {
-          fieldUpdates.push('output = ?');
-          updateArgs.push(output ? JSON.stringify(output) : null);
-        }
-        if (error !== undefined) {
-          fieldUpdates.push('error = ?');
-          updateArgs.push(error ? JSON.stringify(error) : null);
-        }
+      const batchStatements = updates
+        .map(({ id, updates: recordUpdates }) => {
+          const { scope, attributes, metadata, events, links, input, output, error, ...rest } = recordUpdates;
 
-        // Handle non-JSON fields
-        Object.entries(rest).forEach(([key, value]) => {
-          if (value !== undefined) {
-            fieldUpdates.push(`${key} = ?`);
-            updateArgs.push(value);
+          const fieldUpdates: string[] = [];
+          const updateArgs: any[] = [];
+
+          // Handle JSON fields
+          if (scope !== undefined) {
+            fieldUpdates.push('scope = ?');
+            updateArgs.push(scope ? JSON.stringify(scope) : null);
           }
-        });
+          if (attributes !== undefined) {
+            fieldUpdates.push('attributes = ?');
+            updateArgs.push(attributes ? JSON.stringify(attributes) : null);
+          }
+          if (metadata !== undefined) {
+            fieldUpdates.push('metadata = ?');
+            updateArgs.push(metadata ? JSON.stringify(metadata) : null);
+          }
+          if (events !== undefined) {
+            fieldUpdates.push('events = ?');
+            updateArgs.push(events ? JSON.stringify(events) : null);
+          }
+          if (links !== undefined) {
+            fieldUpdates.push('links = ?');
+            updateArgs.push(links ? JSON.stringify(links) : null);
+          }
+          if (input !== undefined) {
+            fieldUpdates.push('input = ?');
+            updateArgs.push(input ? JSON.stringify(input) : null);
+          }
+          if (output !== undefined) {
+            fieldUpdates.push('output = ?');
+            updateArgs.push(output ? JSON.stringify(output) : null);
+          }
+          if (error !== undefined) {
+            fieldUpdates.push('error = ?');
+            updateArgs.push(error ? JSON.stringify(error) : null);
+          }
 
-        if (fieldUpdates.length === 0) {
-          return null; // Skip records with no updates
-        }
+          // Handle non-JSON fields
+          Object.entries(rest).forEach(([key, value]) => {
+            if (value !== undefined) {
+              fieldUpdates.push(`${key} = ?`);
+              updateArgs.push(value);
+            }
+          });
 
-        return {
-          sql: `UPDATE ${TABLE_AI_SPAN} SET ${fieldUpdates.join(', ')} WHERE id = ?`,
-          args: [...updateArgs, id],
-        };
-      }).filter(Boolean); // Remove null statements
+          if (fieldUpdates.length === 0) {
+            return null; // Skip records with no updates
+          }
+
+          return {
+            sql: `UPDATE ${TABLE_AI_SPAN} SET ${fieldUpdates.join(', ')} WHERE id = ?`,
+            args: [...updateArgs, id],
+          };
+        })
+        .filter(Boolean); // Remove null statements
 
       if (batchStatements.length === 0) {
         return; // No valid updates to make
@@ -325,18 +337,21 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
 
       // Use LibSQL's native batch method
       const validStatements = batchStatements.filter((stmt): stmt is { sql: string; args: any[] } => stmt !== null);
-      
+
       if (validStatements.length === 0) {
         return; // No valid updates to make
       }
 
       await this.client.batch(validStatements, 'write');
     } catch (error) {
-      throw new MastraError({
-        id: 'LIBSQL_STORE_BATCH_AI_SPAN_UPDATE_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      }, `Failed to batch update AI spans: ${error}`);
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_BATCH_AI_SPAN_UPDATE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch update AI spans: ${error}`,
+      );
     }
   }
 
@@ -357,11 +372,14 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
         args: args.ids,
       });
     } catch (error) {
-      throw new MastraError({
-        id: 'LIBSQL_STORE_BATCH_AI_SPAN_DELETE_FAILED',
-        domain: ErrorDomain.STORAGE,
-        category: ErrorCategory.THIRD_PARTY,
-      }, `Failed to batch delete AI spans: ${error}`);
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORE_BATCH_AI_SPAN_DELETE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch delete AI spans: ${error}`,
+      );
     }
   }
 }

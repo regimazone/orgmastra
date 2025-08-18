@@ -48,7 +48,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     }
 
     // Store the span in memory
-    this.spans.set(id, {...span, id} as AISpanDatabaseRecord);
+    this.spans.set(id, { ...span, id } as AISpanDatabaseRecord);
   }
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {
@@ -56,7 +56,9 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     return this.spans.get(id) ?? null;
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     this.logger.debug(`MockStore: GetAiTracesPaginated called`);
 
     const { page = 0, perPage = 10, filters, dateRange } = args;
@@ -72,14 +74,13 @@ export class ObservabilityInMemory extends ObservabilityStorage {
 
     if (filters) {
       if (filters.name && typeof filters.name === 'string') {
-        filteredParentSpans = filteredParentSpans.filter(span => span.name?.startsWith(filters.name!));
+        filteredParentSpans = filteredParentSpans.filter(span => span.name === filters.name);
       }
 
       if (filters.attributes && typeof filters.attributes === 'object') {
         filteredParentSpans = filteredParentSpans.filter(span =>
           Object.entries(filters.attributes!).every(([key, value]) => {
             if (key.includes('.')) {
-
               const keys = key.split('.');
               let currentValue: any = span.attributes;
               for (const k of keys) {
@@ -93,7 +94,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
             } else {
               return span.attributes?.[key] === value;
             }
-          })
+          }),
         );
       }
 
@@ -114,7 +115,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
             } else {
               return span.error?.[key] === value;
             }
-          })
+          }),
         );
       }
 

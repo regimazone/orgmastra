@@ -52,11 +52,14 @@ export class ObservabilityUpstash extends ObservabilityStorage {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
       if (!existingSpan) {
-        throw new MastraError({
-          id: 'UPSTASH_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
-          domain: ErrorDomain.STORAGE,
-          category: ErrorCategory.USER,
-        }, `AI span not found for update: ${id}`);
+        throw new MastraError(
+          {
+            id: 'UPSTASH_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.USER,
+          },
+          `AI span not found for update: ${id}`,
+        );
       }
 
       // Merge updates with existing data
@@ -101,7 +104,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
    * Supported filters:
    * - name: string (startsWith search)
    * - attributes: object (JSON field filtering)
-   * - error: object (JSON field filtering) 
+   * - error: object (JSON field filtering)
    * - createdAt: Date (>= comparison) or string (exact match)
    * - traceId: string (exact match)
    * - spanType: number (exact match)
@@ -114,7 +117,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     return (span: Record<string, any>): boolean => {
       // Name filtering (startsWith)
       if (filters.name && typeof filters.name === 'string') {
-        if (!span.name?.startsWith(filters.name)) {
+        if (span.name !== filters.name) {
           return false;
         }
       }
@@ -207,7 +210,9 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     };
   }
 
-  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
       const { filters, page = 0, perPage = 10 } = args;
       const pattern = `${TABLE_AI_SPAN}:*`;
@@ -294,7 +299,9 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     };
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }

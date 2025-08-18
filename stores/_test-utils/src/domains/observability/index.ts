@@ -62,6 +62,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.createAiSpan(span);
 
         const retrievedSpan = await storage.getAiSpan(`${span.traceId}-${span.spanId}`);
+
         expect(retrievedSpan?.attributes?.environment).toBe('test');
         expect(retrievedSpan?.attributes?.version).toBe('1.0');
         expect(retrievedSpan?.metadata?.agentId).toBe('agent-123');
@@ -110,7 +111,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Test first page - should return 8 parent spans + all their children
-        const page1 = await storage.GetAiTracesPaginated({
+        const page1 = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 8,
         });
@@ -123,7 +124,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(page1.hasMore).toBe(true);
 
         // Test second page - should return 7 parent spans + all their children
-        const page2 = await storage.GetAiTracesPaginated({
+        const page2 = await storage.getAiTracesPaginated({
           page: 1,
           perPage: 8,
         });
@@ -155,7 +156,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Filter by exact name - should only match parent spans with exact names
-        const agentSpans = await storage.GetAiTracesPaginated({
+        const agentSpans = await storage.getAiTracesPaginated({
           filters: {
             name: 'agent-parent-1',
           },
@@ -184,7 +185,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Filter by attributes - should match using json_extract
-        const prodSpans = await storage.GetAiTracesPaginated({
+        const prodSpans = await storage.getAiTracesPaginated({
           filters: {
             attributes: { environment: attributes1.environment },
           },
@@ -225,7 +226,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.createAiSpan(greatGrandchildSpan);
 
         // Get paginated results
-        const result = await storage.GetAiTracesPaginated({ page: 0, perPage: 1 });
+        const result = await storage.getAiTracesPaginated({ page: 0, perPage: 1 });
 
         // Should return 1 parent span + all its descendants
         expect(result.spans).toHaveLength(4);
@@ -283,7 +284,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           }
         }
 
-        const result = await storage.GetAiTracesPaginated({
+        const result = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 10,
         });
@@ -303,7 +304,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
       it('should handle empty results gracefully', async () => {
         // Don't create any spans
 
-        const result = await storage.GetAiTracesPaginated({
+        const result = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 10,
         });
@@ -332,7 +333,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           }
         }
 
-        const result = await storage.GetAiTracesPaginated({
+        const result = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 10,
         });
@@ -375,10 +376,10 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           }
         }
 
-        // Test complex filtering
-        const prodHighPrioritySpans = await storage.GetAiTracesPaginated({
+        // Test complex filtering - filter by exact name 'prod-workflow-1' and priority 'high'
+        const prodHighPrioritySpans = await storage.getAiTracesPaginated({
           filters: {
-            name: 'prod-workflow',
+            name: 'prod-workflow-1',
             attributes: { priority: 'high' },
           },
           page: 0,
@@ -388,7 +389,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(prodHighPrioritySpans.total).toBe(1); // Only 1 parent matches
         expect(prodHighPrioritySpans.spans).toHaveLength(3); // 1 parent + 2 children
         expect(
-          prodHighPrioritySpans.spans.every(span => span.name?.includes('prod-workflow') || span.parentSpanId !== null),
+          prodHighPrioritySpans.spans.every(span => span.name === 'prod-workflow-1' || span.parentSpanId !== null),
         ).toBe(true);
       });
 
@@ -410,7 +411,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Test first page (10 items per page)
-        const page1 = await storage.GetAiTracesPaginated({
+        const page1 = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 10,
         });
@@ -420,7 +421,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(page1.hasMore).toBe(true);
 
         // Test second page
-        const page2 = await storage.GetAiTracesPaginated({
+        const page2 = await storage.getAiTracesPaginated({
           page: 1,
           perPage: 10,
         });
@@ -430,7 +431,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(page2.hasMore).toBe(true);
 
         // Test last page
-        const page3 = await storage.GetAiTracesPaginated({
+        const page3 = await storage.getAiTracesPaginated({
           page: 2,
           perPage: 10,
         });
@@ -482,7 +483,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Filter by spanType - should find 1 parent span with spanType 0
-        const agentSpans = await storage.GetAiTracesPaginated({
+        const agentSpans = await storage.getAiTracesPaginated({
           filters: {
             spanType: 0,
           },
@@ -493,7 +494,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(agentSpans.spans).toHaveLength(2); // 1 parent + 1 child span with spanType 0
 
         // Filter by multiple direct columns
-        const agentAndToolSpans = await storage.GetAiTracesPaginated({
+        const agentAndToolSpans = await storage.getAiTracesPaginated({
           filters: {
             spanType: 0,
             // Add a custom filter to demonstrate flexibility
@@ -534,7 +535,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         }
 
         // Filter by attributes (JSON field) and spanType (direct column)
-        const backendAgents = await storage.GetAiTracesPaginated({
+        const backendAgents = await storage.getAiTracesPaginated({
           filters: {
             attributes: { team: 'backend' },
             spanType: 0,
@@ -701,7 +702,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           await storage.batchAiSpanCreate({ records: batch });
         }
 
-        const result = await storage.GetAiTracesPaginated({
+        const result = await storage.getAiTracesPaginated({
           page: 0,
           perPage: 50,
         });

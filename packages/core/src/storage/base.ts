@@ -303,7 +303,9 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract getAiSpan(id: string): Promise<Record<string, any> | null>;
 
-  abstract GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }>;
+  abstract getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }>;
 
   abstract updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void>;
 
