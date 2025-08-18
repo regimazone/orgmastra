@@ -1,5 +1,5 @@
 import type { ReadableStream } from 'stream/web';
-import { TextEncoderStream, TransformStream } from 'stream/web';
+import { TransformStream } from 'stream/web';
 import type { Span } from '@opentelemetry/api';
 import { consumeStream } from 'ai-v5';
 import type { TelemetrySettings } from 'ai-v5';
@@ -8,7 +8,6 @@ import { MastraBase } from '../../base';
 import type { ObjectOptions } from '../../loop/types';
 import { DelayedPromise } from '../aisdk/v5/compat';
 import type { ConsumeStreamOptions } from '../aisdk/v5/compat';
-import { getResponseFormat } from '../aisdk/v5/object/schema';
 import { createJsonTextStreamTransformer, createObjectStreamTransformer } from '../aisdk/v5/object/stream-object';
 import { AISDKV5OutputStream } from '../aisdk/v5/output';
 import { reasoningDetailsFromMessages, transformSteps } from '../aisdk/v5/output-helpers';
