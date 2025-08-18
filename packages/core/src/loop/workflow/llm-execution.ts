@@ -293,8 +293,6 @@ async function processOutputStream({
           hasErrored: true,
         });
 
-        controller.enqueue(chunk);
-
         runState.setState({
           stepResult: {
             isContinued: false,
@@ -302,7 +300,14 @@ async function processOutputStream({
           },
         });
 
-        await options?.onError?.({ error: chunk.payload.error });
+        let e = chunk.payload.error;
+        if (typeof e === 'object') {
+          e = new Error(chunk.payload.error.message);
+          Object.assign(e, chunk.payload.error);
+        }
+
+        controller.enqueue({ ...chunk, payload: { ...chunk.payload, error: e } });
+        await options?.onError?.({ error: e });
 
         break;
       default:
