@@ -21,12 +21,15 @@ import type {
   StorageResourceType,
   ThreadSortOptions,
 } from '@mastra/core/storage';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { Service } from 'electrodb';
 import { getElectroDbService } from '../entities';
 import { LegacyEvalsDynamoDB } from './domains/legacy-evals';
 import { MemoryStorageDynamoDB } from './domains/memory';
+import { ObservabilityDynamoDB } from './domains/observability';
 import { StoreOperationsDynamoDB } from './domains/operations';
 import { ScoresStorageDynamoDB } from './domains/score';
 import { TracesStorageDynamoDB } from './domains/traces';
@@ -93,6 +96,8 @@ export class DynamoDBStore extends MastraStorage {
 
       const scores = new ScoresStorageDynamoDB({ service: this.service });
 
+      const observability = new ObservabilityDynamoDB({ service: this.service, operations });
+
       this.stores = {
         operations,
         legacyEvals: new LegacyEvalsDynamoDB({ service: this.service, tableName: this.tableName }),
@@ -100,6 +105,7 @@ export class DynamoDBStore extends MastraStorage {
         workflows,
         memory,
         scores,
+        observability,
       };
     } catch (error) {
       throw new MastraError(
@@ -343,6 +349,43 @@ export class DynamoDBStore extends MastraStorage {
 
   async getTracesPaginated(_args: StorageGetTracesArg): Promise<PaginationInfo & { traces: Trace[] }> {
     return this.stores.traces.getTracesPaginated(_args);
+  }
+
+  // AI Span methods
+  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+    return this.stores.observability.createAiSpan(span);
+  }
+
+  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAiSpan(id);
+  }
+
+  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+    return this.stores.observability.updateAiSpan(id, updates);
+  }
+
+  async deleteAiSpan(id: string): Promise<void> {
+    return this.stores.observability.deleteAiSpan(id);
+  }
+
+  async GetAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.GetAiTracesPaginated(args);
+  }
+
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
+    return this.stores.observability.batchAiSpanCreate(args);
+  }
+
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanUpdate(args);
+  }
+
+  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanDelete(args);
   }
 
   // Workflow operations
