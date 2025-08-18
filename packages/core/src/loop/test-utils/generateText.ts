@@ -1917,7 +1917,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     //     expect(tracer.jsonSpans).toMatchSnapshot();
     //   });
 
-    it.only('should record successful tool call', async () => {
+    it('should record successful tool call', async () => {
       const tracer = new MockTracer();
       const messageList = new MessageList();
       messageList.add(
@@ -1961,7 +1961,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         },
         _internal: {
           generateId: () => 'test-id',
-          currentDate: () => new Date(0),
+          now: () => new Date(0).getTime(),
         },
       });
 
@@ -1997,9 +1997,13 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
               "stream.prompt.tools": [
                 "{"type":"function","name":"tool1","inputSchema":{"type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}}",
               ],
+              "stream.response.avgOutputTokensPerSecond": Infinity,
               "stream.response.finishReason": "stop",
               "stream.response.id": "test-id",
               "stream.response.model": "mock-model-id",
+              "stream.response.msToFinish": 0,
+              "stream.response.msToFirstChunk": 0,
+              "stream.response.text": "",
               "stream.response.timestamp": "1970-01-01T00:00:00.000Z",
               "stream.response.toolCalls": "[{"toolCallId":"call-1","args":{"value":"value"},"toolName":"tool1"}]",
               "stream.settings.maxRetries": 2,
@@ -2007,7 +2011,18 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
               "stream.usage.outputTokens": 10,
               "stream.usage.totalTokens": 13,
             },
-            "events": [],
+            "events": [
+              {
+                "attributes": {
+                  "ai.response.msToFirstChunk": 0,
+                },
+                "name": "ai.stream.firstChunk",
+              },
+              {
+                "attributes": undefined,
+                "name": "ai.stream.finish",
+              },
+            ],
             "name": "mastra.generate.aisdk.doStream",
           },
           {
