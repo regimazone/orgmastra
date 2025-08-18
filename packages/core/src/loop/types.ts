@@ -62,4 +62,5 @@ export type LoopRun<Tools extends ToolSet = ToolSet> = LoopOptions<Tools> & {
 export type OuterLLMRun<Tools extends ToolSet = ToolSet> = {
   messageId: string;
   controller: ReadableStreamDefaultController<ChunkType>;
+  writer: WritableStream<ChunkType>;
 } & LoopRun<Tools>;
