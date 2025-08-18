@@ -46,19 +46,9 @@ export type LoopOptions<Tools extends ToolSet = ToolSet> = {
 
 export type ObjectOptions =
   | {
-      /**
-       * Defaults to 'object' output if 'schema' is provided without 'output'
-       */
-      output?: 'object' | 'array';
-      schema: Parameters<typeof asSchema>[0];
+      schema?: Parameters<typeof asSchema>[0];
       schemaName?: string;
       schemaDescription?: string;
-    }
-  | {
-      output: 'no-schema';
-      schema?: never;
-      schemaName?: never;
-      schemaDescription?: never;
     }
   | undefined;
 

@@ -12,6 +12,7 @@ import { createJsonTextStreamTransformer, createObjectStreamTransformer } from '
 import { AISDKV5OutputStream } from '../aisdk/v5/output';
 import { reasoningDetailsFromMessages, transformSteps } from '../aisdk/v5/output-helpers';
 import type { BufferedByStep, ChunkType, StepBufferItem } from '../types';
+import { getOutputSchema } from '../aisdk/v5/object/schema';
 
 export class JsonToSseTransformStream extends TransformStream<unknown, string> {
   constructor() {
@@ -614,7 +615,8 @@ export class MastraModelOutput extends MastraBase {
 
   get textStream() {
     const self = this;
-    if (self.#options.objectOptions?.output === 'array') {
+    const outputSchema = getOutputSchema({ schema: self.#options.objectOptions?.schema });
+    if (outputSchema?.outputFormat === 'array') {
       return this.fullStream.pipeThrough(createJsonTextStreamTransformer(self.#options.objectOptions));
     }
 
