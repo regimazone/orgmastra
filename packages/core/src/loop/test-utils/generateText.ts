@@ -7,6 +7,7 @@ import { MessageList } from '../../agent/message-list';
 import type { loop } from '../loop';
 import type { LoopOptions } from '../types';
 import { createTestModel, modelWithFiles, modelWithReasoning, modelWithSources, testUsage } from './utils';
+import { MockTracer } from './mockTracer';
 
 export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; runId: string }) {
   const generateText = async (args: Omit<LoopOptions, 'runId'>): ReturnType<typeof generateText5> => {
@@ -1916,104 +1917,114 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     //     expect(tracer.jsonSpans).toMatchSnapshot();
     //   });
 
-    //   it('should record successful tool call', async () => {
-    //     await generateText({
-    //       model: new MockLanguageModelV2({
-    //         doGenerate: async ({}) => ({
-    //           ...dummyResponseValues,
-    //           content: [
-    //             {
-    //               type: 'tool-call',
-    //               toolCallType: 'function',
-    //               toolCallId: 'call-1',
-    //               toolName: 'tool1',
-    //               input: `{ "value": "value" }`,
-    //             },
-    //           ],
-    //         }),
-    //       }),
-    //       tools: {
-    //         tool1: {
-    //           inputSchema: z.object({ value: z.string() }),
-    //           execute: async () => 'result1',
-    //         },
-    //       },
-    //       prompt: 'test-input',
-    //       experimental_telemetry: {
-    //         isEnabled: true,
-    //         tracer,
-    //       },
-    //       _internal: {
-    //         generateId: () => 'test-id',
-    //         currentDate: () => new Date(0),
-    //       },
-    //     });
+    it.only('should record successful tool call', async () => {
+      const tracer = new MockTracer();
+      const messageList = new MessageList();
+      messageList.add(
+        {
+          role: 'user',
+          content: 'test-input',
+        },
+        'user',
+      );
+      await generateText({
+        model: new MockLanguageModelV2({
+          doStream: async ({}) => ({
+            ...dummyResponseValues,
+            stream: convertArrayToReadableStream([
+              {
+                type: 'tool-call',
+                toolCallType: 'function',
+                toolCallId: 'call-1',
+                toolName: 'tool1',
+                input: `{ "value": "value" }`,
+              },
+              {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: testUsage,
+              },
+            ]),
+          }),
+        }),
+        tools: {
+          tool1: {
+            inputSchema: z.object({ value: z.string() }),
+            execute: async () => 'result1',
+          },
+        },
+        messageList,
+        mode: 'generate',
+        telemetry_settings: {
+          isEnabled: true,
+          tracer,
+        },
+        _internal: {
+          generateId: () => 'test-id',
+          currentDate: () => new Date(0),
+        },
+      });
 
-    //     expect(tracer.jsonSpans).toMatchInlineSnapshot(`
-    //     [
-    //       {
-    //         "attributes": {
-    //           "ai.model.id": "mock-model-id",
-    //           "ai.model.provider": "mock-provider",
-    //           "ai.operationId": "ai.generateText",
-    //           "ai.prompt": "{"prompt":"test-input"}",
-    //           "ai.response.finishReason": "stop",
-    //           "ai.response.toolCalls": "[{"toolCallId":"call-1","toolName":"tool1","input":"{ \\"value\\": \\"value\\" }"}]",
-    //           "ai.settings.maxRetries": 2,
-    //           "ai.usage.completionTokens": 10,
-    //           "ai.usage.promptTokens": 3,
-    //           "operation.name": "ai.generateText",
-    //         },
-    //         "events": [],
-    //         "name": "ai.generateText",
-    //       },
-    //       {
-    //         "attributes": {
-    //           "ai.model.id": "mock-model-id",
-    //           "ai.model.provider": "mock-provider",
-    //           "ai.operationId": "ai.generateText.doGenerate",
-    //           "ai.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
-    //           "ai.prompt.toolChoice": "{"type":"auto"}",
-    //           "ai.prompt.tools": [
-    //             "{"type":"function","name":"tool1","inputSchema":{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false}}",
-    //           ],
-    //           "ai.response.finishReason": "stop",
-    //           "ai.response.id": "test-id",
-    //           "ai.response.model": "mock-model-id",
-    //           "ai.response.timestamp": "1970-01-01T00:00:00.000Z",
-    //           "ai.response.toolCalls": "[{"toolCallId":"call-1","toolName":"tool1","input":"{ \\"value\\": \\"value\\" }"}]",
-    //           "ai.settings.maxRetries": 2,
-    //           "ai.usage.completionTokens": 10,
-    //           "ai.usage.promptTokens": 3,
-    //           "gen_ai.request.model": "mock-model-id",
-    //           "gen_ai.response.finish_reasons": [
-    //             "stop",
-    //           ],
-    //           "gen_ai.response.id": "test-id",
-    //           "gen_ai.response.model": "mock-model-id",
-    //           "gen_ai.system": "mock-provider",
-    //           "gen_ai.usage.input_tokens": 3,
-    //           "gen_ai.usage.output_tokens": 10,
-    //           "operation.name": "ai.generateText.doGenerate",
-    //         },
-    //         "events": [],
-    //         "name": "ai.generateText.doGenerate",
-    //       },
-    //       {
-    //         "attributes": {
-    //           "ai.operationId": "ai.toolCall",
-    //           "ai.toolCall.args": "{"value":"value"}",
-    //           "ai.toolCall.id": "call-1",
-    //           "ai.toolCall.name": "tool1",
-    //           "ai.toolCall.result": ""result1"",
-    //           "operation.name": "ai.toolCall",
-    //         },
-    //         "events": [],
-    //         "name": "ai.toolCall",
-    //       },
-    //     ]
-    //   `);
-    //   });
+      console.log(JSON.stringify(tracer.jsonSpans, null, 2));
+      expect(tracer.jsonSpans).toMatchInlineSnapshot(`
+        [
+          {
+            "attributes": {
+              "aisdk.model.id": "mock-model-id",
+              "aisdk.model.provider": "mock-provider",
+              "mastra.operationId": "mastra.generate",
+              "operation.name": "mastra.generate",
+              "stream.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
+              "stream.response.finishReason": "stop",
+              "stream.response.text": "",
+              "stream.response.toolCalls": "[{"type":"tool-call","toolCallId":"call-1","args":{"value":"value"},"toolName":"tool1"}]",
+              "stream.settings.maxRetries": 2,
+              "stream.usage.inputTokens": 3,
+              "stream.usage.outputTokens": 10,
+              "stream.usage.totalTokens": 13,
+            },
+            "events": [],
+            "name": "mastra.generate",
+          },
+          {
+            "attributes": {
+              "aisdk.model.id": "mock-model-id",
+              "aisdk.model.provider": "mock-provider",
+              "mastra.operationId": "mastra.generate.aisdk.doStream",
+              "operation.name": "mastra.generate.aisdk.doStream",
+              "stream.prompt.messages": "[{"role":"user","content":[{"type":"text","text":"test-input"}]}]",
+              "stream.prompt.toolChoice": "auto",
+              "stream.prompt.tools": [
+                "{"type":"function","name":"tool1","inputSchema":{"type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}}",
+              ],
+              "stream.response.finishReason": "stop",
+              "stream.response.id": "test-id",
+              "stream.response.model": "mock-model-id",
+              "stream.response.timestamp": "1970-01-01T00:00:00.000Z",
+              "stream.response.toolCalls": "[{"toolCallId":"call-1","args":{"value":"value"},"toolName":"tool1"}]",
+              "stream.settings.maxRetries": 2,
+              "stream.usage.inputTokens": 3,
+              "stream.usage.outputTokens": 10,
+              "stream.usage.totalTokens": 13,
+            },
+            "events": [],
+            "name": "mastra.generate.aisdk.doStream",
+          },
+          {
+            "attributes": {
+              "mastra.operationId": "mastra.stream.toolCall",
+              "operation.name": "mastra.stream.toolCall",
+              "stream.toolCall.args": "{"value":"value"}",
+              "stream.toolCall.result": ""result1"",
+              "stream.toolCall.toolCallId": "call-1",
+              "stream.toolCall.toolName": "tool1",
+            },
+            "events": [],
+            "name": "mastra.stream.toolCall",
+          },
+        ]
+      `);
+    });
 
     //   it('should record error on tool call', async () => {
     //     await generateText({
