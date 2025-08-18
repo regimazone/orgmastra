@@ -422,8 +422,8 @@ export class LibSQLStore extends MastraStorage {
     return this.stores.observability.getAiSpan(id);
   }
 
-  async getAiSpansPaginated(args: any): Promise<any> {
-    return this.stores.observability.getAiSpansPaginated(args);
+  async GetAiTracesPaginated(args: any): Promise<any> {
+    return this.stores.observability.GetAiTracesPaginated(args);
   }
 
   async updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {

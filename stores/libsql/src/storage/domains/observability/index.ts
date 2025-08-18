@@ -1,6 +1,6 @@
 import type { Client, Row, InValue } from "@libsql/client";
 import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from "@mastra/core/storage";
-import type { StorageGetAiSpansPaginatedArg } from "@mastra/core/storage";
+import type { StorageGetAiTracesPaginatedArg } from "@mastra/core/storage";
 import type { PaginationInfo } from "@mastra/core/storage";
 import type { Trace } from "@mastra/core/telemetry";
 import type { StoreOperationsLibSQL } from "../operations";
@@ -136,7 +136,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     return { conditions, args };
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: AISpanDatabaseRecord[] }> {
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: AISpanDatabaseRecord[] }> {
     const { filters, page = 0, perPage = 10 } = args;
     const currentOffset = page * perPage;
 

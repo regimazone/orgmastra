@@ -1,6 +1,6 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiSpansPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import type { StoreOperationsMongoDB } from '../operations';
 
@@ -167,7 +167,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     return query;
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
       const { filters, page = 0, perPage = 10 } = args;
       const currentOffset = page * perPage;

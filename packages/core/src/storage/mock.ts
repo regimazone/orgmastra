@@ -26,7 +26,7 @@ import type {
   StorageColumn,
   StorageGetMessagesArg,
   StorageGetTracesPaginatedArg,
-  StorageGetAiSpansPaginatedArg,
+  StorageGetAiTracesPaginatedArg,
   StoragePagination,
   StorageResourceType,
   ThreadSortOptions,
@@ -305,8 +305,8 @@ export class InMemoryStore extends MastraStorage {
     return this.stores.observability.getAiSpan(id);
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.getAiSpansPaginated(args);
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.GetAiTracesPaginated(args);
   }
 
   async updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {

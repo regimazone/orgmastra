@@ -133,7 +133,7 @@ export type StorageGetTracesPaginatedArg = {
   filters?: Record<string, any>;
 } & PaginationArgs;
 
-export type StorageGetAiSpansPaginatedArg = {
+export type StorageGetAiTracesPaginatedArg = {
   filters?: Record<string, any> & {
     name?: string;
     attributes?: Record<string, string | number | boolean | null>;

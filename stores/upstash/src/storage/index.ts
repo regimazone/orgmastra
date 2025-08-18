@@ -17,7 +17,7 @@ import type {
   StorageDomains,
 } from '@mastra/core/storage';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiSpansPaginatedArg } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { Redis } from '@upstash/redis';
@@ -134,8 +134,8 @@ export class UpstashStore extends MastraStorage {
     return this.stores.observability.deleteAiSpan(id);
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.getAiSpansPaginated(args);
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.GetAiTracesPaginated(args);
   }
 
   async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {

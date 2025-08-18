@@ -1,5 +1,5 @@
 import type { AISpanDatabaseRecord } from '../../../ai-tracing';
-import type { PaginationInfo, StorageGetAiSpansPaginatedArg, StorageGetTracesPaginatedArg } from '../../types';
+import type { PaginationInfo, StorageGetAiTracesPaginatedArg, StorageGetTracesPaginatedArg } from '../../types';
 import type { StoreOperations } from '../operations';
 import { ObservabilityStorage } from './base';
 
@@ -56,8 +56,8 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     return this.spans.get(id) ?? null;
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    this.logger.debug(`MockStore: getAiSpansPaginated called`);
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    this.logger.debug(`MockStore: GetAiTracesPaginated called`);
 
     const { page = 0, perPage = 10, filters, dateRange } = args;
 

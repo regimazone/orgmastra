@@ -18,7 +18,7 @@ import type {
   WorkflowRuns,
 } from '@mastra/core/storage';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiSpansPaginatedArg } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import { MastraStorage } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -270,8 +270,8 @@ export class MongoDBStore extends MastraStorage {
     return this.stores.observability.deleteAiSpan(id);
   }
 
-  async getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.getAiSpansPaginated(args);
+  async GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.GetAiTracesPaginated(args);
   }
 
   async batchAiSpanCreate(args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {

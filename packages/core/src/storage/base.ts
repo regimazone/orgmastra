@@ -40,7 +40,7 @@ import type {
   StorageGetTracesArg,
   PaginationArgs,
   StorageGetTracesPaginatedArg,
-  StorageGetAiSpansPaginatedArg,
+  StorageGetAiTracesPaginatedArg,
 } from './types';
 
 export type StorageDomains = {
@@ -303,7 +303,7 @@ export abstract class MastraStorage extends MastraBase {
 
   abstract getAiSpan(id: string): Promise<Record<string, any> | null>;
 
-  abstract getAiSpansPaginated(args: StorageGetAiSpansPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }>;
+  abstract GetAiTracesPaginated(args: StorageGetAiTracesPaginatedArg): Promise<PaginationInfo & { spans: Record<string, any>[] }>;
 
   abstract updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void>;
 
