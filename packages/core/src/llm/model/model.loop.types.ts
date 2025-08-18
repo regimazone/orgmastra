@@ -8,15 +8,13 @@ import type {
   StreamTextResult as OriginalStreamTextResult,
   StreamTextOnFinishCallback as OriginalStreamTextOnFinishCallback,
   StreamTextOnStepFinishCallback as OriginalStreamTextOnStepFinishCallback,
-  StopCondition,
 } from 'ai-v5';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
-import type { LoopConfig, ObjectOptions } from '../../loop/types';
+import type { LoopConfig, LoopOptions, ObjectOptions } from '../../loop/types';
 import type { RuntimeContext } from '../../runtime-context';
 import type { ToolAction, VercelTool, VercelToolV5 } from '../../tools';
 import type { inferOutput, TripwireProperties } from './shared.types';
-import type { AgentMemoryOption } from '../../agent';
 
 type ToolsInput = Record<string, ToolAction<any, any, any> | VercelTool | VercelToolV5>;
 
@@ -65,7 +63,7 @@ export type ModelLoopStreamArgs<
   messages: UIMessage[] | ModelMessage[];
   objectOptions?: ObjectOptions;
   options?: LoopConfig;
-  stopWhen?: StopCondition<any>;
+  stopWhen?: LoopOptions['stopWhen'];
 } & StreamTextOptions<Tools, Output>;
 
 export type StreamTextResult<
