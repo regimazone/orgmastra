@@ -261,14 +261,28 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
 
-        const stream = await electionAgent.stream_vnext('Call the election-tool and tell me what it says.');
+        let stream = await electionAgent.stream_vnext('Call the election-tool and tell me what it says.');
 
-        const chunks: ChunkType[] = [];
+        let chunks: ChunkType[] = [];
         for await (const chunk of stream.fullStream) {
           chunks.push(chunk);
         }
 
         expect(chunks.find(chunk => chunk.type === 'tool-output')).toBeDefined();
+
+        chunks = [];
+
+        stream = await electionAgent.stream_vnext('Call the election-tool and tell me what it says.', {
+          format: 'aisdk',
+        });
+
+        for await (const chunk of stream.fullStream) {
+          chunks.push(chunk);
+        }
+
+        const toolOutputChunk = chunks.find(chunk => chunk.type === 'tool-output');
+
+        expect(toolOutputChunk).toBeDefined();
       });
     }, 50000);
   }
