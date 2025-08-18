@@ -17,6 +17,7 @@ import type {
   WorkflowRuns,
   StorageDomains,
   PaginationArgs,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -27,6 +28,7 @@ import { StoreOperationsD1 } from './domains/operations';
 import { ScoresStorageD1 } from './domains/scores';
 import { TracesStorageD1 } from './domains/traces';
 import { WorkflowsStorageD1 } from './domains/workflows';
+import { ObservabilityStorageD1 } from './domains/observability';
 
 /**
  * Configuration for D1 using the REST API
@@ -160,6 +162,10 @@ export class D1Store extends MastraStorage {
       operations,
     });
 
+    const observability = new ObservabilityStorageD1({
+      operations,
+    });
+
     this.stores = {
       operations,
       scores,
@@ -167,6 +173,7 @@ export class D1Store extends MastraStorage {
       traces,
       workflows,
       memory,
+      observability,
     };
   }
 
@@ -476,5 +483,39 @@ export class D1Store extends MastraStorage {
   async close(): Promise<void> {
     this.logger.debug('Closing D1 connection');
     // No explicit cleanup needed for D1
+  }
+
+  async createAiSpan(span: Record<string, any>): Promise<void> {
+    return this.stores.observability.createAiSpan(span);
+  }
+
+  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAiSpan(id);
+  }
+
+  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
+    return this.stores.observability.updateAiSpan(id, updates);
+  }
+
+  async deleteAiSpan(id: string): Promise<void> {
+    return this.stores.observability.deleteAiSpan(id);
+  }
+
+  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanCreate(args);
+  }
+
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanUpdate(args);
+  }
+
+  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanDelete(args);
+  }
+
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.getAiTracesPaginated(args);
   }
 }
