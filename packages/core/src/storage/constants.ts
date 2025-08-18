@@ -152,6 +152,7 @@ export const AI_SPAN_SCHEMA: Record<string, StorageColumn> = {
   startTime: { type: 'bigint', nullable: false },
   endTime: { type: 'bigint', nullable: false },
   createdAt: { type: 'timestamp', nullable: false },
+  updatedAt: { type: 'timestamp', nullable: true },
   input: { type: 'jsonb', nullable: true },
   output: { type: 'jsonb', nullable: true },
   error: { type: 'jsonb', nullable: true },
