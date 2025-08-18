@@ -11,6 +11,7 @@ import {
   TABLE_EVALS,
   TABLE_SCORERS,
   TABLE_TRACES,
+  TABLE_AI_SPAN,
 } from '@mastra/core/storage';
 import type {
   TABLE_NAMES,
@@ -26,6 +27,7 @@ import type {
   PaginationArgs,
   StorageDomains,
   StorageResourceType,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -38,6 +40,7 @@ import { TracesStorageCloudflare } from './domains/traces';
 import { WorkflowsStorageCloudflare } from './domains/workflows';
 import { isWorkersConfig } from './types';
 import type { CloudflareStoreConfig, RecordTypes } from './types';
+import { ObservabilityStorageCloudflare } from './domains/observability';
 
 export class CloudflareStore extends MastraStorage {
   stores: StorageDomains;
@@ -64,8 +67,10 @@ export class CloudflareStore extends MastraStorage {
       TABLE_EVALS,
       TABLE_SCORERS,
       TABLE_TRACES,
+      TABLE_AI_SPAN,
     ] as const;
 
+    console.log('config.bindings', config.bindings);
     for (const table of requiredTables) {
       if (!(table in config.bindings)) {
         throw new Error(`Missing KV binding for table: ${table}`);
@@ -96,6 +101,7 @@ export class CloudflareStore extends MastraStorage {
         this.bindings = config.bindings;
         this.namespacePrefix = config.keyPrefix?.trim() || '';
         this.logger.info('Using Cloudflare KV Workers Binding API');
+        console.log('Using Cloudflare KV Workers Binding API');
       } else {
         this.validateRestConfig(config);
         this.accountId = config.accountId.trim();
@@ -103,6 +109,7 @@ export class CloudflareStore extends MastraStorage {
         this.client = new Cloudflare({
           apiToken: config.apiToken.trim(),
         });
+        console.log('Using Cloudflare KV REST API');
         this.logger.info('Using Cloudflare KV REST API');
       }
 
@@ -133,6 +140,10 @@ export class CloudflareStore extends MastraStorage {
         operations,
       });
 
+      const observability = new ObservabilityStorageCloudflare({
+        operations,
+      });
+
       this.stores = {
         operations,
         legacyEvals,
@@ -140,6 +151,7 @@ export class CloudflareStore extends MastraStorage {
         traces,
         memory,
         scores,
+        observability,
       };
     } catch (error) {
       throw new MastraError(
@@ -421,6 +433,40 @@ export class CloudflareStore extends MastraStorage {
     metadata?: Record<string, unknown>;
   }): Promise<StorageResourceType> {
     return this.stores.memory.updateResource({ resourceId, workingMemory, metadata });
+  }
+
+  async createAiSpan(span: Record<string, any>): Promise<void> {
+    return this.stores.observability.createAiSpan(span);
+  }
+
+  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAiSpan(id);
+  }
+
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.getAiTracesPaginated(args);
+  }
+
+  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
+    return this.stores.observability.updateAiSpan(id, updates);
+  }
+
+  async deleteAiSpan(id: string): Promise<void> {
+    return this.stores.observability.deleteAiSpan(id);
+  }
+
+  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanCreate(args);
+  }
+
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanUpdate(args);
+  }
+
+  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanDelete(args);
   }
 
   async close(): Promise<void> {
