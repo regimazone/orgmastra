@@ -87,6 +87,66 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
       });
     });
 
+    describe('getAiTrace', () => {
+      it('should retrieve all spans for a given trace ID', async () => {
+        // Create a span hierarchy with multiple spans sharing the same traceId
+        const hierarchy = createSpanHierarchy('parent-span', ['child-1', 'child-2'], {
+          parentSpanType: 0,
+          childSpanType: 1,
+        });
+
+        // Create all spans
+        await storage.createAiSpan(hierarchy.parent);
+
+        for (const child of hierarchy.children) {
+          (child as any).parentSpanId = `${hierarchy.parent.traceId}-${hierarchy.parent.spanId}`;
+          await storage.createAiSpan(child);
+        }
+
+        // Get all spans for the trace
+        const trace = await storage.getAiTrace(hierarchy.parent.traceId);
+
+        expect(trace).toBeDefined();
+        expect(trace?.traceId).toBe(hierarchy.parent.traceId);
+        console.log(`trace`, JSON.stringify(trace, null, 2));
+        expect(trace?.spans).toHaveLength(3); // 1 parent + 2 children
+
+        // Verify all spans have the same traceId
+        expect(trace?.spans.every(span => span.traceId === hierarchy.parent.traceId)).toBe(true);
+
+        // Verify parent-child relationships
+        const parentSpan = trace?.spans.find(s => s.parentSpanId === null);
+        const childSpans = trace?.spans.filter(s => s.parentSpanId !== null);
+
+        expect(parentSpan).toBeDefined();
+        expect(parentSpan?.name).toBe('parent-span');
+        expect(childSpans).toHaveLength(2);
+        expect(
+          childSpans?.every(child => child.parentSpanId === `${hierarchy.parent.traceId}-${hierarchy.parent.spanId}`),
+        ).toBe(true);
+      });
+
+      it('should return null for non-existent trace ID', async () => {
+        const nonExistentTraceId = `trace-${randomUUID()}`;
+        const result = await storage.getAiTrace(nonExistentTraceId);
+        expect(result).toBeNull();
+      });
+
+      it('should handle trace with single span', async () => {
+        const span = createSampleAgentRunSpan('single-span1');
+        await storage.createAiSpan(span);
+
+        const trace = await storage.getAiTrace(span.traceId);
+        console.log(`trace`, JSON.stringify(trace, null, 2));
+
+        expect(trace).toBeDefined();
+        expect(trace?.traceId).toBe(span.traceId);
+        expect(trace?.spans).toHaveLength(1);
+        expect(trace?.spans[0]?.name).toBe('single-span1');
+        expect(trace?.spans[0]?.parentSpanId).toBeNull();
+      });
+    });
+
     describe('GetAiTracesPaginated', () => {
       it('should return paginated AI spans with total count based on parent spans only', async () => {
         // Create 15 span hierarchies (each with 1 parent + 2 children)
