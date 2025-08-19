@@ -902,10 +902,14 @@ export class MessageList {
     // If the number of parts in the latest message is less than the number of parts in the new message, insert the part
     if (latestPartCount < newPartCount) {
       // Check if we need to add a step-start before text parts when merging assistant messages
-      // Only add after tool invocations
+      // Only add after tool invocations, and only if the incoming message doesn't already have step-start
+      const partIndex = newMessage.content.parts.indexOf(part);
+      const hasStepStartBefore = partIndex > 0 && newMessage.content.parts[partIndex - 1]?.type === 'step-start';
+
       const needsStepStart =
         latestMessage.role === 'assistant' &&
         part.type === 'text' &&
+        !hasStepStartBefore &&
         latestMessage.content.parts.length > 0 &&
         latestMessage.content.parts.at(-1)?.type === 'tool-invocation';
 
@@ -1195,7 +1199,6 @@ export class MessageList {
     }
 
     if (typeof coreMessage.content === 'string') {
-      parts.push({ type: 'step-start' });
       parts.push({
         type: 'text',
         text: coreMessage.content,
@@ -2258,10 +2261,7 @@ export class MessageList {
     const id = `id` in coreMessage && typeof coreMessage.id === `string` ? coreMessage.id : this.newMessageId();
     const parts: AIV5Type.UIMessage['parts'] = [];
 
-    // Add step-start for input messages
-    if (messageSource === 'input' && coreMessage.role === 'user') {
-      parts.push({ type: 'step-start' });
-    }
+    // Note: step-start should only be added after tool invocations for assistant messages, never for user messages
 
     if (typeof coreMessage.content === 'string') {
       parts.push({
@@ -2272,7 +2272,14 @@ export class MessageList {
       for (const part of coreMessage.content) {
         switch (part.type) {
           case 'text':
-            if (parts.at(-1)?.type !== `step-start` && parts.at(-1)?.type !== `text`) {
+            // Add step-start only after tool results for assistant messages
+            const prevPart = parts.at(-1);
+            if (
+              coreMessage.role === 'assistant' &&
+              prevPart &&
+              prevPart.type?.startsWith('tool-') &&
+              prevPart.state === 'output-available'
+            ) {
               parts.push({
                 type: 'step-start',
               });

@@ -119,7 +119,7 @@ describe('MessageList', () => {
         content: {
           format: 2,
           content: 'Hello from Core!',
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'Hello from Core!' }],
+          parts: [{ type: 'text', text: 'Hello from Core!' }],
         },
         threadId,
         resourceId,
@@ -153,7 +153,7 @@ describe('MessageList', () => {
           role: `user` as const,
           experimental_attachments: [],
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text' as const, text: messageOne.content }],
+          parts: [{ type: 'text' as const, text: messageOne.content }],
         },
         {
           id: expect.any(String),
@@ -430,7 +430,7 @@ describe('MessageList', () => {
           content: {
             format: 2,
             content: 'Hello from V1!',
-            parts: [{ type: 'step-start' }, { type: 'text', text: inputV1Message.content }],
+            parts: [{ type: 'text', text: inputV1Message.content }],
           },
           threadId,
           resourceId,
@@ -1158,7 +1158,7 @@ describe('MessageList', () => {
           content: {
             format: 2,
             content: userMsgV1.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsgV1.content }],
+            parts: [{ type: 'text', text: userMsgV1.content }],
           },
           threadId,
           resourceId,
@@ -1181,6 +1181,7 @@ describe('MessageList', () => {
                   result: 'Found relevant data.', // Result from the tool message
                 },
               },
+              { type: 'step-start' },
               { type: 'text', text: 'Here is the information I found.' }, // Text from the Vercel UIMessage
             ],
             toolInvocations: [
@@ -1713,6 +1714,9 @@ describe('MessageList', () => {
                 args: { memory: '<user><location>LA</location></user>' },
                 result: { success: true },
               },
+            },
+            {
+              type: 'step-start',
             },
             {
               type: 'text',
@@ -2328,9 +2332,6 @@ describe('MessageList', () => {
       expect(messages[0].content.content).toBe('{"data": "value", "number": 42}'); // Should stay as string
       expect(typeof messages[0].content.content).toBe('string'); // Should be a string, not an object
       expect(messages[0].content.parts).toEqual([
-        {
-          type: 'step-start',
-        },
         {
           type: 'text',
           text: '{"data": "value", "number": 42}',
