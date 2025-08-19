@@ -2,7 +2,7 @@ import type { Client, Row, InValue } from '@libsql/client';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import type { StoreOperationsLibSQL } from '../operations';
 
 export class ObservabilityLibSQL extends ObservabilityStorage {
@@ -129,6 +129,22 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
 
     return { conditions, args };
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const result = await this.client.execute({
+      sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = ?`,
+      args: [traceId],
+    });
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: result.rows.map(row => this.transformRowToAISpan(row)),
+    };
   }
 
   async getAiTracesPaginated(

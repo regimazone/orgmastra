@@ -18,6 +18,7 @@ import type {
   StorageGetTracesArg,
   StorageDomains,
   ThreadSortOptions,
+  AITrace,
 } from '@mastra/core/storage';
 
 import type { Trace } from '@mastra/core/telemetry';
@@ -424,6 +425,10 @@ export class LibSQLStore extends MastraStorage {
 
   async getAiTracesPaginated(args: any): Promise<any> {
     return this.stores.observability.getAiTracesPaginated(args);
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    return this.stores.observability.getAiTrace(traceId);
   }
 
   async updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {
