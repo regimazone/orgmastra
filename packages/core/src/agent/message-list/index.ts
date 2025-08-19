@@ -2277,7 +2277,7 @@ export class MessageList {
             if (
               coreMessage.role === 'assistant' &&
               prevPart &&
-              prevPart.type?.startsWith('tool-') &&
+              AIV5.isToolUIPart(prevPart) &&
               prevPart.state === 'output-available'
             ) {
               parts.push({
