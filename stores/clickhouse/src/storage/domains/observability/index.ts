@@ -1,0 +1,596 @@
+import type { ClickHouseClient } from '@clickhouse/client';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
+import type { StoreOperationsClickhouse } from '../operations';
+
+export class ObservabilityClickhouse extends ObservabilityStorage {
+  protected client: ClickHouseClient;
+  protected operations: StoreOperationsClickhouse;
+
+  constructor({ client, operations }: { client: ClickHouseClient; operations: StoreOperationsClickhouse }) {
+    super();
+    this.client = client;
+    this.operations = operations;
+  }
+
+  /**
+   * Converts object fields to JSON strings for storage
+   * @param record The record containing fields that may need JSON stringification
+   * @returns A new record with JSON fields converted to strings
+   */
+  private stringifyJsonFields(record: Record<string, any>): Record<string, any> {
+    // No need to stringify - ClickHouse can handle JSON objects natively
+    return record;
+  }
+
+  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+    try {
+      const id = `${span.traceId}-${span.spanId}`;
+
+      // Prepare the record with timestamps
+      const record = {
+        ...span,
+        id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Convert object fields to JSON strings for storage
+      const processedRecord = this.stringifyJsonFields(record);
+
+      await this.operations.insert({
+        tableName: TABLE_AI_SPAN,
+        record: processedRecord,
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_CREATE_AI_SPAN_FAILED',
+          text: 'Failed to create AI span in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message },
+        },
+        error,
+      );
+    }
+  }
+
+  async getAiSpan(id: string): Promise<AISpanDatabaseRecord | null> {
+    try {
+      const result = await this.client.query({
+        query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE id = {var_id:String}`,
+        query_params: { var_id: id },
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          date_time_output_format: 'iso',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      if (!result) {
+        return null;
+      }
+
+      const rows = await result.json();
+
+      if (!rows.data || rows.data.length === 0) {
+        return null;
+      }
+
+      const row = rows.data[0] as any;
+
+      // Parse JSON fields back to objects
+      return {
+        ...row,
+        parentSpanId: row.parentSpanId === '' ? null : row.parentSpanId,
+        scope: safelyParseJSON(row.scope),
+        attributes: safelyParseJSON(row.attributes),
+        metadata: safelyParseJSON(row.metadata),
+        events: safelyParseJSON(row.events),
+        links: safelyParseJSON(row.links),
+        input: safelyParseJSON(row.input),
+        output: safelyParseJSON(row.output),
+        error: safelyParseJSON(row.error),
+      } as AISpanDatabaseRecord;
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_GET_AI_SPAN_FAILED',
+          text: 'Failed to get AI span in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, id },
+        },
+        error,
+      );
+    }
+  }
+
+  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+    try {
+      // First check if the span exists
+      const existingSpan = await this.getAiSpan(id);
+      if (!existingSpan) {
+        throw new MastraError(
+          {
+            id: 'CLICKHOUSE_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.USER,
+            text: `AI span not found for update: ${id}`,
+          },
+          `AI span not found for update: ${id}`,
+        );
+      }
+
+      // Prepare the update record with updatedAt timestamp
+      const updateRecord = {
+        ...updates,
+        updatedAt: new Date(),
+      };
+
+      // Convert object fields to JSON strings for storage
+      const processedUpdates = this.stringifyJsonFields(updateRecord);
+
+      // Build SET clauses for the UPDATE statement
+      const setClauses: string[] = [];
+      const values: Record<string, any> = { var_id: id };
+
+      Object.entries(processedUpdates).forEach(([key, value]) => {
+        if (key !== 'id' && key !== 'createdAt') {
+          // Don't update id or createdAt
+          const paramName = `var_${key}`;
+          if (key === 'updatedAt') {
+            setClauses.push(`"${key}" = parseDateTime64BestEffort({${paramName}:String})`);
+            values[paramName] = value.toISOString();
+          } else if (typeof value === 'object' && value !== null) {
+            // Handle object fields by stringifying them
+            setClauses.push(`"${key}" = {${paramName}:String}`);
+            values[paramName] = JSON.stringify(value);
+          } else {
+            setClauses.push(`"${key}" = {${paramName}:String}`);
+            values[paramName] = value;
+          }
+        }
+      });
+
+      if (setClauses.length === 0) {
+        return; // No updates to make
+      }
+
+      // Use ALTER TABLE UPDATE for ClickHouse
+      const updateQuery = `
+        ALTER TABLE ${TABLE_AI_SPAN}
+        UPDATE ${setClauses.join(', ')}
+        WHERE id = {var_id:String}
+      `;
+
+      await this.client.command({
+        query: updateQuery,
+        query_params: values,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      // Optimize table to apply changes immediately
+      await this.client.command({
+        query: `OPTIMIZE TABLE ${TABLE_AI_SPAN} FINAL`,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_UPDATE_AI_SPAN_FAILED',
+          text: 'Failed to update AI span in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, id },
+        },
+        error,
+      );
+    }
+  }
+
+  async deleteAiSpan(id: string): Promise<void> {
+    try {
+      // First check if the span exists
+      const existingSpan = await this.getAiSpan(id);
+      if (!existingSpan) {
+        return; // No error if span doesn't exist, just return
+      }
+
+      // Delete the span using ClickHouse DELETE FROM
+      await this.client.command({
+        query: `DELETE FROM ${TABLE_AI_SPAN} WHERE id = {var_id:String}`,
+        query_params: { var_id: id },
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      // Optimize table to apply changes immediately
+      await this.client.command({
+        query: `OPTIMIZE TABLE ${TABLE_AI_SPAN} FINAL`,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_DELETE_AI_SPAN_FAILED',
+          text: 'Failed to delete AI span in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, id },
+        },
+        error,
+      );
+    }
+  }
+
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
+    if (args.records.length === 0) {
+      return; // No records to insert
+    }
+
+    try {
+      // Prepare records with IDs and timestamps
+      const recordsWithIds = args.records.map(record => ({
+        ...record,
+        id: `${record.traceId}-${record.spanId}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      // Convert object fields to JSON strings for storage
+      const processedRecords = recordsWithIds.map(record => this.stringifyJsonFields(record));
+
+      await this.operations.batchInsert({
+        tableName: TABLE_AI_SPAN,
+        records: processedRecords,
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_BATCH_AI_SPAN_CREATE_FAILED',
+          text: 'Failed to batch create AI spans in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, recordCount: args.records.length },
+        },
+        error,
+      );
+    }
+  }
+
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+    if (args.records.length === 0) {
+      return; // No updates to make
+    }
+
+    try {
+      // Process each update record
+      const updatePromises: Promise<any>[] = [];
+
+      for (const { id, updates } of args.records) {
+        // First, get the existing span to merge with updates
+        const existingSpan = await this.getAiSpan(id);
+        if (!existingSpan) {
+          continue; // Skip if span doesn't exist
+        }
+
+        // Prepare the updated record by merging existing data with updates
+        const updateRecord = {
+          ...existingSpan,
+          ...updates,
+          updatedAt: new Date(),
+        };
+
+        // Convert object fields to JSON strings for storage
+        const processedRecord = this.stringifyJsonFields(updateRecord);
+
+        // Build SET clauses for the UPDATE statement
+        const setClauses: string[] = [];
+        const values: Record<string, any> = { var_id: id };
+
+        Object.entries(processedRecord).forEach(([key, value]) => {
+          if (key !== 'id' && key !== 'createdAt') {
+            // Don't update id or createdAt
+            // Sanitize the key to create a valid parameter name
+            const sanitizedKey = key.replace(/[^a-zA-Z0-9_]/g, '_');
+            const paramName = `var_${sanitizedKey}`;
+            if (key === 'updatedAt') {
+              setClauses.push(`"${key}" = parseDateTime64BestEffort({${paramName}:String})`);
+              values[paramName] = value.toISOString();
+            } else if (typeof value === 'object' && value !== null) {
+              // Handle object fields by stringifying them
+              setClauses.push(`"${key}" = {${paramName}:String}`);
+              values[paramName] = JSON.stringify(value);
+            } else {
+              setClauses.push(`"${key}" = {${paramName}:String}`);
+              values[paramName] = value;
+            }
+          }
+        });
+
+        if (setClauses.length === 0) {
+          continue; // Skip records with no updates
+        }
+
+        // Use ALTER TABLE UPDATE for ClickHouse
+        const updateQuery = `
+          ALTER TABLE ${TABLE_AI_SPAN}
+          UPDATE ${setClauses.join(', ')}
+          WHERE id = {var_id:String}
+        `;
+
+        updatePromises.push(
+          this.client.command({
+            query: updateQuery,
+            query_params: values,
+            clickhouse_settings: {
+              date_time_input_format: 'best_effort',
+              use_client_time_zone: 1,
+              output_format_json_quote_64bit_integers: 0,
+            },
+          }),
+        );
+      }
+
+      // Execute all updates
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+      }
+
+      // Optimize table to apply changes immediately
+      await this.client.command({
+        query: `OPTIMIZE TABLE ${TABLE_AI_SPAN} FINAL`,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_BATCH_AI_SPAN_UPDATE_FAILED',
+          text: 'Failed to batch update AI spans in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, recordCount: args.records.length },
+        },
+        error,
+      );
+    }
+  }
+
+  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+    if (args.ids.length === 0) {
+      return; // No IDs to delete
+    }
+
+    try {
+      const deletePromises: Promise<any>[] = [];
+
+      for (const id of args.ids) {
+        deletePromises.push(
+          this.client.command({
+            query: `DELETE FROM ${TABLE_AI_SPAN} WHERE id = {var_id:String}`,
+            query_params: { var_id: id },
+            clickhouse_settings: {
+              date_time_input_format: 'best_effort',
+              use_client_time_zone: 1,
+              output_format_json_quote_64bit_integers: 0,
+            },
+          }),
+        );
+      }
+
+      if (deletePromises.length > 0) {
+        await Promise.all(deletePromises);
+      }
+
+      await this.client.command({
+        query: `OPTIMIZE TABLE ${TABLE_AI_SPAN} FINAL`,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_BATCH_AI_SPAN_DELETE_FAILED',
+          text: 'Failed to batch delete AI spans in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, idCount: args.ids.length },
+        },
+        error,
+      );
+    }
+  }
+
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    try {
+      const { filters, page = 0, perPage = 10 } = args;
+      const offset = page * perPage;
+
+      // Build filter conditions for root spans
+      const conditions: string[] = ["(parentSpanId IS NULL OR parentSpanId = '')"];
+      const queryArgs: Record<string, any> = {};
+
+      if (filters?.name) {
+        conditions.push(`name = {var_name:String}`);
+        queryArgs.var_name = filters.name;
+      }
+
+      if (filters?.traceId) {
+        conditions.push(`traceId = {var_traceId:String}`);
+        queryArgs.var_traceId = filters.traceId;
+      }
+
+      if (filters?.spanType !== undefined) {
+        conditions.push(`spanType = {var_spanType:Int32}`);
+        queryArgs.var_spanType = filters.spanType;
+      }
+
+      if (filters?.dateRange?.start) {
+        conditions.push(`createdAt >= parseDateTime64BestEffort({var_from_date:String})`);
+        queryArgs.var_from_date = filters.dateRange.start.toISOString();
+      }
+
+      if (filters?.dateRange?.end) {
+        conditions.push(`createdAt <= parseDateTime64BestEffort({var_to_date:String})`);
+        queryArgs.var_to_date = filters.dateRange.end.toISOString();
+      }
+
+      // Handle attributes filtering (JSON field)
+      if (filters?.attributes && typeof filters.attributes === 'object') {
+        Object.entries(filters.attributes).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            conditions.push(`JSONExtractString(attributes, '${key}') = {var_attr_${key}:String}`);
+            queryArgs[`var_attr_${key}`] = value;
+          }
+        });
+      }
+
+      // Build where clause
+      const whereClause = conditions.join(' AND ');
+
+      // First, get total count of root spans
+      let total = 0;
+      if (conditions.length > 1) {
+        // More than just 'parentSpanId IS NULL'
+        const countResult = await this.client.query({
+          query: `SELECT COUNT(*) as count FROM ${TABLE_AI_SPAN} WHERE ${whereClause}`,
+          query_params: queryArgs,
+          clickhouse_settings: {
+            date_time_input_format: 'best_effort',
+            date_time_output_format: 'iso',
+            use_client_time_zone: 1,
+            output_format_json_quote_64bit_integers: 0,
+          },
+        });
+        const countData = await countResult.json();
+
+        total = Number((countData.data?.[0] as any)?.count ?? 0);
+      } else {
+        // Just count root spans without additional filters
+        const countResult = await this.client.query({
+          query: `SELECT COUNT(*) as count FROM ${TABLE_AI_SPAN} WHERE (parentSpanId IS NULL OR parentSpanId = '')`,
+          clickhouse_settings: {
+            date_time_input_format: 'best_effort',
+            date_time_output_format: 'iso',
+            use_client_time_zone: 1,
+            output_format_json_quote_64bit_integers: 0,
+          },
+        });
+        const countData = await countResult.json();
+        total = Number((countData.data?.[0] as any)?.count ?? 0);
+      }
+
+      // Fetch root spans with pagination
+      const rootSpansResult = await this.client.query({
+        query: `SELECT *, toDateTime64(createdAt, 3) as createdAt, toDateTime64(updatedAt, 3) as updatedAt FROM ${TABLE_AI_SPAN} WHERE ${whereClause} ORDER BY createdAt DESC LIMIT {var_limit:UInt32} OFFSET {var_offset:UInt32}`,
+        query_params: { ...queryArgs, var_limit: perPage, var_offset: offset },
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          date_time_output_format: 'iso',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      const rootSpansData = await rootSpansResult.json();
+      const rootSpans = rootSpansData.data || [];
+
+      if (rootSpans.length === 0) {
+        return {
+          spans: [],
+          total,
+          page,
+          perPage,
+          hasMore: total > (page + 1) * perPage,
+        };
+      }
+
+      // Get all traceIds from the root spans
+      const traceIds = rootSpans.map((span: any) => span.traceId);
+
+      // Fetch all child spans for these traceIds
+      // Since ClickHouse doesn't support IN clause with placeholders, we'll build the query dynamically
+      const traceIdConditions = traceIds.map((traceId: string) => `traceId = '${traceId}'`).join(' OR ');
+      const childSpansResult = await this.client.query({
+        query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE (${traceIdConditions}) AND (parentSpanId IS NOT NULL AND parentSpanId != '')`,
+        clickhouse_settings: {
+          date_time_input_format: 'best_effort',
+          date_time_output_format: 'iso',
+          use_client_time_zone: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      const childSpansData = await childSpansResult.json();
+      const childSpans = childSpansData.data || [];
+
+      // Combine root spans and child spans
+      const allSpans = [...rootSpans, ...childSpans];
+
+      console.log(`allSpans`, JSON.stringify(allSpans, null, 2));
+      // Process all spans with proper JSON field parsing
+      const processedSpans = allSpans.map((span: any) => ({
+        ...span,
+        parentSpanId: span.parentSpanId === '' ? null : span.parentSpanId,
+        scope: safelyParseJSON(span.scope),
+        attributes: safelyParseJSON(span.attributes),
+        metadata: safelyParseJSON(span.metadata),
+        events: safelyParseJSON(span.events),
+        links: safelyParseJSON(span.links),
+        input: safelyParseJSON(span.input),
+        output: safelyParseJSON(span.output),
+        error: safelyParseJSON(span.error),
+      }));
+
+      return {
+        spans: processedSpans as Record<string, any>[],
+        total,
+        page,
+        perPage,
+        hasMore: total > (page + 1) * perPage,
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_GET_AI_TRACES_PAGINATED_FAILED',
+          text: 'Failed to get AI traces paginated in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message },
+        },
+        error,
+      );
+    }
+  }
+}

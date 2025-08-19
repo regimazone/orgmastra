@@ -1,6 +1,7 @@
 import type { ClickHouseClient } from '@clickhouse/client';
 import { createClient } from '@clickhouse/client';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
@@ -20,11 +21,13 @@ import type {
   StorageDomains,
   PaginationArgs,
   StorageResourceType,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { LegacyEvalsStorageClickhouse } from './domains/legacy-evals';
 import { MemoryStorageClickhouse } from './domains/memory';
+import { ObservabilityClickhouse } from './domains/observability';
 import { StoreOperationsClickhouse } from './domains/operations';
 import { ScoresStorageClickhouse } from './domains/scores';
 import { TracesStorageClickhouse } from './domains/traces';
@@ -89,6 +92,7 @@ export class ClickhouseStore extends MastraStorage {
     const legacyEvals = new LegacyEvalsStorageClickhouse({ client: this.db, operations });
     const traces = new TracesStorageClickhouse({ client: this.db, operations });
     const memory = new MemoryStorageClickhouse({ client: this.db, operations });
+    const observability = new ObservabilityClickhouse({ client: this.db, operations });
 
     this.stores = {
       operations,
@@ -97,6 +101,7 @@ export class ClickhouseStore extends MastraStorage {
       legacyEvals,
       traces,
       memory,
+      observability,
     };
   }
 
@@ -406,5 +411,41 @@ export class ClickhouseStore extends MastraStorage {
 
   async close(): Promise<void> {
     await this.db.close();
+  }
+
+  async createAiSpan(args: { record: AISpanDatabaseRecord }): Promise<void> {
+    return this.stores.observability.createAiSpan(args);
+  }
+
+  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAiSpan(id);
+  }
+
+  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+    return this.stores.observability.updateAiSpan(id, updates);
+  }
+
+  async deleteAiSpan(id: string): Promise<void> {
+    return this.stores.observability.deleteAiSpan(id);
+  }
+
+  async batchAiSpanCreate(args: {
+    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
+  }): Promise<void> {
+    return this.stores.observability.batchAiSpanCreate(args);
+  }
+
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanUpdate(args);
+  }
+
+  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+    return this.stores.observability.batchAiSpanDelete(args);
+  }
+
+  async getAiTracesPaginated(
+    args: StorageGetAiTracesPaginatedArg,
+  ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    return this.stores.observability.getAiTracesPaginated(args);
   }
 }
