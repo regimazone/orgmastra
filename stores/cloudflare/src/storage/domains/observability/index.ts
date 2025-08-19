@@ -1,3 +1,4 @@
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
@@ -80,7 +81,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
       const prefix = this.operations.namespacePrefix ? `${this.operations.namespacePrefix}:` : '';
       const keyObjs = await this.operations.listKV(TABLE_AI_SPAN, { prefix: `${prefix}${TABLE_AI_SPAN}` });
 
-      const allSpans: Record<string, any>[] = [];
+      const allSpans: AISpanRecord[] = [];
 
       for (const { name: key } of keyObjs) {
         const data = await this.operations.getKV(TABLE_AI_SPAN, key);

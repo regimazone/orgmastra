@@ -1,5 +1,5 @@
 import type { KVNamespace } from '@cloudflare/workers-types';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import type { StorageThreadType, MastraMessageV2 } from '@mastra/core/memory';
 import type { ScoreRowData } from '@mastra/core/scores';
 import type {
@@ -79,7 +79,7 @@ export type RecordTypes = {
   [TABLE_SCORERS]: ScoreRowData;
   [TABLE_TRACES]: any;
   [TABLE_RESOURCES]: StorageResourceType;
-  [TABLE_AI_SPAN]: AISpanDatabaseRecord;
+  [TABLE_AI_SPAN]: AISpanRecord;
 };
 
 export type ListOptions = {

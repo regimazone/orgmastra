@@ -1,4 +1,4 @@
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
@@ -16,7 +16,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
       const key = `${TABLE_AI_SPAN}:${id}`;
@@ -58,7 +58,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     try {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
@@ -238,7 +238,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
 
       return {
         traceId,
-        spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)),
+        spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)) as AISpanRecord[],
       };
     } catch (error) {
       throw new MastraError(
@@ -341,9 +341,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     };
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -371,7 +369,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }

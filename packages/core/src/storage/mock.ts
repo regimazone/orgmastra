@@ -10,7 +10,8 @@ import { InMemoryLegacyEvals } from './domains/legacy-evals/inmemory';
 import type { InMemoryEvals } from './domains/legacy-evals/inmemory';
 import { InMemoryMemory } from './domains/memory/inmemory';
 import type { InMemoryThreads, InMemoryResources, InMemoryMessages } from './domains/memory/inmemory';
-import { ObservabilityInMemory, type InMemoryAiSpans } from './domains/observability';
+import { ObservabilityInMemory } from './domains/observability';
+import type { InMemoryAiSpans } from './domains/observability';
 import { StoreOperationsInMemory } from './domains/operations/inmemory';
 import { ScoresInMemory } from './domains/scores/inmemory';
 import type { InMemoryScores } from './domains/scores/inmemory';
@@ -32,6 +33,7 @@ import type {
   ThreadSortOptions,
   WorkflowRun,
   WorkflowRuns,
+  AITrace,
 } from './types';
 
 export class InMemoryStore extends MastraStorage {
@@ -305,7 +307,7 @@ export class InMemoryStore extends MastraStorage {
     return this.stores.observability.getAiSpan(id);
   }
 
-  async getAiTrace(traceId: string): Promise<Record<string, any> | null> {
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
     return this.stores.observability.getAiTrace(traceId);
   }
 

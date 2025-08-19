@@ -1,5 +1,5 @@
 import type { Connection } from '@lancedb/lancedb';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
@@ -52,7 +52,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     return processedRecord;
   }
 
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
 
@@ -85,7 +85,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<AISpanDatabaseRecord | null> {
+  async getAiSpan(id: string): Promise<AISpanRecord | null> {
     try {
       const table = await this.lanceClient.openTable(TABLE_AI_SPAN);
       const query = table.query().where(`id = '${id}'`).limit(1);
@@ -94,7 +94,7 @@ export class ObservabilityLance extends ObservabilityStorage {
       if (records.length === 0) return null;
 
       const schema = await getTableSchema({ tableName: TABLE_AI_SPAN, client: this.lanceClient });
-      return processResultWithTypeConversion(records[0], schema) as AISpanDatabaseRecord;
+      return processResultWithTypeConversion(records[0], schema) as AISpanRecord;
     } catch (error: any) {
       throw new MastraError(
         {
@@ -177,9 +177,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -289,7 +287,7 @@ export class ObservabilityLance extends ObservabilityStorage {
 
       return {
         traceId,
-        spans: records.map(record => processResultWithTypeConversion(record, schema)),
+        spans: records.map(record => processResultWithTypeConversion(record, schema)) as AISpanRecord[],
       };
     } catch (error: any) {
       throw new MastraError(

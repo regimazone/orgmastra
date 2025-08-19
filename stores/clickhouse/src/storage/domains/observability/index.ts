@@ -1,5 +1,5 @@
 import type { ClickHouseClient } from '@clickhouse/client';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
@@ -15,7 +15,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
 
@@ -45,7 +45,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<AISpanDatabaseRecord | null> {
+  async getAiSpan(id: string): Promise<AISpanRecord | null> {
     try {
       const result = await this.client.query({
         query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE id = {var_id:String}`,
@@ -86,7 +86,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     }
   }
 
-  private parseJsonFields(row: any): AISpanDatabaseRecord {
+  private parseJsonFields(row: any): AISpanRecord {
     return {
       ...row,
       parentSpanId: row.parentSpanId === '' ? null : row.parentSpanId,
@@ -98,10 +98,10 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
       input: safelyParseJSON(row.input),
       output: safelyParseJSON(row.output),
       error: safelyParseJSON(row.error),
-    } as AISpanDatabaseRecord;
+    } as AISpanRecord;
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     try {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
@@ -231,9 +231,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -265,7 +263,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }

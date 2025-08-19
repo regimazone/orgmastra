@@ -2,7 +2,7 @@ import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '..
 import type { StoreOperations } from '../operations';
 import { ObservabilityStorage } from './base';
 
-interface AISpanDatabaseRecord {
+interface AISpanRecord {
   id: string;
   traceId: string;
   spanId: string;
@@ -23,7 +23,7 @@ interface AISpanDatabaseRecord {
   error: Record<string, any> | null;
 }
 
-export type InMemoryAiSpans = Map<string, AISpanDatabaseRecord>;
+export type InMemoryAiSpans = Map<string, AISpanRecord>;
 
 export class ObservabilityInMemory extends ObservabilityStorage {
   spans: InMemoryAiSpans;
@@ -68,7 +68,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     }
 
     // Store the span in memory
-    this.spans.set(id, { ...span, id } as AISpanDatabaseRecord);
+    this.spans.set(id, { ...span, id } as AISpanRecord);
   }
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {

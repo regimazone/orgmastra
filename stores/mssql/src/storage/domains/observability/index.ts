@@ -1,4 +1,4 @@
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ObservabilityStorage } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 
@@ -25,7 +25,7 @@ export class ObservabilityMSSQL extends ObservabilityStorage {
     throw new Error('Method not implemented.');
   }
 
-  updateAiSpan(_id: string, _updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  updateAiSpan(_id: string, _updates: Partial<AISpanRecord>): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
@@ -33,11 +33,11 @@ export class ObservabilityMSSQL extends ObservabilityStorage {
     throw new Error('Method not implemented.');
   }
 
-  batchAiSpanCreate(_args: { records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  batchAiSpanCreate(_args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  batchAiSpanUpdate(_args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  batchAiSpanUpdate(_args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     throw new Error('Method not implemented.');
   }
 

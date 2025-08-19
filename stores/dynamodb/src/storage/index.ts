@@ -1,7 +1,7 @@
 import { DynamoDBClient, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { StorageThreadType, MastraMessageV2, MastraMessageV1 } from '@mastra/core/memory';
 
@@ -353,7 +353,7 @@ export class DynamoDBStore extends MastraStorage {
   }
 
   // AI Span methods
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     return this.stores.observability.createAiSpan(span);
   }
 
@@ -361,7 +361,7 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.observability.getAiSpan(id);
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     return this.stores.observability.updateAiSpan(id, updates);
   }
 
@@ -379,13 +379,11 @@ export class DynamoDBStore extends MastraStorage {
     return this.stores.observability.getAiTracesPaginated(args);
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     return this.stores.observability.batchAiSpanCreate(args);
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     return this.stores.observability.batchAiSpanUpdate(args);
   }
 

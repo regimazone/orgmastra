@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 
 export const createSampleAiSpan = (
   name: string,
@@ -9,7 +9,7 @@ export const createSampleAiSpan = (
   metadata?: Record<string, any>,
   createdAt?: Date,
   startTime?: number,
-): Omit<AISpanDatabaseRecord, 'id'> => ({
+): Omit<AISpanRecord, 'id'> => ({
   traceId: `trace-${randomUUID()}`,
   spanId: `span-${randomUUID()}`,
   parentSpanId: null,
@@ -35,8 +35,7 @@ export const createSampleAgentRunSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): Omit<AISpanDatabaseRecord, 'id'> =>
-  createSampleAiSpan(name, 0, scope, attributes, metadata, createdAt);
+): Omit<AISpanRecord, 'id'> => createSampleAiSpan(name, 0, scope, attributes, metadata, createdAt);
 
 export const createSampleLLMSpan = (
   name: string,
@@ -44,8 +43,7 @@ export const createSampleLLMSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): Omit<AISpanDatabaseRecord, 'id'> =>
-  createSampleAiSpan(name, 1, scope, attributes, metadata, createdAt);
+): Omit<AISpanRecord, 'id'> => createSampleAiSpan(name, 1, scope, attributes, metadata, createdAt);
 
 export const createSampleToolSpan = (
   name: string,
@@ -53,8 +51,7 @@ export const createSampleToolSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): Omit<AISpanDatabaseRecord, 'id'> =>
-  createSampleAiSpan(name, 2, scope, attributes, metadata, createdAt);
+): Omit<AISpanRecord, 'id'> => createSampleAiSpan(name, 2, scope, attributes, metadata, createdAt);
 
 export const createSampleWorkflowSpan = (
   name: string,
@@ -62,8 +59,7 @@ export const createSampleWorkflowSpan = (
   attributes?: Record<string, any>,
   metadata?: Record<string, any>,
   createdAt?: Date,
-): Omit<AISpanDatabaseRecord, 'id'> =>
-  createSampleAiSpan(name, 3, scope, attributes, metadata, createdAt);
+): Omit<AISpanRecord, 'id'> => createSampleAiSpan(name, 3, scope, attributes, metadata, createdAt);
 
 // Utility to create a span hierarchy with proper parent-child relationships
 export const createSpanHierarchy = (
@@ -78,47 +74,23 @@ export const createSpanHierarchy = (
     createdAt?: Date;
     startTime?: number;
     endTime?: number;
-  } = {}
+  } = {},
 ): {
-  parent: Omit<AISpanDatabaseRecord, 'id'>;
-  children: Array<Omit<AISpanDatabaseRecord, 'id'>>;
+  parent: Omit<AISpanRecord, 'id'>;
+  children: Array<Omit<AISpanRecord, 'id'>>;
 } => {
-  const {
-    parentSpanType = 0,
-    childSpanType = 0,
-    scope,
-    attributes,
-    metadata,
-    createdAt,
-    startTime
-  } = options;
+  const { parentSpanType = 0, childSpanType = 0, scope, attributes, metadata, createdAt, startTime } = options;
 
   // Create parent span
-  const parent = createSampleAiSpan(
-    parentName,
-    parentSpanType,
-    scope,
-    attributes,
-    metadata,
-    createdAt,
-    startTime
-  );
+  const parent = createSampleAiSpan(parentName, parentSpanType, scope, attributes, metadata, createdAt, startTime);
 
   // Create child spans with the same traceId as parent
   const children = childNames.map(childName => {
-    const child = createSampleAiSpan(
-      childName,
-      childSpanType,
-      scope,
-      attributes,
-      metadata,
-      createdAt,
-      startTime
-    );
-    
+    const child = createSampleAiSpan(childName, childSpanType, scope, attributes, metadata, createdAt, startTime);
+
     // Override the traceId to match the parent
     (child as any).traceId = parent.traceId;
-    
+
     return child;
   });
 
@@ -139,10 +111,10 @@ export const createMultipleSpanHierarchies = (
     createdAt?: Date;
     startTime?: number;
     endTime?: number;
-  } = {}
+  } = {},
 ): Array<{
-  parent: Omit<AISpanDatabaseRecord, 'id'>;
-  children: Array<Omit<AISpanDatabaseRecord, 'id'>>;
+  parent: Omit<AISpanRecord, 'id'>;
+  children: Array<Omit<AISpanRecord, 'id'>>;
 }> => {
   const {
     parentNamePrefix = 'parent',
@@ -154,7 +126,7 @@ export const createMultipleSpanHierarchies = (
     metadata,
     createdAt,
     startTime,
-    endTime
+    endTime,
   } = options;
 
   return Array.from({ length: count }, (_, i) =>
@@ -169,8 +141,8 @@ export const createMultipleSpanHierarchies = (
         metadata,
         createdAt,
         startTime,
-        endTime
-      }
-    )
+        endTime,
+      },
+    ),
   );
 };

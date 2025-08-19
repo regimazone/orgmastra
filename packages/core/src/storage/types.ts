@@ -1,3 +1,4 @@
+import type { AISpanRecord } from '../ai-tracing';
 import type { MetricResult, TestInfo } from '../eval';
 import type { MemoryConfig } from '../memory/types';
 import type { WorkflowRunState } from '../workflows';
@@ -147,7 +148,7 @@ export type StorageGetAiTracesPaginatedArg = {
 
 export type AITrace = {
   traceId: string;
-  spans: Record<string, any>[];
+  spans: AISpanRecord[];
 };
 
 export type StorageResourceType = {

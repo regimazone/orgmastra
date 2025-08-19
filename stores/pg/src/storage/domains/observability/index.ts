@@ -1,4 +1,4 @@
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
@@ -18,7 +18,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     this.schema = schema;
   }
 
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
       await this.operations.insert({
@@ -61,7 +61,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     try {
       // First check if the span exists
       const existingSpan = await this.getAiSpan(id);
@@ -239,7 +239,7 @@ export class ObservabilityPG extends ObservabilityStorage {
 
       return {
         traceId,
-        spans: result.map(row => this.transformRowToAISpan(row)),
+        spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)) as AISpanRecord[],
       };
     } catch (error) {
       throw new MastraError(
@@ -348,12 +348,10 @@ export class ObservabilityPG extends ObservabilityStorage {
       input: safelyParseJSON(input),
       output: safelyParseJSON(output),
       error: safelyParseJSON(error),
-    } as AISpanDatabaseRecord;
+    } as AISpanRecord;
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -380,7 +378,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }

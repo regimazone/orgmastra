@@ -1,5 +1,5 @@
 import type { Client, Row, InValue } from '@libsql/client';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
@@ -9,7 +9,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
   private client: Client;
   private operations: StoreOperationsLibSQL;
 
-  private transformRowToAISpan(row: Row): AISpanDatabaseRecord {
+  private transformRowToAISpan(row: Row): AISpanRecord {
     const { scope, attributes, metadata, events, links, input, output, error, ...rest } = row;
 
     return {
@@ -31,7 +31,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
       await this.operations.insert({
@@ -50,7 +50,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<AISpanDatabaseRecord | null> {
+  async getAiSpan(id: string): Promise<AISpanRecord | null> {
     try {
       const result = await this.client.execute({
         sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE id = ?`,
@@ -182,7 +182,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
 
   async getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
-  ): Promise<PaginationInfo & { spans: AISpanDatabaseRecord[] }> {
+  ): Promise<PaginationInfo & { spans: AISpanRecord[] }> {
     const { filters, page = 0, perPage = 10 } = args;
     const currentOffset = page * perPage;
 
@@ -247,7 +247,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
+  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     // First check if the span exists
     const span = await this.getAiSpan(id);
     if (!span) {
@@ -283,9 +283,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: {
-    records: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>[];
-  }): Promise<void> {
+  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -312,7 +310,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
   }
 
-  private async batchUpdateAiSpans(updates: { id: string; updates: Partial<AISpanDatabaseRecord> }[]): Promise<void> {
+  private async batchUpdateAiSpans(updates: { id: string; updates: Partial<AISpanRecord> }[]): Promise<void> {
     if (updates.length === 0) {
       return; // No updates to make
     }
@@ -402,7 +400,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanDatabaseRecord> }[] }): Promise<void> {
+  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     return this.batchUpdateAiSpans(args.records);
   }
 
