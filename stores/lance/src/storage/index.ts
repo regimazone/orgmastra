@@ -17,6 +17,7 @@ import type {
   StorageGetTracesPaginatedArg,
   StorageResourceType,
   StorageGetAiTracesPaginatedArg,
+  AITrace,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -482,5 +483,9 @@ export class LanceStorage extends MastraStorage {
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     return this.stores.observability.getAiTracesPaginated(args);
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    return this.stores.observability.getAiTrace(traceId);
   }
 }
