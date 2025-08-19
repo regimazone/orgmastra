@@ -237,7 +237,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(allTraceIds.every(id => id === sharedTraceId)).toBe(true);
 
         // Verify parent-child relationships
-        const parentSpanInResult = result.spans.find(s => s.parentSpanId === null || s.parentSpanId === 'ROOT');
+        const parentSpanInResult = result.spans.find(s => s.parentSpanId === null);
         const childSpanInResult = result.spans.find(s => s.name === 'child');
         const grandchildSpanInResult = result.spans.find(s => s.name === 'grandchild');
         const greatGrandchildSpanInResult = result.spans.find(s => s.name === 'great-grandchild');
@@ -294,7 +294,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         expect(result.total).toBe(3); // Only parent spans count toward total
 
         // Parent spans should be ordered by creation time (newest first)
-        const parentSpansInResult = result.spans.filter(s => s.parentSpanId === null || s.parentSpanId === 'ROOT');
+        const parentSpansInResult = result.spans.filter(s => s.parentSpanId === null);
         expect(parentSpansInResult).toHaveLength(3);
         expect(parentSpansInResult[0]?.name).toBe('newest-parent');
         expect(parentSpansInResult[1]?.name).toBe('middle-parent');
@@ -442,8 +442,8 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
 
         // Verify that all spans in each page maintain their relationships
         for (const page of [page1, page2, page3]) {
-          const parentSpans = page.spans.filter(s => s.parentSpanId === null || s.parentSpanId === 'ROOT');
-          const childSpans = page.spans.filter(s => s.parentSpanId !== null && s.parentSpanId !== 'ROOT');
+          const parentSpans = page.spans.filter(s => s.parentSpanId === null);
+          const childSpans = page.spans.filter(s => s.parentSpanId !== null);
 
           // Each child should have a parent in the same page
           for (const child of childSpans) {
