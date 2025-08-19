@@ -305,6 +305,10 @@ export class InMemoryStore extends MastraStorage {
     return this.stores.observability.getAiSpan(id);
   }
 
+  async getAiTrace(traceId: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAiTrace(traceId);
+  }
+
   async getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {

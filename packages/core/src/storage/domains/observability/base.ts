@@ -1,5 +1,5 @@
 import { MastraBase } from '../../../base';
-import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '../../types';
+import type { PaginationInfo, StorageGetAiTracesPaginatedArg, AITrace } from '../../types';
 
 export abstract class ObservabilityStorage extends MastraBase {
   constructor() {
@@ -12,6 +12,8 @@ export abstract class ObservabilityStorage extends MastraBase {
   abstract createAiSpan(span: Record<string, any>): Promise<void>;
 
   abstract getAiSpan(id: string): Promise<Record<string, any> | null>;
+
+  abstract getAiTrace(traceId: string): Promise<AITrace | null>;
 
   abstract getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,

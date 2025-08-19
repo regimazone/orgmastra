@@ -145,6 +145,11 @@ export type StorageGetAiTracesPaginatedArg = {
   };
 } & PaginationArgs;
 
+export type AITrace = {
+  traceId: string;
+  spans: Record<string, any>[];
+};
+
 export type StorageResourceType = {
   id: string;
   workingMemory?: string;
