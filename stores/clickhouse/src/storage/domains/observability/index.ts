@@ -1,7 +1,7 @@
 import type { ClickHouseClient } from '@clickhouse/client';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
 import type { StoreOperationsClickhouse } from '../operations';
 
@@ -13,16 +13,6 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
     super();
     this.client = client;
     this.operations = operations;
-  }
-
-  /**
-   * Converts object fields to JSON strings for storage
-   * @param record The record containing fields that may need JSON stringification
-   * @returns A new record with JSON fields converted to strings
-   */
-  private stringifyJsonFields(record: Record<string, any>): Record<string, any> {
-    // No need to stringify - ClickHouse can handle JSON objects natively
-    return record;
   }
 
   async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
@@ -37,12 +27,9 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         updatedAt: new Date(),
       };
 
-      // Convert object fields to JSON strings for storage
-      const processedRecord = this.stringifyJsonFields(record);
-
       await this.operations.insert({
         tableName: TABLE_AI_SPAN,
-        record: processedRecord,
+        record,
       });
     } catch (error: any) {
       throw new MastraError(
@@ -84,18 +71,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
       const row = rows.data[0] as any;
 
       // Parse JSON fields back to objects
-      return {
-        ...row,
-        parentSpanId: row.parentSpanId === '' ? null : row.parentSpanId,
-        scope: safelyParseJSON(row.scope),
-        attributes: safelyParseJSON(row.attributes),
-        metadata: safelyParseJSON(row.metadata),
-        events: safelyParseJSON(row.events),
-        links: safelyParseJSON(row.links),
-        input: safelyParseJSON(row.input),
-        output: safelyParseJSON(row.output),
-        error: safelyParseJSON(row.error),
-      } as AISpanDatabaseRecord;
+      return this.parseJsonFields(row);
     } catch (error: any) {
       throw new MastraError(
         {
@@ -108,6 +84,21 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         error,
       );
     }
+  }
+
+  private parseJsonFields(row: any): AISpanDatabaseRecord {
+    return {
+      ...row,
+      parentSpanId: row.parentSpanId === '' ? null : row.parentSpanId,
+      scope: safelyParseJSON(row.scope),
+      attributes: safelyParseJSON(row.attributes),
+      metadata: safelyParseJSON(row.metadata),
+      events: safelyParseJSON(row.events),
+      links: safelyParseJSON(row.links),
+      input: safelyParseJSON(row.input),
+      output: safelyParseJSON(row.output),
+      error: safelyParseJSON(row.error),
+    } as AISpanDatabaseRecord;
   }
 
   async updateAiSpan(id: string, updates: Partial<AISpanDatabaseRecord>): Promise<void> {
@@ -132,20 +123,17 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         updatedAt: new Date(),
       };
 
-      // Convert object fields to JSON strings for storage
-      const processedUpdates = this.stringifyJsonFields(updateRecord);
-
       // Build SET clauses for the UPDATE statement
       const setClauses: string[] = [];
       const values: Record<string, any> = { var_id: id };
 
-      Object.entries(processedUpdates).forEach(([key, value]) => {
+      Object.entries(updateRecord).forEach(([key, value]) => {
         if (key !== 'id' && key !== 'createdAt') {
           // Don't update id or createdAt
           const paramName = `var_${key}`;
           if (key === 'updatedAt') {
             setClauses.push(`"${key}" = parseDateTime64BestEffort({${paramName}:String})`);
-            values[paramName] = value.toISOString();
+            values[paramName] = value instanceof Date ? value.toISOString() : value?.toString();
           } else if (typeof value === 'object' && value !== null) {
             // Handle object fields by stringifying them
             setClauses.push(`"${key}" = {${paramName}:String}`);
@@ -259,12 +247,9 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         updatedAt: new Date(),
       }));
 
-      // Convert object fields to JSON strings for storage
-      const processedRecords = recordsWithIds.map(record => this.stringifyJsonFields(record));
-
       await this.operations.batchInsert({
         tableName: TABLE_AI_SPAN,
-        records: processedRecords,
+        records: recordsWithIds,
       });
     } catch (error: any) {
       throw new MastraError(
@@ -303,14 +288,11 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
           updatedAt: new Date(),
         };
 
-        // Convert object fields to JSON strings for storage
-        const processedRecord = this.stringifyJsonFields(updateRecord);
-
         // Build SET clauses for the UPDATE statement
         const setClauses: string[] = [];
         const values: Record<string, any> = { var_id: id };
 
-        Object.entries(processedRecord).forEach(([key, value]) => {
+        Object.entries(updateRecord).forEach(([key, value]) => {
           if (key !== 'id' && key !== 'createdAt') {
             // Don't update id or createdAt
             // Sanitize the key to create a valid parameter name
@@ -318,7 +300,7 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
             const paramName = `var_${sanitizedKey}`;
             if (key === 'updatedAt') {
               setClauses.push(`"${key}" = parseDateTime64BestEffort({${paramName}:String})`);
-              values[paramName] = value.toISOString();
+              values[paramName] = value instanceof Date ? value.toISOString() : value?.toString();
             } else if (typeof value === 'object' && value !== null) {
               // Handle object fields by stringifying them
               setClauses.push(`"${key}" = {${paramName}:String}`);
@@ -428,6 +410,26 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         error,
       );
     }
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const result = await this.client.query({
+      query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = {var_traceId:String}`,
+      query_params: { var_traceId: traceId },
+    });
+
+    const spanData = await result.json();
+
+    if (!spanData.data || spanData.data.length === 0) {
+      return null;
+    }
+
+    const spans = spanData.data.map(this.parseJsonFields);
+
+    return {
+      traceId,
+      spans,
+    };
   }
 
   async getAiTracesPaginated(
@@ -558,20 +560,8 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
       // Combine root spans and child spans
       const allSpans = [...rootSpans, ...childSpans];
 
-      console.log(`allSpans`, JSON.stringify(allSpans, null, 2));
       // Process all spans with proper JSON field parsing
-      const processedSpans = allSpans.map((span: any) => ({
-        ...span,
-        parentSpanId: span.parentSpanId === '' ? null : span.parentSpanId,
-        scope: safelyParseJSON(span.scope),
-        attributes: safelyParseJSON(span.attributes),
-        metadata: safelyParseJSON(span.metadata),
-        events: safelyParseJSON(span.events),
-        links: safelyParseJSON(span.links),
-        input: safelyParseJSON(span.input),
-        output: safelyParseJSON(span.output),
-        error: safelyParseJSON(span.error),
-      }));
+      const processedSpans = allSpans.map(this.parseJsonFields);
 
       return {
         spans: processedSpans as Record<string, any>[],
