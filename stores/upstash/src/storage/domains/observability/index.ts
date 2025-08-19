@@ -1,7 +1,7 @@
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import type { Redis } from '@upstash/redis';
 import type { StoreOperationsUpstash } from '../operations';
 import { ensureDate, parseJSON } from '../utils';
@@ -207,6 +207,26 @@ export class ObservabilityUpstash extends ObservabilityStorage {
       }
 
       return true;
+    };
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const pattern = `${TABLE_AI_SPAN}:*`;
+    const keys = await this.operations.scanKeys(pattern);
+
+    if (keys.length === 0) {
+      return null;
+    }
+
+    const result = await this.client.mget(keys);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)),
     };
   }
 

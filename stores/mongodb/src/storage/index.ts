@@ -18,6 +18,7 @@ import type {
   WorkflowRun,
   WorkflowRuns,
   StorageGetAiTracesPaginatedArg,
+  AITrace,
 } from '@mastra/core/storage';
 import { MastraStorage } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
@@ -268,6 +269,10 @@ export class MongoDBStore extends MastraStorage {
 
   async deleteAiSpan(id: string): Promise<void> {
     return this.stores.observability.deleteAiSpan(id);
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    return this.stores.observability.getAiTrace(traceId);
   }
 
   async getAiTracesPaginated(

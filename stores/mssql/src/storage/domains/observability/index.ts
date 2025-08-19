@@ -1,6 +1,6 @@
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ObservabilityStorage } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 
 export class ObservabilityMSSQL extends ObservabilityStorage {
   constructor() {
@@ -18,6 +18,10 @@ export class ObservabilityMSSQL extends ObservabilityStorage {
   getAiTracesPaginated(
     _args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
+    throw new Error('Method not implemented.');
+  }
+
+  getAiTrace(traceId: string): Promise<AITrace | null> {
     throw new Error('Method not implemented.');
   }
 

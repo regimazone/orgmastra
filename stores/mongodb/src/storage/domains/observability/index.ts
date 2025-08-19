@@ -1,7 +1,7 @@
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import type { StoreOperationsMongoDB } from '../operations';
 
 export class ObservabilityMongoDB extends ObservabilityStorage {
@@ -163,6 +163,20 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
 
     return query;
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const collection = await this.operations.getCollection(TABLE_AI_SPAN);
+    const result = await collection.find({ traceId }).toArray();
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: result.map(row => this.transformRowToAISpan(row)),
+    };
   }
 
   async getAiTracesPaginated(
