@@ -313,6 +313,7 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
   private transformRowToAISpan(row: Record<string, any>): Record<string, any> {
     return {
       ...row,
+      parentSpanId: row.parentSpanId === 'ROOT' ? null : row.parentSpanId,
       scope: safelyParseJSON(row.scope),
       attributes: safelyParseJSON(row.attributes),
       metadata: safelyParseJSON(row.metadata),
