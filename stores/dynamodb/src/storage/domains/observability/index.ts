@@ -1,7 +1,7 @@
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import type { Service } from 'electrodb';
 import { aiSpanEntity } from '../../../entities/ai-span';
 import type { StoreOperationsDynamoDB } from '../operations';
@@ -191,12 +191,26 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
     return processed;
   }
 
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const result = await this.service.entities.ai_span.query.byTraceId({ entity: 'ai-span', traceId }).go();
+
+    console.log(`result`, JSON.stringify(result, null, 2));
+
+    if (result.data.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: result.data.map((span: Record<string, any>) => this.transformRowToAISpan(span)),
+    };
+  }
+
   async getAiTracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     // TODO: fix filtering for json properties
     const { filters, page = 0, perPage = 10 } = args;
-    this.logger.debug('Getting AI traces with pagination', { filters, page, perPage });
 
     try {
       let query;
@@ -223,8 +237,6 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
         pages: 'all', // Get all pages to apply filtering and pagination
       });
 
-      this.logger.debug('Query results', { totalResults: results.data.length });
-
       if (!results.data.length) {
         return {
           spans: [],
@@ -250,22 +262,11 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
         return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
       });
 
-      this.logger.debug('Filtered parent spans', { parentSpansCount: filteredData.length });
-
       // Apply pagination
       const total = filteredData.length;
       const start = page * perPage;
       const end = start + perPage;
       const paginatedData = filteredData.slice(start, end);
-
-      this.logger.debug('Pagination info', {
-        total,
-        start,
-        end,
-        page,
-        perPage,
-        paginatedDataLength: paginatedData.length,
-      });
 
       // Transform the paginated parent spans
       const parentSpans = paginatedData.map((item: Record<string, any>) => this.transformRowToAISpan(item));
