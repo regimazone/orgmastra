@@ -1,3 +1,4 @@
+import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import { createSqlBuilder } from '../../sql-builder';
@@ -64,7 +65,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         records: [processedSpan],
       });
     } catch (error: any) {
-      throw new Error(`Failed to create AI span: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_CREATE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to create AI span: ${error}`,
+      );
     }
   }
 
@@ -97,7 +105,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
 
       return deserialized;
     } catch (error: any) {
-      throw new Error(`Failed to get AI span: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI span: ${error}`,
+      );
     }
   }
 
@@ -107,7 +122,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
       const existingSpan = await this.getAiSpan(id);
 
       if (!existingSpan) {
-        throw new Error(`AI span with id ${id} not found`);
+        throw new MastraError(
+          {
+            id: 'CLOUDFLARE_D1_STORAGE_UPDATE_AI_SPAN_NOT_FOUND',
+            domain: ErrorDomain.STORAGE,
+            category: ErrorCategory.USER,
+          },
+          `AI span with id ${id} not found`,
+        );
       }
 
       // Merge existing data with updates
@@ -139,7 +161,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
 
       await this.operations.executeQuery({ sql, params: values });
     } catch (error: any) {
-      throw new Error(`Failed to update AI span: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_UPDATE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to update AI span: ${error}`,
+      );
     }
   }
 
@@ -158,7 +187,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
 
       await this.operations.executeQuery({ sql, params: [id] });
     } catch (error: any) {
-      throw new Error(`Failed to delete AI span: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_DELETE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to delete AI span: ${error}`,
+      );
     }
   }
 
@@ -199,25 +235,43 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         records: serializedRecords,
       });
     } catch (error: any) {
-      throw new Error(`Failed to batch create AI spans: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_BATCH_AI_SPAN_CREATE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch create AI spans: ${error}`,
+      );
     }
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const fullTableName = this.operations.getTableName(TABLE_AI_SPAN);
-    const query = createSqlBuilder().select('*').from(fullTableName).where('traceId = ?', traceId);
-    const { sql, params } = query.build();
+    try {
+      const fullTableName = this.operations.getTableName(TABLE_AI_SPAN);
+      const query = createSqlBuilder().select('*').from(fullTableName).where('traceId = ?', traceId);
+      const { sql, params } = query.build();
 
-    const result = await this.operations.executeQuery({ sql, params });
+      const result = await this.operations.executeQuery({ sql, params });
 
-    if (!result || result.length === 0) {
-      return null;
+      if (!result || result.length === 0) {
+        return null;
+      }
+
+      return {
+        traceId,
+        spans: Array.isArray(result) ? result : [result],
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_AI_TRACE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI trace: ${error}`,
+      );
     }
-
-    return {
-      traceId,
-      spans: Array.isArray(result) ? result : [result],
-    };
   }
 
   async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
@@ -268,7 +322,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         }),
       );
     } catch (error: any) {
-      throw new Error(`Failed to batch update AI spans: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_BATCH_AI_SPAN_UPDATE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch update AI spans: ${error}`,
+      );
     }
   }
 
@@ -297,7 +358,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         }),
       );
     } catch (error: any) {
-      throw new Error(`Failed to batch delete AI spans: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_BATCH_AI_SPAN_DELETE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to batch delete AI spans: ${error}`,
+      );
     }
   }
 
@@ -365,7 +433,14 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         hasMore: total > currentOffset + perPage,
       };
     } catch (error: any) {
-      throw new Error(`Failed to get AI traces paginated: ${error.message}`);
+      throw new MastraError(
+        {
+          id: 'CLOUDFLARE_D1_STORAGE_GET_AI_TRACES_PAGINATED_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI traces paginated: ${error}`,
+      );
     }
   }
 

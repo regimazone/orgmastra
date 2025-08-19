@@ -413,23 +413,36 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const result = await this.client.query({
-      query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = {var_traceId:String}`,
-      query_params: { var_traceId: traceId },
-    });
+    try {
+      const result = await this.client.query({
+        query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = {var_traceId:String}`,
+        query_params: { var_traceId: traceId },
+      });
 
-    const spanData = await result.json();
+      const spanData = await result.json();
 
-    if (!spanData.data || spanData.data.length === 0) {
-      return null;
+      if (!spanData.data || spanData.data.length === 0) {
+        return null;
+      }
+
+      const spans = spanData.data.map(this.parseJsonFields);
+
+      return {
+        traceId,
+        spans,
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'CLICKHOUSE_STORAGE_GET_AI_TRACE_FAILED',
+          text: 'Failed to get AI trace in ClickHouseStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, traceId },
+        },
+        error,
+      );
     }
-
-    const spans = spanData.data.map(this.parseJsonFields);
-
-    return {
-      traceId,
-      spans,
-    };
   }
 
   async getAiTracesPaginated(

@@ -276,20 +276,33 @@ export class ObservabilityLance extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const table = await this.lanceClient.openTable(TABLE_AI_SPAN);
-    const query = table.query().where(`\`traceId\` = '${traceId}'`);
-    const records = await query.toArray();
+    try {
+      const table = await this.lanceClient.openTable(TABLE_AI_SPAN);
+      const query = table.query().where(`\`traceId\` = '${traceId}'`);
+      const records = await query.toArray();
 
-    if (records.length === 0) {
-      return null;
+      if (records.length === 0) {
+        return null;
+      }
+
+      const schema = await getTableSchema({ tableName: TABLE_AI_SPAN, client: this.lanceClient });
+
+      return {
+        traceId,
+        spans: records.map(record => processResultWithTypeConversion(record, schema)),
+      };
+    } catch (error: any) {
+      throw new MastraError(
+        {
+          id: 'LANCE_STORAGE_GET_AI_TRACE_FAILED',
+          text: 'Failed to get AI trace in LanceStorage',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: { error: error?.message, traceId },
+        },
+        error,
+      );
     }
-
-    const schema = await getTableSchema({ tableName: TABLE_AI_SPAN, client: this.lanceClient });
-
-    return {
-      traceId,
-      spans: records.map(record => processResultWithTypeConversion(record, schema)),
-    };
   }
 
   async getAiTracesPaginated(

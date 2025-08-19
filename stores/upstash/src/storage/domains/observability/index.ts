@@ -17,12 +17,23 @@ export class ObservabilityUpstash extends ObservabilityStorage {
   }
 
   async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
-    const id = `${span.traceId}-${span.spanId}`;
-    const key = `${TABLE_AI_SPAN}:${id}`;
-    const record = { ...span, id };
+    try {
+      const id = `${span.traceId}-${span.spanId}`;
+      const key = `${TABLE_AI_SPAN}:${id}`;
+      const record = { ...span, id };
 
-    // Store directly in Redis to ensure data integrity
-    await this.client.set(key, record);
+      // Store directly in Redis to ensure data integrity
+      await this.client.set(key, record);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'UPSTASH_STORAGE_CREATE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to create AI span: ${error}`,
+      );
+    }
   }
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {
@@ -211,23 +222,34 @@ export class ObservabilityUpstash extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const pattern = `${TABLE_AI_SPAN}:*`;
-    const keys = await this.operations.scanKeys(pattern);
+    try {
+      const pattern = `${TABLE_AI_SPAN}:*`;
+      const keys = await this.operations.scanKeys(pattern);
 
-    if (keys.length === 0) {
-      return null;
+      if (keys.length === 0) {
+        return null;
+      }
+
+      const result = await this.client.mget(keys);
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      return {
+        traceId,
+        spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'UPSTASH_STORAGE_GET_AI_TRACE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI trace: ${error}`,
+      );
     }
-
-    const result = await this.client.mget(keys);
-
-    if (result.length === 0) {
-      return null;
-    }
-
-    return {
-      traceId,
-      spans: result.map(row => this.transformRowToAISpan(row as Record<string, any>)),
-    };
   }
 
   async getAiTracesPaginated(

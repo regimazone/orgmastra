@@ -19,11 +19,22 @@ export class ObservabilityPG extends ObservabilityStorage {
   }
 
   async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
-    const id = `${span.traceId}-${span.spanId}`;
-    await this.operations.insert({
-      tableName: TABLE_AI_SPAN,
-      record: { ...span, id },
-    });
+    try {
+      const id = `${span.traceId}-${span.spanId}`;
+      await this.operations.insert({
+        tableName: TABLE_AI_SPAN,
+        record: { ...span, id },
+      });
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'PG_STORAGE_CREATE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to create AI span: ${error}`,
+      );
+    }
   }
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {
@@ -216,19 +227,30 @@ export class ObservabilityPG extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const result = await this.client.manyOrNone<Record<string, any>>(
-      `SELECT * FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })} WHERE "traceId" = $1`,
-      [traceId],
-    );
+    try {
+      const result = await this.client.manyOrNone<Record<string, any>>(
+        `SELECT * FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })} WHERE "traceId" = $1`,
+        [traceId],
+      );
 
-    if (result.length === 0) {
-      return null;
+      if (result.length === 0) {
+        return null;
+      }
+
+      return {
+        traceId,
+        spans: result.map(row => this.transformRowToAISpan(row)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'PG_STORAGE_GET_AI_TRACE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI trace: ${error}`,
+      );
     }
-
-    return {
-      traceId,
-      spans: result.map(row => this.transformRowToAISpan(row)),
-    };
   }
 
   async getAiTracesPaginated(

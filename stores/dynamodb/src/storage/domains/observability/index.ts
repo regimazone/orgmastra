@@ -192,18 +192,29 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const result = await this.service.entities.ai_span.query.byTraceId({ entity: 'ai-span', traceId }).go();
+    try {
+      const result = await this.service.entities.ai_span.query.byTraceId({ entity: 'ai-span', traceId }).go();
 
-    console.log(`result`, JSON.stringify(result, null, 2));
+      console.log(`result`, JSON.stringify(result, null, 2));
 
-    if (result.data.length === 0) {
-      return null;
+      if (result.data.length === 0) {
+        return null;
+      }
+
+      return {
+        traceId,
+        spans: result.data.map((span: Record<string, any>) => this.transformRowToAISpan(span)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'DYNAMODB_STORAGE_GET_AI_TRACE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI trace: ${error}`,
+      );
     }
-
-    return {
-      traceId,
-      spans: result.data.map((span: Record<string, any>) => this.transformRowToAISpan(span)),
-    };
   }
 
   async getAiTracesPaginated(

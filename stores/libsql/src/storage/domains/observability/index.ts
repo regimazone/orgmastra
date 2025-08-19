@@ -32,19 +32,41 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
   }
 
   async createAiSpan(span: Omit<AISpanDatabaseRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
-    const id = `${span.traceId}-${span.spanId}`;
-    await this.operations.insert({
-      tableName: TABLE_AI_SPAN,
-      record: { ...span, id },
-    });
+    try {
+      const id = `${span.traceId}-${span.spanId}`;
+      await this.operations.insert({
+        tableName: TABLE_AI_SPAN,
+        record: { ...span, id },
+      });
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORAGE_CREATE_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to create AI span: ${error}`,
+      );
+    }
   }
 
   async getAiSpan(id: string): Promise<AISpanDatabaseRecord | null> {
-    const result = await this.client.execute({
-      sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE id = ?`,
-      args: [id],
-    });
-    return result.rows?.[0] ? this.transformRowToAISpan(result.rows[0]) : null;
+    try {
+      const result = await this.client.execute({
+        sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE id = ?`,
+        args: [id],
+      });
+      return result.rows?.[0] ? this.transformRowToAISpan(result.rows[0]) : null;
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORAGE_GET_AI_SPAN_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI span: ${error}`,
+      );
+    }
   }
 
   /**
@@ -132,19 +154,30 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
   }
 
   async getAiTrace(traceId: string): Promise<AITrace | null> {
-    const result = await this.client.execute({
-      sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = ?`,
-      args: [traceId],
-    });
+    try {
+      const result = await this.client.execute({
+        sql: `SELECT * FROM ${TABLE_AI_SPAN} WHERE traceId = ?`,
+        args: [traceId],
+      });
 
-    if (result.rows.length === 0) {
-      return null;
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return {
+        traceId,
+        spans: result.rows.map(row => this.transformRowToAISpan(row)),
+      };
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'LIBSQL_STORAGE_GET_AI_TRACE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+        },
+        `Failed to get AI trace: ${error}`,
+      );
     }
-
-    return {
-      traceId,
-      spans: result.rows.map(row => this.transformRowToAISpan(row)),
-    };
   }
 
   async getAiTracesPaginated(
