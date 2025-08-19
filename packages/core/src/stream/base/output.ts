@@ -237,7 +237,7 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#response = {
                   ...otherMetadata,
-                  messages: chunk.payload.messages?.nonUser ?? [],
+                  messages: messageList.get.response.aiV5.model(),
                 };
               }
 

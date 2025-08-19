@@ -3151,7 +3151,7 @@ describe('Agent save message parts', () => {
         }),
         expect.objectContaining({
           role: 'assistant',
-          content: [expect.objectContaining({ type: 'text' })],
+          content: expect.any(String),
         }),
       ]);
       expect(firstResponse.text).toContain('65');
@@ -3171,6 +3171,7 @@ describe('Agent save message parts', () => {
         expect.objectContaining({ role: 'user' }),
         expect.objectContaining({ type: 'function_call' }),
         expect.objectContaining({ type: 'function_call_output' }),
+        expect.objectContaining({ role: 'assistant' }),
         expect.objectContaining({ role: 'user' }),
       ]);
       expect(secondResponse.response.messages).toEqual([expect.objectContaining({ role: 'assistant' })]);
