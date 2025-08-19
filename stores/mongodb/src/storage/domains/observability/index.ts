@@ -1,7 +1,7 @@
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import type { StoreOperationsMongoDB } from '../operations';
 
 export class ObservabilityMongoDB extends ObservabilityStorage {

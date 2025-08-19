@@ -34,13 +34,13 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import Cloudflare from 'cloudflare';
 import { LegacyEvalsStorageCloudflare } from './domains/legacy-evals';
 import { MemoryStorageCloudflare } from './domains/memory';
+import { ObservabilityStorageCloudflare } from './domains/observability';
 import { StoreOperationsCloudflare } from './domains/operations';
 import { ScoresStorageCloudflare } from './domains/scores';
 import { TracesStorageCloudflare } from './domains/traces';
 import { WorkflowsStorageCloudflare } from './domains/workflows';
 import { isWorkersConfig } from './types';
 import type { CloudflareStoreConfig, RecordTypes } from './types';
-import { ObservabilityStorageCloudflare } from './domains/observability';
 
 export class CloudflareStore extends MastraStorage {
   stores: StorageDomains;

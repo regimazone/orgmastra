@@ -1,13 +1,9 @@
-import {
-  ObservabilityStorage,
-  type PaginationInfo,
-  type StorageGetAiTracesPaginatedArg,
-  TABLE_AI_SPAN,
-} from '@mastra/core/storage';
-import type { StoreOperationsLance } from '../operations';
 import type { Connection } from '@lancedb/lancedb';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
+import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
+import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
+import type { StoreOperationsLance } from '../operations';
 import { getTableSchema, processResultWithTypeConversion } from '../utils';
 
 export class ObservabilityLance extends ObservabilityStorage {

@@ -22,11 +22,11 @@ import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { StoreLegacyEvalsLance } from './domains/legacy-evals';
 import { StoreMemoryLance } from './domains/memory';
+import { ObservabilityLance } from './domains/observability';
 import { StoreOperationsLance } from './domains/operations';
 import { StoreScoresLance } from './domains/scores';
 import { StoreTracesLance } from './domains/traces';
 import { StoreWorkflowsLance } from './domains/workflows';
-import { ObservabilityLance } from './domains/observability';
 
 export class LanceStorage extends MastraStorage {
   stores: StorageDomains;

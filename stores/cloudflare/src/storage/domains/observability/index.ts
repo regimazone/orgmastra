@@ -1,10 +1,5 @@
-import {
-  ObservabilityStorage,
-  type PaginationInfo,
-  type StorageGetAiTracesPaginatedArg,
-  TABLE_AI_SPAN,
-  TABLE_TRACES,
-} from '@mastra/core/storage';
+import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
+import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import type { StoreOperationsCloudflare } from '../operations';
 
 export class ObservabilityStorageCloudflare extends ObservabilityStorage {

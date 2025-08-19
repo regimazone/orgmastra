@@ -1,4 +1,5 @@
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
@@ -16,9 +17,8 @@ import type {
   TABLE_NAMES,
   WorkflowRun,
   WorkflowRuns,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import { MastraStorage } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';

@@ -1,11 +1,9 @@
 import type { Client, Row, InValue } from '@libsql/client';
-import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
-import type { PaginationInfo } from '@mastra/core/storage';
-import type { Trace } from '@mastra/core/telemetry';
-import type { StoreOperationsLibSQL } from '../operations';
 import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
+import { ObservabilityStorage, safelyParseJSON, TABLE_AI_SPAN } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
+import type { StoreOperationsLibSQL } from '../operations';
 
 export class ObservabilityLibSQL extends ObservabilityStorage {
   private client: Client;

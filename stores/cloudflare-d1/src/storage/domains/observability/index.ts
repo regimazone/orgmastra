@@ -1,11 +1,7 @@
-import {
-  ObservabilityStorage,
-  type PaginationInfo,
-  type StorageGetAiTracesPaginatedArg,
-  TABLE_AI_SPAN,
-} from '@mastra/core/storage';
-import { StoreOperationsD1 } from '../operations';
+import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
+import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import { createSqlBuilder } from '../../sql-builder';
+import type { StoreOperationsD1 } from '../operations';
 
 export class ObservabilityStorageD1 extends ObservabilityStorage {
   private operations: StoreOperationsD1;
@@ -31,6 +27,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
         try {
           processedSpan[key] = JSON.stringify(value);
         } catch (error) {
+          this.logger?.error(`Failed to serialize span for D1: ${error}`);
           // If JSON serialization fails, set to null
           processedSpan[key] = null;
         }

@@ -24,11 +24,11 @@ import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { LegacyEvalsLibSQL } from './domains/legacy-evals';
 import { MemoryLibSQL } from './domains/memory';
+import { ObservabilityLibSQL } from './domains/observability';
 import { StoreOperationsLibSQL } from './domains/operations';
 import { ScoresLibSQL } from './domains/scores';
 import { TracesLibSQL } from './domains/traces';
 import { WorkflowsLibSQL } from './domains/workflows';
-import { ObservabilityLibSQL } from './domains/observability';
 
 export type LibSQLConfig =
   | {

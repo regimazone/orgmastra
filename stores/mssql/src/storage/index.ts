@@ -1,5 +1,6 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
 export type MastraMessageV2WithTypedContent = Omit<MastraMessageV2, 'content'> & { content: MastraMessageContentV2 };
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData } from '@mastra/core/scores';
@@ -26,12 +27,11 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import sql from 'mssql';
 import { LegacyEvalsMSSQL } from './domains/legacy-evals';
 import { MemoryMSSQL } from './domains/memory';
+import { ObservabilityMSSQL } from './domains/observability';
 import { StoreOperationsMSSQL } from './domains/operations';
 import { ScoresMSSQL } from './domains/scores';
 import { TracesMSSQL } from './domains/traces';
 import { WorkflowsMSSQL } from './domains/workflows';
-import { ObservabilityMSSQL } from './domains/observability';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 
 export type MSSQLConfigType = {
   schemaName?: string;

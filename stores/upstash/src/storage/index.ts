@@ -1,4 +1,5 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import type { StorageThreadType, MastraMessageV1 } from '@mastra/core/memory';
 import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
 import { MastraStorage } from '@mastra/core/storage';
@@ -15,9 +16,8 @@ import type {
   StorageGetTracesArg,
   StoragePagination,
   StorageDomains,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import { Redis } from '@upstash/redis';

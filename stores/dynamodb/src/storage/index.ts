@@ -1,6 +1,7 @@
 import { DynamoDBClient, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { StorageThreadType, MastraMessageV2, MastraMessageV1 } from '@mastra/core/memory';
 
@@ -20,9 +21,8 @@ import type {
   PaginationArgs,
   StorageResourceType,
   ThreadSortOptions,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { Service } from 'electrodb';

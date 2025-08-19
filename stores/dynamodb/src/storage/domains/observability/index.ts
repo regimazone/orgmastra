@@ -1,10 +1,10 @@
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
+import type { Service } from 'electrodb';
 import { aiSpanEntity } from '../../../entities/ai-span';
 import type { StoreOperationsDynamoDB } from '../operations';
-import type { Service } from 'electrodb';
 
 export class ObservabilityDynamoDB extends ObservabilityStorage {
   private service: Service<Record<string, any>>;

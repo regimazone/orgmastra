@@ -1,4 +1,5 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
+import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
@@ -18,9 +19,8 @@ import type {
   StoragePagination,
   StorageDomains,
   ThreadSortOptions,
+  StorageGetAiTracesPaginatedArg,
 } from '@mastra/core/storage';
-import type { AISpanDatabaseRecord } from '@mastra/core/ai-tracing';
-import type { StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import pgPromise from 'pg-promise';

@@ -24,11 +24,11 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import Cloudflare from 'cloudflare';
 import { LegacyEvalsStorageD1 } from './domains/legacy-evals';
 import { MemoryStorageD1 } from './domains/memory';
+import { ObservabilityStorageD1 } from './domains/observability';
 import { StoreOperationsD1 } from './domains/operations';
 import { ScoresStorageD1 } from './domains/scores';
 import { TracesStorageD1 } from './domains/traces';
 import { WorkflowsStorageD1 } from './domains/workflows';
-import { ObservabilityStorageD1 } from './domains/observability';
 
 /**
  * Configuration for D1 using the REST API
