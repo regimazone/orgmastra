@@ -61,7 +61,7 @@
     "lint": "turbo lint --filter \"./packages/**\" --filter \"./stores/**\" --filter \"./auth/**\" --filter \"./voice/**\" --filter \"./deployers/**\" --filter \"./workflows/**\" --filter \"./observability/**\" --filter \"./client-sdks/**\" --filter \"!@mastra/playground\"",
     "preinstall": "npx only-allow pnpm",
     "prepare": "husky",
-    "prettier:format": "prettier --write .",
+    "prettier:format": "prettier --write . --log-level warn",
     "prettier:format:check": "prettier --check .",
     "typecheck": "pnpm --filter \"!./explorations/**/*\" -r typecheck",
     "format": "pnpm turbo --filter \"!./examples/**/*\" --filter \"!./docs/**/*\" --filter \"!./integrations/**/*\" --filter \"!@mastra/playground\" lint -- --fix",
