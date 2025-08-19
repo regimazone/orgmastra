@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
-import { WritableStream, type ReadableStream } from 'stream/web';
+import type { WritableStream, ReadableStream } from 'stream/web';
 import type { CoreMessage, StreamObjectResult, TextPart, Tool, UIMessage } from 'ai';
-import { asSchema } from 'ai-v5';
 import type { ModelMessage, StopCondition, ToolChoice } from 'ai-v5';
 import deepEqual from 'fast-deep-equal';
 import type { JSONSchema7 } from 'json-schema';

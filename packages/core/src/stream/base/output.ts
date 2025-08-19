@@ -8,11 +8,11 @@ import { MastraBase } from '../../base';
 import type { ObjectOptions } from '../../loop/types';
 import { DelayedPromise } from '../aisdk/v5/compat';
 import type { ConsumeStreamOptions } from '../aisdk/v5/compat';
+import { getOutputSchema } from '../aisdk/v5/object/schema';
 import { createJsonTextStreamTransformer, createObjectStreamTransformer } from '../aisdk/v5/object/stream-object';
 import { AISDKV5OutputStream } from '../aisdk/v5/output';
 import { reasoningDetailsFromMessages, transformSteps } from '../aisdk/v5/output-helpers';
 import type { BufferedByStep, ChunkType, StepBufferItem } from '../types';
-import { getOutputSchema } from '../aisdk/v5/object/schema';
 
 export class JsonToSseTransformStream extends TransformStream<unknown, string> {
   constructor() {
