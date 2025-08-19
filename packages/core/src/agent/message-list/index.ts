@@ -901,9 +901,25 @@ export class MessageList {
     ).length;
     // If the number of parts in the latest message is less than the number of parts in the new message, insert the part
     if (latestPartCount < newPartCount) {
+      // Check if we need to add a step-start before text parts when merging assistant messages
+      // Only add after tool invocations
+      const needsStepStart =
+        latestMessage.role === 'assistant' &&
+        part.type === 'text' &&
+        latestMessage.content.parts.length > 0 &&
+        latestMessage.content.parts.at(-1)?.type === 'tool-invocation';
+
       if (typeof insertAt === 'number') {
-        latestMessage.content.parts.splice(insertAt, 0, part);
+        if (needsStepStart) {
+          latestMessage.content.parts.splice(insertAt, 0, { type: 'step-start' });
+          latestMessage.content.parts.splice(insertAt + 1, 0, part);
+        } else {
+          latestMessage.content.parts.splice(insertAt, 0, part);
+        }
       } else {
+        if (needsStepStart) {
+          latestMessage.content.parts.push({ type: 'step-start' });
+        }
         latestMessage.content.parts.push(part);
       }
     }
@@ -1188,7 +1204,9 @@ export class MessageList {
       for (const part of coreMessage.content) {
         switch (part.type) {
           case 'text':
-            if (parts.at(-1)?.type !== `text` && parts.at(-1)?.type !== `step-start`) {
+            // Add step-start only after tool invocations, not at the beginning
+            const prevPart = parts.at(-1);
+            if (coreMessage.role === 'assistant' && prevPart && prevPart.type === 'tool-invocation') {
               parts.push({ type: 'step-start' });
             }
             parts.push({

@@ -544,6 +544,7 @@ describe('MessageList', () => {
                   result: msg3.content[0].result,
                 },
               },
+              { type: 'step-start' },
               {
                 type: 'text',
                 text: msg4.content,
@@ -806,6 +807,7 @@ describe('MessageList', () => {
                   result: 'Result A',
                 },
               },
+              { type: 'step-start' },
               { type: 'text', text: 'Step 2: Call tool B' },
               {
                 type: 'tool-invocation',
@@ -885,7 +887,7 @@ describe('MessageList', () => {
           content: {
             format: 2,
             content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1240,7 +1242,7 @@ describe('MessageList', () => {
           content: {
             format: 2,
             content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1418,7 +1420,7 @@ describe('MessageList', () => {
           content: {
             format: 2,
             content: userMsg.content,
-            parts: [{ type: 'step-start' }, { type: 'text', text: userMsg.content }],
+            parts: [{ type: 'text', text: userMsg.content }],
           },
           threadId,
           resourceId,
@@ -1442,6 +1444,7 @@ describe('MessageList', () => {
                   result: '20°C, sunny',
                 },
               },
+              { type: 'step-start' },
               { type: 'text', text: 'And now for Paris.' },
               {
                 type: 'tool-invocation',
@@ -1675,7 +1678,7 @@ describe('MessageList', () => {
           role: 'user',
           content: 'hi',
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'hi' }],
+          parts: [{ type: 'text', text: 'hi' }],
           experimental_attachments: [],
         },
         {
@@ -1692,7 +1695,7 @@ describe('MessageList', () => {
           role: 'user',
           content: 'LA',
           createdAt: expect.any(Date),
-          parts: [{ type: 'step-start' }, { type: 'text', text: 'LA' }],
+          parts: [{ type: 'text', text: 'LA' }],
           experimental_attachments: [],
         },
         {
