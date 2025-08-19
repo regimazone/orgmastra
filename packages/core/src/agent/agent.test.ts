@@ -1,5 +1,6 @@
 import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI as createOpenAIV5 } from '@ai-sdk/openai-v5';
 import type { CoreMessage } from 'ai';
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV1 } from 'ai/test';
@@ -20,6 +21,7 @@ import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
 import type { MastraMessageV2 } from './types';
 import { Agent } from './index';
+import { randomUUID } from 'crypto';
 
 config();
 
@@ -98,7 +100,8 @@ class MockMemory extends MastraMemory {
     return messages;
   }
   async rememberMessages() {
-    return { messages: [], messagesV2: [] };
+    const list = new MessageList().add(Array.from(this.messages.values()), `memory`);
+    return { messages: list.get.remembered.v1(), messagesV2: list.get.remembered.v2() };
   }
   async getThreadsByResourceId() {
     return [];
@@ -176,6 +179,7 @@ const mockFindUser = vi.fn().mockImplementation(async data => {
 });
 
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai5 = createOpenAIV5({ apiKey: process.env.OPENAI_API_KEY });
 
 function assertNoDuplicateParts(parts: any[]) {
   // Check for duplicate tool-invocation results by toolCallId
@@ -2983,6 +2987,193 @@ describe('Agent save message parts', () => {
       const thread = await mockMemory.getThreadById({ threadId: 'thread-err-stream' });
       expect(thread).toBeNull();
     });
+  });
+
+  describe(`stream_vnext (ai v5)`, () => {
+    it(`should stream from LLM`, async () => {
+      const agent = new Agent({
+        id: 'test',
+        name: 'test',
+        model: openai5('gpt-4o-mini'),
+        instructions: `test!`,
+      });
+
+      const result = await agent.stream_vnext(`hello!`);
+
+      const parts: any[] = [];
+      for await (const part of result.fullStream) {
+        parts.push(part);
+      }
+      expect(result.request.body.input).toEqual([
+        {
+          role: 'system',
+          content: 'test!',
+        },
+        {
+          role: 'user',
+          content: [{ type: 'input_text', text: 'hello!' }],
+        },
+      ]);
+    });
+    it(`should show correct request input for multi-turn inputs`, async () => {
+      const agent = new Agent({
+        id: 'test',
+        name: 'test',
+        model: openai5('gpt-4o-mini'),
+        instructions: `test!`,
+      });
+
+      const result = await agent.stream_vnext([
+        { role: `user`, content: `hello!` },
+        { role: 'assistant', content: 'hi, how are you?' },
+        { role: 'user', content: "I'm good, how are you?" },
+      ]);
+
+      const parts: any[] = [];
+      for await (const part of result.fullStream) {
+        parts.push(part);
+      }
+      expect(result.request.body.input).toEqual([
+        {
+          role: 'system',
+          content: 'test!',
+        },
+        {
+          role: 'user',
+          content: [{ type: 'input_text', text: 'hello!' }],
+        },
+        { role: 'assistant', content: [{ type: 'output_text', text: 'hi, how are you?' }] },
+        { role: 'user', content: [{ type: 'input_text', text: "I'm good, how are you?" }] },
+      ]);
+    });
+
+    it(`should show correct request input for multi-turn inputs with memory`, async () => {
+      const mockMemory = new MockMemory();
+      const threadId = '1';
+      const resourceId = '2';
+      // @ts-ignore
+      mockMemory.rememberMessages = async function rememberMessages() {
+        const list = new MessageList({ threadId, resourceId }).add(
+          [
+            { role: `user`, content: `hello!`, threadId, resourceId },
+            { role: 'assistant', content: 'hi, how are you?', threadId, resourceId },
+          ],
+          `memory`,
+        );
+        return { messages: list.get.remembered.aiV4.core(), messagesV2: list.get.remembered.v2() };
+      };
+
+      mockMemory.getThreadById = async function getThreadById() {
+        return { id: '1', createdAt: new Date(), resourceId: '2', updatedAt: new Date() } satisfies StorageThreadType;
+      };
+
+      const agent = new Agent({
+        id: 'test',
+        name: 'test',
+        model: openai5('gpt-4o-mini'),
+        instructions: `test!`,
+        memory: mockMemory,
+      });
+
+      const result = await agent.stream_vnext([{ role: 'user', content: "I'm good, how are you?" }], {
+        memory: {
+          thread: '1',
+          resource: '2',
+          options: {
+            lastMessages: 10,
+          },
+        },
+      });
+
+      for await (const _part of result.fullStream) {
+      }
+      expect(result.request.body.input).toEqual([
+        {
+          role: 'system',
+          content: 'test!',
+        },
+        {
+          role: 'user',
+          content: [{ type: 'input_text', text: 'hello!' }],
+        },
+        { role: 'assistant', content: [{ type: 'output_text', text: 'hi, how are you?' }] },
+        { role: 'user', content: [{ type: 'input_text', text: "I'm good, how are you?" }] },
+      ]);
+    });
+
+    it(`should order tool calls/results and response text properly`, async () => {
+      const mockMemory = new MockMemory();
+
+      const weatherTool = createTool({
+        id: 'get_weather',
+        description: 'Get the weather for a given location',
+        inputSchema: z.object({
+          postalCode: z.string().describe('The location to get the weather for'),
+        }),
+        execute: async ({ context: { postalCode } }) => {
+          return `The weather in ${postalCode} is sunny. It is currently 70 degrees and feels like 65 degrees.`;
+        },
+      });
+
+      const threadId = randomUUID();
+      const resourceId = 'ordering';
+
+      const agent = new Agent({
+        id: 'test',
+        name: 'test',
+        model: openai5('gpt-4o-mini'),
+        instructions: `Testing tool calls! Please respond in a pirate accent`,
+        tools: {
+          get_weather: weatherTool,
+        },
+        memory: mockMemory,
+      });
+
+      // First, ask a question that will trigger a tool call
+      const firstResponse = await agent.generate_vnext('What is the weather in London?', {
+        threadId,
+        resourceId,
+        onStepFinish: args => {
+          args;
+        },
+      });
+
+      // The response should contain the weather.
+      expect(firstResponse.response.messages).toEqual([
+        expect.objectContaining({
+          role: 'assistant',
+          content: [expect.objectContaining({ type: 'tool-call' })],
+        }),
+        expect.objectContaining({
+          role: 'tool',
+          content: [expect.objectContaining({ type: 'tool-result' })],
+        }),
+        expect.objectContaining({
+          role: 'assistant',
+          content: [expect.objectContaining({ type: 'text' })],
+        }),
+      ]);
+      expect(firstResponse.text).toContain('65');
+
+      const secondResponse = await agent.generate_vnext('What was the tool you just used?', {
+        memory: {
+          thread: threadId,
+          resource: resourceId,
+          options: {
+            lastMessages: 10,
+          },
+        },
+      });
+
+      expect(secondResponse.request.body.input).toEqual([
+        expect.objectContaining({ role: 'system' }),
+        expect.objectContaining({ role: 'user' }),
+        expect.objectContaining({ type: 'function_call' }),
+        expect.objectContaining({ type: 'function_call_output' }),
+        expect.objectContaining({ role: 'user' }),
+      ]);
+      expect(secondResponse.response.messages).toEqual([expect.objectContaining({ role: 'assistant' })]);
+    }, 30_000);
   });
 
   describe('streamVnext', () => {

@@ -237,7 +237,7 @@ export class MastraModelOutput extends MastraBase {
 
                 self.#response = {
                   ...otherMetadata,
-                  messages: chunk.payload.messages?.all ?? [],
+                  messages: chunk.payload.messages?.nonUser ?? [],
                 };
               }
 
@@ -250,8 +250,6 @@ export class MastraModelOutput extends MastraBase {
                 const { stepType: _stepType, isContinued: _isContinued } = baseFinishStep;
 
                 let onFinishPayload: any = {};
-
-                messageList.add(chunk.payload.messages.all, 'response');
 
                 if (model.version === 'v2') {
                   onFinishPayload = {
