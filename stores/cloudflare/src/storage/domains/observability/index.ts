@@ -1,5 +1,5 @@
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
-import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
+import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import type { StoreOperationsCloudflare } from '../operations';
 
 export class ObservabilityStorageCloudflare extends ObservabilityStorage {
@@ -58,6 +58,31 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     } catch (error: any) {
       throw new Error(`Failed to get AI span: ${error.message}`);
     }
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const prefix = this.operations.namespacePrefix ? `${this.operations.namespacePrefix}:` : '';
+    const keyObjs = await this.operations.listKV(TABLE_AI_SPAN, { prefix: `${prefix}${TABLE_AI_SPAN}` });
+
+    const allSpans: Record<string, any>[] = [];
+
+    for (const { name: key } of keyObjs) {
+      const data = await this.operations.getKV(TABLE_AI_SPAN, key);
+      if (!data) continue;
+
+      if (data.traceId === traceId) {
+        allSpans.push(data);
+      }
+    }
+
+    if (allSpans.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: allSpans,
+    };
   }
 
   async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {

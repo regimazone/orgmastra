@@ -1,5 +1,5 @@
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
-import type { PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
+import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
 import { createSqlBuilder } from '../../sql-builder';
 import type { StoreOperationsD1 } from '../operations';
 
@@ -201,6 +201,23 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     } catch (error: any) {
       throw new Error(`Failed to batch create AI spans: ${error.message}`);
     }
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    const fullTableName = this.operations.getTableName(TABLE_AI_SPAN);
+    const query = createSqlBuilder().select('*').from(fullTableName).where('traceId = ?', traceId);
+    const { sql, params } = query.build();
+
+    const result = await this.operations.executeQuery({ sql, params });
+
+    if (!result || result.length === 0) {
+      return null;
+    }
+
+    return {
+      traceId,
+      spans: Array.isArray(result) ? result : [result],
+    };
   }
 
   async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {

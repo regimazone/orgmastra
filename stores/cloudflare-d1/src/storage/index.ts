@@ -18,6 +18,7 @@ import type {
   StorageDomains,
   PaginationArgs,
   StorageGetAiTracesPaginatedArg,
+  AITrace,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';
@@ -491,6 +492,10 @@ export class D1Store extends MastraStorage {
 
   async getAiSpan(id: string): Promise<Record<string, any> | null> {
     return this.stores.observability.getAiSpan(id);
+  }
+
+  async getAiTrace(traceId: string): Promise<AITrace | null> {
+    return this.stores.observability.getAiTrace(traceId);
   }
 
   async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
