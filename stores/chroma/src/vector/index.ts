@@ -12,7 +12,7 @@ import type {
   UpdateVectorParams,
 } from '@mastra/core/vector';
 import { ChromaClient } from 'chromadb';
-import type { UpdateRecordsParams, Collection } from 'chromadb';
+import type { Collection } from 'chromadb';
 import type { ChromaVectorDocumentFilter, ChromaVectorFilter } from './filter';
 import { ChromaFilterTranslator } from './filter';
 
@@ -206,7 +206,7 @@ export class ChromaVector extends MastraVector<ChromaVectorFilter> {
   async listIndexes(): Promise<string[]> {
     try {
       const collections = await this.client.listCollections();
-      return collections.map(collection => collection);
+      return collections.map(collection => collection.name);
     } catch (error: any) {
       throw new MastraError(
         {
@@ -293,7 +293,7 @@ export class ChromaVector extends MastraVector<ChromaVectorFilter> {
     try {
       const collection: Collection = await this.getCollection(indexName, true);
 
-      const updateOptions: UpdateRecordsParams = { ids: [id] };
+      const updateOptions: Parameters<Collection['update']>[0] = { ids: [id] };
 
       if (update?.vector) {
         const stats = await this.describeIndex({ indexName });
