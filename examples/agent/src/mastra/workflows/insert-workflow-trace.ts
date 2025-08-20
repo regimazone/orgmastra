@@ -83,7 +83,7 @@ async function insertWorkflowTrace(workflowData: any, storage: MastraStorage) {
 
       const span = {
         traceId,
-        spanId: observation.id,
+        spanId: `${traceId}-${observation.id}`,
         parentSpanId: null, // Will update in second pass
         name: observation.name,
         scope: null,
