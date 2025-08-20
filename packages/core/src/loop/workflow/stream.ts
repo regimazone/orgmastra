@@ -109,7 +109,9 @@ export function workflowLoopStream<Tools extends ToolSet = ToolSet>({
           return inputData.stepResult.isContinued;
         })
         .map(({ inputData }) => {
-          const toolCalls = rest.messageList.get.response.aiV5.model().filter(message => message.role === 'tool');
+          const toolCalls = rest.messageList.get.response.aiV5
+            .model()
+            .filter((message: any) => message.role === 'tool');
           inputData.output.toolCalls = toolCalls;
 
           return inputData;

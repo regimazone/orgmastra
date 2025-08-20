@@ -3,6 +3,7 @@ import { Agent } from '../../agent';
 import type { MastraMessageV2 } from '../../agent/message-list';
 import type { StructuredOutputOptions } from '../../agent/types';
 import type { Processor } from '../index';
+import { RuntimeContext } from '../../runtime-context';
 
 export type { StructuredOutputOptions } from '../../agent/types';
 
@@ -58,14 +59,28 @@ export class StructuredOutputProcessor<S extends z.ZodTypeAny> implements Proces
           return message;
         }
 
+        console.log('textContent', textContent);
+
         try {
-          // Use structuring agent to extract structured data from the unstructured text
-          const structuredResult = await this.structuringAgent.generate(
-            `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
-            {
-              output: this.schema,
-            },
-          );
+          const modelDef = await this.structuringAgent.getModel({ runtimeContext: new RuntimeContext() });
+
+          let structuredResult;
+          if (modelDef.specificationVersion === 'v1') {
+            // Use structuring agent to extract structured data from the unstructured text
+            structuredResult = await this.structuringAgent.generate(
+              `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
+              {
+                output: this.schema,
+              },
+            );
+          } else {
+            structuredResult = await this.structuringAgent.generate_vnext(
+              `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
+              {
+                output: this.schema,
+              },
+            );
+          }
 
           if (!structuredResult.object) {
             this.handleError('Structuring failed', 'Internal agent did not generate structured output', abort);
