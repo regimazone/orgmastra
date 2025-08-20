@@ -5,7 +5,7 @@ import { LibSQLStore } from '@mastra/libsql';
 import { agentThatHarassesYou, chefAgent, chefAgentResponses, dynamicAgent, evalAgent } from './agents/index';
 import { myMcpServer, myMcpServerTwo } from './mcp/server';
 import { myWorkflow } from './workflows';
-import { createAISpansWorkflow } from './scripts/insert-workflow-trace';
+import { createAISpansWorkflow } from './workflows/insert-workflow-trace';
 
 const storage = new LibSQLStore({
   url: 'file:./mastra.db',

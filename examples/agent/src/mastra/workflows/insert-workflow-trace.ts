@@ -83,7 +83,7 @@ async function insertWorkflowTrace(workflowData: any, storage: MastraStorage) {
 
       const span = {
         traceId,
-        spanId: `${traceId}-${observation.id}`,
+        spanId: observation.id, // Changed from `${traceId}-${observation.id}`
         parentSpanId: null, // Will update in second pass
         name: observation.name,
         scope: null,
@@ -105,7 +105,7 @@ async function insertWorkflowTrace(workflowData: any, storage: MastraStorage) {
       await storage.createAISpan(span);
 
       // Map the external ID to our internal ID
-      spanIdMap.set(observation.id, `${traceId}-${observation.id}`);
+      spanIdMap.set(observation.id, `${traceId}-${observation.id}`); // Changed back to full database ID format
 
       console.log(`Inserted span: ${observation.name} (${observation.id})`);
     }
@@ -113,7 +113,7 @@ async function insertWorkflowTrace(workflowData: any, storage: MastraStorage) {
     // Second pass: update parent-child relationships
     for (const observation of json.observations) {
       if (observation.parentObservationId) {
-        const spanId = `${traceId}-${observation.id}`;
+        const spanId = `${traceId}-${observation.id}`; // Changed back to full database ID format
         const parentSpanId = spanIdMap.get(observation.parentObservationId);
 
         if (parentSpanId) {
