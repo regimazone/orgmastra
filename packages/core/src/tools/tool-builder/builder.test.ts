@@ -1,3 +1,4 @@
+import { openai } from '@ai-sdk/openai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';
@@ -139,7 +140,6 @@ async function runSingleOutputsTest(
 
     const generateOptions: any = {
       maxSteps: 1,
-      experimental_output: testTool.inputSchema,
       structuredOutput: {
         schema: testTool.inputSchema!,
         model: model,
@@ -254,7 +254,7 @@ async function runSingleInputTest(
 
 // These tests are both expensive to run and occasionally a couple are flakey. We should run them manually for now
 // to make sure that we still have good coverage, for both input and output schemas.
-describe('Tool Schema Compatibility', () => {
+describe.skip('Tool Schema Compatibility', () => {
   // Set a longer timeout for the entire test suite
   const SUITE_TIMEOUT = 120000; // 2 minutes
   const TEST_TIMEOUT = 60000; // 1 minute
@@ -264,21 +264,23 @@ describe('Tool Schema Compatibility', () => {
 
   const modelsToTest = [
     // Anthropic Models
-    // openrouter('anthropic/claude-3.7-sonnet'),
-    // openrouter('anthropic/claude-3.5-sonnet'),
-    // openrouter('anthropic/claude-3.5-haiku'),
+    openrouter('anthropic/claude-3.7-sonnet'),
+    openrouter('anthropic/claude-3.5-sonnet'),
+    openrouter('anthropic/claude-3.5-haiku'),
 
-    // // Google Models
-    // openrouter('google/gemini-2.5-pro-preview-03-25'),
-    // openrouter('google/gemini-2.5-flash'),
-    // openrouter('google/gemini-2.0-flash-lite-001'),
+    // NOTE: Google models accept number constraints like numberLt, but the models don't respect it and returns a wrong response often
+    // Unions of objects are not supported
+    // Google Models
+    openrouter('google/gemini-2.5-pro-preview-03-25'),
+    openrouter('google/gemini-2.5-flash'),
+    openrouter('google/gemini-2.0-flash-lite-001'),
 
     // OpenAI Models
     openrouter('openai/gpt-4o-mini'),
-    // openrouter('openai/gpt-4.1-mini'),
-    // // openrouter disables structured outputs by default for o3-mini, so added in a reasoning model not through openrouter to test
-    // openai('o3-mini'),
-    // openai('o4-mini'),
+    openrouter('openai/gpt-4.1-mini'),
+    // openrouter disables structured outputs by default for o3-mini, so added in a reasoning model not through openrouter to test
+    openai('o3-mini'),
+    openai('o4-mini'),
 
     // Meta Models
     // Meta often calls the tool with the wrong name, ie 'tesTool_number'/'TestTool_number' instead of 'testTool_number'
@@ -384,11 +386,10 @@ describe('Tool Schema Compatibility', () => {
 
             // Google does not support unions of objects and is flakey withnulls
             if (
-              isGoogleModel(model) &&
-              (testTool.id.includes('unionObjects') || testTool.id.includes('null'))
+              (isGoogleModel(model) && (testTool.id.includes('unionObjects') || testTool.id.includes('null'))) ||
               // This works consistently locally but for some reason keeps failing in CI,
-              // model.modelId.includes('gpt-4o-mini') ||
-              // (model.modelId.includes('gemini-2.0-flash-lite-001') && testTool.id.includes('stringRegex'))
+              model.modelId.includes('gpt-4o-mini') ||
+              (model.modelId.includes('gemini-2.0-flash-lite-001') && testTool.id.includes('stringRegex'))
             ) {
               it.skip(`should handle ${schemaName} schema (skipped for ${provider})`, () => {});
               return;
@@ -397,7 +398,6 @@ describe('Tool Schema Compatibility', () => {
               it.skip(`should handle ${schemaName} schema (skipped for ${provider})`, () => {});
               return;
             }
-
             it.concurrent(
               `should handle ${schemaName} schema`,
               async () => {
