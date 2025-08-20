@@ -18,6 +18,7 @@ interface AISpanRecord {
   startTime: number;
   endTime: number;
   createdAt: Date;
+  updatedAt: Date | null;
   input: Record<string, any> | null;
   output: Record<string, any> | null;
   error: Record<string, any> | null;
@@ -96,14 +97,13 @@ export class ObservabilityInMemory extends ObservabilityStorage {
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     this.logger.debug(`MockStore: GetAiTracesPaginated called`);
 
-    const { page = 0, perPage = 10, filters, dateRange } = args;
+    const { page = 0, perPage = 10, filters } = args;
 
     // Get all spans first
     let allSpans = Array.from(this.collection.values());
 
     // Separate parent and child spans first
     const allParentSpans = allSpans.filter(span => !span.parentSpanId);
-    const allChildSpans = allSpans.filter(span => span.parentSpanId);
 
     let filteredParentSpans = [...allParentSpans];
 
@@ -154,52 +154,38 @@ export class ObservabilityInMemory extends ObservabilityStorage {
         );
       }
 
-      // CreatedAt filtering
-      if (filters.createdAt !== undefined) {
-        if (filters.createdAt instanceof Date) {
-          filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) >= filters.createdAt!);
-        } else {
-          filteredParentSpans = filteredParentSpans.filter(span => span.createdAt === filters.createdAt!);
-        }
-      }
-
-      // TraceId filtering
-      if (filters.traceId !== undefined) {
-        filteredParentSpans = filteredParentSpans.filter(span => span.traceId === filters.traceId);
-      }
-
       // SpanType filtering
       if (filters.spanType !== undefined) {
         filteredParentSpans = filteredParentSpans.filter(span => span.spanType === filters.spanType);
       }
+      // Use startTime for date filtering on parent spans only
+      if (filters.dateRange?.start) {
+        const startTimestamp =
+          filters.dateRange.start instanceof Date
+            ? filters.dateRange.start.getTime()
+            : new Date(filters.dateRange.start).getTime();
+        filteredParentSpans = filteredParentSpans.filter(span => span.startTime >= startTimestamp);
+      }
+
+      if (filters.dateRange?.end) {
+        const endTimestamp =
+          filters.dateRange.end instanceof Date
+            ? filters.dateRange.end.getTime()
+            : new Date(filters.dateRange.end).getTime();
+        filteredParentSpans = filteredParentSpans.filter(span => span.startTime <= endTimestamp);
+      }
     }
 
-    // Use createdAt for date filtering on parent spans only
-    if (dateRange?.start) {
-      filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) >= dateRange.start!);
-    }
-
-    if (dateRange?.end) {
-      filteredParentSpans = filteredParentSpans.filter(span => new Date(span.createdAt) <= dateRange.end!);
-    }
-
-    // Sort parent spans by creation time (newest first)
-    filteredParentSpans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Sort parent spans by start time (newest first)
+    filteredParentSpans.sort((a, b) => b.startTime - a.startTime);
 
     // Apply pagination to filtered parent spans only
     const start = page * perPage;
     const end = start + perPage;
     const paginatedParentSpans = filteredParentSpans.slice(start, end);
 
-    // Get all child spans for the paginated parent spans
-    const traceIds = paginatedParentSpans.map(span => span.traceId);
-    const relatedChildSpans = allChildSpans.filter(span => traceIds.includes(span.traceId));
-
-    // Combine paginated parent spans with their children
-    const resultSpans = [...paginatedParentSpans, ...relatedChildSpans];
-
     return {
-      spans: resultSpans,
+      spans: paginatedParentSpans,
       total: filteredParentSpans.length, // Total count of filtered parent spans only
       page,
       perPage,

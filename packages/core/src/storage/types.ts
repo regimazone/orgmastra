@@ -137,12 +137,13 @@ export type StorageGetTracesPaginatedArg = {
 export type StorageGetAiTracesPaginatedArg = {
   filters?: Record<string, any> & {
     name?: string;
-    attributes?: Record<string, string | number | boolean | null>;
-    error?: Record<string, string | number | boolean | null>;
-
     spanType?: number;
-    traceId?: string;
-    createdAt?: Date | string;
+    dateRange?: {
+      start?: Date | string; // Date or ISO string
+      end?: Date | string; // Date or ISO string
+    };
+    attributes?: Record<string, any>;
+    error?: Record<string, any>;
   };
 } & PaginationArgs;
 
