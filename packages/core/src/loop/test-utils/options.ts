@@ -6031,7 +6031,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         ]),
       });
 
-      const result = await loopFn({
+      const result = loopFn({
         runId,
         model: modelWithRawChunks,
         messageList,
@@ -6090,7 +6090,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         ]),
       });
 
-      const result = await loopFn({
+      const result = loopFn({
         runId,
         model: modelWithRawChunks,
         messageList,
