@@ -30,8 +30,7 @@ import type {
 import { BaseResource } from './base';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
 import { parseClientRuntimeContext } from '../utils';
-import { MessageList } from '@mastra/core/agent';
-import { processMastraStream } from '../utils/process-data-stream';
+import { processMastraStream } from '../utils/process-mastra-stream';
 
 export class AgentVoice extends BaseResource {
   constructor(
