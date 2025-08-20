@@ -2,7 +2,6 @@ import type z from 'zod';
 import { Agent } from '../../agent';
 import type { MastraMessageV2 } from '../../agent/message-list';
 import type { StructuredOutputOptions } from '../../agent/types';
-import { RuntimeContext } from '../../runtime-context';
 import type { Processor } from '../index';
 
 export type { StructuredOutputOptions } from '../../agent/types';
@@ -59,24 +58,14 @@ export class StructuredOutputProcessor<S extends z.ZodTypeAny> implements Proces
           return message;
         }
 
-        console.log('textContent', textContent);
-
         try {
-          const modelDef = await this.structuringAgent.getModel();
-          let structuredResult;
-          const prompt = `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`;
-          const schema = this.schema;
-
           // Use structuring agent to extract structured data from the unstructured text
-          if (modelDef.specificationVersion === 'v2') {
-            structuredResult = await this.structuringAgent.generateVNext(prompt, {
-              output: schema,
-            });
-          } else {
-            structuredResult = await this.structuringAgent.generate(prompt, {
-              output: schema,
-            });
-          }
+          const structuredResult = await this.structuringAgent.generate(
+            `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
+            {
+              output: this.schema,
+            },
+          );
 
           if (!structuredResult.object) {
             this.handleError('Structuring failed', 'Internal agent did not generate structured output', abort);
