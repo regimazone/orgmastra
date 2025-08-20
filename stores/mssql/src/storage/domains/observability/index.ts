@@ -1,6 +1,5 @@
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ObservabilityStorage } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace, AISpanRecord } from '@mastra/core/storage';
 
 export class ObservabilityMSSQL extends ObservabilityStorage {
   constructor() {

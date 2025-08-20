@@ -1,6 +1,5 @@
 import type { MastraMessageContentV2, MastraMessageV2 } from '@mastra/core/agent';
 export type MastraMessageV2WithTypedContent = Omit<MastraMessageV2, 'content'> & { content: MastraMessageContentV2 };
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import type { MastraMessageV1, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData } from '@mastra/core/scores';
@@ -22,6 +21,7 @@ import type {
   StorageGetTracesPaginatedArg,
   StorageGetAiTracesPaginatedArg,
   AITrace,
+  AISpanRecord,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';

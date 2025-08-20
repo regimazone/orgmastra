@@ -1,5 +1,4 @@
 import type { KVNamespace } from '@cloudflare/workers-types';
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import type { StorageThreadType, MastraMessageV2 } from '@mastra/core/memory';
 import type { ScoreRowData } from '@mastra/core/scores';
 import type {
@@ -14,6 +13,7 @@ import type {
   StorageResourceType,
   TABLE_SCORERS,
   TABLE_AI_SPAN,
+  AISpanRecord,
 } from '@mastra/core/storage';
 import type { WorkflowRunState } from '@mastra/core/workflows';
 

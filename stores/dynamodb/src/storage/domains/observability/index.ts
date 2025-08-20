@@ -1,7 +1,6 @@
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace, AISpanRecord } from '@mastra/core/storage';
 import type { Service } from 'electrodb';
 import { aiSpanEntity } from '../../../entities/ai-span';
 import type { StoreOperationsDynamoDB } from '../operations';
