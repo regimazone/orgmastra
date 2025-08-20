@@ -262,7 +262,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
 
-        let stream = await electionAgent.stream_vnext('Call the election-tool and tell me what it says.');
+        let stream = await electionAgent.streamVNext('Call the election-tool and tell me what it says.');
 
         let chunks: ChunkType[] = [];
         for await (const chunk of stream.fullStream) {
@@ -273,7 +273,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
 
         chunks = [];
 
-        stream = await electionAgent.stream_vnext('Call the election-tool and tell me what it says.', {
+        stream = await electionAgent.streamVNext('Call the election-tool and tell me what it says.', {
           format: 'aisdk',
         });
 
@@ -336,7 +336,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         response = await agentOne.stream('Who won the 2016 US presidential election?');
       } else {
-        response = await agentOne.stream_vnext('Who won the 2016 US presidential election?');
+        response = await agentOne.streamVNext('Who won the 2016 US presidential election?');
       }
 
       let previousText = '';
@@ -466,7 +466,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
 
         expect(previousPartialObject['winner']).toBe('Barack Obama');
       } else {
-        response = await agentOne.stream_vnext('Who won the 2012 US presidential election?', {
+        response = await agentOne.streamVNext('Who won the 2012 US presidential election?', {
           output: z.object({
             winner: z.string(),
           }),
@@ -593,7 +593,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        result = await userAgent.stream_vnext('Make it green', {
+        result = await userAgent.streamVNext('Make it green', {
           clientTools: {
             changeColor: {
               id: 'changeColor',
@@ -3063,7 +3063,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
 
         toolCall = (await stream.toolResults).find(result => result.toolName === 'testTool');
       } else {
-        stream = await testAgent.stream_vnext('Use the runtimeContext-test-tool with query "test"', {
+        stream = await testAgent.streamVNext('Use the runtimeContext-test-tool with query "test"', {
           toolChoice: 'required',
           runtimeContext: testRuntimeContext,
         });
@@ -3290,7 +3290,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        res = await agent.stream_vnext('hello', {
+        res = await agent.streamVNext('hello', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -3352,7 +3352,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           threadId: 'thread-1',
         });
       } else {
-        stream = await agent.stream_vnext('hello', {
+        stream = await agent.streamVNext('hello', {
           resourceId: 'user-1',
           threadId: 'thread-1',
         });
@@ -4142,7 +4142,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           );
         } else {
-          stream = await agent.stream_vnext(
+          stream = await agent.streamVNext(
             'Please echo this and then use the error tool. Be verbose and you must take multiple steps. Call tools 2x in parallel.',
             {
               threadId: 'thread-partial-rescue',
@@ -4234,7 +4234,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             savePerStep: true,
           });
         } else {
-          stream = await agent.stream_vnext('Echo: Please echo this long message and explain why.', {
+          stream = await agent.streamVNext('Echo: Please echo this long message and explain why.', {
             threadId: 'thread-echo',
             resourceId: 'resource-echo',
             savePerStep: true,
@@ -4310,7 +4310,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           );
         } else {
-          stream = await agent.stream_vnext(
+          stream = await agent.streamVNext(
             'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
             {
               threadId: 'thread-multi',
@@ -4357,7 +4357,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: 'resource-1',
           });
         } else {
-          stream = await agent.stream_vnext('repeat tool calls', {
+          stream = await agent.streamVNext('repeat tool calls', {
             threadId: 'thread-1',
             resourceId: 'resource-1',
           });
@@ -4397,7 +4397,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: 'resource-2',
           });
         } else {
-          stream = await agent.stream_vnext('no progress', {
+          stream = await agent.streamVNext('no progress', {
             threadId: 'thread-2',
             resourceId: 'resource-2',
           });
@@ -4436,7 +4436,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: 'resource-3',
           });
         } else {
-          stream = await agent.stream_vnext('interrupt before step', {
+          stream = await agent.streamVNext('interrupt before step', {
             threadId: 'thread-3',
             resourceId: 'resource-3',
           });
@@ -4507,7 +4507,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
               // Should throw
             }
           } else {
-            stream = await agent.stream_vnext('trigger error', {
+            stream = await agent.streamVNext('trigger error', {
               memory: {
                 resource: 'user-err',
                 thread: {
@@ -4534,7 +4534,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       });
     });
 
-    describe(`stream_vnext`, () => {
+    describe(`streamVNext`, () => {
       it(`should stream from LLM`, async () => {
         const agent = new Agent({
           id: 'test',
@@ -4549,7 +4549,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agent.stream(`hello!`);
         } else {
-          result = await agent.stream_vnext(`hello!`);
+          result = await agent.streamVNext(`hello!`);
         }
 
         const parts: any[] = [];
@@ -4600,7 +4600,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             { role: 'user', content: "I'm good, how are you?" },
           ]);
         } else {
-          result = await agent.stream_vnext([
+          result = await agent.streamVNext([
             { role: `user`, content: `hello!` },
             { role: 'assistant', content: 'hi, how are you?' },
             { role: 'user', content: "I'm good, how are you?" },
@@ -4684,7 +4684,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           });
         } else {
-          result = await agent.stream_vnext([{ role: 'user', content: "I'm good, how are you?" }], {
+          result = await agent.streamVNext([{ role: 'user', content: "I'm good, how are you?" }], {
             memory: {
               thread: '1',
               resource: '2',
@@ -5089,7 +5089,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext,
         });
       } else {
-        stream = await agent.stream_vnext('test message', {
+        stream = await agent.streamVNext('test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -5447,7 +5447,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           stream = await agentWithStreamProcessor.stream('Stream test');
         } else {
-          stream = await agentWithStreamProcessor.stream_vnext('Stream test');
+          stream = await agentWithStreamProcessor.streamVNext('Stream test');
         }
 
         let fullText = '';
@@ -5478,7 +5478,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           stream = await agentWithStreamAbort.stream('Stream abort test');
         } else {
-          stream = await agentWithStreamAbort.stream_vnext('Stream abort test');
+          stream = await agentWithStreamAbort.streamVNext('Stream abort test');
         }
 
         expect(stream.tripwire).toBe(true);
@@ -5512,7 +5512,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           stream = await agentWithDeployerAbort.stream('Deployer abort test');
         } else {
-          stream = await agentWithDeployerAbort.stream_vnext('Deployer abort test');
+          stream = await agentWithDeployerAbort.streamVNext('Deployer abort test');
         }
 
         expect(stream.tripwire).toBe(true);
@@ -5837,7 +5837,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        stream = await agent.stream_vnext(messagesWithMetadata, {
+        stream = await agent.streamVNext(messagesWithMetadata, {
           memory: {
             resource: 'user-mobile',
             thread: {
@@ -5971,6 +5971,101 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(secondUserMessage?.content.metadata).toBeUndefined();
     });
   });
+
+  it(`${version} - stream - should pass and call client side tools with experimental output`, async () => {
+    const userAgent = new Agent({
+      name: 'User agent',
+      instructions: 'You are an agent that can get list of users using client side tools.',
+      model: openaiModel,
+    });
+
+    if (version === 'v1') {
+      const result = await userAgent.stream('Make it green', {
+        clientTools: {
+          changeColor: {
+            id: 'changeColor',
+            description: 'This is a test tool that returns the name and email',
+            inputSchema: z.object({
+              color: z.string(),
+            }),
+          },
+        },
+        onFinish: props => {
+          expect(props.toolCalls.length).toBeGreaterThan(0);
+        },
+        experimental_output: z.object({
+          color: z.string(),
+        }),
+      });
+
+      for await (const _ of result.fullStream) {
+      }
+    } else {
+      const result = await userAgent.streamVNext('Make it green', {
+        clientTools: {
+          changeColor: {
+            id: 'changeColor',
+            description: 'This is a test tool that returns the name and email',
+            inputSchema: z.object({
+              color: z.string(),
+            }),
+          },
+        },
+        onFinish: props => {
+          expect(props.toolCalls.length).toBeGreaterThan(0);
+        },
+        output: z.object({
+          color: z.string(),
+        }),
+      });
+
+      await result.consumeStream();
+    }
+  }, 10000);
+
+  it(`${version} - generate - should pass and call client side tools with experimental output`, async () => {
+    const userAgent = new Agent({
+      name: 'User agent',
+      instructions: 'You are an agent that can get list of users using client side tools.',
+      model: openaiModel,
+    });
+
+    if (version === 'v1') {
+      const result = await userAgent.generate('Make it green', {
+        clientTools: {
+          changeColor: {
+            id: 'changeColor',
+            description: 'This is a test tool that returns the name and email',
+            inputSchema: z.object({
+              color: z.string(),
+            }),
+          },
+        },
+        experimental_output: z.object({
+          color: z.string(),
+        }),
+      });
+
+      expect(result.toolCalls.length).toBeGreaterThan(0);
+    } else {
+      const result = await userAgent.generateVNext('Make it green', {
+        clientTools: {
+          changeColor: {
+            id: 'changeColor',
+            description: 'This is a test tool that returns the name and email',
+            inputSchema: z.object({
+              color: z.string(),
+            }),
+          },
+        },
+        output: z.object({
+          color: z.string(),
+        }),
+      });
+
+      expect(result.toolCalls.length).toBeGreaterThan(0);
+    }
+  }, 10000);
 }
 
 describe('Agent Tests', () => {
@@ -6270,63 +6365,3 @@ describe('Agent Tests', () => {
 //     });
 
 // });
-
-//   it('generate - should pass and call client side tools with experimental output', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.generate('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => {
-//             console.log('SUHHH');
-//           },
-//         },
-//       },
-//       experimental_output: z.object({
-//         color: z.string(),
-//       }),
-//     });
-
-//     expect(result.toolCalls.length).toBeGreaterThan(0);
-//   });
-
-//   it('stream - should pass and call client side tools with experimental output', async () => {
-//     const userAgent = new Agent({
-//       name: 'User agent',
-//       instructions: 'You are an agent that can get list of users using client side tools.',
-//       model: openai('gpt-4o'),
-//     });
-
-//     const result = await userAgent.stream('Make it green', {
-//       clientTools: {
-//         changeColor: {
-//           id: 'changeColor',
-//           description: 'This is a test tool that returns the name and email',
-//           inputSchema: z.object({
-//             color: z.string(),
-//           }),
-//           execute: async () => {
-//             console.log('SUHHH');
-//           },
-//         },
-//       },
-//       onFinish: props => {
-//         expect(props.toolCalls.length).toBeGreaterThan(0);
-//       },
-//       experimental_output: z.object({
-//         color: z.string(),
-//       }),
-//     });
-
-//     for await (const _ of result.fullStream) {
-//     }
-//   });
