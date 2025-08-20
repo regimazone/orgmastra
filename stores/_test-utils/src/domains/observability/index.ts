@@ -170,26 +170,26 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           }
         }
 
-        // Test first page - should return 8 parent spans + all their children
+        // Test first page - should return 8 parent spans only
         const page1 = await storage.getAITracesPaginated({
           page: 0,
           perPage: 8,
         });
 
-        // 8 parent spans + 16 child spans (2 per parent)
-        expect(page1.spans).toHaveLength(24);
+        // 8 parent spans only (no children)
+        expect(page1.spans).toHaveLength(8);
         expect(page1.total).toBe(15); // Total parent spans
         expect(page1.page).toBe(0);
         expect(page1.perPage).toBe(8);
         expect(page1.hasMore).toBe(true);
 
-        // Test second page - should return 7 parent spans + all their children
+        // Test second page - should return 7 parent spans only
         const page2 = await storage.getAITracesPaginated({
           page: 1,
           perPage: 8,
         });
-        // 7 parent spans + 14 child spans (2 per parent)
-        expect(page2.spans).toHaveLength(21);
+        // 7 parent spans only (no children)
+        expect(page2.spans).toHaveLength(7);
         expect(page2.total).toBe(15); // Total parent spans
         expect(page2.page).toBe(1);
         expect(page2.perPage).toBe(8);
@@ -224,7 +224,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
         expect(agentSpans.total).toBe(1); // Only parent spans count toward total
-        expect(agentSpans.spans).toHaveLength(2); // 1 parent + 1 child span
+        expect(agentSpans.spans).toHaveLength(1); // 1 parent span only (no children)
       });
 
       it('should filter by attributes using JSON field extraction', async () => {
@@ -253,7 +253,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
         expect(prodSpans.total).toBe(1); // Only parent spans count
-        expect(prodSpans.spans).toHaveLength(2); // 1 parent + 1 child
+        expect(prodSpans.spans).toHaveLength(1); // 1 parent span only (no children)
         expect(prodSpans.spans.every(span => span.attributes?.environment === attributes1.environment)).toBe(true);
       });
 
@@ -288,48 +288,30 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         // Get paginated results
         const result = await storage.getAITracesPaginated({ page: 0, perPage: 1 });
 
-        // Should return 1 parent span + all its descendants
-        expect(result.spans).toHaveLength(4);
+        // Should return 1 parent span only (no children)
+        expect(result.spans).toHaveLength(1);
         expect(result.total).toBe(1); // Only parent spans count toward total
 
-        // Verify all spans share the same traceId
-        const allTraceIds = result.spans.map(s => s.traceId);
-        expect(allTraceIds.every(id => id === sharedTraceId)).toBe(true);
-
-        // Verify parent-child relationships
+        // Verify the parent span
         const parentSpanInResult = result.spans.find(s => s.parentSpanId === null);
-        const childSpanInResult = result.spans.find(s => s.name === 'child');
-        const grandchildSpanInResult = result.spans.find(s => s.name === 'grandchild');
-        const greatGrandchildSpanInResult = result.spans.find(s => s.name === 'great-grandchild');
-
         expect(parentSpanInResult).toBeDefined();
-        expect(childSpanInResult).toBeDefined();
-        expect(grandchildSpanInResult).toBeDefined();
-        expect(greatGrandchildSpanInResult).toBeDefined();
-
-        // Verify parentSpanId relationships
-        expect(childSpanInResult?.parentSpanId).toBe(`${parentSpan.traceId}-${parentSpan.spanId}`);
-        expect(grandchildSpanInResult?.parentSpanId).toBe(`${childSpan.traceId}-${childSpan.spanId}`);
-        expect(greatGrandchildSpanInResult?.parentSpanId).toBe(`${grandchildSpan.traceId}-${grandchildSpan.spanId}`);
+        expect(parentSpanInResult?.traceId).toBe(sharedTraceId);
       });
 
-      it('should sort parent spans by creation time (newest first)', async () => {
-        const now = new Date();
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      it('should sort parent spans by start time (newest first)', async () => {
+        const now = Date.now();
+        const oneHourAgo = now - 60 * 60 * 1000;
+        const twoHoursAgo = now - 2 * 60 * 60 * 1000;
 
-        // Create span hierarchies with different creation times
+        // Create span hierarchies with different start times
         const hierarchy1 = createSpanHierarchy('oldest-parent', ['child-1'], {
-          createdAt: twoHoursAgo,
-          startTime: twoHoursAgo.getTime(),
+          startTime: twoHoursAgo,
         });
         const hierarchy2 = createSpanHierarchy('middle-parent', ['child-2'], {
-          createdAt: oneHourAgo,
-          startTime: oneHourAgo.getTime(),
+          startTime: oneHourAgo,
         });
         const hierarchy3 = createSpanHierarchy('newest-parent', ['child-3'], {
-          createdAt: now,
-          startTime: now.getTime(),
+          startTime: now,
         });
 
         const hierarchies = [hierarchy1, hierarchy2, hierarchy3];
@@ -349,16 +331,16 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        // Should return all spans but pagination is based on parent spans
-        expect(result.spans).toHaveLength(6); // 3 parent + 3 child spans
+        // Should return only parent spans
+        expect(result.spans).toHaveLength(3); // 3 parent spans only
         expect(result.total).toBe(3); // Only parent spans count toward total
 
-        // Parent spans should be ordered by creation time (newest first)
-        const parentSpansInResult = result.spans.filter(s => s.parentSpanId === null);
-        expect(parentSpansInResult).toHaveLength(3);
-        expect(parentSpansInResult[0]?.name).toBe('newest-parent');
-        expect(parentSpansInResult[1]?.name).toBe('middle-parent');
-        expect(parentSpansInResult[2]?.name).toBe('oldest-parent');
+        console.log(`result`, JSON.stringify(result, null, 2));
+
+        // Parent spans should be ordered by start time (newest first)
+        expect(result.spans[0]?.name).toBe('newest-parent');
+        expect(result.spans[1]?.name).toBe('middle-parent');
+        expect(result.spans[2]?.name).toBe('oldest-parent');
       });
 
       it('should handle empty results gracefully', async () => {
@@ -398,7 +380,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        expect(result.spans).toHaveLength(6); // 3 parent + 3 child spans
+        expect(result.spans).toHaveLength(3); // 3 parent spans only
         expect(result.total).toBe(3);
         expect(result.page).toBe(0);
         expect(result.perPage).toBe(10);
@@ -447,10 +429,8 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         });
 
         expect(prodHighPrioritySpans.total).toBe(1); // Only 1 parent matches
-        expect(prodHighPrioritySpans.spans).toHaveLength(3); // 1 parent + 2 children
-        expect(
-          prodHighPrioritySpans.spans.every(span => span.name === 'prod-workflow-1' || span.parentSpanId !== null),
-        ).toBe(true);
+        expect(prodHighPrioritySpans.spans).toHaveLength(1); // 1 parent span only
+        expect(prodHighPrioritySpans.spans[0]?.name).toBe('prod-workflow-1');
       });
 
       it('should maintain span relationships across pagination', async () => {
@@ -476,7 +456,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        expect(page1.spans).toHaveLength(40); // 10 parent + 30 children
+        expect(page1.spans).toHaveLength(10); // 10 parent spans only
         expect(page1.total).toBe(25);
         expect(page1.hasMore).toBe(true);
 
@@ -486,7 +466,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        expect(page2.spans).toHaveLength(40); // 10 parent + 30 children
+        expect(page2.spans).toHaveLength(10); // 10 parent spans only
         expect(page2.total).toBe(25);
         expect(page2.hasMore).toBe(true);
 
@@ -496,22 +476,13 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        expect(page3.spans).toHaveLength(20); // 5 parent + 15 children (5 × 3)
+        expect(page3.spans).toHaveLength(5); // 5 parent spans only
         expect(page3.total).toBe(25);
         expect(page3.hasMore).toBe(false);
 
-        // Verify that all spans in each page maintain their relationships
+        // Verify that all spans in each page are parent spans
         for (const page of [page1, page2, page3]) {
-          const parentSpans = page.spans.filter(s => s.parentSpanId === null);
-          const childSpans = page.spans.filter(s => s.parentSpanId !== null);
-
-          // Each child should have a parent in the same page
-          for (const child of childSpans) {
-            const hasParentInPage = parentSpans.some(
-              parent => `${parent.traceId}-${parent.spanId}` === child.parentSpanId,
-            );
-            expect(hasParentInPage).toBe(true);
-          }
+          expect(page.spans.every(span => span.parentSpanId === null)).toBe(true);
         }
       });
 
@@ -551,7 +522,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
         expect(agentSpans.total).toBe(1); // 1 parent span with spanType 0
-        expect(agentSpans.spans).toHaveLength(2); // 1 parent + 1 child span with spanType 0
+        expect(agentSpans.spans).toHaveLength(1); // 1 parent span only
 
         // Filter by multiple direct columns
         const agentAndToolSpans = await storage.getAITracesPaginated({
@@ -564,7 +535,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
         expect(agentAndToolSpans.total).toBe(1); // Only 1 parent span matches both criteria
-        expect(agentAndToolSpans.spans).toHaveLength(2); // 1 parent + 1 child
+        expect(agentAndToolSpans.spans).toHaveLength(1); // 1 parent span only
       });
 
       it('should combine JSON and direct column filtering', async () => {
@@ -604,7 +575,102 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
         expect(backendAgents.total).toBe(2);
-        expect(backendAgents.spans).toHaveLength(4); // 2 parents + 2 children
+        expect(backendAgents.spans).toHaveLength(2); // 2 parent spans only
+      });
+
+      it('should filter by date range using Date objects', async () => {
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+        // Create span hierarchies with different start times
+        const hierarchies = [
+          createSpanHierarchy('old-span', ['child'], {
+            startTime: twoHoursAgo.getTime(),
+          }),
+          createSpanHierarchy('recent-span', ['child'], {
+            startTime: oneHourAgo.getTime(),
+          }),
+          createSpanHierarchy('new-span', ['child'], {
+            startTime: now.getTime(),
+          }),
+        ];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAISpan(parent);
+
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAISpan(child);
+          }
+        }
+
+        // Filter by date range - should return spans started in the last hour
+        const recentSpans = await storage.getAITracesPaginated({
+          filters: {
+            dateRange: {
+              start: oneHourAgo,
+              end: now,
+            },
+          },
+          page: 0,
+          perPage: 10,
+        });
+
+        expect(recentSpans.total).toBe(2); // 2 parent spans started in the last hour
+        expect(recentSpans.spans).toHaveLength(2); // 2 parent spans only
+        expect(recentSpans.spans.map(s => s.name)).toContain('recent-span');
+        expect(recentSpans.spans.map(s => s.name)).toContain('new-span');
+        expect(recentSpans.spans.map(s => s.name)).not.toContain('old-span');
+      });
+
+      it('should filter by date range using ISO strings', async () => {
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+
+        // Create span hierarchies with different start times
+        const hierarchies = [
+          createSpanHierarchy('old-day-span', ['child'], {
+            startTime: twoDaysAgo.getTime(),
+          }),
+          createSpanHierarchy('yesterday-span', ['child'], {
+            startTime: oneDayAgo.getTime(),
+          }),
+          createSpanHierarchy('today-span', ['child'], {
+            startTime: now.getTime(),
+          }),
+        ];
+
+        // Create all spans
+        for (const { parent, children } of hierarchies) {
+          await storage.createAISpan(parent);
+
+          for (const child of children) {
+            (child as any).parentSpanId = `${parent.traceId}-${parent.spanId}`;
+            await storage.createAISpan(child);
+          }
+        }
+
+        // Filter by date range using ISO strings - should return spans from yesterday and today
+        const recentSpans = await storage.getAITracesPaginated({
+          filters: {
+            dateRange: {
+              start: oneDayAgo.toISOString(),
+              end: now.toISOString(),
+            },
+          },
+          page: 0,
+          perPage: 10,
+        });
+
+        console.log(`recentSpans`, JSON.stringify(recentSpans, null, 2));
+        expect(recentSpans.total).toBe(2); // 2 parent spans from yesterday and today
+        expect(recentSpans.spans).toHaveLength(2); // 2 parent spans only
+        expect(recentSpans.spans?.map(s => s.name)).toContain('yesterday-span');
+        expect(recentSpans.spans?.map(s => s.name)).toContain('today-span');
+        expect(recentSpans.spans?.map(s => s.name)).not.toContain('old-day-span');
       });
     });
 
@@ -768,7 +834,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         });
 
         expect(result.total).toBe(100);
-        expect(result.spans).toHaveLength(50);
+        expect(result.spans).toHaveLength(50); // 50 parent spans only
         expect(result.hasMore).toBe(true);
       });
     });
