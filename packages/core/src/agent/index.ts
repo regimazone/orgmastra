@@ -2121,6 +2121,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runtimeContext,
           structuredOutput,
           overrideScorers,
+          threadId,
+          resourceId,
         });
 
         const scoringData: {
@@ -2151,6 +2153,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     runtimeContext,
     structuredOutput,
     overrideScorers,
+    threadId,
+    resourceId,
   }: {
     messageList: MessageList;
     runId: string;
@@ -2159,6 +2163,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     runtimeContext: RuntimeContext;
     structuredOutput?: boolean;
     overrideScorers?: MastraScorers;
+    threadId?: string;
+    resourceId?: string;
   }) {
     const agentName = this.name;
     const userInputMessages = messageList.get.all.ui().filter(m => m.role === 'user');
@@ -2207,6 +2213,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           source: 'LIVE',
           entityType: 'AGENT',
           structuredOutput: !!structuredOutput,
+          threadId,
+          resourceId,
         });
       }
     }

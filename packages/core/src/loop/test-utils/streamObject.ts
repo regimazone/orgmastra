@@ -1440,7 +1440,6 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             },
             options: {
               onFinish: async event => {
-                console.log('calling onFinishResult2', event);
                 onFinishResult = event as unknown as typeof onFinishResult;
               },
             },
@@ -1622,7 +1621,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       });
     });
 
-    describe.todo('output = "enum"', () => {
+    describe('output = "enum"', () => {
       it('should stream an enum value', async () => {
         const mockModel = createTestModel({
           stream: convertArrayToReadableStream([
@@ -1655,8 +1654,6 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
 
         expect(mockModel?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
           {
-            "description": undefined,
-            "name": undefined,
             "schema": {
               "$schema": "http://json-schema.org/draft-07/schema#",
               "additionalProperties": false,
