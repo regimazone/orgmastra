@@ -42,6 +42,8 @@ import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
+import { AISDKV5OutputStream } from '../stream/aisdk/v5/output';
+import { MastraModelOutput } from '../stream/base/output';
 import { MastraAgentStream } from '../stream/MastraAgentStream';
 import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
@@ -2595,7 +2597,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const executionWorkflow = createWorkflow({
       id: 'execution-workflow',
       inputSchema: z.any(),
-      outputSchema: z.record(z.string(), z.any()),
+      outputSchema: z.union([z.instanceof(MastraModelOutput), z.instanceof(AISDKV5OutputStream)]),
       steps: [prepareToolsStep, prepareMemory],
     })
       .parallel([prepareToolsStep, prepareMemory])
@@ -3282,7 +3284,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       ...options,
     });
 
-    if (result.tripwire) {
+    if (`tripwire` in result && result.tripwire) {
       return result;
     }
 
@@ -3300,8 +3302,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   async stream_vnext<
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
-    FORMAT extends 'mastra' | 'aisdk' = 'mastra' | 'aisdk',
-  >(messages: MessageListInput, streamOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>) {
+    FORMAT extends 'mastra' | 'aisdk' = 'mastra',
+  >(
+    messages: MessageListInput,
+    streamOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>,
+  ): Promise<FORMAT extends 'aisdk' ? AISDKV5OutputStream<OUTPUT> : MastraModelOutput> {
     const defaultStreamOptions = await this.getDefaultVNextStreamOptions({
       runtimeContext: streamOptions?.runtimeContext,
     });
@@ -3349,7 +3354,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       });
     }
 
-    return result.result;
+    return result.result as any;
   }
 
   async generate(

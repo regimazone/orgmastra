@@ -307,7 +307,7 @@ export async function vnext_generateHandler({
     format: 'mastra' | 'aisdk';
   };
   abortSignal?: AbortSignal;
-}) {
+}): ReturnType<Agent['generate_vnext']> {
   try {
     const agent = mastra.getAgent(agentId);
 
