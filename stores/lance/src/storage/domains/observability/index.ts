@@ -341,7 +341,7 @@ export class ObservabilityLance extends ObservabilityStorage {
           if (value !== undefined && value !== null) {
             // Use LIKE query on the JSON string field with proper escaping
             const jsonPattern = `"${key}":"${value}"`;
-            conditions.push(`\`attributes\` LIKE '%${jsonPattern.replace(/"/g, '\\"')}%'`);
+            conditions.push(`\`attributes\` LIKE '%${jsonPattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}%'`);
           }
         });
       }
