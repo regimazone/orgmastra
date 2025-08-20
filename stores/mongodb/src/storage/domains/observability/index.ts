@@ -12,7 +12,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAISpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
       await this.operations.insert({
@@ -31,7 +31,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
     try {
       const collection = await this.operations.getCollection(TABLE_AI_SPAN);
       const result = await collection.findOne({ id });
@@ -53,10 +53,10 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
+  async updateAISpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     try {
       // First check if the span exists
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
       if (!existingSpan) {
         throw new MastraError(
           {
@@ -92,7 +92,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
+  async deleteAISpan(id: string): Promise<void> {
     try {
       const collection = await this.operations.getCollection(TABLE_AI_SPAN);
       await collection.deleteOne({ id });
@@ -176,7 +176,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     return query;
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
+  async getAITrace(traceId: string): Promise<AITrace | null> {
     try {
       const collection = await this.operations.getCollection(TABLE_AI_SPAN);
       const result = await collection.find({ traceId }).toArray();
@@ -201,7 +201,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
@@ -289,7 +289,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     };
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchCreateAISpan(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -316,14 +316,14 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
+  async batchUpdateAISpan(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }
 
     try {
       for (const { id, updates } of args.records) {
-        await this.updateAiSpan(id, updates);
+        await this.updateAISpan(id, updates);
       }
     } catch (error) {
       throw new MastraError(
@@ -337,7 +337,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
     if (args.ids.length === 0) {
       return; // No IDs to delete
     }

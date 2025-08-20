@@ -52,7 +52,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     return processedRecord;
   }
 
-  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAISpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
 
@@ -85,7 +85,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<AISpanRecord | null> {
+  async getAISpan(id: string): Promise<AISpanRecord | null> {
     try {
       const table = await this.lanceClient.openTable(TABLE_AI_SPAN);
       const query = table.query().where(`id = '${id}'`).limit(1);
@@ -109,10 +109,10 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
+  async updateAISpan(id: string, updates: Record<string, any>): Promise<void> {
     try {
       // First check if the span exists
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
       if (!existingSpan) {
         throw new MastraError(
           {
@@ -152,10 +152,10 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
+  async deleteAISpan(id: string): Promise<void> {
     try {
       // First check if the span exists
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
       if (!existingSpan) {
         return;
       }
@@ -177,7 +177,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchCreateAISpan(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -212,7 +212,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+  async batchUpdateAISpan(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }
@@ -247,7 +247,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
     if (args.ids.length === 0) {
       return; // No IDs to delete
     }
@@ -273,7 +273,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
+  async getAITrace(traceId: string): Promise<AITrace | null> {
     try {
       const table = await this.lanceClient.openTable(TABLE_AI_SPAN);
       const query = table.query().where(`\`traceId\` = '${traceId}'`);
@@ -303,7 +303,7 @@ export class ObservabilityLance extends ObservabilityStorage {
     }
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {

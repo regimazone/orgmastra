@@ -38,7 +38,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     return processedSpan;
   }
 
-  async createAiSpan(span: Record<string, any>): Promise<void> {
+  async createAISpan(span: Record<string, any>): Promise<void> {
     try {
       // Ensure required fields are present
       if (!span.traceId) {
@@ -76,7 +76,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
     try {
       const fullTableName = this.operations.getTableName(TABLE_AI_SPAN);
       const query = createSqlBuilder().select('*').from(fullTableName).where('id = ?', id);
@@ -116,10 +116,10 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
+  async updateAISpan(id: string, updates: Record<string, any>): Promise<void> {
     try {
       // First, get the existing span to merge with updates
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
 
       if (!existingSpan) {
         throw new MastraError(
@@ -172,10 +172,10 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
+  async deleteAISpan(id: string): Promise<void> {
     try {
       // Check if the span exists before attempting to delete
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
 
       if (!existingSpan) {
         return;
@@ -198,7 +198,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
+  async batchCreateAISpan(args: { records: Record<string, any>[] }): Promise<void> {
     try {
       if (!args.records || args.records.length === 0) {
         return;
@@ -246,7 +246,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
+  async getAITrace(traceId: string): Promise<AITrace | null> {
     try {
       const fullTableName = this.operations.getTableName(TABLE_AI_SPAN);
       const query = createSqlBuilder().select('*').from(fullTableName).where('traceId = ?', traceId);
@@ -274,7 +274,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+  async batchUpdateAISpan(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
     try {
       if (!args.records || args.records.length === 0) {
         return;
@@ -284,7 +284,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
       await Promise.all(
         args.records.map(async ({ id, updates }) => {
           // Get the existing span to merge with updates
-          const existingSpan = await this.getAiSpan(id);
+          const existingSpan = await this.getAISpan(id);
 
           if (!existingSpan) {
             // Skip if span doesn't exist (silent failure for batch operations)
@@ -333,7 +333,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
     try {
       if (!args.ids || args.ids.length === 0) {
         return;
@@ -343,7 +343,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
       await Promise.all(
         args.ids.map(async id => {
           // Check if the span exists before attempting to delete
-          const existingSpan = await this.getAiSpan(id);
+          const existingSpan = await this.getAISpan(id);
 
           if (!existingSpan) {
             // Skip if span doesn't exist (silent failure for batch operations)
@@ -369,7 +369,7 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
     }
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     const { filters, page = 0, perPage = 10 } = args;

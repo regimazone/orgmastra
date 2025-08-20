@@ -37,8 +37,8 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Record<string, any>): Promise<void> {
-    this.logger.debug(`MockStore: createAiSpan called`, { span });
+  async createAISpan(span: Record<string, any>): Promise<void> {
+    this.logger.debug(`MockStore: createAISpan called`, { span });
 
     const id = `${span.traceId}-${span.spanId}`;
     // Ensure the span has required fields
@@ -71,13 +71,13 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     this.spans.set(id, { ...span, id } as AISpanRecord);
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
-    this.logger.debug(`MockStore: getAiSpan called`);
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
+    this.logger.debug(`MockStore: getAISpan called`);
     return this.spans.get(id) ?? null;
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
-    this.logger.debug(`MockStore: getAiTrace called`);
+  async getAITrace(traceId: string): Promise<AITrace | null> {
+    this.logger.debug(`MockStore: getAITrace called`);
     const allSpans = Array.from(this.collection.values());
     const traceSpans = allSpans.filter(span => span.traceId === traceId);
 
@@ -91,7 +91,7 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     };
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     this.logger.debug(`MockStore: GetAiTracesPaginated called`);
@@ -207,8 +207,8 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     };
   }
 
-  async updateAiSpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {
-    this.logger.debug(`MockStore: updateAiSpan called`);
+  async updateAISpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {
+    this.logger.debug(`MockStore: updateAISpan called`);
 
     const span = this.spans.get(id);
     if (!span) {
@@ -220,32 +220,32 @@ export class ObservabilityInMemory extends ObservabilityStorage {
     this.spans.set(id, updatedSpan);
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
-    this.logger.debug(`MockStore: deleteAiSpan called`);
+  async deleteAISpan(id: string): Promise<void> {
+    this.logger.debug(`MockStore: deleteAISpan called`);
     this.spans.delete(id);
   }
 
-  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
-    this.logger.debug('MockStore: batchAiSpanCreate called', { count: args.records.length });
+  async batchCreateAISpan(args: { records: Record<string, any>[] }): Promise<void> {
+    this.logger.debug('MockStore: batchCreateAISpan called', { count: args.records.length });
 
     for (const record of args.records) {
-      await this.createAiSpan(record);
+      await this.createAISpan(record);
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<Record<string, any>> }[] }): Promise<void> {
-    this.logger.debug('MockStore: batchAiSpanUpdate called', { count: args.records.length });
+  async batchUpdateAISpan(args: { records: { id: string; updates: Partial<Record<string, any>> }[] }): Promise<void> {
+    this.logger.debug('MockStore: batchUpdateAISpan called', { count: args.records.length });
 
     for (const record of args.records) {
-      await this.updateAiSpan(record.id, record.updates);
+      await this.updateAISpan(record.id, record.updates);
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
-    this.logger.debug('MockStore: batchAiSpanDelete called', { count: args.ids.length });
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
+    this.logger.debug('MockStore: batchDeleteAISpan called', { count: args.ids.length });
 
     for (const id of args.ids) {
-      await this.deleteAiSpan(id);
+      await this.deleteAISpan(id);
     }
   }
 }

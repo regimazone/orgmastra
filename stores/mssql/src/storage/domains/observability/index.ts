@@ -7,41 +7,41 @@ export class ObservabilityMSSQL extends ObservabilityStorage {
     super();
   }
 
-  createAiSpan(_span: Record<string, any>): Promise<void> {
+  createAISpan(_span: Record<string, any>): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  getAiSpan(_id: string): Promise<Record<string, any> | null> {
+  getAISpan(_id: string): Promise<Record<string, any> | null> {
     throw new Error('Method not implemented.');
   }
 
-  getAiTracesPaginated(
+  getAITracesPaginated(
     _args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     throw new Error('Method not implemented.');
   }
 
-  getAiTrace(_traceId: string): Promise<AITrace | null> {
+  getAITrace(_traceId: string): Promise<AITrace | null> {
     throw new Error('Method not implemented.');
   }
 
-  updateAiSpan(_id: string, _updates: Partial<AISpanRecord>): Promise<void> {
+  updateAISpan(_id: string, _updates: Partial<AISpanRecord>): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  deleteAiSpan(_id: string): Promise<void> {
+  deleteAISpan(_id: string): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  batchAiSpanCreate(_args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  batchCreateAISpan(_args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  batchAiSpanUpdate(_args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
+  batchUpdateAISpan(_args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     throw new Error('Method not implemented.');
   }
 
-  batchAiSpanDelete(_args: { ids: string[] }): Promise<void> {
+  batchDeleteAISpan(_args: { ids: string[] }): Promise<void> {
     throw new Error('Method not implemented.');
   }
 }

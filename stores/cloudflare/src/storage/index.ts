@@ -436,42 +436,42 @@ export class CloudflareStore extends MastraStorage {
     return this.stores.memory.updateResource({ resourceId, workingMemory, metadata });
   }
 
-  async createAiSpan(span: Record<string, any>): Promise<void> {
-    return this.stores.observability.createAiSpan(span);
+  async createAISpan(span: Record<string, any>): Promise<void> {
+    return this.stores.observability.createAISpan(span);
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
-    return this.stores.observability.getAiSpan(id);
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
+    return this.stores.observability.getAISpan(id);
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
-    return this.stores.observability.getAiTrace(traceId);
+  async getAITrace(traceId: string): Promise<AITrace | null> {
+    return this.stores.observability.getAITrace(traceId);
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
-    return this.stores.observability.getAiTracesPaginated(args);
+    return this.stores.observability.getAITracesPaginated(args);
   }
 
-  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
-    return this.stores.observability.updateAiSpan(id, updates);
+  async updateAISpan(id: string, updates: Record<string, any>): Promise<void> {
+    return this.stores.observability.updateAISpan(id, updates);
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
-    return this.stores.observability.deleteAiSpan(id);
+  async deleteAISpan(id: string): Promise<void> {
+    return this.stores.observability.deleteAISpan(id);
   }
 
-  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
-    return this.stores.observability.batchAiSpanCreate(args);
+  async batchCreateAISpan(args: { records: Record<string, any>[] }): Promise<void> {
+    return this.stores.observability.batchCreateAISpan(args);
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
-    return this.stores.observability.batchAiSpanUpdate(args);
+  async batchUpdateAISpan(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+    return this.stores.observability.batchUpdateAISpan(args);
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
-    return this.stores.observability.batchAiSpanDelete(args);
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
+    return this.stores.observability.batchDeleteAISpan(args);
   }
 
   async close(): Promise<void> {

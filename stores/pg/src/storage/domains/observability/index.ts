@@ -18,7 +18,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     this.schema = schema;
   }
 
-  async createAiSpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async createAISpan(span: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
       const id = `${span.traceId}-${span.spanId}`;
       await this.operations.insert({
@@ -37,7 +37,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
     try {
       const result = await this.client.oneOrNone<Record<string, any>>(
         `SELECT * FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })} WHERE id = $1`,
@@ -61,10 +61,10 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
+  async updateAISpan(id: string, updates: Partial<AISpanRecord>): Promise<void> {
     try {
       // First check if the span exists
-      const existingSpan = await this.getAiSpan(id);
+      const existingSpan = await this.getAISpan(id);
       if (!existingSpan) {
         throw new MastraError(
           {
@@ -115,7 +115,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
+  async deleteAISpan(id: string): Promise<void> {
     try {
       await this.client.none(
         `DELETE FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })} WHERE id = $1`,
@@ -226,7 +226,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     return { conditions, params };
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
+  async getAITrace(traceId: string): Promise<AITrace | null> {
     try {
       const result = await this.client.manyOrNone<Record<string, any>>(
         `SELECT * FROM ${getTableName({ indexName: TABLE_AI_SPAN, schemaName: getSchemaName(this.schema) })} WHERE "traceId" = $1`,
@@ -253,7 +253,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
@@ -351,7 +351,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     } as AISpanRecord;
   }
 
-  async batchAiSpanCreate(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
+  async batchCreateAISpan(args: { records: Omit<AISpanRecord, 'id' | 'createdAt' | 'updatedAt'>[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No records to insert
     }
@@ -378,14 +378,14 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
+  async batchUpdateAISpan(args: { records: { id: string; updates: Partial<AISpanRecord> }[] }): Promise<void> {
     if (args.records.length === 0) {
       return; // No updates to make
     }
 
     try {
       for (const { id, updates } of args.records) {
-        await this.updateAiSpan(id, updates);
+        await this.updateAISpan(id, updates);
       }
     } catch (error) {
       throw new MastraError(
@@ -399,7 +399,7 @@ export class ObservabilityPG extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
     if (args.ids.length === 0) {
       return; // No IDs to delete
     }

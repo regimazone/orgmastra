@@ -12,7 +12,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     this.operations = operations;
   }
 
-  async createAiSpan(span: Record<string, any>): Promise<void> {
+  async createAISpan(span: Record<string, any>): Promise<void> {
     try {
       // Ensure required fields are present
       if (!span.traceId) {
@@ -52,7 +52,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async getAiSpan(id: string): Promise<Record<string, any> | null> {
+  async getAISpan(id: string): Promise<Record<string, any> | null> {
     try {
       // Generate the proper key for the span
       const key = this.operations.getKey(TABLE_AI_SPAN, { id });
@@ -76,7 +76,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async getAiTrace(traceId: string): Promise<AITrace | null> {
+  async getAITrace(traceId: string): Promise<AITrace | null> {
     try {
       const prefix = this.operations.namespacePrefix ? `${this.operations.namespacePrefix}:` : '';
       const keyObjs = await this.operations.listKV(TABLE_AI_SPAN, { prefix: `${prefix}${TABLE_AI_SPAN}` });
@@ -112,7 +112,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async updateAiSpan(id: string, updates: Record<string, any>): Promise<void> {
+  async updateAISpan(id: string, updates: Record<string, any>): Promise<void> {
     try {
       // Generate the proper key for the span
       const key = this.operations.getKey(TABLE_AI_SPAN, { id });
@@ -156,7 +156,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async deleteAiSpan(id: string): Promise<void> {
+  async deleteAISpan(id: string): Promise<void> {
     try {
       // Generate the proper key for the span
       const key = this.operations.getKey(TABLE_AI_SPAN, { id });
@@ -182,7 +182,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanCreate(args: { records: Record<string, any>[] }): Promise<void> {
+  async batchCreateAISpan(args: { records: Record<string, any>[] }): Promise<void> {
     try {
       if (!args.records || args.records.length === 0) {
         return;
@@ -231,7 +231,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanUpdate(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
+  async batchUpdateAISpan(args: { records: { id: string; updates: Record<string, any> }[] }): Promise<void> {
     try {
       if (!args.records || args.records.length === 0) {
         return;
@@ -278,7 +278,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async batchAiSpanDelete(args: { ids: string[] }): Promise<void> {
+  async batchDeleteAISpan(args: { ids: string[] }): Promise<void> {
     try {
       if (!args.ids || args.ids.length === 0) {
         return;
@@ -314,7 +314,7 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
     }
   }
 
-  async getAiTracesPaginated(
+  async getAITracesPaginated(
     args: StorageGetAiTracesPaginatedArg,
   ): Promise<PaginationInfo & { spans: Record<string, any>[] }> {
     try {
