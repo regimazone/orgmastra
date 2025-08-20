@@ -29,6 +29,7 @@ import type {
   StreamTextResult,
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
+import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import type {} from '../loop/types';
@@ -41,7 +42,6 @@ import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
-import type { MastraModelOutput } from '../stream/base/output';
 import { MastraAgentStream } from '../stream/MastraAgentStream';
 import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
@@ -69,7 +69,6 @@ import type {
   AgentMemoryOption,
   AgentAISpanProperties,
 } from './types';
-import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 export type { ChunkType } from '../stream/types';
 export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
@@ -2221,6 +2220,310 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     }
   }
 
+  private prepareLLMOptions<
+    Tools extends ToolSet,
+    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
+    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    messages: MessageListInput,
+    options: AgentGenerateOptions<Output, ExperimentalOutput>,
+  ): Promise<{
+    before: () => Promise<
+      Omit<
+        Output extends undefined
+          ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
+          : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+              output?: Output;
+              experimental_output?: never;
+            },
+        'runId'
+      > & { runId: string } & TripwireProperties &
+        AgentAISpanProperties
+    >;
+    after: (args: {
+      result: GenerateReturn<any, Output, ExperimentalOutput>;
+      outputText: string;
+      structuredOutput?: boolean;
+      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+      overrideScorers?: MastraScorers;
+    }) => Promise<{
+      scoringData: {
+        input: Omit<ScorerRunInputForAgent, 'runId'>;
+        output: ScorerRunOutputForAgent;
+      };
+    }>;
+    llm: MastraLLMV1 | MastraLLMVNext;
+  }>;
+  private prepareLLMOptions<
+    Tools extends ToolSet,
+    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
+    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    messages: MessageListInput,
+    options: AgentStreamOptions<Output, ExperimentalOutput>,
+  ): Promise<{
+    before: () => Promise<
+      Omit<
+        Output extends undefined
+          ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
+          : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+              output?: Output;
+              experimental_output?: never;
+            },
+        'runId'
+      > & { runId: string } & TripwireProperties &
+        AgentAISpanProperties
+    >;
+    after: (args: {
+      result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
+      outputText: string;
+      structuredOutput?: boolean;
+      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+      overrideScorers?: MastraScorers;
+    }) => Promise<{
+      scoringData: {
+        input: Omit<ScorerRunInputForAgent, 'runId'>;
+        output: ScorerRunOutputForAgent;
+      };
+    }>;
+    llm: MastraLLMV1 | MastraLLMVNext;
+  }>;
+  private async prepareLLMOptions<
+    Tools extends ToolSet,
+    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
+    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    messages: MessageListInput,
+    options: (AgentGenerateOptions<Output, ExperimentalOutput> | AgentStreamOptions<Output, ExperimentalOutput>) & {
+      writableStream?: WritableStream<ChunkType>;
+    },
+  ): Promise<{
+    before:
+      | (() => Promise<
+          Omit<
+            Output extends undefined
+              ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
+              : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+                  output?: Output;
+                  experimental_output?: never;
+                },
+            'runId'
+          > & { runId: string } & TripwireProperties &
+            AgentAISpanProperties
+        >)
+      | (() => Promise<
+          Omit<
+            Output extends undefined
+              ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
+              : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+                  output?: Output;
+                  experimental_output?: never;
+                },
+            'runId'
+          > & { runId: string } & TripwireProperties &
+            AgentAISpanProperties
+        >);
+    after:
+      | ((args: {
+          result: GenerateReturn<any, Output, ExperimentalOutput>;
+          outputText: string;
+          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          overrideScorers?: MastraScorers;
+        }) => Promise<{
+          scoringData: {
+            input: Omit<ScorerRunInputForAgent, 'runId'>;
+            output: ScorerRunOutputForAgent;
+          };
+        }>)
+      | ((args: {
+          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
+          outputText: string;
+          structuredOutput?: boolean;
+          overrideScorers?: MastraScorers;
+        }) => Promise<{
+          scoringData: {
+            input: Omit<ScorerRunInputForAgent, 'runId'>;
+            output: ScorerRunOutputForAgent;
+          };
+        }>);
+    llm: MastraLLM;
+  }> {
+    const {
+      context,
+      memoryOptions: memoryConfigFromArgs,
+      resourceId: resourceIdFromArgs,
+      maxSteps,
+      onStepFinish,
+      toolsets,
+      clientTools,
+      temperature,
+      toolChoice = 'auto',
+      runtimeContext = new RuntimeContext(),
+      savePerStep,
+      writableStream,
+      ...args
+    } = options;
+
+    // Currently not being used, but should be kept around for now in case it's needed later
+    // const generateMessageId =
+    //   `experimental_generateMessageId` in args && typeof args.experimental_generateMessageId === `function`
+    //     ? (args.experimental_generateMessageId as IDGenerator)
+    //     : undefined;
+
+    const threadFromArgs = resolveThreadIdFromArgs({ threadId: args.threadId, memory: args.memory });
+    const resourceId = args.memory?.resource || resourceIdFromArgs;
+    const memoryConfig = args.memory?.options || memoryConfigFromArgs;
+
+    if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
+      this.logger.warn(
+        `[Agent:${this.name}] - No memory is configured but resourceId and threadId were passed in args. This will not work.`,
+      );
+    }
+    const runId = args.runId || this.#mastra?.generateId() || randomUUID();
+    const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
+    const llm = await this.getLLM({ runtimeContext });
+
+    // Set thread ID and resource ID context for telemetry
+    const activeSpan = Telemetry.getActiveSpan();
+    const baggageEntries: Record<string, { value: string }> = {};
+
+    if (threadFromArgs?.id) {
+      if (activeSpan) {
+        activeSpan.setAttribute('threadId', threadFromArgs.id);
+      }
+      baggageEntries.threadId = { value: threadFromArgs.id };
+    }
+
+    if (resourceId) {
+      if (activeSpan) {
+        activeSpan.setAttribute('resourceId', resourceId);
+      }
+      baggageEntries.resourceId = { value: resourceId };
+    }
+
+    if (Object.keys(baggageEntries).length > 0) {
+      Telemetry.setBaggage(baggageEntries);
+    }
+
+    const memory = await this.getMemory({ runtimeContext });
+    const saveQueueManager = new SaveQueueManager({
+      logger: this.logger,
+      memory,
+    });
+
+    const { before, after } = this.__primitive({
+      messages,
+      instructions,
+      context,
+      thread: threadFromArgs,
+      memoryConfig,
+      resourceId,
+      runId,
+      toolsets,
+      clientTools,
+      runtimeContext,
+      saveQueueManager,
+      writableStream,
+      parentAISpan: args.aiTracingContext?.parentAISpan,
+    });
+
+    let messageList: MessageList;
+    let thread: StorageThreadType | null | undefined;
+    let threadExists: boolean;
+
+    return {
+      llm,
+      before: async () => {
+        const beforeResult = await before();
+        const { messageObjects, convertedTools, agentAISpan } = beforeResult;
+        threadExists = beforeResult.threadExists || false;
+        messageList = beforeResult.messageList;
+        thread = beforeResult.thread;
+
+        const threadId = thread?.id;
+
+        // can't type this properly sadly :(
+        const result = {
+          ...options,
+          messages: messageObjects,
+          tools: convertedTools as Record<string, Tool>,
+          runId,
+          temperature,
+          toolChoice,
+          threadId,
+          resourceId,
+          runtimeContext,
+          onStepFinish: async (props: any) => {
+            if (savePerStep) {
+              if (!threadExists && memory && thread) {
+                await memory.createThread({
+                  threadId,
+                  title: thread.title,
+                  metadata: thread.metadata,
+                  resourceId: thread.resourceId,
+                  memoryConfig,
+                });
+                threadExists = true;
+              }
+
+              await this.saveStepMessages({
+                saveQueueManager,
+                result: props,
+                messageList,
+                threadId,
+                memoryConfig,
+                runId,
+              });
+            }
+
+            return onStepFinish?.({ ...props, runId });
+          },
+          ...(beforeResult.tripwire && {
+            tripwire: beforeResult.tripwire,
+            tripwireReason: beforeResult.tripwireReason,
+          }),
+          ...args,
+          agentAISpan,
+        } as any;
+
+        return result;
+      },
+      after: async ({
+        result,
+        outputText,
+        structuredOutput = false,
+        agentAISpan,
+      }:
+        | {
+            result: GenerateReturn<any, Output, ExperimentalOutput>;
+            outputText: string;
+            structuredOutput?: boolean;
+            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          }
+        | {
+            result: StreamReturn<any, Output, ExperimentalOutput>;
+            outputText: string;
+            structuredOutput?: boolean;
+            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          }) => {
+        const afterResult = await after({
+          result,
+          outputText,
+          threadId: thread?.id,
+          thread,
+          memoryConfig,
+          runId,
+          messageList,
+          structuredOutput,
+          threadExists,
+          agentAISpan,
+        });
+        return afterResult;
+      },
+    };
+  }
+
   async #execute(options: InnerAgentExecutionOptions) {
     const runtimeContext = options.runtimeContext || new RuntimeContext();
     const threadFromArgs = resolveThreadIdFromArgs({ threadId: options.threadId, memory: options.memory });
@@ -2530,7 +2833,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       },
     });
 
-    const streamTextStep = createStep({
+    const streamStep = createStep({
       id: 'stream-text-step',
       inputSchema: z.any(),
       outputSchema: z.any(),
@@ -2552,6 +2855,13 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         const streamResult = llm.stream({
           ...inputData,
           outputProcessors,
+          ...(inputData.output
+            ? {
+                objectOptions: {
+                  schema: inputData.output,
+                },
+              }
+            : {}),
         });
 
         if (options.format === 'aisdk') {
@@ -2559,37 +2869,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         }
 
         return streamResult;
-      },
-    });
-
-    const streamObjectStep = createStep({
-      id: 'stream-object-step',
-      inputSchema: z.any(),
-      outputSchema: z.any(),
-      execute: async ({ inputData }) => {
-        const outputProcessors =
-          inputData.outputProcessors ||
-          (this.#outputProcessors
-            ? typeof this.#outputProcessors === 'function'
-              ? await this.#outputProcessors({
-                  runtimeContext: inputData.runtimeContext || new RuntimeContext(),
-                })
-              : this.#outputProcessors
-            : []);
-
-        const result = llm.stream({
-          ...inputData,
-          objectOptions: {
-            schema: inputData.output,
-          },
-          outputProcessors,
-        });
-
-        if (options.format === 'aisdk') {
-          return result.aisdk.v5;
-        }
-
-        return result;
       },
     });
 
@@ -2644,7 +2923,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           }),
         } as any;
 
-        // TODO: CHANGE SHAPE BASED ON FORMAT
         // Check for tripwire and return early if triggered
         if (result.tripwire) {
           // Return a promise that resolves immediately with empty result
@@ -2774,7 +3052,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
         return loopOptions;
       })
-      .then(!options.output ? streamTextStep : streamObjectStep)
+      .then(streamStep)
       .commit();
 
     const run = await executionWorkflow.createRunAsync();
@@ -2968,310 +3246,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext,
       structuredOutput,
     });
-  }
-
-  private prepareLLMOptions<
-    Tools extends ToolSet,
-    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
-    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
-  >(
-    messages: MessageListInput,
-    options: AgentGenerateOptions<Output, ExperimentalOutput>,
-  ): Promise<{
-    before: () => Promise<
-      Omit<
-        Output extends undefined
-          ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
-          : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-              output?: Output;
-              experimental_output?: never;
-            },
-        'runId'
-      > & { runId: string } & TripwireProperties &
-        AgentAISpanProperties
-    >;
-    after: (args: {
-      result: GenerateReturn<any, Output, ExperimentalOutput>;
-      outputText: string;
-      structuredOutput?: boolean;
-      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-      overrideScorers?: MastraScorers;
-    }) => Promise<{
-      scoringData: {
-        input: Omit<ScorerRunInputForAgent, 'runId'>;
-        output: ScorerRunOutputForAgent;
-      };
-    }>;
-    llm: MastraLLMV1 | MastraLLMVNext;
-  }>;
-  private prepareLLMOptions<
-    Tools extends ToolSet,
-    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
-    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
-  >(
-    messages: MessageListInput,
-    options: AgentStreamOptions<Output, ExperimentalOutput>,
-  ): Promise<{
-    before: () => Promise<
-      Omit<
-        Output extends undefined
-          ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
-          : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-              output?: Output;
-              experimental_output?: never;
-            },
-        'runId'
-      > & { runId: string } & TripwireProperties &
-        AgentAISpanProperties
-    >;
-    after: (args: {
-      result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
-      outputText: string;
-      structuredOutput?: boolean;
-      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-      overrideScorers?: MastraScorers;
-    }) => Promise<{
-      scoringData: {
-        input: Omit<ScorerRunInputForAgent, 'runId'>;
-        output: ScorerRunOutputForAgent;
-      };
-    }>;
-    llm: MastraLLMV1 | MastraLLMVNext;
-  }>;
-  private async prepareLLMOptions<
-    Tools extends ToolSet,
-    Output extends ZodSchema | JSONSchema7 | undefined = undefined,
-    ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
-  >(
-    messages: MessageListInput,
-    options: (AgentGenerateOptions<Output, ExperimentalOutput> | AgentStreamOptions<Output, ExperimentalOutput>) & {
-      writableStream?: WritableStream<ChunkType>;
-    },
-  ): Promise<{
-    before:
-      | (() => Promise<
-          Omit<
-            Output extends undefined
-              ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
-              : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-                  output?: Output;
-                  experimental_output?: never;
-                },
-            'runId'
-          > & { runId: string } & TripwireProperties &
-            AgentAISpanProperties
-        >)
-      | (() => Promise<
-          Omit<
-            Output extends undefined
-              ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
-              : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-                  output?: Output;
-                  experimental_output?: never;
-                },
-            'runId'
-          > & { runId: string } & TripwireProperties &
-            AgentAISpanProperties
-        >);
-    after:
-      | ((args: {
-          result: GenerateReturn<any, Output, ExperimentalOutput>;
-          outputText: string;
-          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          overrideScorers?: MastraScorers;
-        }) => Promise<{
-          scoringData: {
-            input: Omit<ScorerRunInputForAgent, 'runId'>;
-            output: ScorerRunOutputForAgent;
-          };
-        }>)
-      | ((args: {
-          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
-          outputText: string;
-          structuredOutput?: boolean;
-          overrideScorers?: MastraScorers;
-        }) => Promise<{
-          scoringData: {
-            input: Omit<ScorerRunInputForAgent, 'runId'>;
-            output: ScorerRunOutputForAgent;
-          };
-        }>);
-    llm: MastraLLM;
-  }> {
-    const {
-      context,
-      memoryOptions: memoryConfigFromArgs,
-      resourceId: resourceIdFromArgs,
-      maxSteps,
-      onStepFinish,
-      toolsets,
-      clientTools,
-      temperature,
-      toolChoice = 'auto',
-      runtimeContext = new RuntimeContext(),
-      savePerStep,
-      writableStream,
-      ...args
-    } = options;
-
-    // Currently not being used, but should be kept around for now in case it's needed later
-    // const generateMessageId =
-    //   `experimental_generateMessageId` in args && typeof args.experimental_generateMessageId === `function`
-    //     ? (args.experimental_generateMessageId as IDGenerator)
-    //     : undefined;
-
-    const threadFromArgs = resolveThreadIdFromArgs({ threadId: args.threadId, memory: args.memory });
-    const resourceId = args.memory?.resource || resourceIdFromArgs;
-    const memoryConfig = args.memory?.options || memoryConfigFromArgs;
-
-    if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
-      this.logger.warn(
-        `[Agent:${this.name}] - No memory is configured but resourceId and threadId were passed in args. This will not work.`,
-      );
-    }
-    const runId = args.runId || this.#mastra?.generateId() || randomUUID();
-    const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
-    const llm = await this.getLLM({ runtimeContext });
-
-    // Set thread ID and resource ID context for telemetry
-    const activeSpan = Telemetry.getActiveSpan();
-    const baggageEntries: Record<string, { value: string }> = {};
-
-    if (threadFromArgs?.id) {
-      if (activeSpan) {
-        activeSpan.setAttribute('threadId', threadFromArgs.id);
-      }
-      baggageEntries.threadId = { value: threadFromArgs.id };
-    }
-
-    if (resourceId) {
-      if (activeSpan) {
-        activeSpan.setAttribute('resourceId', resourceId);
-      }
-      baggageEntries.resourceId = { value: resourceId };
-    }
-
-    if (Object.keys(baggageEntries).length > 0) {
-      Telemetry.setBaggage(baggageEntries);
-    }
-
-    const memory = await this.getMemory({ runtimeContext });
-    const saveQueueManager = new SaveQueueManager({
-      logger: this.logger,
-      memory,
-    });
-
-    const { before, after } = this.__primitive({
-      messages,
-      instructions,
-      context,
-      thread: threadFromArgs,
-      memoryConfig,
-      resourceId,
-      runId,
-      toolsets,
-      clientTools,
-      runtimeContext,
-      saveQueueManager,
-      writableStream,
-      parentAISpan: args.aiTracingContext?.parentAISpan,
-    });
-
-    let messageList: MessageList;
-    let thread: StorageThreadType | null | undefined;
-    let threadExists: boolean;
-
-    return {
-      llm,
-      before: async () => {
-        const beforeResult = await before();
-        const { messageObjects, convertedTools, agentAISpan } = beforeResult;
-        threadExists = beforeResult.threadExists || false;
-        messageList = beforeResult.messageList;
-        thread = beforeResult.thread;
-
-        const threadId = thread?.id;
-
-        // can't type this properly sadly :(
-        const result = {
-          ...options,
-          messages: messageObjects,
-          tools: convertedTools as Record<string, Tool>,
-          runId,
-          temperature,
-          toolChoice,
-          threadId,
-          resourceId,
-          runtimeContext,
-          onStepFinish: async (props: any) => {
-            if (savePerStep) {
-              if (!threadExists && memory && thread) {
-                await memory.createThread({
-                  threadId,
-                  title: thread.title,
-                  metadata: thread.metadata,
-                  resourceId: thread.resourceId,
-                  memoryConfig,
-                });
-                threadExists = true;
-              }
-
-              await this.saveStepMessages({
-                saveQueueManager,
-                result: props,
-                messageList,
-                threadId,
-                memoryConfig,
-                runId,
-              });
-            }
-
-            return onStepFinish?.({ ...props, runId });
-          },
-          ...(beforeResult.tripwire && {
-            tripwire: beforeResult.tripwire,
-            tripwireReason: beforeResult.tripwireReason,
-          }),
-          ...args,
-          agentAISpan,
-        } as any;
-
-        return result;
-      },
-      after: async ({
-        result,
-        outputText,
-        structuredOutput = false,
-        agentAISpan,
-      }:
-        | {
-            result: GenerateReturn<any, Output, ExperimentalOutput>;
-            outputText: string;
-            structuredOutput?: boolean;
-            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          }
-        | {
-            result: StreamReturn<any, Output, ExperimentalOutput>;
-            outputText: string;
-            structuredOutput?: boolean;
-            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          }) => {
-        const afterResult = await after({
-          result,
-          outputText,
-          threadId: thread?.id,
-          thread,
-          memoryConfig,
-          runId,
-          messageList,
-          structuredOutput,
-          threadExists,
-          agentAISpan,
-        });
-        return afterResult;
-      },
-    };
   }
 
   async generateVNext<
