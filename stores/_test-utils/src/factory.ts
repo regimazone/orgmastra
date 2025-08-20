@@ -57,6 +57,9 @@ export function createTestSuite(storage: MastraStorage) {
 
     createScoresTest({ storage });
 
-    createObservabilityTests({ storage });
+    const observabilityUnsupportedProviders = ['DynamoDBStore', 'MSSQLStore'];
+    if (!observabilityUnsupportedProviders.includes(storage.constructor.name)) {
+      createObservabilityTests({ storage });
+    }
   });
 }
