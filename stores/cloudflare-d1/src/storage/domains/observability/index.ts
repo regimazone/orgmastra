@@ -390,11 +390,11 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
       });
       const total = Array.isArray(countResult) ? Number(countResult[0]?.count || 0) : Number(countResult?.count || 0);
 
-      // Get paginated parent spans
+      // Get paginated parent spans only (no child spans)
       const parentSql = `
         SELECT * FROM ${fullTableName} 
         WHERE parentSpanId IS NULL ${whereClause}
-        ORDER BY createdAt DESC 
+        ORDER BY startTime DESC 
         LIMIT ? OFFSET ?
       `;
       const parentResult = await this.operations.executeQuery({
@@ -404,26 +404,8 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
 
       const parentSpans = Array.isArray(parentResult) ? parentResult : [];
 
-      // Get all child spans for the found parent spans
-      let allSpans = [...parentSpans];
-      if (parentSpans.length > 0) {
-        const traceIds = parentSpans.map(span => span.traceId);
-        const placeholders = traceIds.map(() => '?').join(',');
-        const childSql = `
-          SELECT * FROM ${fullTableName} 
-          WHERE traceId IN (${placeholders}) 
-          AND parentSpanId IS NOT NULL
-        `;
-        const childResult = await this.operations.executeQuery({
-          sql: childSql,
-          params: traceIds,
-        });
-        const childSpans = Array.isArray(childResult) ? childResult : [];
-        allSpans = [...parentSpans, ...childSpans];
-      }
-
-      // Deserialize JSON fields
-      const deserializedSpans = allSpans.map(span => this.deserializeSpanFromD1(span));
+      // Deserialize JSON fields for root spans only
+      const deserializedSpans = parentSpans.map(span => this.deserializeSpanFromD1(span));
 
       return {
         spans: deserializedSpans,
@@ -488,10 +470,23 @@ export class ObservabilityStorageD1 extends ObservabilityStorage {
       params.push(filters.spanType);
     }
 
-    // TraceId filtering
-    if (filters.traceId) {
-      conditions.push('traceId = ?');
-      params.push(filters.traceId);
+    // Date range filtering using startTime (milliseconds since epoch)
+    if (filters.dateRange?.start) {
+      const startTs =
+        filters.dateRange.start instanceof Date
+          ? filters.dateRange.start.getTime()
+          : new Date(filters.dateRange.start).getTime();
+      conditions.push('startTime >= ?');
+      params.push(startTs);
+    }
+
+    if (filters.dateRange?.end) {
+      const endTs =
+        filters.dateRange.end instanceof Date
+          ? filters.dateRange.end.getTime()
+          : new Date(filters.dateRange.end).getTime();
+      conditions.push('startTime <= ?');
+      params.push(endTs);
     }
 
     return { conditions, params };

@@ -108,7 +108,6 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
 
         expect(trace).toBeDefined();
         expect(trace?.traceId).toBe(hierarchy.parent.traceId);
-        console.log(`trace`, JSON.stringify(trace, null, 2));
         expect(trace?.spans).toHaveLength(3); // 1 parent + 2 children
 
         // Verify all spans have the same traceId
@@ -137,7 +136,6 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         await storage.createAISpan(span);
 
         const trace = await storage.getAITrace(span.traceId);
-        console.log(`trace`, JSON.stringify(trace, null, 2));
 
         expect(trace).toBeDefined();
         expect(trace?.traceId).toBe(span.traceId);
@@ -334,8 +332,6 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         // Should return only parent spans
         expect(result.spans).toHaveLength(3); // 3 parent spans only
         expect(result.total).toBe(3); // Only parent spans count toward total
-
-        console.log(`result`, JSON.stringify(result, null, 2));
 
         // Parent spans should be ordered by start time (newest first)
         expect(result.spans[0]?.name).toBe('newest-parent');
@@ -665,7 +661,6 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
           perPage: 10,
         });
 
-        console.log(`recentSpans`, JSON.stringify(recentSpans, null, 2));
         expect(recentSpans.total).toBe(2); // 2 parent spans from yesterday and today
         expect(recentSpans.spans).toHaveLength(2); // 2 parent spans only
         expect(recentSpans.spans?.map(s => s.name)).toContain('yesterday-span');

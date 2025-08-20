@@ -75,7 +75,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
    * - name: string (LIKE search with % suffix)
    * - attributes: object (JSON field filtering)
    * - error: object (JSON field filtering)
-   * - createdAt: Date (>= comparison) or string (exact match)
+   * - dateRange: object with start/end dates for startTime filtering
    * - traceId: string (exact match)
    * - spanType: number (exact match)
    */
@@ -127,21 +127,23 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
       });
     }
 
-    // CreatedAt filtering
-    if (filters.createdAt !== undefined) {
-      if (filters.createdAt instanceof Date) {
-        conditions.push('createdAt >= ?');
-        args.push(filters.createdAt.toISOString());
-      } else {
-        conditions.push('createdAt = ?');
-        args.push(filters.createdAt);
-      }
+    // Date range filtering using startTime (milliseconds since epoch)
+    if (filters.dateRange?.start) {
+      const startTs =
+        filters.dateRange.start instanceof Date
+          ? filters.dateRange.start.getTime()
+          : new Date(filters.dateRange.start).getTime();
+      conditions.push('startTime >= ?');
+      args.push(startTs);
     }
 
-    // TraceId filtering
-    if (filters.traceId !== undefined) {
-      conditions.push('traceId = ?');
-      args.push(filters.traceId);
+    if (filters.dateRange?.end) {
+      const endTs =
+        filters.dateRange.end instanceof Date
+          ? filters.dateRange.end.getTime()
+          : new Date(filters.dateRange.end).getTime();
+      conditions.push('startTime <= ?');
+      args.push(endTs);
     }
 
     // SpanType filtering
@@ -201,7 +203,7 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
       const parentSql = `
         SELECT * FROM ${TABLE_AI_SPAN} 
         WHERE parentSpanId IS NULL${whereClause ? ` AND ${conditions.join(' AND ')}` : ''}
-        ORDER BY createdAt DESC 
+        ORDER BY startTime DESC 
         LIMIT ? OFFSET ?
       `;
       const parentResult = await this.client.execute({
@@ -211,25 +213,9 @@ export class ObservabilityLibSQL extends ObservabilityStorage {
 
       const parentSpans = parentResult.rows.map(row => this.transformRowToAISpan(row));
 
-      // Get all child spans for the found parent spans
-      let allSpans = [...parentSpans];
-      if (parentSpans.length > 0) {
-        const traceIds = parentSpans.map(span => span.traceId);
-        const childSql = `
-          SELECT * FROM ${TABLE_AI_SPAN} 
-          WHERE traceId IN (${traceIds.map(() => '?').join(',')}) 
-          AND parentSpanId IS NOT NULL
-        `;
-        const childResult = await this.client.execute({
-          sql: childSql,
-          args: traceIds,
-        });
-        const childSpans = childResult.rows.map(row => this.transformRowToAISpan(row));
-        allSpans = [...parentSpans, ...childSpans];
-      }
-
+      // Return only root spans (no child spans)
       return {
-        spans: allSpans,
+        spans: parentSpans,
         total,
         page,
         perPage,

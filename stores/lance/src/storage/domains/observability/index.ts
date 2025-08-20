@@ -319,20 +319,24 @@ export class ObservabilityLance extends ObservabilityStorage {
         conditions.push(`\`name\` = '${filters.name}'`);
       }
 
-      if (filters?.traceId) {
-        conditions.push(`\`traceId\` = '${filters.traceId}'`);
-      }
-
       if (filters?.spanType !== undefined) {
         conditions.push(`\`spanType\` = ${filters.spanType}`);
       }
 
       if (filters?.dateRange?.start) {
-        conditions.push(`\`createdAt\` >= ${filters.dateRange.start.getTime()}`);
+        const startTs =
+          filters.dateRange.start instanceof Date
+            ? filters.dateRange.start.getTime()
+            : new Date(filters.dateRange.start).getTime();
+        conditions.push(`\`startTime\` >= ${startTs}`);
       }
 
       if (filters?.dateRange?.end) {
-        conditions.push(`\`createdAt\` <= ${filters.dateRange.end.getTime()}`);
+        const endTs =
+          filters.dateRange.end instanceof Date
+            ? filters.dateRange.end.getTime()
+            : new Date(filters.dateRange.end).getTime();
+        conditions.push(`\`startTime\` <= ${endTs}`);
       }
 
       // Handle attributes filtering (JSON field)
@@ -372,8 +376,8 @@ export class ObservabilityLance extends ObservabilityStorage {
 
       const rootSpans = await rootSpansQuery.toArray();
 
-      // Sort root spans by createdAt descending (newest first)
-      rootSpans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // Sort root spans by startTime descending (newest first)
+      rootSpans.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 
       if (rootSpans.length === 0) {
         return {
@@ -385,21 +389,9 @@ export class ObservabilityLance extends ObservabilityStorage {
         };
       }
 
-      // Get all traceIds from the root spans
-      const traceIds = rootSpans.map(span => span.traceId);
-
-      // Fetch all child spans for these traceIds
-      // Since LanceDB doesn't support IN clause with placeholders, we'll build the query dynamically
-      const traceIdConditions = traceIds.map(traceId => `\`traceId\` = '${traceId}'`).join(' OR ');
-      const childSpansQuery = table.query().where(`(${traceIdConditions}) AND \`parentSpanId\` IS NOT NULL`);
-      const childSpans = await childSpansQuery.toArray();
-
-      // Combine root spans and child spans
-      const allSpans = [...rootSpans, ...childSpans];
-
-      // Process all spans with proper type conversion
+      // Process root spans with proper type conversion (no child spans)
       const schema = await getTableSchema({ tableName: TABLE_AI_SPAN, client: this.lanceClient });
-      const processedSpans = allSpans.map(span => processResultWithTypeConversion(span, schema)) as Record<
+      const processedSpans = rootSpans.map(span => processResultWithTypeConversion(span, schema)) as Record<
         string,
         any
       >[];

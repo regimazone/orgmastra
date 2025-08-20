@@ -326,7 +326,6 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
 
       const allSpans: Record<string, any>[] = [];
       const rootSpans: Record<string, any>[] = [];
-      const childSpans: Record<string, any>[] = [];
 
       // First pass: collect all spans and separate root from child spans
       for (const { name: key } of keyObjs) {
@@ -337,9 +336,6 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
           if (data.parentSpanId === null || data.parentSpanId === undefined) {
             // This is a root span
             rootSpans.push(data);
-          } else {
-            // This is a child span
-            childSpans.push(data);
           }
 
           allSpans.push(data);
@@ -348,64 +344,75 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
         }
       }
 
+      // Pre-compute date range filtering values using startTime (ms)
+      const rangeStartTs = filters?.dateRange?.start
+        ? filters.dateRange.start instanceof Date
+          ? filters.dateRange.start.getTime()
+          : new Date(filters.dateRange.start).getTime()
+        : undefined;
+      const rangeEndTs = filters?.dateRange?.end
+        ? filters.dateRange.end instanceof Date
+          ? filters.dateRange.end.getTime()
+          : new Date(filters.dateRange.end).getTime()
+        : undefined;
+
       // Apply filters to root spans only
-      let filteredRootSpans = rootSpans;
+      let filteredRootSpans = rootSpans.filter(span => {
+        // Name filtering (exact match)
+        if (filters?.name && span.name !== filters.name) {
+          return false;
+        }
 
-      if (filters) {
-        filteredRootSpans = rootSpans.filter(span => {
-          // Name filtering (exact match)
-          if (filters.name && span.name !== filters.name) {
-            return false;
-          }
-
-          // Scope filtering
-          if (filters.scope) {
-            const spanScope = span.scope || {};
-            for (const [key, value] of Object.entries(filters.scope)) {
-              if (spanScope[key] !== value) {
-                return false;
-              }
+        // Scope filtering (if provided)
+        if (filters?.scope) {
+          const spanScope = span.scope || {};
+          for (const [key, value] of Object.entries(filters.scope)) {
+            if (spanScope[key] !== value) {
+              return false;
             }
           }
+        }
 
-          // Attributes filtering
-          if (filters.attributes) {
-            const spanAttributes = span.attributes || {};
-            for (const [key, value] of Object.entries(filters.attributes)) {
-              if (spanAttributes[key] !== value) {
-                return false;
-              }
+        // Attributes filtering
+        if (filters?.attributes) {
+          const spanAttributes = span.attributes || {};
+          for (const [key, value] of Object.entries(filters.attributes)) {
+            if (spanAttributes[key] !== value) {
+              return false;
             }
           }
+        }
 
-          // Error filtering
-          if (filters.error) {
-            const spanError = span.error || {};
-            for (const [key, value] of Object.entries(filters.error)) {
-              if (spanError[key] !== value) {
-                return false;
-              }
+        // Error filtering
+        if (filters?.error) {
+          const spanError = span.error || {};
+          for (const [key, value] of Object.entries(filters.error)) {
+            if (spanError[key] !== value) {
+              return false;
             }
           }
+        }
 
-          // SpanType filtering
-          if (filters.spanType !== undefined && span.spanType !== filters.spanType) {
-            return false;
-          }
+        // SpanType filtering
+        if (filters?.spanType !== undefined && span.spanType !== filters.spanType) {
+          return false;
+        }
 
-          // TraceId filtering
-          if (filters.traceId && span.traceId !== filters.traceId) {
-            return false;
-          }
+        // Date range filtering using startTime
+        if (rangeStartTs !== undefined && (typeof span.startTime !== 'number' || span.startTime < rangeStartTs)) {
+          return false;
+        }
+        if (rangeEndTs !== undefined && (typeof span.startTime !== 'number' || span.startTime > rangeEndTs)) {
+          return false;
+        }
 
-          return true;
-        });
-      }
+        return true;
+      });
 
-      // Sort root spans by timestamp descending
+      // Sort root spans by startTime descending (newest first)
       filteredRootSpans.sort((a, b) => {
-        const aTime = new Date(a.createdAt || 0).getTime();
-        const bTime = new Date(b.createdAt || 0).getTime();
+        const aTime = typeof a.startTime === 'number' ? a.startTime : 0;
+        const bTime = typeof b.startTime === 'number' ? b.startTime : 0;
         return bTime - aTime;
       });
 
@@ -415,15 +422,9 @@ export class ObservabilityStorageCloudflare extends ObservabilityStorage {
       const end = start + perPage;
       const pagedRootSpans = filteredRootSpans.slice(start, end);
 
-      // Get all child spans that share the same traceId as the paginated root spans
-      const rootTraceIds = new Set(pagedRootSpans.map(span => span.traceId));
-      const relevantChildSpans = childSpans.filter(span => rootTraceIds.has(span.traceId));
-
-      // Combine paginated root spans with their children
-      const resultSpans = [...pagedRootSpans, ...relevantChildSpans];
-
+      // Return only root spans (no child spans)
       return {
-        spans: resultSpans,
+        spans: pagedRootSpans,
         total, // Total count of root spans (not including children)
         page,
         perPage,

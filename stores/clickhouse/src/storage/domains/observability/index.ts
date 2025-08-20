@@ -459,24 +459,28 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         queryArgs.var_name = filters.name;
       }
 
-      if (filters?.traceId) {
-        conditions.push(`traceId = {var_traceId:String}`);
-        queryArgs.var_traceId = filters.traceId;
-      }
-
       if (filters?.spanType !== undefined) {
         conditions.push(`spanType = {var_spanType:Int32}`);
         queryArgs.var_spanType = filters.spanType;
       }
 
+      // Date range filtering based on startTime (milliseconds since epoch)
       if (filters?.dateRange?.start) {
-        conditions.push(`createdAt >= parseDateTime64BestEffort({var_from_date:String})`);
-        queryArgs.var_from_date = filters.dateRange.start.toISOString();
+        const startTs =
+          filters.dateRange.start instanceof Date
+            ? filters.dateRange.start.getTime()
+            : new Date(filters.dateRange.start as any).getTime();
+        conditions.push(`startTime >= {var_from_time:Int64}`);
+        queryArgs.var_from_time = startTs;
       }
 
       if (filters?.dateRange?.end) {
-        conditions.push(`createdAt <= parseDateTime64BestEffort({var_to_date:String})`);
-        queryArgs.var_to_date = filters.dateRange.end.toISOString();
+        const endTs =
+          filters.dateRange.end instanceof Date
+            ? filters.dateRange.end.getTime()
+            : new Date(filters.dateRange.end as any).getTime();
+        conditions.push(`startTime <= {var_to_time:Int64}`);
+        queryArgs.var_to_time = endTs;
       }
 
       // Handle attributes filtering (JSON field)
@@ -524,9 +528,8 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
         total = Number((countData.data?.[0] as any)?.count ?? 0);
       }
 
-      // Fetch root spans with pagination
       const rootSpansResult = await this.client.query({
-        query: `SELECT *, toDateTime64(createdAt, 3) as createdAt, toDateTime64(updatedAt, 3) as updatedAt FROM ${TABLE_AI_SPAN} WHERE ${whereClause} ORDER BY createdAt DESC LIMIT {var_limit:UInt32} OFFSET {var_offset:UInt32}`,
+        query: `SELECT *, toDateTime64(createdAt, 3) as createdAt, toDateTime64(updatedAt, 3) as updatedAt FROM ${TABLE_AI_SPAN} WHERE ${whereClause} ORDER BY startTime DESC LIMIT {var_limit:UInt32} OFFSET {var_offset:UInt32}`,
         query_params: { ...queryArgs, var_limit: perPage, var_offset: offset },
         clickhouse_settings: {
           date_time_input_format: 'best_effort',
@@ -539,40 +542,8 @@ export class ObservabilityClickhouse extends ObservabilityStorage {
       const rootSpansData = await rootSpansResult.json();
       const rootSpans = rootSpansData.data || [];
 
-      if (rootSpans.length === 0) {
-        return {
-          spans: [],
-          total,
-          page,
-          perPage,
-          hasMore: total > (page + 1) * perPage,
-        };
-      }
-
-      // Get all traceIds from the root spans
-      const traceIds = rootSpans.map((span: any) => span.traceId);
-
-      // Fetch all child spans for these traceIds
-      // Since ClickHouse doesn't support IN clause with placeholders, we'll build the query dynamically
-      const traceIdConditions = traceIds.map((traceId: string) => `traceId = '${traceId}'`).join(' OR ');
-      const childSpansResult = await this.client.query({
-        query: `SELECT * FROM ${TABLE_AI_SPAN} WHERE (${traceIdConditions}) AND (parentSpanId IS NOT NULL AND parentSpanId != '')`,
-        clickhouse_settings: {
-          date_time_input_format: 'best_effort',
-          date_time_output_format: 'iso',
-          use_client_time_zone: 1,
-          output_format_json_quote_64bit_integers: 0,
-        },
-      });
-
-      const childSpansData = await childSpansResult.json();
-      const childSpans = childSpansData.data || [];
-
-      // Combine root spans and child spans
-      const allSpans = [...rootSpans, ...childSpans];
-
-      // Process all spans with proper JSON field parsing
-      const processedSpans = allSpans.map(this.parseJsonFields);
+      // Process root spans with proper JSON field parsing
+      const processedSpans = rootSpans.map(this.parseJsonFields);
 
       return {
         spans: processedSpans as Record<string, any>[],

@@ -266,11 +266,32 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
         return item.parentSpanId === 'ROOT';
       });
 
-      // Sort by createdAt in descending order (newest first) to ensure consistent ordering
+      // Apply date range filtering on startTime if provided
+      if (filters?.dateRange?.start) {
+        const startTs =
+          filters.dateRange.start instanceof Date
+            ? filters.dateRange.start.getTime()
+            : new Date(filters.dateRange.start).getTime();
+        filteredData = filteredData.filter((item: Record<string, any>) => {
+          return item.startTime >= startTs;
+        });
+      }
+
+      if (filters?.dateRange?.end) {
+        const endTs =
+          filters.dateRange.end instanceof Date
+            ? filters.dateRange.end.getTime()
+            : new Date(filters.dateRange.end).getTime();
+        filteredData = filteredData.filter((item: Record<string, any>) => {
+          return item.startTime <= endTs;
+        });
+      }
+
+      // Sort by startTime in descending order (newest first) to ensure consistent ordering
       filteredData.sort((a: Record<string, any>, b: Record<string, any>) => {
-        const dateA = new Date(a.createdAt || 0);
-        const dateB = new Date(b.createdAt || 0);
-        return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+        const timeA = a.startTime || 0;
+        const timeB = b.startTime || 0;
+        return timeB - timeA; // Descending order (newest first)
       });
 
       // Apply pagination
@@ -279,32 +300,11 @@ export class ObservabilityDynamoDB extends ObservabilityStorage {
       const end = start + perPage;
       const paginatedData = filteredData.slice(start, end);
 
-      // Transform the paginated parent spans
+      // Transform the paginated parent spans only (no child spans)
       const parentSpans = paginatedData.map((item: Record<string, any>) => this.transformRowToAISpan(item));
 
-      // Get all child spans for the found parent spans
-      let allSpans = [...parentSpans];
-      if (parentSpans.length > 0) {
-        const traceIds = parentSpans.map((span: Record<string, any>) => span.traceId);
-
-        // Query for child spans using byTraceId index
-        const childSpans: Record<string, any>[] = [];
-        for (const traceId of traceIds) {
-          const childResult = await this.service.entities.ai_span.query.byTraceId({ entity: 'ai-span', traceId }).go();
-
-          // Filter for child spans after the query
-          const childSpansForTrace = childResult.data
-            .filter((row: Record<string, any>) => row.parentSpanId !== 'ROOT')
-            .map((row: Record<string, any>) => this.transformRowToAISpan(row));
-
-          childSpans.push(...childSpansForTrace);
-        }
-
-        allSpans = [...parentSpans, ...childSpans];
-      }
-
       return {
-        spans: allSpans,
+        spans: parentSpans,
         total,
         page,
         perPage,

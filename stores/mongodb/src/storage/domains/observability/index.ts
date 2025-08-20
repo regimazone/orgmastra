@@ -114,7 +114,7 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
    * - name: string (regex search with case-insensitive)
    * - attributes: object (JSON field filtering)
    * - error: object (JSON field filtering)
-   * - createdAt: Date (>= comparison) or string (exact match)
+   * - dateRange: object with start/end dates for startTime filtering
    * - traceId: string (exact match)
    * - spanType: number (exact match)
    */
@@ -154,18 +154,27 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
       });
     }
 
-    // CreatedAt filtering
-    if (filters.createdAt !== undefined) {
-      if (filters.createdAt instanceof Date) {
-        query.createdAt = { $gte: filters.createdAt };
-      } else {
-        query.createdAt = filters.createdAt;
-      }
+    // Date range filtering using startTime (milliseconds since epoch)
+    if (filters.dateRange?.start) {
+      const startTs =
+        filters.dateRange.start instanceof Date
+          ? filters.dateRange.start.getTime()
+          : new Date(filters.dateRange.start).getTime();
+      query.startTime = { $gte: startTs };
     }
 
-    // TraceId filtering
-    if (filters.traceId !== undefined) {
-      query.traceId = filters.traceId;
+    if (filters.dateRange?.end) {
+      const endTs =
+        filters.dateRange.end instanceof Date
+          ? filters.dateRange.end.getTime()
+          : new Date(filters.dateRange.end).getTime();
+      if (query.startTime) {
+        // If we already have a startTime filter, extend it
+        query.startTime.$lte = endTs;
+      } else {
+        // Otherwise create a new startTime filter
+        query.startTime = { $lte: endTs };
+      }
     }
 
     // SpanType filtering
@@ -229,10 +238,10 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
         };
       }
 
-      // Get paginated parent spans
+      // Get paginated parent spans only (no child spans)
       const parentResult = await collection
         .find(countQuery, {
-          sort: { createdAt: -1 },
+          sort: { startTime: -1 }, // Sort by startTime descending (newest first)
         })
         .limit(perPage)
         .skip(currentOffset)
@@ -240,24 +249,9 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
 
       const parentSpans = parentResult.map(row => this.transformRowToAISpan(row));
 
-      // Get all child spans for the found parent spans
-      let allSpans = [...parentSpans];
-      if (parentSpans.length > 0) {
-        const traceIds = parentSpans.map(span => span.traceId);
-
-        const childResult = await collection
-          .find({
-            traceId: { $in: traceIds },
-            parentSpanId: { $ne: null },
-          })
-          .toArray();
-
-        const childSpans = childResult.map(row => this.transformRowToAISpan(row));
-        allSpans = [...parentSpans, ...childSpans];
-      }
-
+      // Return only root spans (no child spans)
       return {
-        spans: allSpans,
+        spans: parentSpans,
         total,
         page,
         perPage,

@@ -4,7 +4,7 @@ import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/co
 import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
 import type { Redis } from '@upstash/redis';
 import type { StoreOperationsUpstash } from '../operations';
-import { ensureDate, parseJSON } from '../utils';
+import { parseJSON } from '../utils';
 
 export class ObservabilityUpstash extends ObservabilityStorage {
   private client: Redis;
@@ -116,7 +116,7 @@ export class ObservabilityUpstash extends ObservabilityStorage {
    * - name: string (startsWith search)
    * - attributes: object (JSON field filtering)
    * - error: object (JSON field filtering)
-   * - createdAt: Date (>= comparison) or string (exact match)
+   * - dateRange: object with start/end dates for startTime filtering
    * - traceId: string (exact match)
    * - spanType: number (exact match)
    */
@@ -189,17 +189,24 @@ export class ObservabilityUpstash extends ObservabilityStorage {
         }
       }
 
-      // CreatedAt filtering
-      if (filters.createdAt !== undefined) {
-        const spanCreatedAt = ensureDate(span.createdAt);
-        if (filters.createdAt instanceof Date) {
-          if (spanCreatedAt! < filters.createdAt) {
-            return false;
-          }
-        } else {
-          if (spanCreatedAt !== filters.createdAt) {
-            return false;
-          }
+      // Date range filtering using startTime (milliseconds since epoch)
+      if (filters.dateRange?.start) {
+        const startTs =
+          filters.dateRange.start instanceof Date
+            ? filters.dateRange.start.getTime()
+            : new Date(filters.dateRange.start).getTime();
+        if ((span.startTime || 0) < startTs) {
+          return false;
+        }
+      }
+
+      if (filters.dateRange?.end) {
+        const endTs =
+          filters.dateRange.end instanceof Date
+            ? filters.dateRange.end.getTime()
+            : new Date(filters.dateRange.end).getTime();
+        if ((span.startTime || 0) > endTs) {
+          return false;
         }
       }
 
@@ -281,17 +288,16 @@ export class ObservabilityUpstash extends ObservabilityStorage {
 
       // Separate parent and child spans
       const parentSpans = allSpans.filter(span => !span.parentSpanId);
-      const childSpans = allSpans.filter(span => span.parentSpanId);
 
       // Apply filters to parent spans only (for pagination)
       const filterFunction = this.buildFilterConditions(filters);
       const filteredParentSpans = parentSpans.filter(filterFunction);
 
-      // Sort parent spans by creation time (newest first)
+      // Sort parent spans by startTime (newest first)
       filteredParentSpans.sort((a, b) => {
-        const dateA = ensureDate(a.createdAt);
-        const dateB = ensureDate(b.createdAt);
-        return dateB!.getTime() - dateA!.getTime();
+        const timeA = a.startTime || 0;
+        const timeB = b.startTime || 0;
+        return timeB - timeA; // Descending order (newest first)
       });
 
       // Apply pagination to parent spans
@@ -300,16 +306,9 @@ export class ObservabilityUpstash extends ObservabilityStorage {
       const end = start + perPage;
       const paginatedParentSpans = filteredParentSpans.slice(start, end);
 
-      // Get all child spans for the paginated parent spans
-      let allResultSpans = [...paginatedParentSpans];
-      if (paginatedParentSpans.length > 0) {
-        const traceIds = paginatedParentSpans.map(span => span.traceId);
-        const relatedChildSpans = childSpans.filter(span => traceIds.includes(span.traceId));
-        allResultSpans = [...paginatedParentSpans, ...relatedChildSpans];
-      }
-
+      // Return only root spans (no child spans)
       return {
-        spans: allResultSpans,
+        spans: paginatedParentSpans,
         total,
         page,
         perPage,
