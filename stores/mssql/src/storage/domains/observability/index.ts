@@ -21,7 +21,7 @@ export class ObservabilityMSSQL extends ObservabilityStorage {
     throw new Error('Method not implemented.');
   }
 
-  getAiTrace(traceId: string): Promise<AITrace | null> {
+  getAiTrace(_traceId: string): Promise<AITrace | null> {
     throw new Error('Method not implemented.');
   }
 
