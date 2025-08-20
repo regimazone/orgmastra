@@ -497,7 +497,6 @@ export function convertMastraChunkToAISDKv5({
         type: 'error',
         error: chunk.payload.error,
       };
-
     default:
       if (chunk.type && chunk.payload) {
         return {

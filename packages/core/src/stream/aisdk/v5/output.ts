@@ -337,7 +337,6 @@ export class AISDKV5OutputStream {
       tripwire: this.#modelOutput.tripwire,
       tripwireReason: this.#modelOutput.tripwireReason,
       ...(object ? { object } : {}),
-      // experimental_output: // TODO
     };
 
     fullOutput.response.messages = this.#modelOutput.messageList.get.response.aiV5.model();
