@@ -111,7 +111,7 @@ describe('Memory Streaming Tests', () => {
       },
     });
 
-    await agent.generate_vnext('Hello, world!', {
+    await agent.generateVNext('Hello, world!', {
       threadId,
       resourceId,
     });
@@ -250,11 +250,11 @@ describe('Memory Streaming Tests', () => {
       let error: Error | null = null;
       const threadId = randomUUID();
 
-      await weatherAgent.generate_vnext(`hi`, {
+      await weatherAgent.generateVNext(`hi`, {
         threadId,
         resourceId,
       });
-      await weatherAgent.generate_vnext(`LA weather`, { threadId, resourceId });
+      await weatherAgent.generateVNext(`LA weather`, { threadId, resourceId });
 
       const agentMemory = (await weatherAgent.getMemory())!;
       const initialMessages = (await agentMemory.query({ threadId })).uiMessages;

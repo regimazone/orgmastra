@@ -217,7 +217,7 @@ export function MastraRuntimeProvider({
 
     try {
       if (chatWithGenerateVNext) {
-        const generateResponse = await agent.generate_vnext({
+        const generateResponse = await agent.generateVNext({
           messages: [
             {
               role: 'user',

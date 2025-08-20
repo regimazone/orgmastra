@@ -114,7 +114,19 @@ export class TitleExtractor extends BaseExtractor {
 
       let title = '';
 
-      if (this.llm.specificationVersion === 'v1') {
+      if (this.llm.specificationVersion === 'v2') {
+        const miniAgent = new Agent({
+          model: this.llm,
+          name: 'title-extractor',
+          instructions:
+            'You are a title extractor. You are given a list of nodes and you need to extract the title from the nodes.',
+        });
+        const result = await miniAgent.generateVNext(
+          [{ role: 'user', content: this.combineTemplate.format({ context: combinedTitles }) }],
+          { format: 'mastra' },
+        );
+        title = result.text;
+      } else {
         const miniAgent = new Agent({
           model: this.llm,
           name: 'title-extractor',
@@ -124,18 +136,6 @@ export class TitleExtractor extends BaseExtractor {
         const result = await miniAgent.generate([
           { role: 'user', content: this.combineTemplate.format({ context: combinedTitles }) },
         ]);
-        title = result.text;
-      } else {
-        const miniAgent = new Agent({
-          model: this.llm,
-          name: 'title-extractor',
-          instructions:
-            'You are a title extractor. You are given a list of nodes and you need to extract the title from the nodes.',
-        });
-        const result = await miniAgent.generate_vnext(
-          [{ role: 'user', content: this.combineTemplate.format({ context: combinedTitles }) }],
-          { format: 'mastra' },
-        );
         title = result.text;
       }
 
@@ -159,16 +159,16 @@ export class TitleExtractor extends BaseExtractor {
 
     const titleJobs = nodes.map(async node => {
       let completion: string;
-      if (this.llm.specificationVersion === 'v1') {
-        const result = await miniAgent.generate([
-          { role: 'user', content: this.nodeTemplate.format({ context: node.getContent() }) },
-        ]);
-        completion = result.text;
-      } else {
-        const result = await miniAgent.generate_vnext(
+      if (this.llm.specificationVersion === 'v2') {
+        const result = await miniAgent.generateVNext(
           [{ role: 'user', content: this.nodeTemplate.format({ context: node.getContent() }) }],
           { format: 'mastra' },
         );
+        completion = result.text;
+      } else {
+        const result = await miniAgent.generate([
+          { role: 'user', content: this.nodeTemplate.format({ context: node.getContent() }) },
+        ]);
         completion = result.text;
       }
 

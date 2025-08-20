@@ -284,7 +284,7 @@ describe('Memory with Processors', () => {
 
     const userMessage = 'Tell me something interesting about space';
 
-    const res = await agent.generate_vnext(
+    const res = await agent.generateVNext(
       [
         {
           role: 'user',
@@ -310,7 +310,7 @@ describe('Memory with Processors', () => {
 
     const userMessage2 = 'Tell me something else interesting about space';
 
-    const res2 = await agent.generate_vnext(
+    const res2 = await agent.generateVNext(
       [
         {
           role: 'user',
@@ -397,17 +397,17 @@ describe('Memory with Processors', () => {
     });
 
     // First message - use weather tool
-    await agent.generate_vnext('What is the weather in Seattle?', {
+    await agent.generateVNext('What is the weather in Seattle?', {
       threadId,
       resourceId,
     });
     // Second message - use calculator tool
-    await agent.generate_vnext('Calculate 123 * 456', {
+    await agent.generateVNext('Calculate 123 * 456', {
       threadId,
       resourceId,
     });
     // Third message - simple text response
-    await agent.generate_vnext('Tell me something interesting about space', {
+    await agent.generateVNext('Tell me something interesting about space', {
       threadId,
       resourceId,
     });

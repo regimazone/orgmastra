@@ -169,7 +169,7 @@ describe('Agent Memory Tests', () => {
       const resourceId = 'all-user-messages';
 
       // Send multiple user messages
-      await agent.generate_vnext(
+      await agent.generateVNext(
         [
           { role: 'user', content: 'First message' },
           { role: 'user', content: 'Second message' },
@@ -194,13 +194,13 @@ describe('Agent Memory Tests', () => {
       const threadId = randomUUID();
       const resourceId = 'assistant-responses';
       // 1. Text mode
-      await agent.generate_vnext([{ role: 'user', content: 'What is 2+2?' }], {
+      await agent.generateVNext([{ role: 'user', content: 'What is 2+2?' }], {
         threadId,
         resourceId,
       });
 
       // 2. Object/output mode
-      await agent.generate_vnext([{ role: 'user', content: 'Give me JSON' }], {
+      await agent.generateVNext([{ role: 'user', content: 'Give me JSON' }], {
         threadId,
         resourceId,
         output: z.object({
@@ -241,7 +241,7 @@ describe('Agent Memory Tests', () => {
       const contextMessageContent2 = 'This is the second context message.';
 
       // Send user messages and context messages
-      await agent.generate_vnext(userMessageContent, {
+      await agent.generateVNext(userMessageContent, {
         threadId,
         resourceId,
         context: [
@@ -297,7 +297,7 @@ describe('Agent Memory Tests', () => {
       ];
 
       // Send messages with metadata
-      await agent.generate_vnext(messagesWithMetadata, {
+      await agent.generateVNext(messagesWithMetadata, {
         threadId,
         resourceId,
       });
@@ -407,8 +407,8 @@ describe('Agent Memory Tests', () => {
       expect(thread).toBeDefined();
       expect(thread?.metadata).toMatchObject(metadata);
 
-      await agentWithTitle.generate_vnext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
-      await agentWithTitle.generate_vnext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
+      await agentWithTitle.generateVNext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
+      await agentWithTitle.generateVNext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
 
       const existingThread = await memoryWithTitle.getThreadById({ threadId });
       expect(existingThread).toBeDefined();
@@ -431,7 +431,7 @@ describe('Agent Memory Tests', () => {
 
       const runtimeContext = new RuntimeContext();
       runtimeContext.set('model', 'gpt-4o-mini');
-      await agentWithDynamicModelTitle.generate_vnext([{ role: 'user', content: 'Hello, world!' }], {
+      await agentWithDynamicModelTitle.generateVNext([{ role: 'user', content: 'Hello, world!' }], {
         threadId,
         resourceId,
         runtimeContext,
@@ -456,8 +456,8 @@ describe('Agent Memory Tests', () => {
       expect(thread).toBeDefined();
       expect(thread?.metadata).toMatchObject(metadata);
 
-      await agentNoTitle.generate_vnext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
-      await agentNoTitle.generate_vnext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
+      await agentNoTitle.generateVNext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
+      await agentNoTitle.generateVNext([{ role: 'user', content: 'Hello, world!' }], { threadId, resourceId });
 
       const existingThread = await memoryNoTitle.getThreadById({ threadId });
       expect(existingThread).toBeDefined();
@@ -472,7 +472,7 @@ describe('Agent with message processors', () => {
     const resourceId = 'processor-filter-tool-message';
 
     // First, ask a question that will trigger a tool call
-    const firstResponse = await memoryProcessorAgent.generate_vnext('What is the weather in London?', {
+    const firstResponse = await memoryProcessorAgent.generateVNext('What is the weather in London?', {
       threadId,
       resourceId,
     });
@@ -491,7 +491,7 @@ describe('Agent with message processors', () => {
 
     // Now, ask a follow-up question. The processor should prevent the tool call history
     // from being sent to the model.
-    const secondResponse = await memoryProcessorAgent.generate_vnext('What was the tool you just used?', {
+    const secondResponse = await memoryProcessorAgent.generateVNext('What was the tool you just used?', {
       memory: {
         thread: threadId,
         resource: resourceId,
@@ -517,7 +517,7 @@ describe('Agent.fetchMemory', () => {
     const threadId = randomUUID();
     const resourceId = 'fetch-memory-test';
 
-    const response = await weatherAgent.generate_vnext('Just a simple greeting to populate memory.', {
+    const response = await weatherAgent.generateVNext('Just a simple greeting to populate memory.', {
       threadId,
       resourceId,
     });
@@ -544,7 +544,7 @@ describe('Agent.fetchMemory', () => {
     const threadId = randomUUID();
     const resourceId = 'fetch-memory-processor-test';
 
-    await memoryProcessorAgent.generate_vnext('What is the weather in London?', { threadId, resourceId });
+    await memoryProcessorAgent.generateVNext('What is the weather in London?', { threadId, resourceId });
 
     const { messages } = await memoryProcessorAgent.fetchMemory({ threadId, resourceId });
 
@@ -598,7 +598,7 @@ describe('Agent memory test gemini', () => {
 
   it('should not throw error when using gemini', async () => {
     // generate two messages in the db
-    await agent.generate_vnext(`What's the weather in Tokyo?`, {
+    await agent.generateVNext(`What's the weather in Tokyo?`, {
       memory: { resource, thread },
     });
 
@@ -607,7 +607,7 @@ describe('Agent memory test gemini', () => {
     // Will throw if the messages sent to the agent aren't cleaned up because a tool call message will be the first message sent to the agent
     // Which some providers like gemini will not allow.
     await expect(
-      agent.generate_vnext(`What's the weather in London?`, {
+      agent.generateVNext(`What's the weather in London?`, {
         memory: { resource, thread },
       }),
     ).resolves.not.toThrow();

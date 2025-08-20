@@ -308,7 +308,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         response = await agentOne.generate('Who won the 2016 US presidential election?');
       } else {
-        response = await agentOne.generate_vnext('Who won the 2016 US presidential election?');
+        response = await agentOne.generateVNext('Who won the 2016 US presidential election?');
       }
 
       const { text, toolCalls } = response;
@@ -373,7 +373,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           }),
         });
       } else {
-        response = await agentOne.generate_vnext('Who won the 2012 US presidential election?', {
+        response = await agentOne.generateVNext('Who won the 2012 US presidential election?', {
           output: z.object({
             winner: z.string(),
           }),
@@ -409,7 +409,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           ),
         });
       } else {
-        response = await agentOne.generate_vnext('Give me the winners of 2012 and 2016 US presidential elections', {
+        response = await agentOne.generateVNext('Give me the winners of 2012 and 2016 US presidential elections', {
           output: z.array(
             z.object({
               winner: z.string(),
@@ -518,7 +518,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         });
         toolCall = response.toolResults.find((result: any) => result.toolName === 'findUserTool');
       } else {
-        response = await agentOne.generate_vnext('Find the user with name - Dero Israel');
+        response = await agentOne.generateVNext('Find the user with name - Dero Israel');
         toolCall = response.toolResults.find((result: any) => result.payload.toolName === 'findUserTool').payload;
       }
 
@@ -550,7 +550,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        result = await userAgent.generate_vnext('Make it green', {
+        result = await userAgent.generateVNext('Make it green', {
           clientTools: {
             changeColor: {
               id: 'changeColor',
@@ -648,7 +648,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         );
         toolCall = res.steps[0].toolResults.find((result: any) => result.toolName === 'findUserTool');
       } else {
-        res = await agentOne.generate_vnext(
+        res = await agentOne.generateVNext(
           'Use the "findUserTool" to Find the user with name - Joe and return the name and email',
         );
         toolCall = res.toolResults.find((result: any) => result.payload.toolName === 'findUserTool').payload;
@@ -678,7 +678,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           toolChoice: 'required',
         });
       } else {
-        response = await agent.generate_vnext('Call testTool 10 times.', {
+        response = await agent.generateVNext('Call testTool 10 times.', {
           toolChoice: 'required',
           stopWhen: stepCountIs(7),
         });
@@ -713,7 +713,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         });
         toolCall = response.toolResults.find((result: any) => result.toolName === 'testTool');
       } else {
-        response = await agentOne.generate_vnext('Call testTool');
+        response = await agentOne.generateVNext('Call testTool');
         toolCall = response.toolResults.find((result: any) => result.payload.toolName === 'testTool').payload;
       }
 
@@ -882,7 +882,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('What is the weather like today?', {
+        await agent.generateVNext('What is the weather like today?', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1073,7 +1073,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext,
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1105,7 +1105,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext: standardContext,
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-2',
             thread: {
@@ -1255,7 +1255,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         await agent.generate('Test message');
       } else {
-        await agent.generate_vnext('Test message');
+        await agent.generateVNext('Test message');
       }
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -1267,7 +1267,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         await agent.generate('Test message');
       } else {
-        await agent.generate_vnext('Test message');
+        await agent.generateVNext('Test message');
       }
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -1436,7 +1436,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1472,7 +1472,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-2',
             thread: {
@@ -1552,7 +1552,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1729,7 +1729,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1935,7 +1935,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext: japaneseContext,
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -1969,7 +1969,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext: englishContext,
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-2',
             thread: {
@@ -2108,7 +2108,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('What is the weather like today?', {
+        await agent.generateVNext('What is the weather like today?', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -2249,7 +2249,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -2378,7 +2378,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -2598,7 +2598,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -2638,7 +2638,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('Test message', {
+        await agent.generateVNext('Test message', {
           memory: {
             resource: 'user-2',
             thread: {
@@ -3004,7 +3004,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         });
         toolCall = response.toolResults.find(result => result.toolName === 'testTool');
       } else {
-        response = await testAgent.generate_vnext('Use the runtimeContext-test-tool with query "test"', {
+        response = await testAgent.generateVNext('Use the runtimeContext-test-tool with query "test"', {
           toolChoice: 'required',
           runtimeContext: testRuntimeContext,
         });
@@ -3160,7 +3160,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('hello', {
+        await agent.generateVNext('hello', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -3208,7 +3208,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('hello', {
+        await agent.generateVNext('hello', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -3255,7 +3255,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext('hello', {
+        await agent.generateVNext('hello', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -3324,7 +3324,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           threadId: 'thread-1',
         });
       } else {
-        await agent.generate_vnext('hello', {
+        await agent.generateVNext('hello', {
           resourceId: 'user-1',
           threadId: 'thread-1',
         });
@@ -3440,7 +3440,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         response = await agent.generate('hello', { runtimeContext });
       } else {
-        response = await agent.generate_vnext('hello', { runtimeContext });
+        response = await agent.generateVNext('hello', { runtimeContext });
       }
 
       expect(response.text).toBe('Logger test response');
@@ -3461,7 +3461,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         response = await agent.generate('hello');
       } else {
-        response = await agent.generate_vnext('hello');
+        response = await agent.generateVNext('hello');
       }
 
       expect(response.text).toBe('Logger test response');
@@ -3484,7 +3484,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       if (version === 'v1') {
         response = await agent.generate('hello');
       } else {
-        response = await agent.generate_vnext('hello');
+        response = await agent.generateVNext('hello');
       }
 
       expect(response.text).toBe('Logger test response');
@@ -3706,7 +3706,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
               },
             });
           } else {
-            await agent.generate_vnext(
+            await agent.generateVNext(
               'Please echo this and then use the error tool. Be verbose and take multiple steps.',
               {
                 threadId: 'thread-partial-rescue-generate',
@@ -3791,7 +3791,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             savePerStep: true,
           });
         } else {
-          await agent.generate_vnext('Echo: Please echo this long message and explain why.', {
+          await agent.generateVNext('Echo: Please echo this long message and explain why.', {
             threadId: 'thread-echo-generate',
             resourceId: 'resource-echo-generate',
             savePerStep: true,
@@ -3865,7 +3865,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           );
         } else {
-          await agent.generate_vnext(
+          await agent.generateVNext(
             'Echo: Please echo this message. Uppercase: please also uppercase this message. Explain both results.',
             {
               threadId: 'thread-multi-generate',
@@ -3907,7 +3907,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: 'resource-1-generate',
           });
         } else {
-          await agent.generate_vnext('repeat tool calls', {
+          await agent.generateVNext('repeat tool calls', {
             threadId: 'thread-1-generate',
             resourceId: 'resource-1-generate',
           });
@@ -3955,7 +3955,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: `resource-2-${version}-generate`,
           });
         } else {
-          await agent.generate_vnext('no progress', {
+          await agent.generateVNext('no progress', {
             threadId: `thread-2-${version}-generate`,
             resourceId: `resource-2-${version}-generate`,
           });
@@ -3998,7 +3998,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             resourceId: 'resource-3-generate',
           });
         } else {
-          await agent.generate_vnext('interrupt before step', {
+          await agent.generateVNext('interrupt before step', {
             threadId: 'thread-3-generate',
             resourceId: 'resource-3-generate',
           });
@@ -4058,7 +4058,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           });
         } else {
-          await agent.generate_vnext('trigger error', {
+          await agent.generateVNext('trigger error', {
             memory: {
               resource: 'user-err',
               thread: {
@@ -4783,7 +4783,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             }),
           ]);
         } else {
-          firstResponse = await agent.generate_vnext('What is the weather in London?', {
+          firstResponse = await agent.generateVNext('What is the weather in London?', {
             threadId,
             resourceId,
             onStepFinish: args => {
@@ -4822,7 +4822,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             },
           });
         } else {
-          secondResponse = await agent.generate_vnext('What was the tool you just used?', {
+          secondResponse = await agent.generateVNext('What was the tool you just used?', {
             memory: {
               thread: threadId,
               resource: resourceId,
@@ -4990,7 +4990,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           runtimeContext,
         });
       } else {
-        response = await agent.generate_vnext('test message', {
+        response = await agent.generateVNext('test message', {
           memory: {
             resource: 'user-1',
             thread: {
@@ -5248,7 +5248,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithProcessor.generate('Hello world');
         } else {
-          result = await agentWithProcessor.generate_vnext('Hello world');
+          result = await agentWithProcessor.generateVNext('Hello world');
         }
 
         // The processor should have added a message
@@ -5284,7 +5284,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithProcessors.generate('Hello');
         } else {
-          result = await agentWithProcessors.generate_vnext('Hello');
+          result = await agentWithProcessors.generateVNext('Hello');
         }
 
         expect(result.text).toContain('First processor');
@@ -5320,7 +5320,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithAsyncProcessors.generate('Test async');
         } else {
-          result = await agentWithAsyncProcessors.generate_vnext('Test async');
+          result = await agentWithAsyncProcessors.generateVNext('Test async');
         }
 
         // Processors run sequentially, so "First processor" should appear before "Second processor"
@@ -5350,7 +5350,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithAbortProcessor.generate('This should be aborted');
         } else {
-          result = await agentWithAbortProcessor.generate_vnext('This should be aborted');
+          result = await agentWithAbortProcessor.generateVNext('This should be aborted');
         }
 
         expect(result.tripwire).toBe(true);
@@ -5379,7 +5379,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithCustomAbort.generate('Custom abort test');
         } else {
-          result = await agentWithCustomAbort.generate_vnext('Custom abort test');
+          result = await agentWithCustomAbort.generateVNext('Custom abort test');
         }
 
         expect(result.tripwire).toBe(true);
@@ -5418,7 +5418,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithAbortSequence.generate('Abort sequence test');
         } else {
-          result = await agentWithAbortSequence.generate_vnext('Abort sequence test');
+          result = await agentWithAbortSequence.generateVNext('Abort sequence test');
         }
 
         expect(result.tripwire).toBe(true);
@@ -5569,7 +5569,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             runtimeContext,
           });
         } else {
-          result = await agentWithDynamicProcessors.generate_vnext('Test dynamic', {
+          result = await agentWithDynamicProcessors.generateVNext('Test dynamic', {
             runtimeContext,
           });
         }
@@ -5589,7 +5589,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithEmptyProcessors.generate('No processors test');
         } else {
-          result = await agentWithEmptyProcessors.generate_vnext('No processors test');
+          result = await agentWithEmptyProcessors.generateVNext('No processors test');
         }
 
         expect(result.text).toContain('processed:');
@@ -5624,7 +5624,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           result = await agentWithModifier.generate('Original user message');
         } else {
-          result = await agentWithModifier.generate_vnext('Original user message');
+          result = await agentWithModifier.generateVNext('Original user message');
         }
 
         expect(result.text).toContain('MODIFIED: Original message was received');
@@ -5668,7 +5668,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           validResult = await agentWithValidator.generate('This is appropriate content');
         } else {
-          validResult = await agentWithValidator.generate_vnext('This is appropriate content');
+          validResult = await agentWithValidator.generateVNext('This is appropriate content');
         }
         expect(validResult.text).toContain('Content validated');
 
@@ -5677,7 +5677,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         if (version === 'v1') {
           invalidResult = await agentWithValidator.generate('This contains inappropriate content');
         } else {
-          invalidResult = await agentWithValidator.generate_vnext('This contains inappropriate content');
+          invalidResult = await agentWithValidator.generateVNext('This contains inappropriate content');
         }
         expect(invalidResult.tripwire).toBe(true);
         expect(invalidResult.tripwireReason).toBe('Content validation failed');
@@ -5765,7 +5765,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext(messagesWithMetadata, {
+        await agent.generateVNext(messagesWithMetadata, {
           memory: {
             resource: 'customer-12345',
             thread: {
@@ -5927,7 +5927,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         });
       } else {
-        await agent.generate_vnext(mixedMessages, {
+        await agent.generateVNext(mixedMessages, {
           memory: {
             resource: 'mixed-user',
             thread: {

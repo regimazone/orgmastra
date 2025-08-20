@@ -74,7 +74,7 @@ export class StructuredOutputProcessor<S extends z.ZodTypeAny> implements Proces
               },
             );
           } else {
-            structuredResult = await this.structuringAgent.generate_vnext(
+            structuredResult = await this.structuringAgent.generateVNext(
               `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
               {
                 output: this.schema,

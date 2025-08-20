@@ -72,16 +72,8 @@ export class KeywordExtractor extends BaseExtractor {
           'You are a keyword extractor. You are given a node and you need to extract the keywords from the node.',
       });
 
-      if (this.llm.specificationVersion === 'v1') {
-        const result = await miniAgent.generate([
-          {
-            role: 'user',
-            content: this.promptTemplate.format({ context: node.getContent(), maxKeywords: this.keywords.toString() }),
-          },
-        ]);
-        keywords = result.text;
-      } else {
-        const result = await miniAgent.generate_vnext(
+      if (this.llm.specificationVersion === 'v2') {
+        const result = await miniAgent.generateVNext(
           [
             {
               role: 'user',
@@ -93,6 +85,14 @@ export class KeywordExtractor extends BaseExtractor {
           ],
           { format: 'mastra' },
         );
+        keywords = result.text;
+      } else {
+        const result = await miniAgent.generate([
+          {
+            role: 'user',
+            content: this.promptTemplate.format({ context: node.getContent(), maxKeywords: this.keywords.toString() }),
+          },
+        ]);
         keywords = result.text;
       }
 

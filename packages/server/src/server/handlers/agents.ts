@@ -324,12 +324,12 @@ export async function vnext_generateHandler({
 
     validateBody({ messages });
 
-    const result = await agent.generate_vnext(messages, {
+    const result = await agent.generateVNext(messages, {
       ...rest,
       runtimeContext: finalRuntimeContext,
       format: rest.format,
       abortSignal,
-    });
+    } as any);
 
     return result;
   } catch (error) {

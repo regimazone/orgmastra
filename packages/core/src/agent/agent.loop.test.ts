@@ -21,7 +21,7 @@ describe('Agent Loop Tests', () => {
     });
 
     await expect(agent.generate('test')).rejects.toThrow(
-      'V2 models are not supported for generate. Please use generate_vnext instead.',
+      'V2 models are not supported for generate. Please use generateVNext instead.',
     );
   });
 
@@ -33,14 +33,14 @@ describe('Agent Loop Tests', () => {
       model: openai('gpt-4o-mini'),
     });
 
-    let result = await agent.generate_vnext('test', {
+    let result = await agent.generateVNext('test', {
       runtimeContext: new RuntimeContext(),
       format: 'aisdk',
     });
 
     console.log(result);
 
-    result = await agent.generate_vnext('test', {
+    result = await agent.generateVNext('test', {
       runtimeContext: new RuntimeContext(),
       format: 'mastra',
     });
@@ -92,7 +92,7 @@ describe('Agent Loop Tests', () => {
       model: openai('gpt-4o-mini'),
     });
 
-    let result = await agent.generate_vnext(
+    let result = await agent.generateVNext(
       [
         {
           role: 'user',
@@ -107,7 +107,7 @@ describe('Agent Loop Tests', () => {
 
     console.log(result?.text);
 
-    result = await agent.generate_vnext(
+    result = await agent.generateVNext(
       [
         {
           role: 'user',
@@ -131,7 +131,7 @@ describe('Agent Loop Tests', () => {
       model: openai('gpt-4o-mini'),
     });
 
-    const result = await agent.generate_vnext('test', {
+    const result = await agent.generateVNext('test', {
       runtimeContext: new RuntimeContext(),
       format: 'aisdk',
       output: z.object({

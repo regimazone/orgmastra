@@ -29,8 +29,7 @@ import type {
   StreamTextResult,
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
-import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
-import type { TripwireProperties } from '../llm/model/shared.types';
+import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import type {} from '../loop/types';
 import type { Mastra } from '../mastra';
@@ -42,6 +41,7 @@ import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
+import type { MastraModelOutput } from '../stream/base/output';
 import { MastraAgentStream } from '../stream/MastraAgentStream';
 import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
@@ -62,7 +62,6 @@ import { SaveQueueManager } from './save-queue';
 import { TripWire } from './trip-wire';
 import type {
   AgentConfig,
-  MastraLanguageModel,
   AgentGenerateOptions,
   AgentStreamOptions,
   ToolsetsInput,
@@ -70,12 +69,16 @@ import type {
   AgentMemoryOption,
   AgentAISpanProperties,
 } from './types';
+import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 export type { ChunkType } from '../stream/types';
 export type { MastraAgentStream } from '../stream/MastraAgentStream';
 export * from './input-processor';
 export { TripWire };
 export { MessageList };
 export * from './types';
+
+export type MastraLLM = MastraLLMV1 | MastraLLMVNext;
+export type { MastraLanguageModel } from '../llm/model/shared.types';
 
 function resolveMaybePromise<T, R = void>(value: T | Promise<T>, cb: (value: T) => R) {
   if (value instanceof Promise) {
@@ -617,7 +620,7 @@ export class Agent<
   }: {
     runtimeContext?: RuntimeContext;
     model?: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
-  } = {}): MastraLLMV1 | MastraLLMVNext | Promise<MastraLLMV1 | MastraLLMVNext> {
+  } = {}): MastraLLM | Promise<MastraLLM> {
     // If model is provided, resolve it; otherwise use the agent's model
     const modelToUse = model
       ? typeof model === 'function'
@@ -626,11 +629,11 @@ export class Agent<
       : this.getModel({ runtimeContext });
 
     return resolveMaybePromise(modelToUse, resolvedModel => {
-      let llm: MastraLLMV1 | MastraLLMVNext;
-      if (resolvedModel.specificationVersion === 'v1') {
-        llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
-      } else {
+      let llm: MastraLLM;
+      if (resolvedModel.specificationVersion === 'v2') {
         llm = new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra });
+      } else {
+        llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
       }
 
       // Apply stored primitives if available
@@ -776,7 +779,23 @@ export class Agent<
 
     let text = '';
 
-    if (llm.getModel().specificationVersion === 'v1') {
+    if (llm.getModel().specificationVersion === 'v2') {
+      const result = (llm as MastraLLMVNext).stream({
+        runtimeContext,
+        messages: [
+          {
+            role: 'system',
+            content: systemInstructions,
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(partsToGen),
+          },
+        ],
+      });
+
+      text = await result.text;
+    } else {
       const result = await (llm as MastraLLMV1).__text({
         runtimeContext,
         messages: [
@@ -790,24 +809,6 @@ export class Agent<
           },
         ],
       });
-
-      text = result.text;
-    } else {
-      const res = (llm as MastraLLMVNext).stream({
-        runtimeContext,
-        messages: [
-          {
-            role: 'system',
-            content: systemInstructions,
-          },
-          {
-            role: 'user',
-            content: JSON.stringify(partsToGen),
-          },
-        ],
-      });
-
-      const result = await res.getFullOutput();
 
       text = result.text;
     }
@@ -3096,7 +3097,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
             output: ScorerRunOutputForAgent;
           };
         }>);
-    llm: MastraLLMV1 | MastraLLMVNext;
+    llm: MastraLLM;
   }> {
     const {
       context,
@@ -3273,7 +3274,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     };
   }
 
-  async generate_vnext<
+  async generateVNext<
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
     FORMAT extends 'aisdk' | 'mastra' = 'mastra',
@@ -3309,8 +3310,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const mergedStreamOptions = {
       ...defaultStreamOptions,
       ...streamOptions,
-      // resourceId: streamOptions?.resourceId!,
-      // threadId: streamOptions?.threadId!,
     };
 
     const llm = await this.getLLM({ runtimeContext: mergedStreamOptions.runtimeContext });
@@ -3385,9 +3384,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedGenerateOptions);
 
     if (llm.getModel().specificationVersion !== 'v1') {
-      this.logger.error('V2 models are not supported for generate. Please use generate_vnext instead.', {
-        modelId: llm.getModel().modelId,
-      });
+      this.logger.error(
+        'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
+        {
+          modelId: llm.getModel().modelId,
+        },
+      );
 
       throw new MastraError({
         id: 'AGENT_GENERATE_V2_MODEL_NOT_SUPPORTED',
@@ -3396,7 +3398,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         details: {
           modelId: llm.getModel().modelId,
         },
-        text: 'V2 models are not supported for generate. Please use generate_vnext instead.',
+        text: 'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
       });
     }
 
@@ -3702,7 +3704,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const { llm, before, after } = await this.prepareLLMOptions(messages, mergedStreamOptions);
 
     if (llm.getModel().specificationVersion !== 'v1') {
-      this.logger.error('V2 models are not supported for stream. Please use stream_vnext instead.', {
+      this.logger.error('V2 models are not supported for stream. Please use streamVNext instead.', {
         modelId: llm.getModel().modelId,
       });
 
@@ -3713,7 +3715,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         details: {
           modelId: llm.getModel().modelId,
         },
-        text: 'V2 models are not supported for stream. Please use stream_vnext instead.',
+        text: 'V2 models are not supported for stream. Please use streamVNext instead.',
       });
     }
 

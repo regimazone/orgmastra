@@ -410,16 +410,16 @@ export class Agent extends BaseResource {
    * @param params - Generation parameters including prompt
    * @returns Promise containing the generated response
    */
-  async generate_vnext(
+  async generateVNext(
     params: GenerateParams<undefined> & { output?: never; experimental_output?: never },
   ): Promise<GenerateReturn<any, undefined, undefined>>;
-  async generate_vnext<Output extends JSONSchema7 | ZodSchema>(
+  async generateVNext<Output extends JSONSchema7 | ZodSchema>(
     params: GenerateParams<Output> & { output: Output; experimental_output?: never },
   ): Promise<GenerateReturn<any, Output, undefined>>;
-  async generate_vnext<StructuredOutput extends JSONSchema7 | ZodSchema>(
+  async generateVNext<StructuredOutput extends JSONSchema7 | ZodSchema>(
     params: GenerateParams<StructuredOutput> & { output?: never; experimental_output: StructuredOutput },
   ): Promise<GenerateReturn<any, undefined, StructuredOutput>>;
-  async generate_vnext<
+  async generateVNext<
     Output extends JSONSchema7 | ZodSchema | undefined = undefined,
     StructuredOutput extends JSONSchema7 | ZodSchema | undefined = undefined,
   >(params: GenerateParams<Output>): Promise<GenerateReturn<any, Output, StructuredOutput>> {
@@ -680,16 +680,17 @@ export class Agent extends BaseResource {
 
             if (partialToolCalls[chunk.payload.toolCallId] != null) {
               // change the partial tool call to a full tool call
-              message.toolInvocations![partialToolCalls[chunk.payload.toolCallId]!.index] = invocation;
+              message.toolInvocations![partialToolCalls[chunk.payload.toolCallId]!.index] =
+                invocation as ToolInvocation;
             } else {
               if (message.toolInvocations == null) {
                 message.toolInvocations = [];
               }
 
-              message.toolInvocations.push(invocation);
+              message.toolInvocations.push(invocation as ToolInvocation);
             }
 
-            updateToolInvocationPart(chunk.payload.toolCallId, invocation);
+            updateToolInvocationPart(chunk.payload.toolCallId, invocation as ToolInvocation);
 
             execUpdate();
 
@@ -697,7 +698,7 @@ export class Agent extends BaseResource {
             // In the future we should make this non-blocking, which
             // requires additional state management for error handling etc.
             if (onToolCall) {
-              const result = await onToolCall({ toolCall: chunk.payload });
+              const result = await onToolCall({ toolCall: chunk.payload as any });
               if (result != null) {
                 const invocation = {
                   state: 'result',
@@ -707,9 +708,9 @@ export class Agent extends BaseResource {
                 } as const;
 
                 // store the result in the tool invocation
-                message.toolInvocations![message.toolInvocations!.length - 1] = invocation;
+                message.toolInvocations![message.toolInvocations!.length - 1] = invocation as ToolInvocation;
 
-                updateToolInvocationPart(chunk.payload.toolCallId, invocation);
+                updateToolInvocationPart(chunk.payload.toolCallId, invocation as ToolInvocation);
 
                 execUpdate();
               }
@@ -737,7 +738,7 @@ export class Agent extends BaseResource {
               args: undefined,
             } as const;
 
-            message.toolInvocations.push(invocation);
+            message.toolInvocations.push(invocation as ToolInvocation);
 
             updateToolInvocationPart(chunk.payload.toolCallId, invocation);
 
@@ -760,7 +761,7 @@ export class Agent extends BaseResource {
               args: partialArgs,
             } as const;
 
-            message.toolInvocations![partialToolCall!.index] = invocation;
+            message.toolInvocations![partialToolCall!.index] = invocation as ToolInvocation;
 
             updateToolInvocationPart(chunk.payload.toolCallId, invocation);
 

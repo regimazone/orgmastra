@@ -523,7 +523,7 @@ export class Memory extends MastraMemory {
       await this.firstEmbed;
     }
 
-    const promise = (this.embedder.specificationVersion === `v1` ? embedMany : embedManyV5)({
+    const promise = (this.embedder.specificationVersion === `v2` ? embedManyV5 : embedMany)({
       values: chunks,
       maxRetries: 3,
       // @ts-ignore

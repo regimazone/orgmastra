@@ -7,6 +7,7 @@ import type { StreamTextOnFinishCallback, StreamTextOnStepFinishCallback } from 
 import type { LoopConfig, LoopOptions } from '../loop/types';
 import type { InputProcessor, OutputProcessor } from '../processors';
 import type { RuntimeContext } from '../runtime-context';
+import type { MastraScorers } from '../scores';
 import type { ChunkType } from '../stream/types';
 import type { MessageListInput } from './message-list';
 import type { AgentMemoryOption, ToolsetsInput, ToolsInput, StructuredOutputOptions } from './types';
@@ -106,7 +107,7 @@ export type AgentExecutionOptions<
   FORMAT extends 'mastra' | 'aisdk' = 'mastra' | 'aisdk',
 > = {
   instructions?: string;
-  context?: CoreMessage[] | ModelMessage[];
+  context?: ModelMessage[];
 
   memory?: AgentMemoryOption;
 
@@ -141,6 +142,9 @@ export type AgentExecutionOptions<
   toolChoice?: ToolChoice<any>;
 
   modelSettings?: LoopOptions['modelSettings'];
+
+  scorers?: MastraScorers;
+  returnScorerData?: boolean;
 };
 
 export type InnerAgentExecutionOptions = AgentExecutionOptions & {
