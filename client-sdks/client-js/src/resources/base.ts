@@ -7,10 +7,6 @@ export class BaseResource {
     this.options = options;
   }
 
-  public getEventSource(path: string): EventSource {
-    return new EventSource(`${this.options.baseUrl.replace(/\/$/, '')}${path}`);
-  }
-
   /**
    * Makes an HTTP request to the API with retries and exponential backoff
    * @param path - The API endpoint path
