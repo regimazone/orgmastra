@@ -206,8 +206,6 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             model,
             objectOptions: {
               schema: z.object({ content: z.string() }),
-              schemaName: 'test-name',
-              schemaDescription: 'test description',
             },
             messageList: new MessageList(),
           });

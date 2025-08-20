@@ -251,13 +251,6 @@ export class MastraLLMVNext extends MastraBase {
             });
           },
         },
-        // ...rest,
-        // TODO:
-        // experimental_output: schema
-        //     ? (Output.object({
-        //         schema,
-        //     }) as any)
-        //     : undefined,
       };
 
       return loop(loopOptions);

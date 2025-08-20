@@ -4,7 +4,6 @@ import type {
   ToolSet,
   DeepPartial,
   streamText,
-  StreamTextResult as OriginalStreamTextResult,
   StreamTextOnFinishCallback as OriginalStreamTextOnFinishCallback,
   StreamTextOnStepFinishCallback as OriginalStreamTextOnStepFinishCallback,
 } from 'ai-v5';
@@ -13,7 +12,7 @@ import type { z, ZodSchema } from 'zod';
 import type { LoopOptions } from '../../loop/types';
 import type { StructuredOutputOptions, OutputProcessor } from '../../processors';
 import type { RuntimeContext } from '../../runtime-context';
-import type { inferOutput, TripwireProperties } from './shared.types';
+import type { inferOutput } from './shared.types';
 
 export type OriginalStreamTextOptions<
   TOOLS extends ToolSet,
@@ -45,10 +44,3 @@ export type ModelLoopStreamArgs<
   resourceId?: string;
   threadId?: string;
 } & Omit<LoopOptions<Tools>, 'model' | 'messageList'>;
-
-export type StreamTextResult<
-  Tools extends ToolSet,
-  Output extends ZodSchema | JSONSchema7 | undefined = undefined,
-> = Omit<OriginalStreamTextResult<Tools, DeepPartial<inferOutput<Output>>>, 'experimental_output'> & {
-  object?: inferOutput<Output>;
-} & TripwireProperties;
