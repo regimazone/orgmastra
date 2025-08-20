@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { LanguageModel } from 'ai';
 import { describe, expect, it } from 'vitest';

@@ -2,8 +2,8 @@ import type z from 'zod';
 import { Agent } from '../../agent';
 import type { MastraMessageV2 } from '../../agent/message-list';
 import type { StructuredOutputOptions } from '../../agent/types';
-import type { Processor } from '../index';
 import { RuntimeContext } from '../../runtime-context';
+import type { Processor } from '../index';
 
 export type { StructuredOutputOptions } from '../../agent/types';
 
