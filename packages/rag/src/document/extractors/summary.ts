@@ -82,7 +82,7 @@ export class SummaryExtractor extends BaseExtractor {
       summary = result.text;
     } else {
       const result = await miniAgent.generate_vnext([{ role: 'user', content: prompt }], { format: 'mastra' });
-      summary = result.text;
+      summary = await result.text;
     }
 
     if (!summary) {

@@ -83,7 +83,7 @@ export class QuestionsAnsweredExtractor extends BaseExtractor {
       questionsText = result.text;
     } else {
       const result = await miniAgent.generate_vnext([{ role: 'user', content: prompt }], { format: 'mastra' });
-      questionsText = result.text;
+      questionsText = await result.text;
     }
 
     if (!questionsText) {

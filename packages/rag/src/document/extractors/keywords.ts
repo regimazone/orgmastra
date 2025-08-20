@@ -93,7 +93,7 @@ export class KeywordExtractor extends BaseExtractor {
           ],
           { format: 'mastra' },
         );
-        keywords = result.text;
+        keywords = await result.text;
       }
 
       if (!keywords) {

@@ -136,7 +136,7 @@ export class TitleExtractor extends BaseExtractor {
           [{ role: 'user', content: this.combineTemplate.format({ context: combinedTitles }) }],
           { format: 'mastra' },
         );
-        title = result.text;
+        title = await result.text;
       }
 
       if (!title) {
@@ -169,7 +169,7 @@ export class TitleExtractor extends BaseExtractor {
           [{ role: 'user', content: this.nodeTemplate.format({ context: node.getContent() }) }],
           { format: 'mastra' },
         );
-        completion = result.text;
+        completion = await result.text;
       }
 
       if (!completion) {
