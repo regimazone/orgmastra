@@ -43,7 +43,7 @@ export function createObjectStreamTransformer({
         if (outputSchema?.outputFormat === 'object') {
           textAccumulatedText += chunk.payload.text;
           const { value: currentObjectJson } = await parsePartialJson(textAccumulatedText);
-
+          // TODO: enqueue error if partial parse state fails
           if (
             currentObjectJson !== undefined &&
             typeof currentObjectJson === 'object' &&
@@ -58,7 +58,7 @@ export function createObjectStreamTransformer({
         } else if (outputSchema?.outputFormat === 'array') {
           textAccumulatedText += chunk.payload.text;
           const { value: currentObjectJson, state: parseState } = await parsePartialJson(textAccumulatedText);
-
+          // TODO: enqueue error if partial parse state fails
           if (currentObjectJson !== undefined && !isDeepEqualData(textPreviousObject, currentObjectJson)) {
             // For arrays, extract and filter elements
             const rawElements = (currentObjectJson as any)?.elements || [];
@@ -94,6 +94,8 @@ export function createObjectStreamTransformer({
             textPreviousObject = currentObjectJson;
           }
         }
+
+        // TODO: enum schema
       }
 
       // Always pass through the original chunk for downstream processing
