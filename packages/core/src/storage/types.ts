@@ -1,4 +1,4 @@
-import type { AISpanRecord } from '../ai-tracing';
+import type { AISpanRecord, AISpanType } from '../ai-tracing';
 import type { MetricResult, TestInfo } from '../eval';
 import type { MemoryConfig } from '../memory/types';
 import type { WorkflowRunState } from '../workflows';
@@ -137,7 +137,7 @@ export type StorageGetTracesPaginatedArg = {
 export type StorageGetAiTracesPaginatedArg = {
   filters?: Record<string, any> & {
     name?: string;
-    spanType?: number;
+    spanType?: AISpanType;
     dateRange?: {
       start?: Date | string; // Date or ISO string
       end?: Date | string; // Date or ISO string

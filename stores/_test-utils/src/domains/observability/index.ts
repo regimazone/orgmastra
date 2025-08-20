@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { AISpanType } from '@mastra/core/ai-tracing';
 import { TABLE_AI_SPAN } from '@mastra/core/storage';
 import type { MastraStorage } from '@mastra/core/storage';
 import {
@@ -53,7 +54,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
       it('should handle spans with attributes and metadata', async () => {
         const span = createSampleAiSpan(
           'test-span',
-          0,
+          AISpanType.AGENT_RUN,
           { environment: 'test', version: '1.0' },
           { environment: 'test', version: '1.0' },
           { agentId: 'agent-123', model: 'gpt-4' },
@@ -91,8 +92,8 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
       it('should retrieve all spans for a given trace ID', async () => {
         // Create a span hierarchy with multiple spans sharing the same traceId
         const hierarchy = createSpanHierarchy('parent-span', ['child-1', 'child-2'], {
-          parentSpanType: 0,
-          childSpanType: 1,
+          parentSpanType: AISpanType.AGENT_RUN,
+          childSpanType: AISpanType.LLM_GENERATION,
         });
 
         // Create all spans
@@ -486,16 +487,16 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         // Create spans with different span types and statuses
         const hierarchies = [
           createSpanHierarchy('agent-span', ['child'], {
-            parentSpanType: 0, // Agent run
-            childSpanType: 1, // LLM
+            parentSpanType: AISpanType.AGENT_RUN, // Agent run
+            childSpanType: AISpanType.LLM_GENERATION, // LLM
           }),
           createSpanHierarchy('tool-span', ['child'], {
-            parentSpanType: 2, // Tool
-            childSpanType: 3, // Workflow
+            parentSpanType: AISpanType.TOOL_CALL, // Tool
+            childSpanType: AISpanType.WORKFLOW_RUN, // Workflow
           }),
           createSpanHierarchy('llm-span', ['child'], {
-            parentSpanType: 1, // LLM
-            childSpanType: 0, // Agent run
+            parentSpanType: AISpanType.LLM_GENERATION, // LLM
+            childSpanType: AISpanType.AGENT_RUN, // Agent run
           }),
         ];
 
@@ -512,7 +513,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         // Filter by spanType - should find 1 parent span with spanType 0
         const agentSpans = await storage.getAITracesPaginated({
           filters: {
-            spanType: 0,
+            spanType: AISpanType.AGENT_RUN,
           },
           page: 0,
           perPage: 10,
@@ -523,7 +524,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         // Filter by multiple direct columns
         const agentAndToolSpans = await storage.getAITracesPaginated({
           filters: {
-            spanType: 0,
+            spanType: AISpanType.AGENT_RUN,
             // Add a custom filter to demonstrate flexibility
             traceId: hierarchies?.[0]?.parent.traceId,
           },
@@ -539,15 +540,15 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         const hierarchies = [
           createSpanHierarchy('prod-agent', ['child'], {
             attributes: { team: 'backend' },
-            parentSpanType: 0,
+            parentSpanType: AISpanType.AGENT_RUN,
           }),
           createSpanHierarchy('prod-tool', ['child'], {
             attributes: { team: 'frontend' },
-            parentSpanType: 2,
+            parentSpanType: AISpanType.TOOL_CALL,
           }),
           createSpanHierarchy('dev-agent', ['child'], {
             attributes: { team: 'backend' },
-            parentSpanType: 0,
+            parentSpanType: AISpanType.AGENT_RUN,
           }),
         ];
 
@@ -565,7 +566,7 @@ export function createObservabilityTests({ storage }: { storage: MastraStorage }
         const backendAgents = await storage.getAITracesPaginated({
           filters: {
             attributes: { team: 'backend' },
-            spanType: 0,
+            spanType: AISpanType.AGENT_RUN,
           },
           page: 0,
           perPage: 10,

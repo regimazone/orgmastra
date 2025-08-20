@@ -393,7 +393,7 @@ export interface AISpanRecord {
   parentSpanId: string | null;
   name: string;
   scope: Record<string, any> | null;
-  spanType: number;
+  spanType: AISpanType;
   attributes: Record<string, any> | null;
   metadata: Record<string, any> | null;
   events: Record<string, any> | null;
