@@ -62,24 +62,20 @@ export class StructuredOutputProcessor<S extends z.ZodTypeAny> implements Proces
         console.log('textContent', textContent);
 
         try {
-          const modelDef = await this.structuringAgent.getModel({ runtimeContext: new RuntimeContext() });
-
+          const modelDef = await this.structuringAgent.getModel();
           let structuredResult;
-          if (modelDef.specificationVersion === 'v1') {
-            // Use structuring agent to extract structured data from the unstructured text
-            structuredResult = await this.structuringAgent.generate(
-              `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
-              {
-                output: this.schema,
-              },
-            );
+          const prompt = `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`;
+          const schema = this.schema;
+
+          // Use structuring agent to extract structured data from the unstructured text
+          if (modelDef.specificationVersion === 'v2') {
+            structuredResult = await this.structuringAgent.generateVNext(prompt, {
+              output: schema,
+            });
           } else {
-            structuredResult = await this.structuringAgent.generateVNext(
-              `Extract and structure the key information from the following text according to the specified schema. Keep the original meaning and details:\n\n${textContent}`,
-              {
-                output: this.schema,
-              },
-            );
+            structuredResult = await this.structuringAgent.generate(prompt, {
+              output: schema,
+            });
           }
 
           if (!structuredResult.object) {

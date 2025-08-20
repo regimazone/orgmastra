@@ -3,7 +3,7 @@ import type { MastraMessageV2, MessageList } from '../agent/message-list';
 import { TripWire } from '../agent/trip-wire';
 import type { StreamTextResult } from '../llm';
 import type { IMastraLogger } from '../logger';
-import type { AISDKV5OutputStream } from '../stream';
+import type { MastraModelOutput } from '../stream/base/output';
 import type { Processor } from './index';
 
 /**
@@ -163,7 +163,7 @@ export class ProcessorRunner {
   }
 
   async runOutputProcessorsForStream(
-    streamResult: StreamObjectResult<any, any, any> | StreamTextResult<any, any> | AISDKV5OutputStream,
+    streamResult: StreamObjectResult<any, any, any> | StreamTextResult<any, any> | MastraModelOutput,
   ): Promise<ReadableStream<any>> {
     return new ReadableStream({
       start: async controller => {
@@ -180,6 +180,7 @@ export class ProcessorRunner {
             }
 
             // Process all stream parts through output processors
+            // @ts-expect-error - TODO: fix this
             const { part: processedPart, blocked, reason } = await this.processPart(value, processorStates);
 
             if (blocked) {
