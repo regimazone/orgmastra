@@ -5,10 +5,10 @@ import type { ObjectStreamPart, TextStreamPart, ToolSet, UIMessage, UIMessageStr
 import type { MessageList } from '../../../agent/message-list';
 import type { ObjectOptions } from '../../../loop/types';
 import type { MastraModelOutput } from '../../base/output';
+import { getResponseFormat } from '../../base/schema';
 import type { ChunkType } from '../../types';
 import type { ConsumeStreamOptions } from './compat';
 import { getResponseUIMessageId, convertFullStreamChunkToUIMessageStream } from './compat';
-import { getResponseFormat } from './object/schema';
 import { transformSteps } from './output-helpers';
 import { convertMastraChunkToAISDKv5 } from './transform';
 import type { OutputChunkType } from './transform';
@@ -262,13 +262,13 @@ export class AISDKV5OutputStream {
     let hasStarted: boolean = false;
 
     // let stepCounter = 1;
-    const responseFormat = getResponseFormat(this.#options.objectOptions);
+    const responseFormat = getResponseFormat(this.#options.objectOptions?.schema);
     const fullStream = this.#modelOutput.fullStream;
 
     return fullStream.pipeThrough(
       new TransformStream<ChunkType | NonNullable<OutputChunkType>>({
         transform(chunk, controller) {
-          if (responseFormat.type === 'json' && chunk.type === 'object') {
+          if (responseFormat?.type === 'json' && chunk.type === 'object') {
             /**
              * Pass through 'object' chunks that were created by
              * createObjectStreamTransformer in base/output.ts.

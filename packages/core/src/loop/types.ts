@@ -39,18 +39,16 @@ export type LoopOptions<Tools extends ToolSet = ToolSet> = {
   options?: LoopConfig;
   providerOptions?: SharedV2ProviderOptions;
   tools?: Tools;
+  outputProcessors?: OutputProcessor[];
   experimental_generateMessageId?: () => string;
   stopWhen?: StopCondition<NoInfer<Tools>> | Array<StopCondition<NoInfer<Tools>>>;
   _internal?: StreamInternal;
   objectOptions?: ObjectOptions;
-  outputProcessors?: OutputProcessor[];
 };
 
 export type ObjectOptions =
   | {
       schema?: Parameters<typeof asSchema>[0];
-      schemaName?: string;
-      schemaDescription?: string;
     }
   | undefined;
 

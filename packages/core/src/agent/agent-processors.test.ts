@@ -1,15 +1,15 @@
 import { openai } from '@ai-sdk/openai';
 import { openai as openai_v5 } from '@ai-sdk/openai-v5';
+import { simulateReadableStream } from 'ai';
+import { MockLanguageModelV1 } from 'ai/test';
 import { convertArrayToReadableStream, MockLanguageModelV2 } from 'ai-v5/test';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { Processor } from '../processors/index';
 import { RuntimeContext } from '../runtime-context';
 import type { MastraLanguageModel, MastraMessageV2 } from './types';
 import { Agent } from './index';
-import { simulateReadableStream } from 'ai';
-import { MockLanguageModelV1 } from 'ai/test';
 
 // Helper function to create a MastraMessageV2
 const createMessage = (text: string, role: 'user' | 'assistant' = 'user'): MastraMessageV2 => ({

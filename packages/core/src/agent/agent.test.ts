@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { PassThrough } from 'stream';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAI as createOpenAIV5 } from '@ai-sdk/openai-v5';
@@ -24,7 +25,6 @@ import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
 import { assertNoDuplicateParts, MockMemory } from './test-utils';
 import { Agent } from './index';
-import { randomUUID } from 'crypto';
 
 config();
 
