@@ -1,3 +1,4 @@
+import type { AISpanType } from '../../../ai-tracing';
 import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '../../types';
 import type { StoreOperations } from '../operations';
 import { ObservabilityStorage } from './base';
@@ -9,7 +10,7 @@ interface AISpanRecord {
   parentSpanId: string | null;
   name: string;
   scope: Record<string, any> | null;
-  spanType: number;
+  spanType: AISpanType;
   attributes: Record<string, any> | null;
   metadata: Record<string, any> | null;
   events: Record<string, any> | null;
@@ -27,14 +28,12 @@ interface AISpanRecord {
 export type InMemoryAiSpans = Map<string, AISpanRecord>;
 
 export class ObservabilityInMemory extends ObservabilityStorage {
-  spans: InMemoryAiSpans;
   operations: StoreOperations;
   collection: InMemoryAiSpans;
 
   constructor({ collection, operations }: { collection: InMemoryAiSpans; operations: StoreOperations }) {
     super();
     this.collection = collection;
-    this.spans = collection;
     this.operations = operations;
   }
 
@@ -64,17 +63,13 @@ export class ObservabilityInMemory extends ObservabilityStorage {
       span.createdAt = new Date();
     }
 
-    if (!span.updatedAt) {
-      span.updatedAt = new Date();
-    }
-
     // Store the span in memory
-    this.spans.set(id, { ...span, id } as AISpanRecord);
+    this.collection.set(id, { ...span, id } as AISpanRecord);
   }
 
   async getAISpan(id: string): Promise<Record<string, any> | null> {
     this.logger.debug(`MockStore: getAISpan called`);
-    return this.spans.get(id) ?? null;
+    return this.collection.get(id) ?? null;
   }
 
   async getAITrace(traceId: string): Promise<AITrace | null> {
@@ -196,19 +191,19 @@ export class ObservabilityInMemory extends ObservabilityStorage {
   async updateAISpan(id: string, updates: Partial<Record<string, any>>): Promise<void> {
     this.logger.debug(`MockStore: updateAISpan called`);
 
-    const span = this.spans.get(id);
+    const span = this.collection.get(id);
     if (!span) {
       throw new Error(`AI span with id ${id} not found`);
     }
 
     // Update the span with new data
     const updatedSpan = { ...span, ...updates };
-    this.spans.set(id, updatedSpan);
+    this.collection.set(id, updatedSpan);
   }
 
   async deleteAISpan(id: string): Promise<void> {
     this.logger.debug(`MockStore: deleteAISpan called`);
-    this.spans.delete(id);
+    this.collection.delete(id);
   }
 
   async batchCreateAISpan(args: { records: Record<string, any>[] }): Promise<void> {
