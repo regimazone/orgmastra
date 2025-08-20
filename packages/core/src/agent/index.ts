@@ -20,8 +20,8 @@ import type {
   GenerateReturn,
   GenerateObjectResult,
   GenerateTextResult,
-  StreamObjectWithMessagesArgs,
   StreamTextWithMessagesArgs,
+  StreamObjectWithMessagesArgs,
   StreamReturn,
   ToolSet,
   OriginalStreamTextOnFinishEventArg,
@@ -32,7 +32,6 @@ import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
-import type {} from '../loop/types';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MemoryConfig, StorageThreadType } from '../memory/types';
@@ -42,7 +41,6 @@ import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type { ScorerRunInputForAgent, ScorerRunOutputForAgent, MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
-import type { AISDKV5OutputStream } from '../stream';
 import type { MastraModelOutput } from '../stream/base/output';
 import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
@@ -70,6 +68,7 @@ import type {
   AgentMemoryOption,
   AgentAISpanProperties,
 } from './types';
+import type { AISDKV5OutputStream } from '../stream';
 export * from './input-processor';
 export { TripWire };
 export { MessageList };
@@ -1732,7 +1731,6 @@ export class Agent<
             runtimeContext,
             messageList,
           });
-
           return {
             messageObjects: messageList.get.all.prompt(),
             convertedTools,
@@ -1972,7 +1970,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           runId,
           result: resToLog,
           threadId,
-          resourceId,
         });
 
         const messageListResponses = new MessageList({
@@ -2013,17 +2010,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                 },
               ];
             }
-
             if (responseMessages) {
               // Remove IDs from response messages to ensure the custom ID generator is used
-              // @TODO: PREV VERSION DIDNT RETURN USER MESSAGES, SO WE FILTER THEM OUT
-              const messagesWithoutIds = responseMessages
-                .map((m: any) => {
-                  const { id, ...messageWithoutId } = m;
-                  return messageWithoutId;
-                })
-                .filter((m: any) => m.role !== 'user');
-
+              const messagesWithoutIds = responseMessages.map((m: any) => {
+                const { id, ...messageWithoutId } = m;
+                return messageWithoutId;
+              });
               messageList.add(messagesWithoutIds, 'response');
             }
 
@@ -2285,7 +2277,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         output: ScorerRunOutputForAgent;
       };
     }>;
-    llm: MastraLLMV1 | MastraLLMVNext;
+    llm: MastraLLMV1;
   }>;
   private async prepareLLMOptions<
     Tools extends ToolSet,
@@ -3766,14 +3758,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const { onFinish, runId, output, experimental_output, agentAISpan, ...llmOptions } = beforeResult;
 
-    let llmToUse = llm as MastraLLMV1;
-
     if (!output || experimental_output) {
       this.logger.debug(`Starting agent ${this.name} llm stream call`, {
         runId,
       });
 
-      const streamResult = llmToUse.__stream({
+      const streamResult = llm.__stream({
         ...llmOptions,
         experimental_output,
         agentAISpan,
@@ -3805,7 +3795,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runId,
     });
 
-    return llmToUse.__streamObject({
+    return llm.__streamObject({
       ...llmOptions,
       agentAISpan,
       onFinish: async result => {
