@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { AISpanType } from '@mastra/core/ai-tracing';
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
+import type { AISpanRecord } from '@mastra/core/storage';
 
 export const createSampleAiSpan = (
   name: string,

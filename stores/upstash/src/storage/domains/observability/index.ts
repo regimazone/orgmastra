@@ -1,7 +1,6 @@
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN, safelyParseJSON } from '@mastra/core/storage';
-import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace } from '@mastra/core/storage';
+import type { StorageGetAiTracesPaginatedArg, PaginationInfo, AITrace, AISpanRecord } from '@mastra/core/storage';
 import type { Redis } from '@upstash/redis';
 import type { StoreOperationsUpstash } from '../operations';
 import { parseJSON } from '../utils';

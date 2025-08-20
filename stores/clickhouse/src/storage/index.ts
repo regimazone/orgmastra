@@ -1,7 +1,6 @@
 import type { ClickHouseClient } from '@clickhouse/client';
 import { createClient } from '@clickhouse/client';
 import type { MastraMessageContentV2 } from '@mastra/core/agent';
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import type { MastraMessageV1, MastraMessageV2, StorageThreadType } from '@mastra/core/memory';
 import type { ScoreRowData, ScoringSource } from '@mastra/core/scores';
@@ -23,6 +22,7 @@ import type {
   StorageResourceType,
   StorageGetAiTracesPaginatedArg,
   AITrace,
+  AISpanRecord,
 } from '@mastra/core/storage';
 import type { Trace } from '@mastra/core/telemetry';
 import type { WorkflowRunState } from '@mastra/core/workflows';

@@ -1,8 +1,7 @@
 import type { Connection } from '@lancedb/lancedb';
-import type { AISpanRecord } from '@mastra/core/ai-tracing';
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
 import { ObservabilityStorage, TABLE_AI_SPAN } from '@mastra/core/storage';
-import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg } from '@mastra/core/storage';
+import type { AITrace, PaginationInfo, StorageGetAiTracesPaginatedArg, AISpanRecord } from '@mastra/core/storage';
 import type { StoreOperationsLance } from '../operations';
 import { getTableSchema, processResultWithTypeConversion } from '../utils';
 
