@@ -1,3 +1,4 @@
+import type { AISpanType } from '@mastra/core/ai-tracing';
 import type { AISpanRecord, AITrace } from '@mastra/core/storage';
 import type { ClientOptions } from '../types';
 import { BaseResource } from './base';
@@ -25,7 +26,7 @@ export class Observability extends BaseResource {
     page?: number;
     perPage?: number;
     name?: string;
-    spanType?: number;
+    spanType?: AISpanType;
     dateRange?: {
       start?: string | Date;
       end?: string | Date;

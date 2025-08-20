@@ -50,6 +50,7 @@ import type {
   GetAITracesResponse,
 } from './types';
 import type { AITrace } from '@mastra/core';
+import type { AISpanType } from '@mastra/core/ai-tracing';
 
 export class MastraClient extends BaseResource {
   private observability: Observability;
@@ -644,7 +645,7 @@ export class MastraClient extends BaseResource {
     page?: number;
     perPage?: number;
     name?: string;
-    spanType?: number;
+    spanType?: AISpanType;
     dateRange?: {
       start?: string | Date;
       end?: string | Date;
