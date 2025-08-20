@@ -80,13 +80,11 @@ export async function getAITracesPaginatedHandler({ mastra, body }: Observabilit
       }
     }
 
-    const result = await storage.getAITracesPaginated({
+    return storage.getAITracesPaginated({
       page,
       perPage,
       filters,
     });
-
-    return result;
   } catch (error) {
     return handleError(error, 'Error getting AI traces paginated');
   }
