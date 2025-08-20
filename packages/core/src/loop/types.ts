@@ -25,8 +25,8 @@ export type LoopConfig = {
 
 export type LoopOptions<Tools extends ToolSet = ToolSet> = {
   model: LanguageModelV2;
-  mode?: 'generate' | 'stream';
   logger?: IMastraLogger;
+  mode?: 'generate' | 'stream';
   runId?: string;
   idGenerator?: MastraIdGenerator;
   toolCallStreaming?: boolean;
