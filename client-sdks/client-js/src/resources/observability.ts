@@ -1,4 +1,4 @@
-import type { AITrace, StorageGetAiTracesPaginatedArg } from '@mastra/core';
+import type { AISpanRecord, AITrace } from '@mastra/core/storage';
 import type { ClientOptions } from '../types';
 import { BaseResource } from './base';
 
@@ -32,7 +32,7 @@ export class Observability extends BaseResource {
     };
     attributes?: Record<string, any>;
   }): Promise<{
-    spans: AITrace[];
+    spans: AISpanRecord[];
     total: number;
     page: number;
     perPage: number;

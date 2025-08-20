@@ -1,4 +1,5 @@
 import type { Mastra, StorageGetAiTracesPaginatedArg } from '@mastra/core';
+import { AISpanType } from '@mastra/core/ai-tracing';
 import {
   getAITraceHandler as getOriginalAITraceHandler,
   getAITracesPaginatedHandler as getOriginalAITracesPaginatedHandler,
@@ -34,7 +35,13 @@ export async function getAITracesPaginatedHandler(c: Context) {
 
     const filters: StorageGetAiTracesPaginatedArg['filters'] = {};
     if (name) filters.name = name;
-    if (spanType) filters.spanType = parseInt(spanType);
+    if (spanType) {
+      if (Object.values(AISpanType).includes(spanType as AISpanType)) {
+        filters.spanType = spanType as AISpanType;
+      } else {
+        return c.json({ error: 'Invalid spanType' }, 400);
+      }
+    }
     if (attributes) {
       try {
         filters.attributes = JSON.parse(attributes);
