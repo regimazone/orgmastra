@@ -339,7 +339,7 @@ describe('SchemaCompatLayer', () => {
   });
 
   describe('defaultZodOptionalHandler', () => {
-    it.only('should handle optional string', () => {
+    it('should handle optional string', () => {
       const optionalSchema = z.string().optional();
 
       class TestCompatibility extends MockSchemaCompatibility {
