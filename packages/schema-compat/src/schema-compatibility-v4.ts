@@ -640,8 +640,8 @@ export class SchemaCompatLayer {
     value: ZodOptional<any>,
     handleTypes: readonly AllZodType[] = SUPPORTED_ZOD_TYPES,
   ): ZodTypeAny {
-    if (handleTypes.includes(value._def.innerType._def.typeName as AllZodType)) {
-      return this.processZodType(value._def.innerType).optional();
+    if (handleTypes.includes(value.constructor.name as AllZodType)) {
+      return this.processZodType(value._zod.def.innerType).optional();
     } else {
       return value;
     }

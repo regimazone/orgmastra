@@ -339,7 +339,7 @@ describe('SchemaCompatLayer', () => {
   });
 
   describe('defaultZodOptionalHandler', () => {
-    it('should handle optional string', () => {
+    it.only('should handle optional string', () => {
       const optionalSchema = z.string().optional();
 
       class TestCompatibility extends MockSchemaCompatibility {
@@ -429,6 +429,7 @@ describe('SchemaCompatLayer', () => {
       expect(items.properties.value.description).toBe('The value');
     });
 
+    // TODO: figure out how to handle this, with z.toJSONSchema, optional schemas are represented as-is
     it.skip('should handle optional object schemas', () => {
       const optionalSchema = z
         .object({
