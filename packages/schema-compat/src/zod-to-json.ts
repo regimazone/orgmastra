@@ -1,5 +1,5 @@
 import type { JSONSchema7 } from "json-schema";
-import z from "zod";
+import z from "zod/v4";
 import type { Targets } from "zod-to-json-schema";
 import  zodToJsonSchemaOriginal from "zod-to-json-schema";
 
