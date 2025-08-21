@@ -14,6 +14,7 @@ import type { MastraScorers } from '../scores';
 import { runScorer } from '../scores/hooks';
 import { MastraWorkflowStream } from '../stream/MastraWorkflowStream';
 import type { ChunkType } from '../stream/types';
+import { ChunkFrom } from '../stream/types';
 import { Tool } from '../tools';
 import type { ToolExecutionContext } from '../tools/types';
 import type { DynamicArgument } from '../types';
@@ -740,7 +741,7 @@ export class Workflow<
         }
       | ExecuteFunction<z.infer<TPrevSchema>, any, any, any, TEngineType>,
     stepOptions?: { id?: string | null },
-  ) {
+  ): Workflow<TEngineType, TSteps, TWorkflowId, TInput, TOutput, any> {
     // Create an implicit step that handles the mapping
     if (typeof mappingConfig === 'function') {
       // @ts-ignore
@@ -1591,7 +1592,7 @@ export class Run<
           buffer.push({
             type,
             runId: this.runId,
-            from: 'WORKFLOW',
+            from: ChunkFrom.WORKFLOW,
             payload: {
               stepName: (payload as unknown as { id: string }).id,
               ...newPayload,
