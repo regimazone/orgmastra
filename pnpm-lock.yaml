@@ -1215,6 +1215,9 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: ^0.4.6
         version: 0.4.6(zod@3.25.76)
+      '@openrouter/ai-sdk-provider-v5':
+        specifier: npm:@openrouter/ai-sdk-provider@1.1.2
+        version: '@openrouter/ai-sdk-provider@1.1.2(ai@4.3.19(react@19.1.1)(zod@3.25.76))(zod@3.25.76)'
       '@types/babel__core':
         specifier: ^7.20.5
         version: 7.20.5
@@ -7262,6 +7265,13 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
+
+  '@openrouter/ai-sdk-provider@1.1.2':
+    resolution: {integrity: sha512-cfiKVpNygGFaJojBHFvtTf7UiF458Xh9yPcTg4FXF7bGYN5V33Rxx9dXNE12fjv6lHeC5C7jwQHDrzUIFol1iQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^5.0.0
+      zod: ^3.24.1 || ^v4
 
   '@opensearch-project/opensearch@3.5.1':
     resolution: {integrity: sha512-6bf+HcuERzAtHZxrm6phjref54ABse39BpkDie/YO3AUFMCBrb3SK5okKSdT5n3+nDRuEEQLhQCl0RQV3s1qpA==}
@@ -20915,6 +20925,11 @@ snapshots:
     dependencies:
       '@ai-sdk/provider': 1.0.9
       '@ai-sdk/provider-utils': 2.1.10(zod@3.25.76)
+      zod: 3.25.76
+
+  '@openrouter/ai-sdk-provider@1.1.2(ai@4.3.19(react@19.1.1)(zod@3.25.76))(zod@3.25.76)':
+    dependencies:
+      ai: 4.3.19(react@19.1.1)(zod@3.25.76)
       zod: 3.25.76
 
   '@opensearch-project/opensearch@3.5.1':

@@ -1,6 +1,9 @@
 import { openai } from '@ai-sdk/openai';
+import { createOpenAI as createOpenAIV5 } from '@ai-sdk/openai-v5';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import type { LanguageModel } from 'ai';
+import { createOpenRouter as createOpenRouterV5 } from '@openrouter/ai-sdk-provider-v5';
+import { generateObject, generateText, Output, type LanguageModel, type LanguageModelV2 } from 'ai';
+import { generateObject as generateObjectV5, generateText as generateTextV5, Output as OutputV5 } from 'ai-v5';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Agent } from '../../agent';
@@ -8,6 +11,11 @@ import { RuntimeContext } from '../../runtime-context';
 import { createTool } from '../../tools';
 import { CoreToolBuilder } from './builder';
 import 'dotenv/config';
+
+
+
+const openai_v5 = createOpenAIV5({ apiKey: process.env.OPENAI_API_KEY });
+const openrouter_v5 = createOpenRouterV5({ apiKey: process.env.OPENROUTER_API_KEY });
 
 type Result = {
   modelName: string;
@@ -119,7 +127,7 @@ function createTestSchemas(schemaKeys: SchemaKey[] = []): z.ZodObject<any> {
 }
 
 async function runSingleOutputsTest(
-  model: LanguageModel,
+  model: LanguageModel | LanguageModelV2,
   testTool: ReturnType<typeof createTool>,
   testId: string,
   toolName: string,
@@ -139,28 +147,51 @@ async function runSingleOutputsTest(
     });
 
     const generateOptions: any = {
-      maxSteps: 1,
-      structuredOutput: {
-        schema: testTool.inputSchema!,
-        model: model,
-        errorStrategy: 'strict',
-      },
+      maxSteps: 5,
+      output: testTool.inputSchema!,
+      temperature: 0,
+      // structuredOutput: {
+      //   schema: testTool.inputSchema!,
+      //   model: model,
+      //   errorStrategy: 'strict',
+      // },
     };
+
+    // const responseText = await generateObject({
+    //   model: model,
+    //   schema: testTool.inputSchema!,
+    //   // output: Output.object({ schema: testTool.inputSchema! }),
+    //   // messages: [
+    //   //   { role: 'user', content: allSchemas[schemaName].description },
+    //   // ],
+    //   // prompt: 'test'
+    //   prompt: 'I am testing that I can generate structured outputs from your response. Your sole purpose is to give me any type of response but make sure that you have the requested input somewhere in there.' + '\n' + allSchemas[schemaName].description,
+    // });
+
+    // const responseText = await generateObjectV5({
+    //   model: model,
+    //   temperature: 0,
+    //   schema: testTool.inputSchema!,
+    //   prompt: 'I am testing that I can generate structured outputs from your response. Your sole purpose is to give me any type of response but make sure that you have the requested input somewhere in there.' + '\n' + allSchemas[schemaName].description,
+    // });
 
     if (model.provider.includes('openai') || model.modelId.includes('openai')) {
       generateOptions.providerOptions = openAIProviderOptions;
     }
 
-    const response = await agent.generate(allSchemas[schemaName].description, generateOptions);
+    
+    const response = await agent.generateVNext(allSchemas[schemaName].description, generateOptions);
 
     if (!response.object) {
-      throw new Error('No object generated for schema: ' + schemaName + ' with text: ' + response.text);
+      throw new Error('No object generated for schema: ' + schemaName + ' with text: ' + response.object);
     }
 
     const parsed = testTool.inputSchema?.parse(response.object);
     if (!parsed) {
-      throw new Error('Failed to parse object for schema: ' + schemaName + ' with text: ' + response.text);
+      throw new Error('Failed to parse object for schema: ' + schemaName + ' with text: ' + response.object);
     }
+
+    console.log('response', response.object);
 
     return {
       modelName: model.modelId,
@@ -172,6 +203,7 @@ async function runSingleOutputsTest(
       testId,
     };
   } catch (e: any) {
+    console.log('e', e);
     let status: Result['status'] = 'error';
     if (e.message.includes('does not support zod type:')) {
       status = 'expected-error';
@@ -254,7 +286,7 @@ async function runSingleInputTest(
 
 // These tests are both expensive to run and occasionally a couple are flakey. We should run them manually for now
 // to make sure that we still have good coverage, for both input and output schemas.
-describe.skip('Tool Schema Compatibility', () => {
+describe('Tool Schema Compatibility', () => {
   // Set a longer timeout for the entire test suite
   const SUITE_TIMEOUT = 120000; // 2 minutes
   const TEST_TIMEOUT = 60000; // 1 minute
@@ -264,23 +296,36 @@ describe.skip('Tool Schema Compatibility', () => {
 
   const modelsToTest = [
     // Anthropic Models
-    openrouter('anthropic/claude-3.7-sonnet'),
-    openrouter('anthropic/claude-3.5-sonnet'),
-    openrouter('anthropic/claude-3.5-haiku'),
+    // openrouter('anthropic/claude-3.7-sonnet'),
+    // openrouter('anthropic/claude-3.5-sonnet'),
+    // openrouter('anthropic/claude-3.5-haiku'),
 
-    // NOTE: Google models accept number constraints like numberLt, but the models don't respect it and returns a wrong response often
-    // Unions of objects are not supported
-    // Google Models
-    openrouter('google/gemini-2.5-pro-preview-03-25'),
-    openrouter('google/gemini-2.5-flash'),
-    openrouter('google/gemini-2.0-flash-lite-001'),
+    // // NOTE: Google models accept number constraints like numberLt, but the models don't respect it and returns a wrong response often
+    // // Unions of objects are not supported
+    // // Google Models
+    // openrouter('google/gemini-2.5-pro-preview-03-25'),
+    // openrouter('google/gemini-2.5-flash'),
+    // openrouter('google/gemini-2.0-flash-lite-001'),
 
-    // OpenAI Models
-    openrouter('openai/gpt-4o-mini'),
-    openrouter('openai/gpt-4.1-mini'),
-    // openrouter disables structured outputs by default for o3-mini, so added in a reasoning model not through openrouter to test
-    openai('o3-mini'),
-    openai('o4-mini'),
+    // // OpenAI Models
+    // openrouter('openai/gpt-4o-mini'),
+    // openrouter('openai/gpt-4.1-mini'),
+    // // // openrouter disables structured outputs by default for o3-mini, so added in a reasoning model not through openrouter to test
+    // openai('o3-mini'),
+    // openai('o4-mini'),
+
+    // v5 models
+    openrouter_v5('openai/gpt-4o-mini'),
+    openrouter_v5('openai/gpt-4.1-mini'),
+    openai_v5('o3-mini'),
+    openai_v5('o4-mini'),
+
+    openrouter_v5('anthropic/claude-3.7-sonnet'),
+    openrouter_v5('anthropic/claude-3.5-sonnet'),
+    openrouter_v5('anthropic/claude-3.5-haiku'),
+    openrouter_v5('google/gemini-2.5-pro-preview-03-25'),
+    openrouter_v5('google/gemini-2.5-flash'),
+    openrouter_v5('google/gemini-2.0-flash-lite-001'),
 
     // Meta Models
     // Meta often calls the tool with the wrong name, ie 'tesTool_number'/'TestTool_number' instead of 'testTool_number'
@@ -378,7 +423,7 @@ describe.skip('Tool Schema Compatibility', () => {
       });
     });
 
-    describe(`Output Schema Compatibility: ${provider} Models`, { timeout: SUITE_TIMEOUT }, () => {
+    describe.only(`Output Schema Compatibility: ${provider} Models`, { timeout: SUITE_TIMEOUT }, () => {
       models.forEach(model => {
         describe(`${model.modelId}`, { timeout: SUITE_TIMEOUT }, () => {
           testTools.forEach(testTool => {
@@ -388,8 +433,8 @@ describe.skip('Tool Schema Compatibility', () => {
             if (
               (isGoogleModel(model) && (testTool.id.includes('unionObjects') || testTool.id.includes('null'))) ||
               // This works consistently locally but for some reason keeps failing in CI,
-              model.modelId.includes('gpt-4o-mini') ||
-              (model.modelId.includes('gemini-2.0-flash-lite-001') && testTool.id.includes('stringRegex'))
+              (model.modelId.includes('gpt-4o-mini1') ||
+              model.modelId.includes('gemini-2.0-flash-lite-001') && testTool.id.includes('stringRegex'))
             ) {
               it.skip(`should handle ${schemaName} schema (skipped for ${provider})`, () => {});
               return;
@@ -404,10 +449,10 @@ describe.skip('Tool Schema Compatibility', () => {
                 let result = await runSingleOutputsTest(model, testTool, crypto.randomUUID(), testTool.id, schemaName);
 
                 // Sometimes models are flaky, run it again if it fails
-                if (result.status === 'failure') {
-                  console.log(`Possibly flake from model ${model.modelId}, running ${schemaName} again`);
-                  result = await runSingleOutputsTest(model, testTool, crypto.randomUUID(), testTool.id, schemaName);
-                }
+                // if (result.status === 'failure') {
+                //   console.log(`Possibly flake from model ${model.modelId}, running ${schemaName} again`);
+                //   result = await runSingleOutputsTest(model, testTool, crypto.randomUUID(), testTool.id, schemaName);
+                // }
 
                 if (result.status !== 'success' && result.status !== 'expected-error') {
                   console.error(`Error for ${model.modelId} - ${schemaName}:`, result.error);
