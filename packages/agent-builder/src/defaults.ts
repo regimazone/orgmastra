@@ -2558,7 +2558,7 @@ export const mastra = new Mastra({
       }
 
       // Resolve path relative to project directory if it's not absolute
-      const resolvedPath = isAbsolute(path) ? path : resolve(projectPath || process.cwd(), path);
+      const resolvedPath = isAbsolute(path) ? path : relative(projectPath || process.cwd(), path);
 
       const items: Array<{
         name: string;
