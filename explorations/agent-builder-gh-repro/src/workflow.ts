@@ -215,6 +215,7 @@ export const initialDiscoveryStep = createStep({
           onFinish: result => {
             result;
           },
+          maxRetries: 20,
         },
       );
 
@@ -312,6 +313,7 @@ export const chatLoopStep = createStep({
         threadId: inputData.threadId,
         resourceId: inputData.resourceId,
         abortSignal: abortController.signal,
+        maxRetries: 20,
       });
 
       spinner.stop();
