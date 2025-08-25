@@ -67,16 +67,15 @@ export function execute<OUTPUT extends OutputSchema | undefined = undefined>({
   }
 
   const modelSupports = getModelSupport(model.modelId, model.provider);
+  const modelSupportsResponseFormat = modelSupports?.capabilities.responseFormat?.support === 'full';
   const responseFormat = output ? getResponseFormat(output) : undefined;
 
   let prompt = inputMessages;
-  if (output && responseFormat?.type === 'json') {
-    if (modelSupports?.capabilities.responseFormat.support !== 'full') {
-      prompt = injectJsonInstructionIntoMessages({
-        messages: inputMessages,
-        schema: responseFormat.schema,
-      });
-    }
+  if (output && responseFormat?.type === 'json' && !modelSupportsResponseFormat) {
+    prompt = injectJsonInstructionIntoMessages({
+      messages: inputMessages,
+      schema: responseFormat.schema,
+    });
   }
 
   const stream = v5.initialize({
