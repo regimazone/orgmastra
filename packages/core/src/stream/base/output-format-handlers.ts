@@ -134,7 +134,6 @@ class ObjectFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseF
       !isDeepEqualData(previousObject, currentObjectJson) // avoid emitting duplicates
     ) {
       return {
-        // shouldEmit: true,
         shouldEmit: ['successful-parse', 'repaired-parse'].includes(state),
         emitValue: currentObjectJson,
         newPreviousResult: currentObjectJson,
