@@ -50,7 +50,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4.1',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -68,7 +68,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4o',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -86,7 +86,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -104,7 +104,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-3.5-turbo',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -122,7 +122,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o1',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -140,7 +140,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o1-mini',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -158,7 +158,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o1-preview',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -176,7 +176,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o3',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -194,7 +194,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o3-mini',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -212,7 +212,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'o4-mini',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -230,7 +230,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'dall-e-3',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -248,7 +248,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'dall-e-2',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -266,7 +266,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'whisper',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -284,7 +284,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'tts-1',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -302,7 +302,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'tts-1-hd',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -320,7 +320,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'text-embedding-3-large',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -338,7 +338,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'text-embedding-3-small',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -356,7 +356,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'text-embedding-ada-002',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -374,7 +374,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'davinci-002',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -392,7 +392,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'babbage-002',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'none',
@@ -410,7 +410,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4o-mini',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -428,7 +428,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4o-realtime-preview',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -446,7 +446,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4o-audio-preview',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -464,7 +464,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'chatgpt-4o-latest',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -482,7 +482,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4-turbo',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
@@ -500,7 +500,7 @@ const openaiModels: ModelSupport[] = [
   },
   {
     modelId: 'gpt-4-vision-preview',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
