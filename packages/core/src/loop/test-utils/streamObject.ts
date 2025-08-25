@@ -218,6 +218,12 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           expect(model.doStreamCalls?.[0]?.prompt).toMatchInlineSnapshot(`
             [
               {
+                "content": "JSON schema:
+            {"type":"object","properties":{"content":{"type":"string"}},"required":["content"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}
+            You MUST answer with a JSON object that matches the JSON schema above.",
+                "role": "system",
+              },
+              {
                 "content": [
                   {
                     "text": " ",
