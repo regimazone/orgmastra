@@ -158,7 +158,7 @@ class ObjectFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseF
      * This is a workaround for models that dont support structured output natively
      */
     if (typeof finalRawValue === 'string' && finalRawValue?.includes?.('```json')) {
-      const match = finalRawValue.match(/```json?\s*\n?([\s\S]*?)\n?\s*```/);
+      const match = finalRawValue.match(/```json\s*\n?([\s\S]*?)\n?\s*```/);
       if (match && match[1]) {
         // match the first string between (```json) and (```)
         rawValue = match[1].trim();
