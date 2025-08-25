@@ -107,10 +107,7 @@ class ObjectFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseF
     accumulatedText,
     previousObject,
   }: ProcessPartialChunkParams): Promise<ProcessPartialChunkResult> {
-    const {
-      value: currentObjectJson,
-      // state
-    } = await parsePartialJson(accumulatedText);
+    const { value: currentObjectJson, state } = await parsePartialJson(accumulatedText);
 
     // TODO: test partial object chunk validation with schema.partial()
     if (this.validatePartialChunks && this.partialSchema) {
@@ -137,8 +134,8 @@ class ObjectFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseF
       !isDeepEqualData(previousObject, currentObjectJson) // avoid emitting duplicates
     ) {
       return {
-        shouldEmit: true,
-        // shouldEmit: ['successful-parse', 'repaired-parse'].includes(state),
+        // shouldEmit: true,
+        shouldEmit: ['successful-parse', 'repaired-parse'].includes(state),
         emitValue: currentObjectJson,
         newPreviousResult: currentObjectJson,
       };
@@ -268,7 +265,7 @@ class ArrayFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseFo
     return { shouldEmit: false };
   }
 
-  async validateAndTransformFinal(): Promise<ValidateAndTransformFinalResult<OUTPUT>> {
+  async validateAndTransformFinal(_finalValue: string): Promise<ValidateAndTransformFinalResult<OUTPUT>> {
     const resultValue = this.textPreviousFilteredArray;
 
     if (!resultValue) {
