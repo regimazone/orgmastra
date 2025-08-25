@@ -32,7 +32,7 @@ export function getModelSupport(modelId: string, provider: string): ModelSupport
 const openaiModels: ModelSupport[] = [
   {
     modelId: 'gpt-5',
-    provider: 'openai',
+    provider: 'openai.responses',
     capabilities: {
       responseFormat: {
         support: 'full',
