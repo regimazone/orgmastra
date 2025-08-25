@@ -45,7 +45,7 @@ const openaiModels: ModelSupport[] = [
         structured: true,
         notes: 'Full function calling support',
       },
-      reasoning: false,
+      reasoning: true,
     },
   },
   {
