@@ -89,7 +89,7 @@ export function execute<OUTPUT extends OutputSchema | undefined = undefined>({
           providerOptions,
           abortSignal: options?.abortSignal,
           includeRawChunks,
-          responseFormat: modelSupports?.capabilities.responseFormat.support === 'full' ? responseFormat : undefined,
+          responseFormat: modelSupportsResponseFormat ? responseFormat : undefined,
           ...(modelSettings ?? {}),
           headers,
         });
