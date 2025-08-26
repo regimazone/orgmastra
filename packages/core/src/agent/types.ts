@@ -68,6 +68,12 @@ export interface AgentConfig<
   description?: string;
   instructions: DynamicArgument<string>;
   model: DynamicArgument<MastraLanguageModel>;
+  retry?: number; //default to 0
+  fallbackModels?: {
+    model: DynamicArgument<MastraLanguageModel>;
+    retry?: number; //default to 0
+    enabled?: boolean; //default to true
+  }[];
   tools?: DynamicArgument<TTools>;
   workflows?: DynamicArgument<Record<string, Workflow>>;
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
@@ -244,3 +250,7 @@ export type AgentStreamOptions<
     }
 ) &
   (OUTPUT extends undefined ? DefaultLLMStreamOptions : DefaultLLMStreamObjectOptions);
+
+export type AgentModelManager = <T>(
+  callback: (model: DynamicArgument<MastraLanguageModel>) => Promise<T>,
+) => Promise<T>;
