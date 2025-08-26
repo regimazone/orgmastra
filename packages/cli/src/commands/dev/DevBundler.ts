@@ -7,6 +7,8 @@ import { Bundler } from '@mastra/deployer/bundler';
 import * as fsExtra from 'fs-extra';
 import type { RollupWatcherEvent } from 'rollup';
 
+import { devLogger } from '../../utils/dev-logger.js';
+
 export class DevBundler extends Bundler {
   private customEnvFile?: string;
 
@@ -76,7 +78,7 @@ export class DevBundler extends Bundler {
     const toolsInputOptions = await this.getToolsInputOptions(toolsPaths);
 
     const outputDir = join(outputDirectory, this.outputDir);
-    await writeTelemetryConfig(entryFile, outputDir, this.logger);
+    await writeTelemetryConfig(entryFile, outputDir);
 
     const mastraFolder = dirname(entryFile);
     const fileService = new FileService();
@@ -160,18 +162,18 @@ export class DevBundler extends Bundler {
       },
     );
 
-    this.logger.info('Starting watcher...');
+    devLogger.info('Preparing development environment...');
     return new Promise((resolve, reject) => {
       const cb = (event: RollupWatcherEvent) => {
         if (event.code === 'BUNDLE_END') {
-          this.logger.info('Bundling finished, starting server...');
+          devLogger.success('Initial bundle complete');
           watcher.off('event', cb);
           resolve(watcher);
         }
 
         if (event.code === 'ERROR') {
           console.log(event);
-          this.logger.error('Bundling failed, stopping watcher...');
+          devLogger.error('Bundling failed - check console for details');
           watcher.off('event', cb);
           reject(event);
         }
