@@ -1,11 +1,13 @@
 import { ReadableStream } from 'node:stream/web';
 import type { RuntimeContext } from '@mastra/core/di';
 import type { WorkflowRuns } from '@mastra/core/storage';
-import type { Workflow, WatchEvent, WorkflowInfo } from '@mastra/core/workflows';
+import type { Workflow, WatchEvent, WorkflowInfo, Step, StepResult } from '@mastra/core/workflows';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 import { getWorkflowInfo } from '../utils';
 import { handleError } from './error';
+import type EventEmitter from 'node:events';
+import { StepExecutor } from '@mastra/core/workflows/evented';
 
 interface WorkflowContext extends Context {
   workflowId?: string;
@@ -586,6 +588,64 @@ export async function sendWorkflowRunEventHandler({
     await _run.sendEvent(event, data);
 
     return { message: 'Workflow run event sent' };
+  } catch (error) {
+    return handleError(error, 'Error sending workflow run event');
+  }
+}
+
+export async function executeStepHandler({
+  mastra,
+  workflowId,
+  runId,
+  executionContext,
+}: Pick<WorkflowContext, 'mastra' | 'workflowId' | 'runId'> & {
+  executionContext: {
+    executionPath: number[];
+    input?: any;
+    resumeData?: any;
+    stepResults: Record<string, StepResult<any, any, any, any>>;
+    emitter: EventEmitter;
+    runtimeContext: RuntimeContext;
+    runCount?: number;
+    foreachIdx?: number;
+  };
+}) {
+  try {
+    if (!workflowId) {
+      throw new HTTPException(400, { message: 'Workflow ID is required' });
+    }
+
+    if (!runId) {
+      throw new HTTPException(400, { message: 'runId required to send workflow run event' });
+    }
+
+    const { workflow } = await getWorkflowsFromSystem({ mastra, workflowId });
+
+    if (!workflow) {
+      throw new HTTPException(404, { message: 'Workflow not found' });
+    }
+
+    const run = await workflow.getWorkflowRunById(runId);
+
+    if (!run) {
+      throw new HTTPException(404, { message: 'Workflow run not found' });
+    }
+
+    const step = workflow.getStepByExecutionPath(executionContext.executionPath);
+
+    if (!step) {
+      throw new HTTPException(404, { message: 'Step not found' });
+    }
+
+    const stepExecutor = new StepExecutor({ mastra });
+    const stepResult = await stepExecutor.execute({
+      ...executionContext,
+      workflowId,
+      runId,
+      step,
+    });
+
+    return stepResult;
   } catch (error) {
     return handleError(error, 'Error sending workflow run event');
   }

@@ -18,6 +18,7 @@ import {
   streamWorkflowHandler,
   streamVNextWorkflowHandler,
   watchWorkflowHandler,
+  executeStepHandler,
 } from './handlers';
 import {
   createLegacyWorkflowRunHandler,
@@ -839,6 +840,54 @@ export function workflowsRouter(bodyLimitOptions: BodyLimitOptions) {
         content: {
           'application/json': {
             schema: { type: 'object', properties: { event: { type: 'string' }, data: { type: 'object' } } },
+          },
+        },
+      },
+      tags: ['workflows'],
+      responses: {
+        200: {
+          description: 'workflow run event sent',
+        },
+      },
+    }),
+    sendWorkflowRunEventHandler,
+  );
+
+  router.post(
+    '/:workflowId/runs/:runId/execute-step',
+    describeRoute({
+      description: 'Execute a step in a workflow run',
+      parameters: [
+        {
+          name: 'workflowId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'runId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                executionPath: { type: 'array', items: { type: 'number' } },
+                input: { type: 'object' },
+                resumeData: { type: 'object' },
+                stepResults: { type: 'object' },
+                emitter: { type: 'object' },
+                runtimeContext: { type: 'object' },
+                runCount: { type: 'number' },
+                foreachIdx: { type: 'number' },
+              },
+            },
           },
         },
       },

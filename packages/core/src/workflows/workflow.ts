@@ -1326,6 +1326,29 @@ export class Workflow<
       steps: (snapshot as WorkflowRunState).context as any,
     };
   }
+
+  getStepByExecutionPath(executionPath: number[]): Step<string, any, any, any, any, TEngineType> | undefined {
+    const [currentStep, ...rest] = executionPath;
+    if (currentStep === undefined) {
+      return undefined;
+    }
+
+    const step = this.stepFlow[currentStep];
+    if (!step) {
+      return undefined;
+    }
+
+    if (!rest.length) {
+      return step.type === 'step' ? step.step : undefined;
+    }
+
+    if (step.type === 'step') {
+      const nestedWf = step.step as Workflow;
+      return nestedWf.getStepByExecutionPath(rest);
+    }
+
+    return this.getStepByExecutionPath(rest);
+  }
 }
 
 /**
