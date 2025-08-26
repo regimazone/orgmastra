@@ -134,9 +134,9 @@ const startServer = async (
     const execaError = err as { stderr?: string; stdout?: string };
     if (execaError.stderr) {
       devLogger.serverError(execaError.stderr);
-      logger.error('Server error output:', { stderr: execaError.stderr });
+      devLogger.debug(`Server error output: ${execaError.stderr}`);
     }
-    if (execaError.stdout) logger.debug('Server output:', { stdout: execaError.stdout });
+    if (execaError.stdout) devLogger.debug(`Server output: ${execaError.stdout}`);
 
     if (!serverIsReady) {
       throw err;
@@ -225,7 +225,7 @@ export async function dev({
   const entryFile = fileService.getFirstExistingFile([join(mastraDir, 'index.ts'), join(mastraDir, 'index.js')]);
 
   const bundler = new DevBundler(env);
-  bundler.__setLogger(logger);
+  bundler.__setLogger(logger); // Keep Pino logger for internal bundler operations
 
   // Get the port to use before prepare to set environment variables
   const serverOptions = await getServerOptions(entryFile, join(dotMastraPath, 'output'));
