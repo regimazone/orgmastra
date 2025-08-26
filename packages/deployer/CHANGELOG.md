@@ -1,5 +1,15 @@
 # @mastra/deployer
 
+## 0.15.1
+
+### Patch Changes
+
+- [`95b2aa9`](https://github.com/mastra-ai/mastra/commit/95b2aa908230919e67efcac0d69005a2d5745298) Thanks [@wardpeet](https://github.com/wardpeet)! - Fix peerdeps @mastra/core
+
+- Updated dependencies [[`95b2aa9`](https://github.com/mastra-ai/mastra/commit/95b2aa908230919e67efcac0d69005a2d5745298)]:
+  - @mastra/server@0.15.1
+  - @mastra/core@0.15.1
+
 ## 0.15.0
 
 ### Minor Changes
