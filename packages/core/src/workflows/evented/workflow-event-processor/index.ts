@@ -44,14 +44,18 @@ export type ParentWorkflow = {
 export class WorkflowEventProcessor extends EventProcessor {
   private stepExecutor: StepExecutor;
 
-  constructor({ mastra }: { mastra: Mastra }) {
+  constructor({ mastra, stepExecutor }: { mastra: Mastra; stepExecutor?: StepExecutor }) {
     super({ mastra });
-    this.stepExecutor = new StepExecutor({ mastra });
+    this.stepExecutor = stepExecutor ?? new StepExecutor({ mastra });
   }
 
   __registerMastra(mastra: Mastra) {
     super.__registerMastra(mastra);
     this.stepExecutor.__registerMastra(mastra);
+  }
+
+  __setStepExecutor(stepExecutor: StepExecutor) {
+    this.stepExecutor = stepExecutor;
   }
 
   private async errorWorkflow(

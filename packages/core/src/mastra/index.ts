@@ -116,6 +116,11 @@ export class Mastra<
   #events: {
     [topic: string]: ((event: Event, cb?: () => Promise<void>) => Promise<void>)[];
   } = {};
+  #workflowEventProcessor: WorkflowEventProcessor;
+
+  __setWorkflowEventProcessor(workflowEventProcessor: WorkflowEventProcessor) {
+    this.#workflowEventProcessor = workflowEventProcessor;
+  }
 
   /**
    * @deprecated use getTelemetry() instead
@@ -211,10 +216,10 @@ export class Mastra<
       }
     }
 
-    const workflowEventProcessor = new WorkflowEventProcessor({ mastra: this });
+    this.#workflowEventProcessor = new WorkflowEventProcessor({ mastra: this });
     const workflowEventCb = async (event: Event, cb?: () => Promise<void>): Promise<void> => {
       try {
-        await workflowEventProcessor.process(event, cb);
+        await this.#workflowEventProcessor.process(event, cb);
       } catch (e) {
         console.error('Error processing event', e);
       }

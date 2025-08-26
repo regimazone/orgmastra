@@ -12,7 +12,8 @@ import { TABLE_WORKFLOW_SNAPSHOT } from '../../storage';
 import { MockStore } from '../../storage/mock';
 import type { StreamEvent, WatchEvent } from '../types';
 import { mapVariable } from '../workflow';
-import { cloneStep, cloneWorkflow, createStep, createWorkflow } from '.';
+import { StepExecutorHttp } from './step-executor-http';
+import { cloneStep, cloneWorkflow, createStep, createWorkflow, WorkflowEventProcessor } from '.';
 
 const testStorage = new MockStore();
 
@@ -23,7 +24,7 @@ describe('Workflow', () => {
   });
 
   describe('Streaming', () => {
-    it('should generate a stream', async () => {
+    it.only('should generate a stream', async () => {
       const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
       const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
 
@@ -53,6 +54,8 @@ describe('Workflow', () => {
         storage: testStorage,
         pubsub: new EventEmitterPubSub(),
       });
+      const workflowProcessor = new WorkflowEventProcessor({ mastra, stepExecutor: new StepExecutorHttp({ mastra }) });
+      mastra.__setWorkflowEventProcessor(workflowProcessor);
       await mastra.startEventEngine();
 
       const runId = 'test-run-id';
