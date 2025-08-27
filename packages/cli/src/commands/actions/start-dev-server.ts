@@ -1,5 +1,4 @@
 import { analytics, origin } from '../..';
-import { devLogger } from '../../utils/dev-logger';
 import { logger } from '../../utils/logger';
 import { dev } from '../dev/dev';
 
@@ -9,7 +8,6 @@ export const startDevServer = async (args: any) => {
     origin,
   });
 
-  devLogger.welcome();
   if (args?.port) {
     logger.warn('The --port option is deprecated. Use the server key in the Mastra instance instead.');
   }
