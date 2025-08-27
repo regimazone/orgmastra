@@ -13,10 +13,9 @@ import { lintProject } from './commands/actions/lint-project';
 import { listScorers } from './commands/actions/list-scorers';
 import { startDevServer } from './commands/actions/start-dev-server';
 import { startProject } from './commands/actions/start-project';
-import { DepsService } from './services/service.deps';
+import { getVersion } from './utils/version';
 
-const depsService = new DepsService();
-const version = await depsService.getPackageVersion();
+const version = await getVersion();
 
 export const analytics = new PosthogAnalytics({
   apiKey: 'phc_SBLpZVAB6jmHOct9CABq3PF0Yn5FU3G2FgT4xUr2XrT',
