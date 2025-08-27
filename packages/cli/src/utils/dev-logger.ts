@@ -1,4 +1,7 @@
 import pc from 'picocolors';
+import { getVersion } from './version';
+
+const version = await getVersion();
 
 interface DevLoggerOptions {
   timestamp?: boolean;
@@ -47,7 +50,6 @@ export class DevLogger {
     console.log(`${prefix} ${pc.red(message)}`);
   }
 
-  // Special dev server states
   starting(): void {
     const prefix = this.formatPrefix('◇', pc.blue);
     console.log(`${prefix} ${pc.blue('Starting Mastra dev server...')}`);
@@ -55,13 +57,11 @@ export class DevLogger {
 
   ready(port: number, startTime?: number): void {
     console.log('');
-    // Get version from package.json or use a default
-    const version = 'v0.10.24'; // TODO: Read from package.json dynamically
     const timing = startTime ? `${Date.now() - startTime} ms` : 'XXX ms';
-    console.log(pc.inverse(pc.green(' mastra ')) + ` ${pc.green(version)} ${pc.gray("ready in")} ${timing}`);
+    console.log(pc.inverse(pc.green(' mastra ')) + ` ${pc.green(version)} ${pc.gray('ready in')} ${timing}`);
     console.log('');
     console.log(`${pc.dim('│')} ${pc.bold('Local:')}   ${pc.cyan(`http://localhost:${port}/`)}`);
-    console.log(`${pc.dim('│')} ${pc.bold('API:')}     ${pc.cyan(`http://localhost:${port}/api`)}`);
+    console.log(`${pc.dim('│')} ${pc.bold('API:')}     ${`http://localhost:${port}/api`}`);
     console.log('');
     console.log(`${pc.dim('│')} ${pc.bold('Hotkeys:')}`);
     console.log(`${pc.dim('│')}   ${pc.bold('r')} ${pc.dim('restart server')}`);
@@ -100,16 +100,12 @@ export class DevLogger {
     console.log('');
   }
 
-
-
-  // Shutdown message
   shutdown(): void {
     console.log('');
     const prefix = this.formatPrefix('✓', pc.green);
     console.log(`${prefix} ${pc.green('Dev server stopped')}`);
   }
 
-  // Development environment info
   envInfo(info: { port: number; env?: string; root: string }): void {
     console.log('');
     console.log(`  ${pc.dim('│')} ${pc.bold('Environment:')} ${pc.cyan(info.env || 'development')}`);
@@ -117,13 +113,10 @@ export class DevLogger {
     console.log(`  ${pc.dim('│')} ${pc.bold('Port:')} ${pc.cyan(info.port.toString())}`);
   }
 
-  // Raw console output for non-styled messages
   raw(message: string): void {
     console.log(message);
   }
-  
 
-  // Debug messages (only shown in verbose mode)
   debug(message: string): void {
     if (process.env.DEBUG || process.env.MASTRA_DEBUG) {
       const prefix = this.formatPrefix('◦', pc.gray);
@@ -131,7 +124,6 @@ export class DevLogger {
     }
   }
 
-  // Animation for loading states
   private spinnerChars = ['◐', '◓', '◑', '◒'];
   private spinnerIndex = 0;
 
@@ -141,29 +133,15 @@ export class DevLogger {
     return char || '◐'; // fallback to default char
   }
 
-  // Clear the current line for updating messages
   clearLine(): void {
     process.stdout.write('\r\x1b[K');
   }
 
-  // Update message in place (for progress indicators)
   update(message: string): void {
     this.clearLine();
     const prefix = this.formatPrefix(this.getSpinnerChar(), pc.cyan);
     process.stdout.write(`${prefix} ${message}`);
   }
-  
-  // Show welcome banner
-  welcome(): void {
-    console.log('');
-    console.log(pc.cyan('  ┌─────────────────────────────────────────┐'));
-    console.log(pc.cyan('  │') + pc.bold('        Mastra Development Server    ') + pc.cyan('│'));
-    console.log(pc.cyan('  └─────────────────────────────────────────┘'));
-    console.log('');
-  }
 }
 
-// Export a default instance
 export const devLogger = new DevLogger();
-
-// Tip scheduler removed
