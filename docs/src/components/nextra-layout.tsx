@@ -15,12 +15,12 @@ const footer = <Footer />;
 export const NextraLayout = ({
   pageMap,
   children,
-  locale,
+  locale = "en",
   stars,
 }: {
   pageMap: PageMapItem[];
   children: React.ReactNode;
-  locale: string;
+  locale?: string;
   stars: number;
 }) => {
   const pathname = usePathname();

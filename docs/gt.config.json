@@ -11,7 +11,7 @@
       "output": "public/locales/[locale].json"
     }
   },
-  "locales": ["ja"],
+  "locales": ["en", "ja"],
   "projectId": "48751091-773e-4a3e-8c83-5c3906117b30",
   "_versionId": "09b076bef944e00e2c564e838bda36e6a060f9fe9048b63e739a0525fa81f47e"
 }
