@@ -5,7 +5,11 @@ import { transformerNotationDiff } from "@shikijs/transformers";
 import path from "path";
 import { readFileSync } from "fs";
 
+const isTurbopack =
+  process.argv.includes("--turbo") || process.env.TURBOPACK === "1";
+
 const withNextra = nextra({
+  // Using page file convention for faster builds
   search: {
     codeblocks: true,
   },
@@ -14,7 +18,9 @@ const withNextra = nextra({
       theme: JSON.parse(
         readFileSync(path.join(process.cwd(), "theme.json"), "utf-8"),
       ),
-      transformers: [transformerNotationDiff()],
+      // Only include transformers when NOT using Turbopack
+      // This avoids both function serialization issues and Nextra loader conflicts
+      transformers: isTurbopack ? [] : [transformerNotationDiff()],
     },
   },
 });
@@ -24,6 +30,7 @@ const withGT = initGT();
 export default withGT(
   withNextra({
     assetPrefix: process.env.NODE_ENV === "production" ? "/docs" : "",
+    // Using separate locale directories (en/, ja/) for page file convention
     i18n: {
       locales: ["en", "ja"],
       defaultLocale: "en",
