@@ -1341,6 +1341,7 @@ export class Run<
   stream({ inputData, runtimeContext }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): {
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
+    streamId: string;
   } {
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
@@ -1383,6 +1384,7 @@ export class Run<
     return {
       stream: readable,
       getWorkflowState: () => this.executionResults!,
+      streamId: randomUUID(),
     };
   }
 
@@ -1392,6 +1394,7 @@ export class Run<
   }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): Promise<{
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
+    streamId: string;
   }> {
     return this.stream({ inputData, runtimeContext });
   }

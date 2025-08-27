@@ -1,7 +1,7 @@
 import { ReadableStream } from 'node:stream/web';
 import type { RuntimeContext } from '@mastra/core/di';
 import type { WorkflowRuns } from '@mastra/core/storage';
-import type { Workflow, WatchEvent, WorkflowInfo } from '@mastra/core/workflows';
+import type { Workflow, WatchEvent, WorkflowInfo, StreamEvent } from '@mastra/core/workflows';
 import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 import { getWorkflowInfo } from '../utils';
@@ -334,12 +334,36 @@ export async function streamWorkflowHandler({
       throw new HTTPException(404, { message: 'Workflow not found' });
     }
 
+    const serverCache = mastra.getServerCache();
+
     const run = await workflow.createRunAsync({ runId });
     const result = run.stream({
       inputData,
       runtimeContext,
     });
-    return result;
+
+    //TODO: move this.
+
+    const transformStream = new TransformStream<ArrayBufferView<ArrayBufferLike> | undefined, StreamEvent>({
+      start() {},
+      async transform(chunk, controller) {
+        try {
+          if (serverCache) {
+            const cacheKey = `${runId}-${result.streamId}`;
+            await serverCache.listPush(cacheKey, chunk);
+          }
+          controller.enqueue(chunk as any);
+        } catch {
+          // silently ignore errors
+        }
+      },
+    });
+
+    return {
+      ...result,
+      stream: result.stream.pipeThrough(transformStream as any),
+    };
+    // return result;
   } catch (error) {
     return handleError(error, 'Error executing workflow');
   }
