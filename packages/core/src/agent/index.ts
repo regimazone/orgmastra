@@ -4037,6 +4037,13 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
             await llmOptions.onError?.(error);
             throw new Error(error);
           },
+          onStepFinish: async props => {
+            console.log('onStepFinish called in llm.__stream===', props.finishReason);
+            if (props.finishReason === 'error') {
+              console.log('error reason');
+              throw new Error('Error streaming');
+            }
+          },
           experimental_output,
           agentAISpan,
           // onStepFinish: async props => {
