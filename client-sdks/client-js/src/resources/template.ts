@@ -95,40 +95,76 @@ export class Templates extends BaseResource {
   }
 
   /**
-   * Creates a streaming transform for template responses
-   * @private
+   * Creates an async generator that processes a readable stream and yields template records
+   * separated by the Record Separator character (\x1E)
+   *
+   * @param stream - The readable stream to process
+   * @returns An async generator that yields parsed records
    */
-  private createTemplateStreamTransform() {
-    let failedChunk: string | undefined = undefined;
+  private async *streamProcessor(
+    stream: ReadableStream,
+  ): AsyncGenerator<{ type: string; payload: any }, void, unknown> {
+    const reader = stream.getReader();
 
-    return new TransformStream<ArrayBuffer, { type: string; payload: any }>({
-      start() {},
-      async transform(chunk, controller) {
+    // Track if we've finished reading from the stream
+    let doneReading = false;
+    // Buffer to accumulate partial chunks
+    let buffer = '';
+
+    try {
+      while (!doneReading) {
+        // Read the next chunk from the stream
+        const { done, value } = await reader.read();
+        doneReading = done;
+
+        // Skip processing if we're done and there's no value
+        if (done && !value) continue;
+
         try {
           // Decode binary data to text
-          const decoded = new TextDecoder().decode(chunk);
+          const decoded = value ? new TextDecoder().decode(value) : '';
 
-          // Split by record separator
-          const chunks = decoded.split(RECORD_SEPARATOR);
+          // Split the combined buffer and new data by record separator
+          const chunks = (buffer + decoded).split(RECORD_SEPARATOR);
 
-          // Process each chunk
+          // The last chunk might be incomplete, so save it for the next iteration
+          buffer = chunks.pop() || '';
+
+          // Process complete chunks
           for (const chunk of chunks) {
             if (chunk) {
-              const newChunk: string = failedChunk ? failedChunk + chunk : chunk;
-              try {
-                const parsedChunk = JSON.parse(newChunk);
-                controller.enqueue(parsedChunk);
-                failedChunk = undefined;
-              } catch (error) {
-                failedChunk = newChunk;
+              // Only process non-empty chunks
+              if (typeof chunk === 'string') {
+                try {
+                  const parsedChunk = JSON.parse(chunk);
+                  yield parsedChunk;
+                } catch {
+                  // Silently ignore parsing errors to maintain stream processing
+                  // This allows the stream to continue even if one record is malformed
+                }
               }
             }
           }
         } catch {
-          // Silently ignore processing errors
+          // Silently ignore parsing errors to maintain stream processing
+          // This allows the stream to continue even if one record is malformed
         }
-      },
-    });
+      }
+
+      // Process any remaining data in the buffer after stream is done
+      if (buffer) {
+        try {
+          yield JSON.parse(buffer);
+        } catch {
+          // Ignore parsing error for final chunk
+        }
+      }
+    } finally {
+      // Always ensure we clean up the reader
+      reader.cancel().catch(() => {
+        // Ignore cancel errors
+      });
+    }
   }
 
   /**
@@ -163,8 +199,39 @@ export class Templates extends BaseResource {
       throw new Error('Response body is null');
     }
 
+    let failedChunk: string | undefined = undefined;
+
+    const transformStream = new TransformStream<ArrayBuffer, { type: string; payload: any }>({
+      start() {},
+      async transform(chunk, controller) {
+        try {
+          // Decode binary data to text
+          const decoded = new TextDecoder().decode(chunk);
+
+          // Split by record separator
+          const chunks = decoded.split(RECORD_SEPARATOR);
+
+          // Process each chunk
+          for (const chunk of chunks) {
+            if (chunk) {
+              const newChunk: string = failedChunk ? failedChunk + chunk : chunk;
+              try {
+                const parsedChunk = JSON.parse(newChunk);
+                controller.enqueue(parsedChunk);
+                failedChunk = undefined;
+              } catch (error) {
+                failedChunk = newChunk;
+              }
+            }
+          }
+        } catch {
+          // Silently ignore processing errors
+        }
+      },
+    });
+
     // Pipe the response body through the transform stream
-    return response.body.pipeThrough(this.createTemplateStreamTransform());
+    return response.body.pipeThrough(transformStream);
   }
 
   /**
@@ -173,7 +240,10 @@ export class Templates extends BaseResource {
    * and streams any remaining progress.
    * This calls `/api/templates/:templateSlug/watch`.
    */
-  async watchInstall(templateSlug: string, runId: string) {
+  async watchInstall(
+    { templateSlug, runId }: { templateSlug: string; runId: string },
+    onRecord: (record: { type: string; payload: any }) => void,
+  ) {
     const url = `/api/templates/${templateSlug}/watch?runId=${runId}`;
     const response: Response = await this.request(url, {
       method: 'GET',
@@ -188,8 +258,14 @@ export class Templates extends BaseResource {
       throw new Error('Response body is null');
     }
 
-    // Pipe the response body through the transform stream
-    return response.body.pipeThrough(this.createTemplateStreamTransform());
+    // Use the exact same stream processing as workflows
+    for await (const record of this.streamProcessor(response.body)) {
+      if (typeof record === 'string') {
+        onRecord(JSON.parse(record));
+      } else {
+        onRecord(record);
+      }
+    }
   }
 
   /**

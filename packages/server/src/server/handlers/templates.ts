@@ -211,7 +211,7 @@ export const startTemplateInstallRunHandler = createTemplateHandler(
 );
 
 export const watchTemplateInstallHandler = createTemplateHandler(
-  workflows.watchWorkflowHandler,
+  workflows.watchWorkflowHandlerV2,
   'Watching template installation',
 );
 
