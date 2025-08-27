@@ -1,11 +1,13 @@
 import { existsSync } from 'fs';
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
+import { createTool } from '@mastra/core';
 import { Agent } from '@mastra/core/agent';
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { stepCountIs } from 'ai';
 import { z } from 'zod';
 import { AgentBuilder } from '../agent';
+import { AgentBuilderDefaults } from '../defaults';
 import {
   WorkflowBuilderInputSchema,
   WorkflowBuilderResultSchema,
@@ -15,9 +17,271 @@ import {
   TaskExecutionResultSchema,
 } from '../types';
 import type { DiscoveredWorkflowSchema } from '../types';
-import { resolveModel, initializeMcpTools } from '../utils';
+import { resolveModel } from '../utils';
 import { planningAndApprovalWorkflow } from './task-planning';
 
+const research = `
+## 🔍 **COMPREHENSIVE MASTRA WORKFLOW RESEARCH SUMMARY**
+
+Based on extensive research of Mastra documentation and examples, here's essential information for building effective Mastra workflows:
+
+### **📋 WORKFLOW FUNDAMENTALS**
+
+**Core Components:**
+- **\`createWorkflow()\`**: Main factory function that creates workflow instances
+- **\`createStep()\`**: Creates individual workflow steps with typed inputs/outputs  
+- **\`.commit()\`**: Finalizes workflow definition (REQUIRED to make workflows executable)
+- **Zod schemas**: Used for strict input/output typing and validation
+
+**Basic Structure:**
+\`\`\`typescript
+import { createWorkflow, createStep } from "@mastra/core/workflows";
+import { z } from "zod";
+
+const workflow = createWorkflow({
+  id: "unique-workflow-id",           // Required: kebab-case recommended
+  description: "What this workflow does", // Optional but recommended
+  inputSchema: z.object({...}),       // Required: Defines workflow inputs
+  outputSchema: z.object({...})       // Required: Defines final outputs
+})
+  .then(step1)                       // Chain steps sequentially
+  .then(step2)
+  .commit();                         // CRITICAL: Makes workflow executable
+\`\`\`
+
+### **🔧 STEP CREATION PATTERNS**
+
+**Standard Step Definition:**
+\`\`\`typescript
+const myStep = createStep({
+  id: "step-id",                     // Required: unique identifier
+  description: "Step description",    // Recommended for clarity
+  inputSchema: z.object({...}),       // Required: input validation
+  outputSchema: z.object({...}),      // Required: output validation
+  execute: async ({ inputData, mastra, getStepResult, getInitData }) => {
+    // Step logic here
+    return { /* matches outputSchema */ };
+  }
+});
+\`\`\`
+
+**Execute Function Parameters:**
+- \`inputData\`: Validated input matching inputSchema
+- \`mastra\`: Access to Mastra instance (agents, tools, other workflows)
+- \`getStepResult(stepInstance)\`: Get results from previous steps
+- \`getInitData()\`: Access original workflow input data
+- \`runtimeContext\`: Runtime dependency injection context
+- \`runCount\`: Number of times this step has run (useful for retries)
+
+### **🔄 CONTROL FLOW METHODS**
+
+**Sequential Execution:**
+- \`.then(step)\`: Execute steps one after another
+- Data flows automatically if schemas match
+
+**Parallel Execution:**
+- \`.parallel([step1, step2])\`: Run steps simultaneously
+- All parallel steps complete before continuing
+
+**Conditional Logic:**
+- \`.branch([[condition, step], [condition, step]])\`: Execute different steps based on conditions
+- Conditions evaluated sequentially, matching steps run in parallel
+
+**Loops:**
+- \`.dountil(step, condition)\`: Repeat until condition becomes true
+- \`.dowhile(step, condition)\`: Repeat while condition is true  
+- \`.foreach(step, {concurrency: N})\`: Execute step for each array item
+
+**Data Transformation:**
+- \`.map(({ inputData, getStepResult, getInitData }) => transformedData)\`: Transform data between steps
+
+### **⏸️ SUSPEND & RESUME CAPABILITIES**
+
+**For Human-in-the-Loop Workflows:**
+\`\`\`typescript
+const userInputStep = createStep({
+  id: "user-input",
+  suspendSchema: z.object({}),        // Schema for suspension payload
+  resumeSchema: z.object({            // Schema for resume data
+    userResponse: z.string()
+  }),
+  execute: async ({ resumeData, suspend }) => {
+    if (!resumeData?.userResponse) {
+      await suspend({});  // Pause workflow
+      return { response: "" };
+    }
+    return { response: resumeData.userResponse };
+  }
+});
+\`\`\`
+
+**Resume Workflow:**
+\`\`\`typescript
+const result = await run.start({ inputData: {...} });
+if (result.status === "suspended") {
+  await run.resume({
+    step: result.suspended[0],        // Or specific step ID
+    resumeData: { userResponse: "answer" }
+  });
+}
+\`\`\`
+
+### **🛠️ INTEGRATING AGENTS & TOOLS**
+
+**Using Agents in Steps:**
+\`\`\`typescript
+// Method 1: Agent as step
+const agentStep = createStep(myAgent);
+
+// Method 2: Call agent in execute function
+const step = createStep({
+  execute: async ({ inputData }) => {
+    const result = await myAgent.generate(prompt);
+    return { output: result.text };
+  }
+});
+\`\`\`
+
+**Using Tools in Steps:**
+\`\`\`typescript
+// Method 1: Tool as step  
+const toolStep = createStep(myTool);
+
+// Method 2: Call tool in execute function
+const step = createStep({
+  execute: async ({ inputData, runtimeContext }) => {
+    const result = await myTool.execute({
+      context: inputData,
+      runtimeContext
+    });
+    return result;
+  }
+});
+\`\`\`
+
+### **🗂️ PROJECT ORGANIZATION PATTERNS**
+
+**MANDATORY Workflow Organization:**
+Each workflow MUST be organized in its own dedicated folder with separated concerns:
+
+\`\`\`
+src/mastra/workflows/
+├── my-workflow-name/         # Kebab-case folder name
+│   ├── types.ts             # All Zod schemas and TypeScript types
+│   ├── steps.ts             # All individual step definitions
+│   ├── workflow.ts          # Main workflow composition and export
+│   └── utils.ts             # Helper functions (if needed)
+├── another-workflow/
+│   ├── types.ts
+│   ├── steps.ts
+│   ├── workflow.ts
+│   └── utils.ts
+└── index.ts                 # Export all workflows
+\`\`\`
+
+**CRITICAL File Organization Rules:**
+- **ALWAYS create a dedicated folder** for each workflow
+- **Folder names MUST be kebab-case** version of workflow name
+- **types.ts**: Define all input/output schemas, validation types, and interfaces
+- **steps.ts**: Create all individual step definitions using createStep()
+- **workflow.ts**: Compose steps into workflow using createWorkflow() and export the final workflow
+- **utils.ts**: Any helper functions, constants, or utilities (create only if needed)
+- **NEVER put everything in one file** - always separate concerns properly
+
+**Workflow Registration:**
+\`\`\`typescript
+// src/mastra/index.ts
+export const mastra = new Mastra({
+  workflows: {
+    sendEmailWorkflow,      // Use camelCase for keys
+    dataProcessingWorkflow
+  },
+  storage: new LibSQLStore({ url: 'file:./mastra.db' }), // Required for suspend/resume
+});
+\`\`\`
+
+### **📦 ESSENTIAL DEPENDENCIES**
+
+**Required Packages:**
+\`\`\`json
+{
+  "dependencies": {
+    "@mastra/core": "latest",
+    "zod": "^3.25.67"
+  }
+}
+\`\`\`
+
+**Additional Packages (as needed):**
+- \`@mastra/libsql\`: For workflow state persistence
+- \`@ai-sdk/openai\`: For AI model integration
+- \`ai\`: For AI SDK functionality
+
+### **✅ WORKFLOW BEST PRACTICES**
+
+**Schema Design:**
+- Use descriptive property names in schemas
+- Make schemas as specific as possible (avoid \`z.any()\`)
+- Include validation for required business logic
+
+**Error Handling:**
+- Use \`try/catch\` blocks in step execute functions
+- Return meaningful error messages
+- Consider using \`bail()\` for early successful exits
+
+**Step Organization:**
+- Keep steps focused on single responsibilities
+- Use descriptive step IDs (kebab-case recommended)
+- Create reusable steps for common operations
+
+**Data Flow:**
+- Use \`.map()\` when schemas don't align between steps
+- Access previous step results with \`getStepResult(stepInstance)\`
+- Use \`getInitData()\` to access original workflow input
+
+### **🚀 EXECUTION PATTERNS**
+
+**Running Workflows:**
+\`\`\`typescript
+// Create and start run
+const run = await workflow.createRunAsync();
+const result = await run.start({ inputData: {...} });
+
+// Stream execution for real-time monitoring
+const stream = await run.streamVNext({ inputData: {...} });
+for await (const chunk of stream) {
+  console.log(chunk);
+}
+
+// Watch for events
+run.watch((event) => console.log(event));
+\`\`\`
+
+**Workflow Status Types:**
+- \`"success"\`: Completed successfully
+- \`"suspended"\`: Paused awaiting input
+- \`"failed"\`: Encountered error
+
+### **🔗 ADVANCED FEATURES**
+
+**Nested Workflows:**
+- Use workflows as steps: \`.then(otherWorkflow)\`
+- Enable complex workflow composition
+
+**Runtime Context:**
+- Pass shared data across all steps
+- Enable dependency injection patterns
+
+**Streaming & Events:**
+- Real-time workflow monitoring
+- Integration with external event systems
+
+**Cloning:**
+- \`cloneWorkflow(original, {id: "new-id"})\`: Reuse workflow structure
+- \`cloneStep(original, {id: "new-id"})\`: Reuse step logic
+
+This comprehensive research provides the foundation for creating robust, maintainable Mastra workflows with proper typing, error handling, and architectural patterns.
+`;
 // Step 1: Always discover existing workflows
 const workflowDiscoveryStep = createStep({
   id: 'workflow-discovery',
@@ -171,7 +435,7 @@ const workflowResearchStep = createStep({
     console.log('Starting workflow research...');
 
     try {
-      const filteredMcpTools = await initializeMcpTools();
+      // const filteredMcpTools = await initializeMcpTools();
 
       const researchAgent = new Agent({
         model: resolveModel(runtimeContext),
@@ -185,7 +449,7 @@ RESEARCH OBJECTIVES:
 
 Use the available documentation and examples tools to gather comprehensive information about Mastra workflows.`,
         name: 'Workflow Research Agent',
-        tools: filteredMcpTools,
+        // tools: filteredMcpTools,
       });
 
       const researchPrompt = `Research everything about Mastra workflows to help create or edit them effectively.
@@ -327,27 +591,123 @@ const taskExecutionStep = createStep({
     try {
       const currentProjectPath = projectPath || process.cwd();
 
+      // Pre-populate taskManager with the planned tasks
+      console.log('Pre-populating taskManager with planned tasks...');
+      const taskManagerContext = {
+        action: 'create' as const,
+        tasks: tasks.map(task => ({
+          id: task.id,
+          content: task.content,
+          status: 'pending' as const,
+          priority: task.priority,
+          dependencies: task.dependencies,
+          notes: task.notes,
+        })),
+      };
+
+      const taskManagerResult = await AgentBuilderDefaults.manageTaskList(taskManagerContext);
+      console.log(`Task manager initialized with ${taskManagerResult.tasks.length} tasks`);
+
+      if (!taskManagerResult.success) {
+        throw new Error(`Failed to initialize task manager: ${taskManagerResult.message}`);
+      }
+
+      // Create a restricted taskManager tool that only allows updates, not creation
+      const restrictedTaskManager = createTool({
+        id: 'task-manager',
+        description:
+          'View and update your pre-loaded task list. You can only mark tasks as in_progress or completed, not create new tasks.',
+        inputSchema: z.object({
+          action: z
+            .enum(['list', 'update', 'complete'])
+            .describe('List tasks, update status, or mark complete - tasks are pre-loaded'),
+          tasks: z
+            .array(
+              z.object({
+                id: z.string().describe('Task ID - must match existing task'),
+                content: z.string().optional().describe('Task content (read-only)'),
+                status: z.enum(['pending', 'in_progress', 'completed', 'blocked']).describe('Task status'),
+                priority: z.enum(['high', 'medium', 'low']).optional().describe('Task priority (read-only)'),
+                dependencies: z.array(z.string()).optional().describe('Task dependencies (read-only)'),
+                notes: z.string().optional().describe('Additional notes or progress updates'),
+              }),
+            )
+            .optional()
+            .describe('Tasks to update (status and notes only)'),
+          taskId: z.string().optional().describe('Specific task ID for single task operations'),
+        }),
+        outputSchema: z.object({
+          success: z.boolean(),
+          tasks: z.array(
+            z.object({
+              id: z.string(),
+              content: z.string(),
+              status: z.string(),
+              priority: z.string(),
+              dependencies: z.array(z.string()).optional(),
+              notes: z.string().optional(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          ),
+          message: z.string(),
+        }),
+        execute: async ({ context }) => {
+          // Convert to the expected format for manageTaskList
+          const adaptedContext = {
+            ...context,
+            action: context.action as 'list' | 'update' | 'complete' | 'create' | 'remove',
+            tasks: context.tasks?.map(task => ({
+              ...task,
+              priority: task.priority || ('medium' as const),
+            })),
+          };
+          return await AgentBuilderDefaults.manageTaskList(adaptedContext);
+        },
+      });
+
       const executionAgent = new AgentBuilder({
         projectPath: currentProjectPath,
         model: resolveModel(runtimeContext),
+        tools: {
+          'task-manager': restrictedTaskManager,
+        },
         instructions: `You are executing a workflow ${action} task for: "${workflowName}"
 
 CRITICAL WORKFLOW EXECUTION REQUIREMENTS:
 1. **EXPLORE PROJECT STRUCTURE FIRST**: Use listDirectory and readFile tools to understand the existing project layout, folder structure, and conventions before creating any files
 2. **FOLLOW PROJECT CONVENTIONS**: Look at existing workflows, agents, and file structures to understand where new files should be placed (typically src/mastra/workflows/, src/mastra/agents/, etc.)
-3. **Use Task Management Tool**: Use the taskManager tool to track and manage your progress through the task list
-4. **COMPLETE EVERY SINGLE TASK**: You MUST complete ALL ${tasks.length} tasks in the provided task list. Do not stop until every task is completed
+3. **USE PRE-LOADED TASK LIST**: Your task list has been pre-populated in the taskManager tool. Use taskManager with action 'list' to see all tasks, and action 'update' to mark progress
+4. **COMPLETE EVERY SINGLE TASK**: You MUST complete ALL ${tasks.length} tasks that are already in the taskManager. Do not stop until every task is marked as 'completed'
 5. **Follow Task Dependencies**: Execute tasks in the correct order, respecting dependencies
 6. **Request User Input When Needed**: If you encounter choices (like email providers, databases, etc.) that require user decision, return questions for clarification
-7. **Write Files in Correct Locations**: After exploring the project structure, place workflow files in the appropriate directories following the project's conventions
+7. **STRICT WORKFLOW ORGANIZATION**: When creating or editing workflows, you MUST follow this exact structure
+
+MANDATORY WORKFLOW FOLDER STRUCTURE:
+When ${action === 'create' ? 'creating a new workflow' : 'editing a workflow'}, you MUST organize files as follows:
+
+📁 src/mastra/workflows/${workflowName?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'new-workflow'}/
+├── 📄 types.ts          # All Zod schemas and TypeScript types
+├── 📄 steps.ts          # All individual step definitions  
+├── 📄 workflow.ts       # Main workflow composition and export
+└── 📄 utils.ts          # Helper functions (if needed)
+
+CRITICAL FILE ORGANIZATION RULES:
+- **ALWAYS create a dedicated folder** for the workflow in src/mastra/workflows/
+- **Folder name MUST be kebab-case** version of workflow name
+- **types.ts**: Define all input/output schemas, validation types, and interfaces
+- **steps.ts**: Create all individual step definitions using createStep()
+- **workflow.ts**: Compose steps into workflow using createWorkflow() and export the final workflow
+- **utils.ts**: Any helper functions, constants, or utilities (create only if needed)
+- **NEVER put everything in one file** - always separate concerns properly
 
 CRITICAL COMPLETION REQUIREMENTS: 
 - ALWAYS explore the directory structure before creating files to understand where they should go
 - You MUST complete ALL ${tasks.length} tasks before returning status='completed'
-- Use the taskManager tool to track your progress and ensure no tasks are missed
+- Use taskManager tool with action 'list' to see your current task list and action 'update' to mark tasks as 'in_progress' or 'completed'
 - If you need to make any decisions during implementation (choosing providers, configurations, etc.), return questions for user clarification
 - DO NOT make assumptions about file locations - explore first!
-- The task list provided is the source of truth - you must complete every single task in it
+- You cannot finish until ALL tasks in the taskManager are marked as 'completed'
 
 PROJECT CONTEXT:
 - Action: ${action}
@@ -361,12 +721,12 @@ PROJECT CONTEXT:
 AVAILABLE RESEARCH:
 ${JSON.stringify(research, null, 2)}
 
-INITIAL TASK LIST:
+PRE-LOADED TASK LIST (${tasks.length} tasks already in taskManager):
 ${tasks.map(task => `- ${task.id}: ${task.content} (Priority: ${task.priority})`).join('\n')}
 
 ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null, 2)}` : ''}
 
-Start by exploring the project structure, then use the taskManager tool to create your initial task list, and work through each task systematically.
+Start by exploring the project structure, then use 'taskManager' with action 'list' to see your pre-loaded tasks, and work through each task systematically.
 
             CRITICAL VALIDATION INSTRUCTIONS:
             - When using the validateCode tool, ALWAYS pass the specific files you created or modified using the 'files' parameter
@@ -380,19 +740,35 @@ Start by exploring the project structure, then use the taskManager tool to creat
       const executionPrompt = resumeData
         ? `Continue working on the task list. The user has provided answers to your questions: ${JSON.stringify(resumeData.answers, null, 2)}. 
 
-CRITICAL: You must complete ALL ${tasks.length} tasks from the original task list. Use the taskManager tool to check your progress and continue with the next tasks. Do not stop until every single task is completed.`
-        : `Begin executing the task list to ${action} the workflow "${workflowName}". 
+CRITICAL: You must complete ALL ${tasks.length} tasks that are pre-loaded in the taskManager. Use the taskManager tool with action 'list' to check your progress and continue with the next tasks. Do not stop until every single task is marked as 'completed'.`
+        : `Begin executing the pre-loaded task list to ${action} the workflow "${workflowName}". 
 
 CRITICAL REQUIREMENTS:
-- You MUST complete ALL ${tasks.length} tasks in the provided task list
+- Your ${tasks.length} tasks have been PRE-LOADED into the taskManager tool
 - Start by exploring the project directory structure using listDirectory and readFile tools to understand:
   - Where workflows are typically stored (look for src/mastra/workflows/ or similar)
   - What the existing file structure looks like
   - How other workflows are organized and named
   - Where agent files are stored if needed
-- Then use the taskManager tool to set up your task list and work through each task systematically
-- Ensure you place files in the correct locations
-- DO NOT return status='completed' until ALL ${tasks.length} tasks are finished
+- Then use taskManager with action 'list' to see your pre-loaded tasks
+- Use taskManager with action 'update' to mark tasks as 'in_progress' or 'completed'
+
+MANDATORY WORKFLOW FILE ORGANIZATION:
+You MUST create workflow files using this EXACT structure:
+
+📁 src/mastra/workflows/${workflowName?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'new-workflow'}/
+├── 📄 types.ts          # All Zod schemas and TypeScript types
+├── 📄 steps.ts          # All individual step definitions  
+├── 📄 workflow.ts       # Main workflow composition and export
+└── 📄 utils.ts          # Helper functions (if needed)
+
+CRITICAL FILE ORGANIZATION RULES:
+- **ALWAYS create a dedicated folder** for the workflow in src/mastra/workflows/
+- **Folder name MUST be kebab-case** version of workflow name  
+- **NEVER put everything in one file** - separate types, steps, and workflow composition
+- Follow the 4-file structure above for maximum maintainability and clarity
+
+- DO NOT return status='completed' until ALL ${tasks.length} tasks are marked as 'completed' in the taskManager
 
             CRITICAL VALIDATION INSTRUCTIONS:
             - When using the validateCode tool, ALWAYS pass the specific files you created or modified using the 'files' parameter
@@ -401,10 +777,10 @@ CRITICAL REQUIREMENTS:
             - Example: validateCode({ validationType: ['types', 'lint'], files: ['src/workflows/my-workflow.ts', 'src/agents/my-agent.ts'] })
             - ALWAYS validate after creating or modifying files to ensure they compile correctly
 
-TASK LIST TO COMPLETE (${tasks.length} total tasks):
+PRE-LOADED TASKS (${tasks.length} total tasks in taskManager):
 ${tasks.map((task, index) => `${index + 1}. [${task.id}] ${task.content}`).join('\n')}
 
-You must complete every single one of these tasks before finishing.`;
+Use taskManager with action 'list' to see the current status of all tasks. You must complete every single one before finishing.`;
 
       const originalInstructions = await executionAgent.getInstructions({ runtimeContext: runtimeContext });
       const additionalInstructions = executionAgent.instructions;
@@ -422,7 +798,6 @@ You must complete every single one of these tasks before finishing.`;
 
       // Loop until all tasks are completed
       let finalResult: any = null;
-      let completedTaskIds: string[] = [];
       let allTasksCompleted = false;
       let iterationCount = 0;
       const maxIterations = 5; // Prevent infinite loops
@@ -432,24 +807,42 @@ You must complete every single one of these tasks before finishing.`;
       while (!allTasksCompleted && iterationCount < maxIterations) {
         iterationCount++;
 
-        // Calculate remaining tasks
-        const remainingTaskIds = expectedTaskIds.filter(taskId => !completedTaskIds.includes(taskId));
-        const remainingTasks = tasks.filter(task => remainingTaskIds.includes(task.id));
+        // Check current task status from taskManager
+        const currentTaskStatus = await AgentBuilderDefaults.manageTaskList({ action: 'list' });
+        const completedTasks = currentTaskStatus.tasks.filter(task => task.status === 'completed');
+        const pendingTasks = currentTaskStatus.tasks.filter(task => task.status !== 'completed');
 
         console.log(`\n=== EXECUTION ITERATION ${iterationCount} ===`);
-        console.log(`Completed tasks: ${completedTaskIds.length}/${expectedTaskIds.length}`);
-        console.log(`Remaining tasks: ${remainingTaskIds.join(', ')}`);
+        console.log(`Completed tasks: ${completedTasks.length}/${expectedTaskIds.length}`);
+        console.log(`Remaining tasks: ${pendingTasks.map(t => t.id).join(', ')}`);
+
+        // Check if all tasks are completed
+        allTasksCompleted = pendingTasks.length === 0;
+
+        if (allTasksCompleted) {
+          console.log('All tasks completed! Breaking execution loop.');
+          break;
+        }
 
         // Create prompt for this iteration
         const iterationPrompt =
           iterationCount === 1
             ? executionPrompt
-            : `Continue working on the remaining tasks. You have already completed these tasks: [${completedTaskIds.join(', ')}]
+            : `Continue working on the remaining tasks. You have already completed these tasks: [${completedTasks.map(t => t.id).join(', ')}]
 
-REMAINING TASKS TO COMPLETE (${remainingTasks.length} tasks):
-${remainingTasks.map((task, index) => `${index + 1}. [${task.id}] ${task.content} (Priority: ${task.priority})`).join('\n')}
+REMAINING TASKS TO COMPLETE (${pendingTasks.length} tasks):
+${pendingTasks.map((task, index) => `${index + 1}. [${task.id}] ${task.content}`).join('\n')}
 
-CRITICAL: You must complete ALL of these remaining ${remainingTasks.length} tasks. Do not stop until every single one is finished.
+REMINDER - MANDATORY WORKFLOW FILE ORGANIZATION:
+You MUST create workflow files using this EXACT structure:
+
+📁 src/mastra/workflows/${workflowName?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'new-workflow'}/
+├── 📄 types.ts          # All Zod schemas and TypeScript types
+├── 📄 steps.ts          # All individual step definitions  
+├── 📄 workflow.ts       # Main workflow composition and export
+└── 📄 utils.ts          # Helper functions (if needed)
+
+CRITICAL: You must complete ALL of these remaining ${pendingTasks.length} tasks. Use taskManager with action 'list' to check current status and action 'update' to mark tasks as completed.
 
             CRITICAL VALIDATION INSTRUCTIONS:
             - When using the validateCode tool, ALWAYS pass the specific files you created or modified using the 'files' parameter
@@ -528,12 +921,15 @@ ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null
           throw new Error(`No result received from agent execution on iteration ${iterationCount}`);
         }
 
-        // Update completed tasks
-        completedTaskIds = finalResult.completedTasks || [];
-        allTasksCompleted = expectedTaskIds.every(taskId => completedTaskIds.includes(taskId));
+        // Check task completion status from taskManager instead of relying on agent response
+        const postIterationTaskStatus = await AgentBuilderDefaults.manageTaskList({ action: 'list' });
+        const postCompletedTasks = postIterationTaskStatus.tasks.filter(task => task.status === 'completed');
+        const postPendingTasks = postIterationTaskStatus.tasks.filter(task => task.status !== 'completed');
+
+        allTasksCompleted = postPendingTasks.length === 0;
 
         console.log(
-          `After iteration ${iterationCount}: ${completedTaskIds.length}/${expectedTaskIds.length} tasks completed`,
+          `After iteration ${iterationCount}: ${postCompletedTasks.length}/${expectedTaskIds.length} tasks completed in taskManager`,
         );
 
         // If agent needs clarification, break out and suspend
@@ -544,10 +940,10 @@ ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null
           break;
         }
 
-        // If agent claims completed but not all tasks are done, continue loop
+        // If agent claims completed but taskManager shows pending tasks, continue loop
         if (finalResult.status === 'completed' && !allTasksCompleted) {
           console.log(
-            `Agent claimed completion but missing tasks: ${expectedTaskIds.filter(id => !completedTaskIds.includes(id)).join(', ')}`,
+            `Agent claimed completion but taskManager shows pending tasks: ${postPendingTasks.map(t => t.id).join(', ')}`,
           );
           // Continue to next iteration
         }
@@ -588,12 +984,17 @@ ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null
         };
       }
 
-      // Final validation after loop completion
-      const tasksCompleted = completedTaskIds.length;
-      const tasksExpected = expectedTaskIds.length;
+      // Final validation after loop completion - check taskManager status
+      const finalTaskStatus = await AgentBuilderDefaults.manageTaskList({ action: 'list' });
+      const finalCompletedTasks = finalTaskStatus.tasks.filter(task => task.status === 'completed');
+      const finalPendingTasks = finalTaskStatus.tasks.filter(task => task.status !== 'completed');
 
-      // Determine success based on loop results
-      const success = allTasksCompleted && !finalResult.error;
+      const tasksCompleted = finalCompletedTasks.length;
+      const tasksExpected = expectedTaskIds.length;
+      const finalAllTasksCompleted = finalPendingTasks.length === 0;
+
+      // Determine success based on taskManager status
+      const success = finalAllTasksCompleted && !finalResult.error;
       const message = success
         ? `Successfully completed workflow ${action} - all ${tasksExpected} tasks completed after ${iterationCount} iteration(s): ${finalResult.message}`
         : `Workflow execution finished with issues after ${iterationCount} iteration(s): ${finalResult.message}. Completed: ${tasksCompleted}/${tasksExpected} tasks`;
@@ -601,14 +1002,14 @@ ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null
       console.log(message);
 
       // Build validation results with task completion details
-      const missingTasks = expectedTaskIds.filter(taskId => !completedTaskIds.includes(taskId));
+      const missingTasks = finalPendingTasks.map(task => task.id);
       const validationErrors = [];
 
       if (finalResult.error) {
         validationErrors.push(finalResult.error);
       }
 
-      if (!allTasksCompleted) {
+      if (!finalAllTasksCompleted) {
         validationErrors.push(
           `Incomplete tasks: ${missingTasks.join(', ')} (${tasksCompleted}/${tasksExpected} completed)`,
         );
@@ -616,12 +1017,12 @@ ${resumeData ? `USER PROVIDED ANSWERS: ${JSON.stringify(resumeData.answers, null
 
       return {
         success,
-        completedTasks: finalResult.completedTasks || [],
+        completedTasks: finalCompletedTasks.map(task => task.id),
         filesModified: finalResult.filesModified || [],
         validationResults: {
           passed: success,
           errors: validationErrors,
-          warnings: allTasksCompleted ? [] : [`Missing ${missingTasks.length} tasks: ${missingTasks.join(', ')}`],
+          warnings: finalAllTasksCompleted ? [] : [`Missing ${missingTasks.length} tasks: ${missingTasks.join(', ')}`],
         },
         message,
         error: finalResult.error,
@@ -669,7 +1070,7 @@ export const workflowBuilderWorkflow = createWorkflow({
     const initData = getInitData();
     const discoveryResult = getStepResult(workflowDiscoveryStep);
     const projectResult = getStepResult(projectDiscoveryStep);
-    const researchResult = getStepResult(workflowResearchStep);
+    // const researchResult = getStepResult(workflowResearchStep);
 
     return {
       action: initData.action,
@@ -678,7 +1079,8 @@ export const workflowBuilderWorkflow = createWorkflow({
       requirements: initData.requirements,
       discoveredWorkflows: discoveryResult.workflows,
       projectStructure: projectResult,
-      research: researchResult,
+      // research: researchResult,
+      research,
       previousPlan: undefined,
       userAnswers: undefined,
     };
@@ -694,7 +1096,7 @@ export const workflowBuilderWorkflow = createWorkflow({
     const initData = getInitData();
     const discoveryResult = getStepResult(workflowDiscoveryStep);
     const projectResult = getStepResult(projectDiscoveryStep);
-    const researchResult = getStepResult(workflowResearchStep);
+    // const researchResult = getStepResult(workflowResearchStep);
     const subWorkflowResult = getStepResult(planningAndApprovalWorkflow);
 
     return {
@@ -705,7 +1107,8 @@ export const workflowBuilderWorkflow = createWorkflow({
       tasks: subWorkflowResult.tasks,
       discoveredWorkflows: discoveryResult.workflows,
       projectStructure: projectResult,
-      research: researchResult,
+      // research: researchResult,
+      research,
       projectPath: initData.projectPath || process.cwd(),
     };
   })

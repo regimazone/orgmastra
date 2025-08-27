@@ -8,7 +8,7 @@ import { promisify } from 'util';
 // import { openai } from '@ai-sdk/openai';
 import { openai as openai_v5 } from '@ai-sdk/openai_v5';
 import type { MastraLanguageModel } from '@mastra/core/agent';
-import { MCPClient } from '@mastra/mcp';
+// import { MCPClient } from '@mastra/mcp';
 import { UNIT_KINDS } from './types';
 import type { UnitKind } from './types';
 
@@ -439,17 +439,17 @@ export const isValidMastraLanguageModel = (model: any): model is MastraLanguageM
   );
 };
 
-export const initializeMcpTools = async () => {
-  const mcpClient = new MCPClient({
-    id: 'mcp-client',
-    servers: {
-      docs: {
-        command: 'npx',
-        args: ['-y', '@mastra/mcp-docs-server'],
-      },
-    },
-  });
+// export const initializeMcpTools = async () => {
+//   const mcpClient = new MCPClient({
+//     id: 'mcp-client',
+//     servers: {
+//       docs: {
+//         command: 'npx',
+//         args: ['-y', '@mastra/mcp-docs-server'],
+//       },
+//     },
+//   });
 
-  const mcpTools = await mcpClient.getTools();
-  return { docs: mcpTools.docs_mastraDocs, examples: mcpTools.docs_mastraExamples };
-};
+//   const mcpTools = await mcpClient.getTools();
+//   return { docs: mcpTools.docs_mastraDocs, examples: mcpTools.docs_mastraExamples };
+// };

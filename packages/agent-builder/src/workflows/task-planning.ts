@@ -1,7 +1,7 @@
 import { createWorkflow, createStep, Agent } from '@mastra/core';
 import { z } from 'zod';
 import { PlanningIterationInputSchema, PlanningIterationResultSchema } from '../types';
-import { resolveModel, initializeMcpTools } from '../utils';
+import { resolveModel } from '../utils';
 
 // Planning iteration step (with questions and user answers)
 const planningIterationStep = createStep({
@@ -90,7 +90,7 @@ const planningIterationStep = createStep({
     );
 
     try {
-      const filteredMcpTools = await initializeMcpTools();
+      // const filteredMcpTools = await initializeMcpTools();
 
       const planningAgent = new Agent({
         model: resolveModel(runtimeContext),
@@ -122,7 +122,7 @@ ${
 
 Based on the context and any user answers, create or refine the task plan.`,
         name: 'Workflow Planning Agent',
-        tools: filteredMcpTools,
+        // tools: filteredMcpTools,
       });
 
       // Check if we have user feedback from rejected task list in input data

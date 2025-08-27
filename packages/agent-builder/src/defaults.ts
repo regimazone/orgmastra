@@ -606,12 +606,22 @@ export const mastra = new Mastra({
       replaceLines: createTool({
         id: 'replace-lines',
         description:
-          'Replace specific line ranges in files with new content. Perfect for fixing multiline imports, function signatures, or other structured code.',
+          'Replace specific line ranges in files with new content. IMPORTANT: This tool replaces ENTIRE lines, not partial content within lines. Lines are 1-indexed.',
         inputSchema: z.object({
           filePath: z.string().describe('Path to the file to edit'),
-          startLine: z.number().describe('Starting line number to replace (1-indexed)'),
-          endLine: z.number().describe('Ending line number to replace (1-indexed, inclusive)'),
-          newContent: z.string().describe('New content to replace the lines with'),
+          startLine: z
+            .number()
+            .describe('Starting line number to replace (1-indexed, inclusive). Count from the first line = 1'),
+          endLine: z
+            .number()
+            .describe(
+              'Ending line number to replace (1-indexed, inclusive). To replace single line, use same number as startLine',
+            ),
+          newContent: z
+            .string()
+            .describe(
+              'New content to replace the lines with. Use empty string "" to delete lines completely. For multiline content, include \\n characters',
+            ),
           createBackup: z.boolean().default(false).describe('Create backup file before editing'),
         }),
         outputSchema: z.object({
@@ -623,6 +633,43 @@ export const mastra = new Mastra({
         }),
         execute: async ({ context }) => {
           return await AgentBuilderDefaults.replaceLines({ ...context, projectPath });
+        },
+      }),
+
+      // File diagnostics tool to help debug line replacement issues
+      showFileLines: createTool({
+        id: 'show-file-lines',
+        description:
+          'Show specific lines from a file with line numbers. Useful for debugging before using replaceLines.',
+        inputSchema: z.object({
+          filePath: z.string().describe('Path to the file to examine'),
+          startLine: z
+            .number()
+            .optional()
+            .describe('Starting line number to show (1-indexed). If not provided, shows all lines'),
+          endLine: z
+            .number()
+            .optional()
+            .describe(
+              'Ending line number to show (1-indexed, inclusive). If not provided but startLine is, shows only that line',
+            ),
+          context: z.number().default(2).describe('Number of context lines to show before and after the range'),
+        }),
+        outputSchema: z.object({
+          success: z.boolean(),
+          lines: z.array(
+            z.object({
+              lineNumber: z.number(),
+              content: z.string(),
+              isTarget: z.boolean().describe('Whether this line is in the target range'),
+            }),
+          ),
+          totalLines: z.number(),
+          message: z.string(),
+          error: z.string().optional(),
+        }),
+        execute: async ({ context }) => {
+          return await AgentBuilderDefaults.showFileLines({ ...context, projectPath });
         },
       }),
 
@@ -2515,10 +2562,18 @@ export const mastra = new Mastra({
       const lines = content.split('\n');
 
       // Validate line numbers
-      if (startLine < 1 || endLine < 1 || startLine > lines.length || endLine > lines.length) {
+      if (startLine < 1 || endLine < 1) {
         return {
           success: false,
-          message: `Invalid line range: ${startLine}-${endLine}. File has ${lines.length} lines.`,
+          message: `Line numbers must be 1 or greater. Got startLine: ${startLine}, endLine: ${endLine}`,
+          error: 'Invalid line range',
+        };
+      }
+
+      if (startLine > lines.length || endLine > lines.length) {
+        return {
+          success: false,
+          message: `Line range ${startLine}-${endLine} is out of bounds. File has ${lines.length} lines. Remember: lines are 1-indexed, so valid range is 1-${lines.length}.`,
           error: 'Invalid line range',
         };
       }
@@ -2551,10 +2606,11 @@ export const mastra = new Mastra({
       await writeFile(fullPath, updatedContent, 'utf-8');
 
       const linesReplaced = endLine - startLine + 1;
+      const newLineCount = newLines.length;
 
       return {
         success: true,
-        message: `Successfully replaced ${linesReplaced} lines (${startLine}-${endLine}) in ${filePath}`,
+        message: `Successfully replaced ${linesReplaced} lines (${startLine}-${endLine}) with ${newLineCount} new lines in ${filePath}`,
         linesReplaced,
         backup,
       };
@@ -2562,6 +2618,69 @@ export const mastra = new Mastra({
       return {
         success: false,
         message: `Failed to replace lines: ${error instanceof Error ? error.message : String(error)}`,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Show file lines with line numbers for debugging
+   */
+  static async showFileLines(context: {
+    filePath: string;
+    startLine?: number;
+    endLine?: number;
+    context?: number;
+    projectPath?: string;
+  }) {
+    const { filePath, startLine, endLine, context: contextLines = 2, projectPath = process.cwd() } = context;
+
+    try {
+      const fullPath = isAbsolute(filePath) ? filePath : join(projectPath, filePath);
+
+      // Read current file content
+      const content = await readFile(fullPath, 'utf-8');
+      const lines = content.split('\n');
+
+      let targetStart = startLine;
+      let targetEnd = endLine;
+
+      // If no range specified, show all lines
+      if (!targetStart) {
+        targetStart = 1;
+        targetEnd = lines.length;
+      } else if (!targetEnd) {
+        targetEnd = targetStart;
+      }
+
+      // Calculate actual display range with context
+      const displayStart = Math.max(1, targetStart - contextLines);
+      const displayEnd = Math.min(lines.length, targetEnd + contextLines);
+
+      const result = [];
+      for (let i = displayStart; i <= displayEnd; i++) {
+        const lineIndex = i - 1; // Convert to 0-based for array access
+        const isTarget = i >= targetStart && i <= targetEnd;
+
+        result.push({
+          lineNumber: i,
+          content: lineIndex < lines.length ? (lines[lineIndex] ?? '') : '',
+          isTarget,
+        });
+      }
+
+      return {
+        success: true,
+        lines: result,
+        totalLines: lines.length,
+        message: `Showing lines ${displayStart}-${displayEnd} of ${lines.length} total lines in ${filePath}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        lines: [],
+        totalLines: 0,
+        message: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
         error: error instanceof Error ? error.message : String(error),
       };
     }
