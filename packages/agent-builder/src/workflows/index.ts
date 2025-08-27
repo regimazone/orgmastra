@@ -1659,4 +1659,8 @@ const shouldAbortWorkflow = (stepResult: any): boolean => {
 };
 
 // Export workflow builder workflow
-export { workflowBuilderWorkflow, createWorkflowWithBuilder, editWorkflowWithBuilder } from './workflow-builder';
+export {
+  workflowBuilderWorkflow,
+  createWorkflowWithBuilder,
+  editWorkflowWithBuilder,
+} from './workflow-builder/workflow-builder';
