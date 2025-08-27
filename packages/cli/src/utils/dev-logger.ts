@@ -80,6 +80,14 @@ export class DevLogger {
     console.log(`${prefix} ${pc.green('Bundle complete')}`);
   }
 
+  watching(): void {
+    const time = this.formatTime();
+    const icon = pc.dim('◯');
+    const message = pc.dim('watching for file changes...');
+    const fullMessage = `${icon} ${message}`;
+    console.log(time ? `${time} ${fullMessage}` : fullMessage);
+  }
+
   restarting(): void {
     const prefix = this.formatPrefix('↻', pc.blue);
     console.log(`${prefix} ${pc.blue('Restarting server...')}`);

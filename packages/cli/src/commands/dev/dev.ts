@@ -109,6 +109,7 @@ const startServer = async (
       if (message?.type === 'server-ready') {
         serverIsReady = true;
         devLogger.ready(port, serverStartTime);
+        devLogger.watching();
 
         // Send refresh signal
         try {
