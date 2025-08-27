@@ -95,6 +95,43 @@ export class Templates extends BaseResource {
   }
 
   /**
+   * Creates a streaming transform for template responses
+   * @private
+   */
+  private createTemplateStreamTransform() {
+    let failedChunk: string | undefined = undefined;
+
+    return new TransformStream<ArrayBuffer, { type: string; payload: any }>({
+      start() {},
+      async transform(chunk, controller) {
+        try {
+          // Decode binary data to text
+          const decoded = new TextDecoder().decode(chunk);
+
+          // Split by record separator
+          const chunks = decoded.split(RECORD_SEPARATOR);
+
+          // Process each chunk
+          for (const chunk of chunks) {
+            if (chunk) {
+              const newChunk: string = failedChunk ? failedChunk + chunk : chunk;
+              try {
+                const parsedChunk = JSON.parse(newChunk);
+                controller.enqueue(parsedChunk);
+                failedChunk = undefined;
+              } catch (error) {
+                failedChunk = newChunk;
+              }
+            }
+          }
+        } catch {
+          // Silently ignore processing errors
+        }
+      },
+    });
+  }
+
+  /**
    * Streams template installation progress in real-time.
    * This calls `/api/templates/:templateSlug/stream`.
    */
@@ -126,41 +163,44 @@ export class Templates extends BaseResource {
       throw new Error('Response body is null');
     }
 
-    //using undefined instead of empty string to avoid parsing errors
-    let failedChunk: string | undefined = undefined;
+    // Pipe the response body through the transform stream
+    return response.body.pipeThrough(this.createTemplateStreamTransform());
+  }
 
-    // Create a transform stream that processes the response body
-    const transformStream = new TransformStream<ArrayBuffer, { type: string; payload: any }>({
-      start() {},
-      async transform(chunk, controller) {
-        try {
-          // Decode binary data to text
-          const decoded = new TextDecoder().decode(chunk);
-
-          // Split by record separator
-          const chunks = decoded.split(RECORD_SEPARATOR);
-
-          // Process each chunk
-          for (const chunk of chunks) {
-            if (chunk) {
-              const newChunk: string = failedChunk ? failedChunk + chunk : chunk;
-              try {
-                const parsedChunk = JSON.parse(newChunk);
-                controller.enqueue(parsedChunk);
-                failedChunk = undefined;
-              } catch (error) {
-                failedChunk = newChunk;
-              }
-            }
-          }
-        } catch {
-          // Silently ignore processing errors
-        }
-      },
+  /**
+   * Watches an existing template installation run by runId.
+   * This is used for hot reload recovery - it loads the existing run state
+   * and streams any remaining progress.
+   * This calls `/api/templates/:templateSlug/watch`.
+   */
+  async watchInstall(templateSlug: string, runId: string) {
+    const url = `/api/templates/${templateSlug}/watch?runId=${runId}`;
+    const response: Response = await this.request(url, {
+      method: 'GET',
+      stream: true,
     });
 
+    if (!response.ok) {
+      throw new Error(`Failed to watch template installation: ${response.statusText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+
     // Pipe the response body through the transform stream
-    return response.body.pipeThrough(transformStream);
+    return response.body.pipeThrough(this.createTemplateStreamTransform());
+  }
+
+  /**
+   * Gets the current state of a template installation run by runId.
+   * This calls `/api/templates/:templateSlug/runs/:runId`.
+   */
+  async getInstallRun(templateSlug: string, runId: string) {
+    const url = `/api/templates/${templateSlug}/runs/${runId}`;
+    return this.request(url, {
+      method: 'GET',
+    });
   }
 
   async getAgentBuilderWorkflow(): Promise<WorkflowInfo> {
