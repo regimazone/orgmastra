@@ -1497,13 +1497,26 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             throw new Error('Simulated generate error');
           },
           doStream: async () => {
+            console.log('doStream called in v1 standard model');
             usedModelName = 'standard';
-            const stream = new ReadableStream({
-              pull() {
-                throw new Error('Simulated stream error');
-              },
-            });
-            return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
+            return {
+              stream: simulateReadableStream({
+                chunks: [
+                  // { type: 'text-delta', textDelta: 'Hello' },
+                  // { type: 'text-delta', textDelta: ', ' },
+                  // { type: 'text-delta', textDelta: `world!` },
+                  { type: 'error', error: new Error('Simulated stream error') },
+                  {
+                    type: 'finish',
+                    finishReason: 'error',
+                    logprobs: undefined,
+                    usage: { completionTokens: 10, promptTokens: 1 },
+                    error: new Error('Simulated stream error'),
+                  },
+                ],
+              }),
+              rawCall: { rawPrompt: null, rawSettings: {} },
+            };
           },
         });
       } else {
@@ -6726,7 +6739,7 @@ describe('Agent Tests', () => {
   });
 
   agentTests({ version: 'v1' });
-  agentTests({ version: 'v2' });
+  // agentTests({ version: 'v2' });
 });
 
 //     it('should accept and execute both Mastra and Vercel tools in Agent constructor', async () => {

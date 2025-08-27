@@ -3391,7 +3391,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   private runWithFallbackModels({
     isStream,
     // isVNext,
-  }: { isStream?: boolean; isVNext?: boolean } = {}): AgentModelManager {
+  }: { isStream?: boolean; isVNext?: boolean; streamError?: any } = {}): AgentModelManager {
     const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
       ...fallbackModel,
       isFallback: true,
@@ -3414,7 +3414,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     return async callback => {
       let lastErr: unknown;
-      let streamError: unknown;
       try {
         for (const modelConfig of allModels) {
           if (!modelConfig?.enabled) continue;
@@ -3424,39 +3423,43 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
           while (attempt <= maxRetries) {
             try {
-              const result = await callback(modelConfig.model);
+              let streamError: unknown;
+              // let streamErrorChecked
+              const result = await callback(modelConfig.model, (error: unknown) => {
+                console.log('update on stream error called===', error);
+                const modelLength = allModels.length;
+                const currentModelIndex = allModels.indexOf(modelConfig);
+                console.log('currentModelIndex===', currentModelIndex);
+                console.log('modelLength===', modelLength);
+                console.log('attempt===', attempt);
+                console.log('maxRetries===', maxRetries);
+                if (currentModelIndex !== modelLength - 1 || attempt !== maxRetries) {
+                  console.log('not last one');
+                  streamError = error;
+                }
+              });
+              console.log('result===', result);
+              if (isStream) {
+                console.log('streamError===', streamError);
+                if (streamError) {
+                  attempt++;
+                  if (!modelConfig.isFallback) {
+                    modelConfig.score *= 1.5;
+                  }
+                  // If we've exhausted all retries for this model, break and try the next model
+                  if (attempt > maxRetries) {
+                    break;
+                  }
+                  continue;
+                }
+              }
+              console.log('returning still');
               if (!modelConfig.isFallback) {
                 modelConfig.score *= 0.7;
               }
-              if (isStream) {
-                // let error: unknown;
-                // if (isVNext) {
-                //   await (result as any).consumeStream();
-                //   error = (result as any).error;
-                //   if (error) {
-                //     attempt++;
-                //     if (!modelConfig.isFallback) {
-                //       modelConfig.score *= 1.5;
-                //     }
-                //     streamError = result;
-                //     // If we've exhausted all retries for this model, break and try the next model
-                //     if (attempt > maxRetries) {
-                //       break;
-                //     }
-                //   }
-                // } else {
-                //   for await (const _ of (result as any).textStream) {
-                //     // Should throw
-                //     return result;
-                //   }
-                // }
-                // for await (const _ of (result as any).textStream) {
-                //   // Should throw
-                //   return result;
-                // }
-              }
               return result;
             } catch (err) {
+              console.log('error in catch===', err);
               attempt++;
               if (!modelConfig.isFallback) {
                 modelConfig.score *= 1.5;
@@ -3469,9 +3472,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
               }
             }
           }
-        }
-        if (streamError) {
-          return streamError as any;
         }
         throw lastErr;
       } finally {
@@ -3929,7 +3929,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
     | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>
   > {
-    return this.runWithFallbackModels({ isStream: true })(async model => {
+    return this.runWithFallbackModels({ isStream: true })(async (model, updateStreamError) => {
       const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions.runtimeContext });
 
       const mergedStreamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
@@ -4012,6 +4012,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           toTextStreamResponse: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
         };
 
+        console.log('trip wire');
+
+        updateStreamError?.(new Error('Trip wire triggered'));
+
         return emptyResult as unknown as
           | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
           | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>;
@@ -4020,14 +4024,24 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       const { onFinish, runId, output, experimental_output, agentAISpan, ...llmOptions } = beforeResult;
 
       if (!output || experimental_output) {
+        console.log('streaminnnnng====');
         this.logger.debug(`Starting agent ${this.name} llm stream call`, {
           runId,
         });
 
         const streamResult = llm.__stream({
           ...llmOptions,
+          onError: async (error: any) => {
+            console.log('onError called in llm.__stream===', error);
+            // updateStreamError?.(error);
+            await llmOptions.onError?.(error);
+            throw new Error(error);
+          },
           experimental_output,
           agentAISpan,
+          // onStepFinish: async props => {
+          //   console.log('onStepFinish called in llm.__stream===', props);
+          // },
           onFinish: async result => {
             try {
               const outputText = result.text;
@@ -4059,6 +4073,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       return llm.__streamObject({
         ...llmOptions,
         agentAISpan,
+        onError: async (error: any) => {
+          console.log('onError called in llm.__streamObject===', error);
+          updateStreamError?.(error);
+          await llmOptions.onError?.(error);
+        },
         onFinish: async result => {
           try {
             const outputText = JSON.stringify(result.object);

@@ -252,5 +252,5 @@ export type AgentStreamOptions<
   (OUTPUT extends undefined ? DefaultLLMStreamOptions : DefaultLLMStreamObjectOptions);
 
 export type AgentModelManager = <T>(
-  callback: (model: DynamicArgument<MastraLanguageModel>) => Promise<T>,
+  callback: (model: DynamicArgument<MastraLanguageModel>, updateStreamError?: (error: unknown) => void) => Promise<T>,
 ) => Promise<T>;
