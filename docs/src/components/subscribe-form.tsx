@@ -11,7 +11,6 @@ import {
 import Spinner from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { T, Var } from "gt-next/client";
 import { AlertCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -139,12 +138,13 @@ export const SubscribeForm = ({
           render={({ field }) => (
             <FormItem className="flex-1 w-full">
               {showLabel ? (
-                <T id="components.subscribe_form.0">
-                  <FormLabel className="text-[13px] mb-[0.69rem] block text-gray-500 dark:text-[#E6E6E6]">
-                    <Var>{label || "Mastra Newsletter"}</Var>
-                  </FormLabel>
-                </T>
-              ) : null}
+                <FormLabel className="text-[13px] mb-[0.69rem] block text-gray-500 dark:text-[#E6E6E6]">
+                  <>{label || "Mastra Newsletter"}</>
+                </FormLabel>
+              ) : // <T id="components.subscribe_form.0">
+
+              // </T>
+              null}
 
               <FormControl>
                 <input

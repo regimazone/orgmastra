@@ -11,7 +11,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { T } from "gt-next/client";
 import { X } from "lucide-react";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -192,9 +191,8 @@ export const FeedbackForm = ({
             {errorMessage && (
               <div className="mt-3 p-2 rounded bg-red-50 dark:bg-red-900/20">
                 <p className="text-xs text-red-500 dark:text-red-400">
-                  <T id="feedback.error">
-                    Something went wrong. Please try again.
-                  </T>
+                  {/* <T id="feedback.error"></T> */}
+                  Something went wrong. Please try again.
                   {errorMessage && (
                     <span className="block mt-1 opacity-75">
                       {errorMessage}

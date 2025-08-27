@@ -42,21 +42,12 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }>) {
-  const { locale } = await params;
-  console.log({ locale });
-  let pageMap: PageMapItem[] = [];
-
-  try {
-    pageMap = await getPageMap(`/${locale || "en"}`);
-  } catch (e) {
-    console.error(e);
-  }
+  let pageMap = await getPageMap();
 
   const stars = await fetchStars();
 
   return (
     <html
-      lang={locale || "en"}
       dir="ltr"
       className={cn(
         "antialiased",
@@ -69,15 +60,13 @@ export default async function RootLayout({
       <CustomHead />
 
       <body>
-        <GTProvider locale={"en"}>
-          <PostHogProvider>
-            <NextraLayout stars={stars} locale={locale} pageMap={pageMap}>
-              <NuqsAdapter>{children}</NuqsAdapter>
-            </NextraLayout>
-          </PostHogProvider>
-          <Toaster />
-          <CookieConsent />
-        </GTProvider>
+        <PostHogProvider>
+          <NextraLayout stars={stars} pageMap={pageMap}>
+            <NuqsAdapter>{children}</NuqsAdapter>
+          </NextraLayout>
+        </PostHogProvider>
+        <Toaster />
+        <CookieConsent />
         <Analytics />
       </body>
     </html>

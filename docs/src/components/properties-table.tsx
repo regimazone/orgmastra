@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-import { T } from "gt-next/client";
 
 interface Parameter {
   name: string;
@@ -57,11 +56,13 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                         <h3 className="font-mono text-sm font-medium cursor-pointer">
                           {param.name}
                           <span>
-                            {param.isOptional ? (
-                              <T id="components.properties_table.0">{"?:"}</T>
-                            ) : (
-                              <T id="components.properties_table.1">{":"}</T>
-                            )}
+                            {
+                              param.isOptional
+                                ? "?:"
+                                : // <T id="components.properties_table.0">{"?:"}</T>
+                                  ":"
+                              // <T id="components.properties_table.1">{":"}</T>
+                            }
                           </span>
                         </h3>
                         <div className="font-mono text-zinc-500 text-sm w-full">
@@ -94,11 +95,12 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
               <h3 className="font-mono text-sm font-medium cursor-pointer">
                 {item.name}
                 <span>
-                  {item.isOptional ? (
-                    <T id="components.properties_table.2">{"?:"}</T>
-                  ) : (
-                    <T id="components.properties_table.3">{":"}</T>
-                  )}
+                  {item.isOptional
+                    ? "?:"
+                    : // <T id="components.properties_table.2">{"?:"}</T>
+                      ":"
+                      // <T id="components.properties_table.3">{":"}</T>
+                  }
                 </span>
               </h3>
               <div className="text-sm leading-5 text-zinc-500">{item.type}</div>

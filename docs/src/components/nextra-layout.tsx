@@ -1,5 +1,4 @@
 "use client";
-import { T } from "gt-next/client";
 import { usePathname } from "next/navigation";
 import { PageMapItem } from "nextra";
 import { Layout } from "nextra-theme-docs";
@@ -36,7 +35,8 @@ export const NextraLayout = ({
       }
       pageMap={pageMap}
       toc={{
-        title: <T id="_locale_.layout.toc">On This Page</T>,
+        title: "On This Page",
+        // title: <T id="_locale_.layout.toc">On This Page</T>,
         extraContent: (
           <div className="flex gap-3 flex-col">
             <SubscribeForm
@@ -56,14 +56,11 @@ export const NextraLayout = ({
         autoCollapse: true,
         defaultMenuCollapseLevel: isReference ? 1 : 3,
       }}
-      i18n={[
-        { locale: "en", name: "English" },
-        { locale: "ja", name: "日本語" },
-      ]}
       feedback={{
         content: null,
       }}
-      editLink={<T id="_locale_.layout.edit_link">Edit this page</T>}
+      editLink={<>Edit this page</>}
+      // editLink={<T id="_locale_.layout.edit_link">Edit this page</T>}
 
       // ... Your additional layout options
     >

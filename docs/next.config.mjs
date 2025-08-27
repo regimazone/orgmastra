@@ -30,11 +30,6 @@ const withGT = initGT();
 export default withGT(
   withNextra({
     assetPrefix: process.env.NODE_ENV === "production" ? "/docs" : "",
-    // Using separate locale directories (en/, ja/) for page file convention
-    i18n: {
-      locales: ["en", "ja"],
-      defaultLocale: "en",
-    },
     async rewrites() {
       return {
         beforeFiles: [
