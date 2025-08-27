@@ -82,20 +82,24 @@ const startServer = async (
     if (currentServerProcess.stdout) {
       currentServerProcess.stdout.on('data', (data: Buffer) => {
         const output = data.toString();
-        if (!output.includes('Playground available') && 
-            !output.includes('👨‍💻') && 
-            !output.includes('Mastra API running on port')) {
+        if (
+          !output.includes('Playground available') &&
+          !output.includes('👨‍💻') &&
+          !output.includes('Mastra API running on port')
+        ) {
           process.stdout.write(output);
         }
       });
     }
-    
+
     if (currentServerProcess.stderr) {
       currentServerProcess.stderr.on('data', (data: Buffer) => {
         const output = data.toString();
-        if (!output.includes('Playground available') && 
-            !output.includes('👨‍💻') && 
-            !output.includes('Mastra API running on port')) {
+        if (
+          !output.includes('Playground available') &&
+          !output.includes('👨‍💻') &&
+          !output.includes('Mastra API running on port')
+        ) {
           process.stderr.write(output);
         }
       });
@@ -251,7 +255,7 @@ export async function dev({
   }
 
   await startServer(join(dotMastraPath, 'output'), Number(portToUse), loadedEnv, startOptions);
-  
+
   // Setup hotkey handler
   hotkeyHandler = new HotkeyHandler({
     restart: async () => {
@@ -265,7 +269,7 @@ export async function dev({
     },
   });
   hotkeyHandler.start();
-  
+
   watcher.on('event', (event: { code: string }) => {
     if (event.code === 'BUNDLE_START') {
       devLogger.bundling();
@@ -280,10 +284,10 @@ export async function dev({
 
   process.on('SIGINT', () => {
     devLogger.shutdown();
-    
+
     // Stop hotkey handler
     hotkeyHandler?.stop();
-    
+
     if (currentServerProcess) {
       currentServerProcess.kill();
     }
