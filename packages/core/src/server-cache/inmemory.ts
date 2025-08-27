@@ -24,6 +24,14 @@ export class InMemoryServerCache extends MastraServerCache {
     }
   }
 
+  async listFromTo(key: string, from: number, to: number = -1): Promise<unknown[]> {
+    const list = this.cache.get(key) as unknown[];
+    if (Array.isArray(list)) {
+      return list.slice(from, to);
+    }
+    return [];
+  }
+
   async delete(key: string): Promise<void> {
     this.cache.delete(key);
   }

@@ -14,6 +14,8 @@ export abstract class MastraServerCache extends MastraBase {
 
   abstract listPush(key: string, value: unknown): Promise<void>;
 
+  abstract listFromTo(key: string, from: number, to?: number): Promise<unknown[]>;
+
   abstract delete(key: string): Promise<void>;
 
   abstract clear(): Promise<void>;
