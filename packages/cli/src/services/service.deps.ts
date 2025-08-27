@@ -100,7 +100,7 @@ export class DepsService {
     const pkgJsonPath = path.join(__dirname, '..', 'package.json');
 
     const content = (await fsExtra.readJSON(pkgJsonPath)) as PackageJson;
-    return content.version;
+    return content.version || '';
   }
 
   public async addScriptsToPackageJson(scripts: Record<string, string>) {
