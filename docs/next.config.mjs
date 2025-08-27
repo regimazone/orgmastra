@@ -30,6 +30,10 @@ const withGT = initGT();
 export default withGT(
   withNextra({
     assetPrefix: process.env.NODE_ENV === "production" ? "/docs" : "",
+    i18n: {
+    locales: ['en', 'ja', ],
+    defaultLocale: 'en'
+  },
     async rewrites() {
       return {
         beforeFiles: [

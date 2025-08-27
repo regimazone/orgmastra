@@ -1,19 +1,19 @@
+import { fonts } from "@/app/font/setup";
+import "@/app/globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "nextra-theme-docs/style.css";
 import { getPageMap } from "nextra/page-map";
-import { fonts } from "@/app/font/setup";
-import "@/app/globals.css";
 
 import { PostHogProvider } from "@/analytics/posthog-provider";
 import { CookieConsent } from "@/components/cookie/cookie-consent";
-import { NextraLayout } from "@/components/nextra-layout";
-import { GTProvider } from "gt-next";
 import { CustomHead } from "@/components/custom-head";
+import { NextraLayout } from "@/components/nextra-layout";
+import loadTranslations from "@/loadTranslations";
+import { GTClientProvider } from "gt-next/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { PageMapItem } from "nextra";
 
 const fetchStars = async () => {
   try {
@@ -42,12 +42,14 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }>) {
-  let pageMap = await getPageMap();
+  const { locale } = await params;
+  let pageMap = await getPageMap(`/${locale || "en"}`);
 
   const stars = await fetchStars();
 
   return (
     <html
+      lang={locale || "en"}
       dir="ltr"
       className={cn(
         "antialiased",
@@ -60,13 +62,15 @@ export default async function RootLayout({
       <CustomHead />
 
       <body>
-        <PostHogProvider>
-          <NextraLayout stars={stars} pageMap={pageMap}>
-            <NuqsAdapter>{children}</NuqsAdapter>
-          </NextraLayout>
-        </PostHogProvider>
-        <Toaster />
-        <CookieConsent />
+        <GTClientProvider loadTranslations={loadTranslations} locale={locale}>
+          <PostHogProvider>
+            <NextraLayout stars={stars} locale={locale} pageMap={pageMap}>
+              <NuqsAdapter>{children}</NuqsAdapter>
+            </NextraLayout>
+          </PostHogProvider>
+          <Toaster />
+          <CookieConsent />
+        </GTClientProvider>
         <Analytics />
       </body>
     </html>
