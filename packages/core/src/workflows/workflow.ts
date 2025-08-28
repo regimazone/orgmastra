@@ -1402,9 +1402,8 @@ export class Run<
   }
 
   /**
-   * Starts the workflow execution with the provided input as a stream
-   * @param input The input data for the workflow
-   * @returns A promise that resolves to the workflow output
+   * Observe the workflow stream
+   * @returns A readable stream of the workflow events
    */
   observeStream(): {
     stream: ReadableStream<StreamEvent>;
