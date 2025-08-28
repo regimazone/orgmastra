@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PlanningIterationResultSchema } from '../shared/schema';
+import { PlanningIterationResultSchema, QuestionSchema, TaskSchema } from '../shared/schema';
 
 // Workflow Builder schemas and types
 export const WorkflowBuilderInputSchema = z.object({
@@ -64,16 +64,7 @@ export const WorkflowResearchResultSchema = z.object({
 
 export const TaskManagementResultSchema = z.object({
   success: z.boolean(),
-  tasks: z.array(
-    z.object({
-      id: z.string(),
-      content: z.string(),
-      status: z.enum(['pending', 'in_progress', 'completed', 'blocked']),
-      priority: z.enum(['high', 'medium', 'low']),
-      dependencies: z.array(z.string()).optional(),
-      notes: z.string().optional(),
-    }),
-  ),
+  tasks: TaskSchema,
   message: z.string(),
   error: z.string().optional(),
 });
@@ -83,16 +74,7 @@ export const TaskExecutionInputSchema = z.object({
   workflowName: z.string().optional(),
   description: z.string().optional(),
   requirements: z.string().optional(),
-  tasks: z.array(
-    z.object({
-      id: z.string(),
-      content: z.string(),
-      status: z.enum(['pending', 'in_progress', 'completed', 'blocked']),
-      priority: z.enum(['high', 'medium', 'low']),
-      dependencies: z.array(z.string()).optional(),
-      notes: z.string().optional(),
-    }),
-  ),
+  tasks: TaskSchema,
   discoveredWorkflows: z.array(z.any()),
   projectStructure: z.any(),
   research: z.any(),
@@ -100,15 +82,7 @@ export const TaskExecutionInputSchema = z.object({
 });
 
 export const TaskExecutionSuspendSchema = z.object({
-  questions: z.array(
-    z.object({
-      id: z.string(),
-      question: z.string(),
-      type: z.enum(['choice', 'text', 'boolean']),
-      options: z.array(z.string()).optional(),
-      context: z.string().optional(),
-    }),
-  ),
+  questions: QuestionSchema,
   currentProgress: z.string(),
   completedTasks: z.array(z.string()),
   message: z.string(),
@@ -137,15 +111,7 @@ export const TaskExecutionResultSchema = z.object({
 });
 
 export const UserClarificationInputSchema = z.object({
-  questions: z.array(
-    z.object({
-      id: z.string(),
-      question: z.string(),
-      type: z.enum(['choice', 'text', 'boolean']),
-      options: z.array(z.string()).optional(),
-      context: z.string().optional(),
-    }),
-  ),
+  questions: QuestionSchema,
 });
 
 export const UserClarificationResultSchema = z.object({
@@ -165,17 +131,7 @@ export const WorkflowBuilderResultSchema = z.object({
   taskManagement: TaskManagementResultSchema.optional(),
   execution: TaskExecutionResultSchema.optional(),
   needsUserInput: z.boolean().optional(),
-  questions: z
-    .array(
-      z.object({
-        id: z.string(),
-        question: z.string(),
-        type: z.enum(['choice', 'text', 'boolean']),
-        options: z.array(z.string()).optional(),
-        context: z.string().optional(),
-      }),
-    )
-    .optional(),
+  questions: QuestionSchema.optional(),
   message: z.string(),
   nextSteps: z.array(z.string()).optional(),
   error: z.string().optional(),
@@ -195,18 +151,7 @@ export const TaskExecutionIterationInputSchema = (taskLength: number) =>
     filesModified: z
       .array(z.string())
       .describe('List of files that were created or modified - use these exact paths for validateCode tool'),
-    questions: z
-      .array(
-        z.object({
-          id: z.string(),
-          question: z.string(),
-          type: z.enum(['choice', 'text', 'boolean']),
-          options: z.array(z.string()).optional(),
-          context: z.string().optional(),
-        }),
-      )
-      .optional()
-      .describe('Questions for user if clarification is needed'),
+    questions: QuestionSchema.optional().describe('Questions for user if clarification is needed'),
     message: z.string().describe('Summary of work completed or current status'),
     error: z.string().optional().describe('Any errors encountered'),
   });

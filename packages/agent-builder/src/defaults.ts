@@ -466,7 +466,7 @@ export const mastra = new Mastra({
           path: z.string().describe('Directory path to list'),
           recursive: z.boolean().default(false).describe('List subdirectories recursively'),
           includeHidden: z.boolean().default(false).describe('Include hidden files and directories'),
-          pattern: z.string().optional().describe('Glob pattern to filter files'),
+          pattern: z.string().default('*').describe('Glob pattern to filter files'),
           maxDepth: z.number().default(10).describe('Maximum recursion depth'),
           includeMetadata: z.boolean().default(true).describe('Include file metadata'),
         }),
