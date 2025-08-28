@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { ReadableStream } from 'node:stream/web';
 import { subscribe } from '@inngest/realtime';
 import type { Agent } from '@mastra/core/agent';
-import { AISpanType } from '@mastra/core/ai-tracing';
+import { AISpanType, wrapMastra } from '@mastra/core/ai-tracing';
 import type { TracingContext, AnyAISpan } from '@mastra/core/ai-tracing';
 import { RuntimeContext } from '@mastra/core/di';
 import type { Mastra } from '@mastra/core/mastra';
@@ -165,6 +165,7 @@ export class InngestRun<
         context: {} as any,
         activePaths: [],
         suspendedPaths: {},
+        waitingPaths: {},
         timestamp: Date.now(),
         status: 'running',
       },
@@ -488,6 +489,7 @@ export class InngestWorkflow<
           value: {},
           context: {},
           activePaths: [],
+          waitingPaths: {},
           serializedStepGraph: this.serializedStepGraph,
           suspendedPaths: {},
           result: undefined,
@@ -561,7 +563,7 @@ export class InngestWorkflow<
           runtimeContext: new RuntimeContext(), // TODO
           resume,
           abortController: new AbortController(),
-          parentSpan: undefined, // TODO: Pass actual parent AI span from workflow execution context
+          currentSpan: undefined, // TODO: Pass actual parent AI span from workflow execution context
         });
 
         return { result, runId };
@@ -766,7 +768,7 @@ export function createStep<
       execute: async ({ inputData, mastra, runtimeContext, tracingContext }) => {
         return params.execute({
           context: inputData,
-          mastra,
+          mastra: wrapMastra(mastra, tracingContext),
           runtimeContext,
           tracingContext,
         });
@@ -877,7 +879,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
     };
     runtimeContext: RuntimeContext;
     abortController: AbortController;
-    parentSpan?: AnyAISpan;
+    currentSpan?: AnyAISpan;
   }): Promise<TOutput> {
     await params.emitter.emit('watch-v2', {
       type: 'start',
@@ -1011,7 +1013,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
   }): Promise<void> {
     let { duration, fn } = entry;
 
-    const sleepSpan = tracingContext?.parentSpan?.createChildSpan({
+    const sleepSpan = tracingContext?.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_SLEEP,
       name: `sleep: ${duration ? `${duration}ms` : 'dynamic'}`,
       attributes: {
@@ -1031,7 +1033,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
           inputData: prevOutput,
           runCount: -1,
           tracingContext: {
-            parentSpan: sleepSpan,
+            currentSpan: sleepSpan,
           },
           getInitData: () => stepResults?.input as any,
           getStepResult: (step: any) => {
@@ -1124,7 +1126,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
   }): Promise<void> {
     let { date, fn } = entry;
 
-    const sleepUntilSpan = tracingContext?.parentSpan?.createChildSpan({
+    const sleepUntilSpan = tracingContext?.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_SLEEP,
       name: `sleepUntil: ${date ? date.toISOString() : 'dynamic'}`,
       attributes: {
@@ -1145,7 +1147,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
           inputData: prevOutput,
           runCount: -1,
           tracingContext: {
-            parentSpan: sleepUntilSpan,
+            currentSpan: sleepUntilSpan,
           },
           getInitData: () => stepResults?.input as any,
           getStepResult: (step: any) => {
@@ -1228,6 +1230,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
     abortController,
     runtimeContext,
     writableStream,
+    disableScorers,
     tracingContext,
   }: {
     step: Step<string, any, any>;
@@ -1243,9 +1246,10 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
     abortController: AbortController;
     runtimeContext: RuntimeContext;
     writableStream?: WritableStream<ChunkType>;
+    disableScorers?: boolean;
     tracingContext?: TracingContext;
   }): Promise<StepResult<any, any, any, any>> {
-    const stepAISpan = tracingContext?.parentSpan?.createChildSpan({
+    const stepAISpan = tracingContext?.currentSpan?.createChildSpan({
       name: `workflow step: '${step.id}'`,
       type: AISpanType.WORKFLOW_STEP,
       input: prevOutput,
@@ -1511,7 +1515,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
           inputData: prevOutput,
           resumeData: resume?.steps[0] === step.id ? resume?.resumePayload : undefined,
           tracingContext: {
-            parentSpan: stepAISpan,
+            currentSpan: stepAISpan,
           },
           getInitData: () => stepResults?.input as any,
           getStepResult: (step: any) => {
@@ -1634,6 +1638,23 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
       return { result: execResults, executionContext, stepResults };
     });
 
+    if (disableScorers !== false) {
+      await this.inngestStep.run(`workflow.${executionContext.workflowId}.step.${step.id}.score`, async () => {
+        if (step.scorers) {
+          this.runScorers({
+            scorers: step.scorers,
+            runId: executionContext.runId,
+            input: prevOutput,
+            output: stepRes.result,
+            workflowId: executionContext.workflowId,
+            stepId: step.id,
+            runtimeContext,
+            disableScorers,
+          });
+        }
+      });
+    }
+
     // @ts-ignore
     Object.assign(executionContext.suspendedPaths, stepRes.executionContext.suspendedPaths);
     // @ts-ignore
@@ -1675,6 +1696,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
             context: stepResults as any,
             activePaths: [],
             suspendedPaths: executionContext.suspendedPaths,
+            waitingPaths: {},
             serializedStepGraph,
             status: workflowStatus,
             result,
@@ -1701,6 +1723,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
     abortController,
     runtimeContext,
     writableStream,
+    disableScorers,
     tracingContext,
   }: {
     workflowId: string;
@@ -1725,9 +1748,10 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
     abortController: AbortController;
     runtimeContext: RuntimeContext;
     writableStream?: WritableStream<ChunkType>;
+    disableScorers?: boolean;
     tracingContext?: TracingContext;
   }): Promise<StepResult<any, any, any, any>> {
-    const conditionalSpan = tracingContext?.parentSpan?.createChildSpan({
+    const conditionalSpan = tracingContext?.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_CONDITIONAL,
       name: `conditional: ${entry.conditions.length} conditions`,
       input: prevOutput,
@@ -1759,7 +1783,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
                 runCount: -1,
                 inputData: prevOutput,
                 tracingContext: {
-                  parentSpan: evalSpan,
+                  currentSpan: evalSpan,
                 },
                 getInitData: () => stepResults?.input as any,
                 getStepResult: (step: any) => {
@@ -1852,8 +1876,9 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
           abortController,
           runtimeContext,
           writableStream,
+          disableScorers,
           tracingContext: {
-            parentSpan: conditionalSpan,
+            currentSpan: conditionalSpan,
           },
         }),
       ),

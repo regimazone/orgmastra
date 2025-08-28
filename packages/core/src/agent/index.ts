@@ -1323,7 +1323,6 @@ export class Agent<
           writableStream,
           agentAISpan,
         };
-
         return [k, makeCoreTool(tool, options)];
       }),
     );
@@ -1487,7 +1486,7 @@ export class Agent<
                 const result = await run.start({
                   inputData: args,
                   runtimeContext,
-                  parentSpan: toolAISpan,
+                  currentSpan: toolAISpan,
                 });
                 toolAISpan?.end({ output: result });
                 return result;
@@ -1736,7 +1735,7 @@ export class Agent<
     runtimeContext,
     saveQueueManager,
     writableStream,
-    parentSpan,
+    currentSpan,
   }: {
     instructions: string;
     toolsets?: ToolsetsInput;
@@ -1750,7 +1749,7 @@ export class Agent<
     runtimeContext: RuntimeContext;
     saveQueueManager: SaveQueueManager;
     writableStream?: WritableStream<ChunkType>;
-    parentSpan?: AnyAISpan;
+    currentSpan?: AnyAISpan;
   }) {
     return {
       before: async () => {
@@ -1775,11 +1774,11 @@ export class Agent<
           },
         };
 
-        // if parentSpan passed, use it to build agentSpan
+        // if currentSpan passed, use it to build agentSpan
         // otherwise, attempt to create new trace
         let agentAISpan: AISpan<AISpanType.AGENT_RUN> | undefined;
-        if (parentSpan) {
-          agentAISpan = parentSpan.createChildSpan({ type: AISpanType.AGENT_RUN, ...spanArgs });
+        if (currentSpan) {
+          agentAISpan = currentSpan.createChildSpan({ type: AISpanType.AGENT_RUN, ...spanArgs });
         } else {
           const aiTracing = getSelectedAITracing({
             runtimeContext: runtimeContext,
@@ -2554,7 +2553,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext,
       saveQueueManager,
       writableStream,
-      parentSpan: args.tracingContext?.parentSpan,
+      currentSpan: args.tracingContext?.currentSpan,
     });
 
     let messageList: MessageList;
