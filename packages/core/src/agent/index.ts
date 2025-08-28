@@ -2943,6 +2943,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           threadId: result.threadId,
           structuredOutput: result.structuredOutput,
           stopWhen: result.stopWhen,
+          maxSteps: result.maxSteps,
           options: {
             onFinish: async (payload: any) => {
               if (payload.finishReason === 'error') {
