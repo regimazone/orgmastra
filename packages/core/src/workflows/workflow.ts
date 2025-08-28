@@ -1226,6 +1226,8 @@ export class Run<
    */
   #mastra?: Mastra;
 
+  #observerHandlers: (() => void)[] = [];
+
   get mastra() {
     return this.#mastra;
   }
@@ -1338,10 +1340,17 @@ export class Run<
    * @param input The input data for the workflow
    * @returns A promise that resolves to the workflow output
    */
-  stream({ inputData, runtimeContext }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): {
+  stream({
+    inputData,
+    runtimeContext,
+    onChunk,
+  }: {
+    inputData?: z.infer<TInput>;
+    runtimeContext?: RuntimeContext;
+    onChunk?: (chunk: StreamEvent) => Promise<unknown>;
+  } = {}): {
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
-    streamId: string;
   } {
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
@@ -1350,6 +1359,9 @@ export class Run<
       try {
         // watch-v2 events are data stream events, so we need to cast them to the correct type
         await writer.write(event as any);
+        if (onChunk) {
+          await onChunk(event as any);
+        }
       } catch {}
     }, 'watch-v2');
 
@@ -1359,6 +1371,8 @@ export class Run<
         payload: { runId: this.runId },
       });
       unwatch();
+      this.#observerHandlers.forEach(handler => handler());
+      this.#observerHandlers = [];
 
       try {
         await writer.close();
@@ -1384,7 +1398,31 @@ export class Run<
     return {
       stream: readable,
       getWorkflowState: () => this.executionResults!,
-      streamId: randomUUID(),
+    };
+  }
+
+  /**
+   * Starts the workflow execution with the provided input as a stream
+   * @param input The input data for the workflow
+   * @returns A promise that resolves to the workflow output
+   */
+  observeStream(): {
+    stream: ReadableStream<StreamEvent>;
+  } {
+    const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
+
+    const writer = writable.getWriter();
+    const unwatch = this.watch(async event => {
+      try {
+        // watch-v2 events are data stream events, so we need to cast them to the correct type
+        await writer.write(event as any);
+      } catch {}
+    }, 'watch-v2');
+
+    this.#observerHandlers.push(unwatch);
+
+    return {
+      stream: readable,
     };
   }
 
@@ -1394,7 +1432,6 @@ export class Run<
   }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): Promise<{
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
-    streamId: string;
   }> {
     return this.stream({ inputData, runtimeContext });
   }

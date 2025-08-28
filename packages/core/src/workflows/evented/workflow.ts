@@ -434,7 +434,6 @@ export class EventedRun<
   stream({ inputData, runtimeContext }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): {
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
-    streamId: string;
   } {
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
@@ -469,7 +468,6 @@ export class EventedRun<
     return {
       stream: readable as ReadableStream<StreamEvent>,
       getWorkflowState: () => this.executionResults!,
-      streamId: randomUUID(),
     };
   }
 
@@ -479,7 +477,6 @@ export class EventedRun<
   }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext } = {}): Promise<{
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
-    streamId: string;
   }> {
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
@@ -514,7 +511,6 @@ export class EventedRun<
     return {
       stream: readable as ReadableStream<StreamEvent>,
       getWorkflowState: () => this.executionResults!,
-      streamId: randomUUID(),
     };
   }
 

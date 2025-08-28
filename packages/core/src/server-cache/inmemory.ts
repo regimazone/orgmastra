@@ -15,6 +15,14 @@ export class InMemoryServerCache extends MastraServerCache {
     this.cache.set(key, value);
   }
 
+  async listLength(key: string): Promise<number> {
+    const list = this.cache.get(key) as unknown[];
+    if (!Array.isArray(list)) {
+      throw new Error(`${key} is not an array`);
+    }
+    return list.length;
+  }
+
   async listPush(key: string, value: unknown): Promise<void> {
     const list = this.cache.get(key) as unknown[];
     if (Array.isArray(list)) {

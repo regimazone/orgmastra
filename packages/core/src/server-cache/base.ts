@@ -10,6 +10,8 @@ export abstract class MastraServerCache extends MastraBase {
 
   abstract get(key: string): Promise<unknown>;
 
+  abstract listLength(key: string): Promise<number>;
+
   abstract set(key: string, value: unknown): Promise<void>;
 
   abstract listPush(key: string, value: unknown): Promise<void>;
