@@ -723,6 +723,8 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
                     id: 'test-id-from-model',
                     timestamp: new Date(10000),
                     modelId: 'test-response-model-id',
+                    modelProvider: 'mock-provider',
+                    modelVersion: 'v2',
                     headers: {
                       'custom-response-header': 'response-header-value',
                     },
@@ -1158,6 +1160,8 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     //                   },
     //                 ],
     //                 "modelId": "test-response-model-id",
+    //                 "modelProvider": "mock-provider",
+    //                 "modelVersion": "v2",
     //                 "timestamp": 1970-01-01T00:00:10.000Z,
     //               },
     //               "usage": {
@@ -1340,6 +1344,8 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     //                   },
     //                 ],
     //                 "modelId": "test-response-model-id",
+    //                 "modelProvider": "mock-provider",
+    //                 "modelVersion": "v2",
     //                 "timestamp": 1970-01-01T00:00:10.000Z,
     //               },
     //               "usage": {
