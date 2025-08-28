@@ -2,6 +2,7 @@ import alias from '@rollup/plugin-alias';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import nodeResolve from '@rollup/plugin-node-resolve';
+import esmShim from '@rollup/plugin-esm-shim';
 import { fileURLToPath } from 'node:url';
 import { rollup, type InputOptions, type OutputOptions } from 'rollup';
 import { esbuild } from './plugins/esbuild';
@@ -15,7 +16,7 @@ export async function getInputOptions(
   analyzedBundleInfo: Awaited<ReturnType<typeof analyzeBundle>>,
   platform: 'node' | 'browser',
   env: Record<string, string> = { 'process.env.NODE_ENV': JSON.stringify('production') },
-  { sourcemap = false }: { sourcemap?: boolean } = {},
+  { sourcemap = false, enableEsmShim = true }: { sourcemap?: boolean; enableEsmShim?: boolean } = {},
 ): Promise<InputOptions> {
   let nodeResolvePlugin =
     platform === 'node'
@@ -116,6 +117,7 @@ export async function getInputOptions(
           return externals.includes(id);
         },
       }),
+      enableEsmShim ? esmShim() : undefined,
       nodeResolvePlugin,
       // for debugging
       // {
