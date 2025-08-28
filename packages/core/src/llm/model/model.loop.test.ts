@@ -8,9 +8,12 @@ const model = new MastraLLMVNext({
   model: openai('gpt-4o-mini'),
 });
 
+const models = [{ model: openai('gpt-4o-mini'), retry: 0, id: 'test-model' }];
+
 describe('MastraLLMVNext', () => {
   it('should generate text - mastra', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -25,6 +28,7 @@ describe('MastraLLMVNext', () => {
 
   it('should generate text - aisdk', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -39,6 +43,7 @@ describe('MastraLLMVNext', () => {
 
   it('should stream text - mastra', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -58,6 +63,7 @@ describe('MastraLLMVNext', () => {
 
   it('should stream text - aisdk', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -74,6 +80,7 @@ describe('MastraLLMVNext', () => {
 
   it('should stream object - mastra/aisdk', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -96,6 +103,7 @@ describe('MastraLLMVNext', () => {
 
   it('should generate object - mastra', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -116,6 +124,7 @@ describe('MastraLLMVNext', () => {
 
   it('should generate object - aisdk', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -136,6 +145,7 @@ describe('MastraLLMVNext', () => {
 
   it('full stream object - mastra', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
@@ -160,6 +170,7 @@ describe('MastraLLMVNext', () => {
 
   it('full stream object - aisdk', async () => {
     const result = model.stream({
+      models,
       messages: [
         {
           role: 'user',
