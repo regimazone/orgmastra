@@ -727,7 +727,7 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Model updated.`, { model: this.model, name: this.name });
   }
 
-  __disableFallbackModels() {
+  disableFallbackModels() {
     if (!this.fallbackModels) {
       this.logger.warn(`[Agents:${this.name}] No fallback models found`);
       return;
@@ -739,7 +739,7 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Fallback models disabled`);
   }
 
-  __reorderFallbackModels(fallbackModelIds: string[]) {
+  reorderFallbackModels(fallbackModelIds: string[]) {
     if (!this.fallbackModels) {
       this.logger.warn(`[Agents:${this.name}] No fallback models found`);
       return;
@@ -753,7 +753,7 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Fallback models reordered`);
   }
 
-  __updateFallbackModel({
+  updateFallbackModel({
     id,
     model,
     enabled,

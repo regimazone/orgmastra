@@ -25,7 +25,6 @@ export type LoopConfig = {
 };
 
 export type LoopOptions<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSchema | undefined = undefined> = {
-  // model: LanguageModelV2;
   models: ModelManagerModelConfig[];
   logger?: IMastraLogger;
   mode?: 'generate' | 'stream';

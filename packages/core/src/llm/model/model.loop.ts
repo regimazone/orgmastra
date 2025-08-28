@@ -135,6 +135,19 @@ export class MastraLLMVNext extends MastraBase {
     models,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
+    if (!models || models.length === 0) {
+      throw new MastraError({
+        id: 'LLM_STREAM_NO_MODELS_PROVIDED',
+        domain: ErrorDomain.LLM,
+        category: ErrorCategory.USER,
+        details: {
+          runId: runId ?? 'unknown',
+          threadId: threadId ?? 'unknown',
+          resourceId: resourceId ?? 'unknown',
+        },
+      });
+    }
+
     const firstModel = models[0]?.model!;
     let stopWhenToUse;
 
