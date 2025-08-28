@@ -131,9 +131,10 @@ export class MastraLLMVNext extends MastraBase {
     output,
     options,
     outputProcessors,
+    models,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
-    const model = this.#model;
+    const firstModel = models[0]?.model!;
     this.logger.debug(`[LLM] - Streaming text`, {
       runId,
       threadId,
@@ -155,7 +156,7 @@ export class MastraLLMVNext extends MastraBase {
 
       const loopOptions: LoopOptions<Tools, OUTPUT> = {
         messageList,
-        model: this.#model,
+        models,
         tools: tools as Tools,
         stopWhen,
         toolChoice,
@@ -178,8 +179,8 @@ export class MastraLLMVNext extends MastraBase {
                   domain: ErrorDomain.LLM,
                   category: ErrorCategory.USER,
                   details: {
-                    modelId: model.modelId,
-                    modelProvider: model.provider,
+                    modelId: props.model.modelId,
+                    modelProvider: props.model.provider,
                     runId: runId ?? 'unknown',
                     threadId: threadId ?? 'unknown',
                     resourceId: resourceId ?? 'unknown',
@@ -223,8 +224,8 @@ export class MastraLLMVNext extends MastraBase {
                   domain: ErrorDomain.LLM,
                   category: ErrorCategory.USER,
                   details: {
-                    modelId: model.modelId,
-                    modelProvider: model.provider,
+                    modelId: props.model.modelId,
+                    modelProvider: props.model.provider,
                     runId: runId ?? 'unknown',
                     threadId: threadId ?? 'unknown',
                     resourceId: resourceId ?? 'unknown',
@@ -262,8 +263,8 @@ export class MastraLLMVNext extends MastraBase {
           domain: ErrorDomain.LLM,
           category: ErrorCategory.THIRD_PARTY,
           details: {
-            modelId: model.modelId,
-            modelProvider: model.provider,
+            modelId: firstModel.modelId,
+            modelProvider: firstModel.provider,
             runId: runId ?? 'unknown',
             threadId: threadId ?? 'unknown',
             resourceId: resourceId ?? 'unknown',

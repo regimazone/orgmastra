@@ -18,7 +18,7 @@ import z from 'zod';
 import { MessageList } from '../../agent/message-list';
 import type { loop } from '../loop';
 import { MockTracer } from './mockTracer';
-import { createTestModel, testUsage, defaultSettings, modelWithSources, modelWithFiles, testUsage2 } from './utils';
+import { createTestModels, testUsage, defaultSettings, modelWithSources, modelWithFiles, testUsage2 } from './utils';
 
 export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: string }) {
   describe('options.abortSignal', () => {
@@ -37,7 +37,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = loopFn({
         runId,
-        model: createTestModel({
+        models: createTestModels({
           stream: convertArrayToReadableStream([
             {
               type: 'tool-call',
@@ -95,11 +95,17 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const resultObject = await loopFn({
         runId,
-        model: new MockLanguageModelV2({
-          doStream: async () => {
-            throw new Error('test error');
+        models: [
+          {
+            retry: 0,
+            id: 'test-model',
+            model: new MockLanguageModelV2({
+              doStream: async () => {
+                throw new Error('test error');
+              },
+            }),
           },
-        }),
+        ],
         messageList,
         options: {
           onError(event) {
@@ -127,30 +133,36 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = loopFn({
         runId,
-        model: new MockLanguageModelV2({
-          doStream: async ({ providerOptions }) => {
-            expect(providerOptions).toStrictEqual({
-              aProvider: { someKey: 'someValue' },
-            });
+        models: [
+          {
+            retry: 0,
+            id: 'test-model',
+            model: new MockLanguageModelV2({
+              doStream: async ({ providerOptions }) => {
+                expect(providerOptions).toStrictEqual({
+                  aProvider: { someKey: 'someValue' },
+                });
 
-            return {
-              stream: convertArrayToReadableStream([
-                { type: 'text-start', id: '1' },
-                {
-                  type: 'text-delta',
-                  id: '1',
-                  delta: 'provider metadata test',
-                },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: testUsage,
-                },
-              ]),
-            };
+                return {
+                  stream: convertArrayToReadableStream([
+                    { type: 'text-start', id: '1' },
+                    {
+                      type: 'text-delta',
+                      id: '1',
+                      delta: 'provider metadata test',
+                    },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: 'stop',
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              },
+            }),
           },
-        }),
+        ],
         messageList,
         providerOptions: {
           aProvider: { someKey: 'someValue' },
@@ -176,26 +188,32 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model: new MockLanguageModelV2({
-          doStream: async ({ tools: toolsArg }) => {
-            tools = toolsArg;
+        models: [
+          {
+            retry: 0,
+            id: 'test-model',
+            model: new MockLanguageModelV2({
+              doStream: async ({ tools: toolsArg }) => {
+                tools = toolsArg;
 
-            return {
-              stream: convertArrayToReadableStream([
-                { type: 'text-start', id: '1' },
-                { type: 'text-delta', id: '1', delta: 'Hello' },
-                { type: 'text-delta', id: '1', delta: ', ' },
-                { type: 'text-delta', id: '1', delta: `world!` },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: testUsage,
-                },
-              ]),
-            };
+                return {
+                  stream: convertArrayToReadableStream([
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'Hello' },
+                    { type: 'text-delta', id: '1', delta: ', ' },
+                    { type: 'text-delta', id: '1', delta: `world!` },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: 'stop',
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              },
+            }),
           },
-        }),
+        ],
         tools: {
           tool1: {
             inputSchema: z.object({ value: z.string() }),
@@ -270,66 +288,72 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         let responseCount = 0;
         result = await loopFn({
           runId,
-          model: new MockLanguageModelV2({
-            doStream: async ({ prompt, tools, toolChoice }) => {
-              stepInputs.push({ prompt, tools, toolChoice });
+          models: [
+            {
+              retry: 0,
+              id: 'test-model',
+              model: new MockLanguageModelV2({
+                doStream: async ({ prompt, tools, toolChoice }) => {
+                  stepInputs.push({ prompt, tools, toolChoice });
 
-              switch (responseCount++) {
-                case 0: {
-                  return {
-                    stream: convertArrayToReadableStream([
-                      {
-                        type: 'response-metadata',
-                        id: 'id-0',
-                        modelId: 'mock-model-id',
-                        timestamp: new Date(0),
-                      },
-                      { type: 'reasoning-start', id: '0' },
-                      { type: 'reasoning-delta', id: '0', delta: 'thinking' },
-                      { type: 'reasoning-end', id: '0' },
-                      {
-                        type: 'tool-call',
-                        id: 'call-1',
-                        toolCallId: 'call-1',
-                        toolName: 'tool1',
-                        input: `{ "value": "value" }`,
-                      },
-                      {
-                        type: 'finish',
-                        finishReason: 'tool-calls',
-                        usage: testUsage,
-                      },
-                    ]),
-                    response: { headers: { call: '1' } },
-                  };
-                }
-                case 1: {
-                  return {
-                    stream: convertArrayToReadableStream([
-                      {
-                        type: 'response-metadata',
-                        id: 'id-1',
-                        modelId: 'mock-model-id',
-                        timestamp: new Date(1000),
-                      },
-                      { type: 'text-start', id: '1' },
-                      { type: 'text-delta', id: '1', delta: 'Hello, ' },
-                      { type: 'text-delta', id: '1', delta: `world!` },
-                      { type: 'text-end', id: '1' },
-                      {
-                        type: 'finish',
-                        finishReason: 'stop',
-                        usage: testUsage2,
-                      },
-                    ]),
-                    response: { headers: { call: '2' } },
-                  };
-                }
-                default:
-                  throw new Error(`Unexpected response count: ${responseCount}`);
-              }
+                  switch (responseCount++) {
+                    case 0: {
+                      return {
+                        stream: convertArrayToReadableStream([
+                          {
+                            type: 'response-metadata',
+                            id: 'id-0',
+                            modelId: 'mock-model-id',
+                            timestamp: new Date(0),
+                          },
+                          { type: 'reasoning-start', id: '0' },
+                          { type: 'reasoning-delta', id: '0', delta: 'thinking' },
+                          { type: 'reasoning-end', id: '0' },
+                          {
+                            type: 'tool-call',
+                            id: 'call-1',
+                            toolCallId: 'call-1',
+                            toolName: 'tool1',
+                            input: `{ "value": "value" }`,
+                          },
+                          {
+                            type: 'finish',
+                            finishReason: 'tool-calls',
+                            usage: testUsage,
+                          },
+                        ]),
+                        response: { headers: { call: '1' } },
+                      };
+                    }
+                    case 1: {
+                      return {
+                        stream: convertArrayToReadableStream([
+                          {
+                            type: 'response-metadata',
+                            id: 'id-1',
+                            modelId: 'mock-model-id',
+                            timestamp: new Date(1000),
+                          },
+                          { type: 'text-start', id: '1' },
+                          { type: 'text-delta', id: '1', delta: 'Hello, ' },
+                          { type: 'text-delta', id: '1', delta: `world!` },
+                          { type: 'text-end', id: '1' },
+                          {
+                            type: 'finish',
+                            finishReason: 'stop',
+                            usage: testUsage2,
+                          },
+                        ]),
+                        response: { headers: { call: '2' } },
+                      };
+                    }
+                    default:
+                      throw new Error(`Unexpected response count: ${responseCount}`);
+                  }
+                },
+              }),
             },
-          }),
+          ],
           tools: {
             tool1: {
               inputSchema: z.object({ value: z.string() }),
@@ -1382,59 +1406,65 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
         result = await loopFn({
           runId,
-          model: new MockLanguageModelV2({
-            doStream: async options => {
-              doStreamCalls.push(options);
-              switch (doStreamCalls.length) {
-                case 1:
-                  return {
-                    stream: convertArrayToReadableStream([
-                      {
-                        type: 'response-metadata',
-                        id: 'id-0',
-                        modelId: 'mock-model-id',
-                        timestamp: new Date(0),
-                      },
-                      {
-                        type: 'tool-call',
-                        toolCallId: 'call-1',
-                        toolName: 'tool1',
-                        input: `{ "value": "value" }`,
-                      },
-                      {
-                        type: 'finish',
-                        finishReason: 'tool-calls',
-                        usage: testUsage,
-                      },
-                    ]),
-                    response: { headers: { call: '1' } },
-                  };
-                case 2:
-                  return {
-                    stream: convertArrayToReadableStream([
-                      {
-                        type: 'response-metadata',
-                        id: 'id-1',
-                        modelId: 'mock-model-id',
-                        timestamp: new Date(1000),
-                      },
-                      { type: 'text-start', id: '2' },
-                      { type: 'text-delta', id: '2', delta: 'Hello, ' },
-                      { type: 'text-delta', id: '2', delta: `world!` },
-                      { type: 'text-end', id: '2' },
-                      {
-                        type: 'finish',
-                        finishReason: 'stop',
-                        usage: testUsage2,
-                      },
-                    ]),
-                    response: { headers: { call: '2' } },
-                  };
-                default:
-                  throw new Error(`Unexpected response count: ${doStreamCalls.length}`);
-              }
+          models: [
+            {
+              retry: 0,
+              id: 'test-model',
+              model: new MockLanguageModelV2({
+                doStream: async options => {
+                  doStreamCalls.push(options);
+                  switch (doStreamCalls.length) {
+                    case 1:
+                      return {
+                        stream: convertArrayToReadableStream([
+                          {
+                            type: 'response-metadata',
+                            id: 'id-0',
+                            modelId: 'mock-model-id',
+                            timestamp: new Date(0),
+                          },
+                          {
+                            type: 'tool-call',
+                            toolCallId: 'call-1',
+                            toolName: 'tool1',
+                            input: `{ "value": "value" }`,
+                          },
+                          {
+                            type: 'finish',
+                            finishReason: 'tool-calls',
+                            usage: testUsage,
+                          },
+                        ]),
+                        response: { headers: { call: '1' } },
+                      };
+                    case 2:
+                      return {
+                        stream: convertArrayToReadableStream([
+                          {
+                            type: 'response-metadata',
+                            id: 'id-1',
+                            modelId: 'mock-model-id',
+                            timestamp: new Date(1000),
+                          },
+                          { type: 'text-start', id: '2' },
+                          { type: 'text-delta', id: '2', delta: 'Hello, ' },
+                          { type: 'text-delta', id: '2', delta: `world!` },
+                          { type: 'text-end', id: '2' },
+                          {
+                            type: 'finish',
+                            finishReason: 'stop',
+                            usage: testUsage2,
+                          },
+                        ]),
+                        response: { headers: { call: '2' } },
+                      };
+                    default:
+                      throw new Error(`Unexpected response count: ${doStreamCalls.length}`);
+                  }
+                },
+              }),
             },
-          }),
+          ],
           tools: {
             tool1: tool({
               inputSchema: z.object({ value: z.string() }),
@@ -3098,52 +3128,58 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         let responseCount = 0;
         result = await loopFn({
           runId,
-          model: new MockLanguageModelV2({
-            doStream: async () => {
-              switch (responseCount++) {
-                case 0: {
-                  return {
-                    stream: convertArrayToReadableStream([
-                      {
-                        type: 'response-metadata',
-                        id: 'id-0',
-                        modelId: 'mock-model-id',
-                        timestamp: new Date(0),
-                      },
-                      {
-                        type: 'reasoning-start',
-                        id: 'id-0',
-                      },
-                      {
-                        type: 'reasoning-delta',
-                        id: 'id-0',
-                        delta: 'thinking',
-                      },
-                      {
-                        type: 'reasoning-end',
-                        id: 'id-0',
-                      },
-                      {
-                        type: 'tool-call',
-                        id: 'call-1',
-                        toolCallId: 'call-1',
-                        toolName: 'tool1',
-                        input: `{ "value": "value" }`,
-                      },
-                      {
-                        type: 'finish',
-                        finishReason: 'tool-calls',
-                        usage: testUsage,
-                      },
-                    ]),
-                    response: { headers: { call: '1' } },
-                  };
-                }
-                default:
-                  throw new Error(`Unexpected response count: ${responseCount}`);
-              }
+          models: [
+            {
+              retry: 0,
+              id: 'test-model',
+              model: new MockLanguageModelV2({
+                doStream: async () => {
+                  switch (responseCount++) {
+                    case 0: {
+                      return {
+                        stream: convertArrayToReadableStream([
+                          {
+                            type: 'response-metadata',
+                            id: 'id-0',
+                            modelId: 'mock-model-id',
+                            timestamp: new Date(0),
+                          },
+                          {
+                            type: 'reasoning-start',
+                            id: 'id-0',
+                          },
+                          {
+                            type: 'reasoning-delta',
+                            id: 'id-0',
+                            delta: 'thinking',
+                          },
+                          {
+                            type: 'reasoning-end',
+                            id: 'id-0',
+                          },
+                          {
+                            type: 'tool-call',
+                            id: 'call-1',
+                            toolCallId: 'call-1',
+                            toolName: 'tool1',
+                            input: `{ "value": "value" }`,
+                          },
+                          {
+                            type: 'finish',
+                            finishReason: 'tool-calls',
+                            usage: testUsage,
+                          },
+                        ]),
+                        response: { headers: { call: '1' } },
+                      };
+                    }
+                    default:
+                      throw new Error(`Unexpected response count: ${responseCount}`);
+                  }
+                },
+              }),
             },
-          }),
+          ],
           tools: {
             tool1: {
               inputSchema: z.object({ value: z.string() }),
@@ -3372,7 +3408,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList,
-        model: createTestModel({
+        models: createTestModels({
           stream: convertArrayToReadableStream([
             {
               type: 'response-metadata',
@@ -3640,7 +3676,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList,
-        model: modelWithSources,
+        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -3825,7 +3861,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList: new MessageList(),
-        model: modelWithFiles,
+        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -4016,11 +4052,17 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model: new MockLanguageModelV2({
-          doStream: async () => {
-            throw new Error('test error');
+        models: [
+          {
+            retry: 0,
+            id: 'test-model',
+            model: new MockLanguageModelV2({
+              doStream: async () => {
+                throw new Error('test error');
+              },
+            }),
           },
-        }),
+        ],
         messageList,
         options: {
           onFinish() {}, // just defined; do nothing
@@ -4077,7 +4119,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const resultObject = await loopFn({
         runId,
-        model: createTestModel({
+        models: createTestModels({
           stream: convertArrayToReadableStream([
             { type: 'text-start', id: '1' },
             { type: 'text-delta', id: '1', delta: 'Hello' },
@@ -6004,7 +6046,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         'input',
       );
 
-      const modelWithRawChunks = createTestModel({
+      const modelWithRawChunks = createTestModels({
         stream: convertArrayToReadableStream([
           { type: 'stream-start', warnings: [] },
           {
@@ -6033,7 +6075,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model: modelWithRawChunks,
+        models: modelWithRawChunks,
         messageList,
         includeRawChunks: true,
       });
@@ -6063,7 +6105,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         'input',
       );
 
-      const modelWithRawChunks = createTestModel({
+      const modelWithRawChunks = createTestModels({
         stream: convertArrayToReadableStream([
           { type: 'stream-start', warnings: [] },
           {
@@ -6092,7 +6134,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model: modelWithRawChunks,
+        models: modelWithRawChunks,
         messageList,
         includeRawChunks: false,
       });
@@ -6128,7 +6170,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model,
+        models: [{ retry: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: true,
       });
@@ -6149,7 +6191,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       );
       const onChunkCalls: Array<any> = [];
 
-      const modelWithRawChunks = createTestModel({
+      const modelWithRawChunks = createTestModels({
         stream: convertArrayToReadableStream([
           { type: 'stream-start', warnings: [] },
           {
@@ -6195,7 +6237,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model: modelWithRawChunks,
+        models: modelWithRawChunks,
         messageList,
         includeRawChunks: true,
         options: {
@@ -6294,7 +6336,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        model,
+        models: [{ retry: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: true,
       });
@@ -6304,7 +6346,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result2 = await loopFn({
         runId,
-        model,
+        models: [{ retry: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: false,
       });
@@ -6314,7 +6356,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result3 = await loopFn({
         runId,
-        model,
+        models: [{ retry: 0, id: 'test-model', model }],
         messageList,
       });
       await result3.aisdk.v5.consumeStream();
@@ -6338,7 +6380,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       beforeEach(async () => {
         result = await loopFn({
           runId,
-          model: createTestModel({
+          models: createTestModels({
             stream: convertArrayToReadableStream([
               { type: 'stream-start', warnings: [] },
               { type: 'reasoning-start', id: '0' },
@@ -6658,39 +6700,45 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
               onAbortCalls.push(event);
             },
           },
-          model: new MockLanguageModelV2({
-            doStream: async () => ({
-              stream: new ReadableStream({
-                pull(controller) {
-                  switch (pullCalls++) {
-                    case 0:
-                      controller.enqueue({
-                        type: 'stream-start',
-                        warnings: [],
-                      });
-                      break;
-                    case 1:
-                      controller.enqueue({
-                        type: 'text-start',
-                        id: '1',
-                      });
-                      break;
-                    case 2:
-                      controller.enqueue({
-                        type: 'text-delta',
-                        id: '1',
-                        delta: 'Hello',
-                      });
-                      break;
-                    case 3:
-                      abortController.abort();
-                      controller.error(new DOMException('The user aborted a request.', 'AbortError'));
-                      break;
-                  }
-                },
+          models: [
+            {
+              retry: 0,
+              id: 'test-model',
+              model: new MockLanguageModelV2({
+                doStream: async () => ({
+                  stream: new ReadableStream({
+                    pull(controller) {
+                      switch (pullCalls++) {
+                        case 0:
+                          controller.enqueue({
+                            type: 'stream-start',
+                            warnings: [],
+                          });
+                          break;
+                        case 1:
+                          controller.enqueue({
+                            type: 'text-start',
+                            id: '1',
+                          });
+                          break;
+                        case 2:
+                          controller.enqueue({
+                            type: 'text-delta',
+                            id: '1',
+                            delta: 'Hello',
+                          });
+                          break;
+                        case 3:
+                          abortController.abort();
+                          controller.error(new DOMException('The user aborted a request.', 'AbortError'));
+                          break;
+                      }
+                    },
+                  }),
+                }),
               }),
-            }),
-          }),
+            },
+          ],
           messageList,
         });
       });
@@ -6782,69 +6830,75 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         result = loopFn({
           runId,
           messageList: new MessageList(),
-          model: new MockLanguageModelV2({
-            doStream: async () => ({
-              stream: new ReadableStream({
-                start() {
-                  streamCalls++;
-                  pullCalls = 0;
-                },
-                pull(controller) {
-                  if (streamCalls === 1) {
-                    switch (pullCalls++) {
-                      case 0:
-                        controller.enqueue({
-                          type: 'stream-start',
-                          warnings: [],
-                        });
-                        break;
-                      case 1:
-                        controller.enqueue({
-                          type: 'tool-call',
-                          toolCallId: 'call-1',
-                          toolName: 'tool1',
-                          input: `{ "value": "value" }`,
-                        });
-                        break;
-                      case 2:
-                        controller.enqueue({
-                          type: 'finish',
-                          finishReason: 'tool-calls',
-                          usage: testUsage,
-                        });
-                        controller.close();
-                        break;
-                    }
-                  } else
-                    switch (pullCalls++) {
-                      case 0:
-                        controller.enqueue({
-                          type: 'stream-start',
-                          warnings: [],
-                        });
-                        break;
-                      case 1:
-                        controller.enqueue({
-                          type: 'text-start',
-                          id: '1',
-                        });
-                        break;
-                      case 2:
-                        controller.enqueue({
-                          type: 'text-delta',
-                          id: '1',
-                          delta: 'Hello',
-                        });
-                        break;
-                      case 3:
-                        abortController.abort();
-                        controller.error(new DOMException('The user aborted a request.', 'AbortError'));
-                        break;
-                    }
-                },
+          models: [
+            {
+              retry: 0,
+              id: 'test-model',
+              model: new MockLanguageModelV2({
+                doStream: async () => ({
+                  stream: new ReadableStream({
+                    start() {
+                      streamCalls++;
+                      pullCalls = 0;
+                    },
+                    pull(controller) {
+                      if (streamCalls === 1) {
+                        switch (pullCalls++) {
+                          case 0:
+                            controller.enqueue({
+                              type: 'stream-start',
+                              warnings: [],
+                            });
+                            break;
+                          case 1:
+                            controller.enqueue({
+                              type: 'tool-call',
+                              toolCallId: 'call-1',
+                              toolName: 'tool1',
+                              input: `{ "value": "value" }`,
+                            });
+                            break;
+                          case 2:
+                            controller.enqueue({
+                              type: 'finish',
+                              finishReason: 'tool-calls',
+                              usage: testUsage,
+                            });
+                            controller.close();
+                            break;
+                        }
+                      } else
+                        switch (pullCalls++) {
+                          case 0:
+                            controller.enqueue({
+                              type: 'stream-start',
+                              warnings: [],
+                            });
+                            break;
+                          case 1:
+                            controller.enqueue({
+                              type: 'text-start',
+                              id: '1',
+                            });
+                            break;
+                          case 2:
+                            controller.enqueue({
+                              type: 'text-delta',
+                              id: '1',
+                              delta: 'Hello',
+                            });
+                            break;
+                          case 3:
+                            abortController.abort();
+                            controller.error(new DOMException('The user aborted a request.', 'AbortError'));
+                            break;
+                        }
+                    },
+                  }),
+                }),
               }),
-            }),
-          }),
+            },
+          ],
           tools: {
             tool1: {
               inputSchema: z.object({ value: z.string() }),

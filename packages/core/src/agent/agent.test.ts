@@ -1281,38 +1281,14 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(usedModelName).toBe('premium');
     });
 
-    it('should use active fallback model', async () => {
-      let usedModelName = '';
+    if (version === 'v2') {
+      it('should use fallback model', async () => {
+        let usedModelName = '';
 
-      // Create two different models
-      let premiumModel: MockLanguageModelV1 | MockLanguageModelV2;
-      let standardModel: MockLanguageModelV1 | MockLanguageModelV2;
+        // Create two different models
+        let premiumModel: MockLanguageModelV1 | MockLanguageModelV2;
+        let standardModel: MockLanguageModelV1 | MockLanguageModelV2;
 
-      if (version === 'v1') {
-        premiumModel = new MockLanguageModelV1({
-          doGenerate: async () => {
-            usedModelName = 'premium';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              finishReason: 'stop',
-              usage: { promptTokens: 5, completionTokens: 10 },
-              text: `Premium Title`,
-            };
-          },
-        });
-
-        standardModel = new MockLanguageModelV1({
-          doGenerate: async () => {
-            usedModelName = 'standard';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              finishReason: 'stop',
-              usage: { promptTokens: 5, completionTokens: 10 },
-              text: `Standard Title`,
-            };
-          },
-        });
-      } else {
         premiumModel = new MockLanguageModelV2({
           doGenerate: async () => {
             usedModelName = 'premium';
@@ -1362,215 +1338,10 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         standardModel = new MockLanguageModelV2({
           doGenerate: async () => {
             usedModelName = 'standard';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              finishReason: 'stop',
-              usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
-              text: `Standard Title`,
-              content: [
-                {
-                  type: 'text',
-                  text: `Standard Title`,
-                },
-              ],
-              warnings: [],
-            };
-          },
-          doStream: async () => {
-            usedModelName = 'standard';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              warnings: [],
-              stream: convertArrayToReadableStream([
-                {
-                  type: 'stream-start',
-                  warnings: [],
-                },
-                {
-                  type: 'response-metadata',
-                  id: 'id-0',
-                  modelId: 'mock-model-id',
-                  timestamp: new Date(0),
-                },
-                { type: 'text-start', id: '1' },
-                { type: 'text-delta', id: '1', delta: 'Standard Title' },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
-                },
-              ]),
-            };
-          },
-        });
-      }
-
-      const agent = new Agent({
-        name: 'update-model-agent',
-        instructions: 'test agent',
-        model: standardModel,
-        fallbackModels: [
-          {
-            model: premiumModel,
-          },
-        ],
-      });
-
-      if (version === 'v1') {
-        await agent.generate('Test message');
-      } else {
-        await agent.generateVNext('Test message');
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(usedModelName).toBe('standard');
-
-      const fallbackModelId = agent.fallbackModels?.[0].id || '';
-
-      agent.__makeFallbackModelActive(fallbackModelId);
-      usedModelName = '';
-
-      if (version === 'v1') {
-        await agent.generate('Test message');
-      } else {
-        await agent.generateVNext('Test message');
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(usedModelName).toBe('premium');
-
-      agent.__makeFallbackModelInactive(fallbackModelId);
-      usedModelName = '';
-
-      if (version === 'v1') {
-        await agent.generate('Test message');
-      } else {
-        await agent.generateVNext('Test message');
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-      expect(usedModelName).toBe('standard');
-    });
-
-    it('should use fallback model', async () => {
-      let usedModelName = '';
-
-      // Create two different models
-      let premiumModel: MockLanguageModelV1 | MockLanguageModelV2;
-      let standardModel: MockLanguageModelV1 | MockLanguageModelV2;
-
-      if (version === 'v1') {
-        premiumModel = new MockLanguageModelV1({
-          doGenerate: async () => {
-            usedModelName = 'premium';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              finishReason: 'stop',
-              usage: { promptTokens: 5, completionTokens: 10 },
-              text: `Premium Title`,
-            };
-          },
-          doStream: async _options => {
-            usedModelName = 'premium';
-            let count = 0;
-            const stream = new ReadableStream({
-              pull(controller) {
-                if (count < 10) {
-                  controller.enqueue({
-                    type: 'text-delta',
-                    textDelta: `Premium Title ${count}`,
-                    createdAt: new Date(Date.now() + count * 1000).toISOString(),
-                  });
-                  count++;
-                } else {
-                  controller.close();
-                }
-              },
-            });
-            return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
-          },
-        });
-
-        standardModel = new MockLanguageModelV1({
-          doGenerate: async () => {
             throw new Error('Simulated generate error');
           },
           doStream: async () => {
-            console.log('doStream called in v1 standard model');
             usedModelName = 'standard';
-            return {
-              stream: simulateReadableStream({
-                chunks: [
-                  // { type: 'text-delta', textDelta: 'Hello' },
-                  // { type: 'text-delta', textDelta: ', ' },
-                  // { type: 'text-delta', textDelta: `world!` },
-                  { type: 'error', error: new Error('Simulated stream error') },
-                  {
-                    type: 'finish',
-                    finishReason: 'error',
-                    logprobs: undefined,
-                    usage: { completionTokens: 10, promptTokens: 1 },
-                    error: new Error('Simulated stream error'),
-                  },
-                ],
-              }),
-              rawCall: { rawPrompt: null, rawSettings: {} },
-            };
-          },
-        });
-      } else {
-        premiumModel = new MockLanguageModelV2({
-          doGenerate: async () => {
-            usedModelName = 'premium';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              finishReason: 'stop',
-              usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
-              text: `Premium Title`,
-              content: [
-                {
-                  type: 'text',
-                  text: `Premium Title`,
-                },
-              ],
-              warnings: [],
-            };
-          },
-          doStream: async () => {
-            usedModelName = 'premium';
-            return {
-              rawCall: { rawPrompt: null, rawSettings: {} },
-              warnings: [],
-              stream: convertArrayToReadableStream([
-                {
-                  type: 'stream-start',
-                  warnings: [],
-                },
-                {
-                  type: 'response-metadata',
-                  id: 'id-0',
-                  modelId: 'mock-model-id',
-                  timestamp: new Date(0),
-                },
-                { type: 'text-start', id: '1' },
-                { type: 'text-delta', id: '1', delta: 'Premium Title' },
-                { type: 'text-end', id: '1' },
-                {
-                  type: 'finish',
-                  finishReason: 'stop',
-                  usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
-                },
-              ]),
-            };
-          },
-        });
-
-        standardModel = new MockLanguageModelV2({
-          doGenerate: async () => {
-            throw new Error('Simulated generate error');
-          },
-          doStream: async () => {
             const stream = new ReadableStream({
               pull() {
                 throw new Error('Simulated stream error');
@@ -1579,28 +1350,24 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
             return { stream, rawCall: { rawPrompt: null, rawSettings: {} } };
           },
         });
-      }
 
-      const agent = new Agent({
-        name: 'update-model-agent',
-        instructions: 'test agent',
-        model: standardModel,
-        fallbackModels: [
-          {
-            model: premiumModel,
-          },
-        ],
-      });
+        const agent = new Agent({
+          name: 'update-model-agent',
+          instructions: 'test agent',
+          model: standardModel,
+          fallbackModels: [
+            {
+              model: premiumModel,
+            },
+          ],
+        });
 
-      if (version === 'v1') {
-        await agent.stream('Test message');
-      } else {
         await agent.streamVNext('Test message');
-      }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      expect(usedModelName).toBe('premium');
-    });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        expect(usedModelName).toBe('premium');
+      });
+    }
 
     it('should handle boolean generateTitle config for backward compatibility', async () => {
       let titleGenerationCallCount = 0;
@@ -6739,7 +6506,7 @@ describe('Agent Tests', () => {
   });
 
   agentTests({ version: 'v1' });
-  // agentTests({ version: 'v2' });
+  agentTests({ version: 'v2' });
 });
 
 //     it('should accept and execute both Mastra and Vercel tools in Agent constructor', async () => {

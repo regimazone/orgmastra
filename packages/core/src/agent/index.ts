@@ -30,7 +30,7 @@ import type {
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
-import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
+import type { TripwireProperties, MastraLanguageModel, MastraLanguageModelV2 } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
@@ -44,7 +44,7 @@ import { runScorer } from '../scores/hooks';
 import type { AISDKV5OutputStream } from '../stream';
 import type { MastraModelOutput } from '../stream/base/output';
 import type { OutputSchema } from '../stream/base/schema';
-import type { ChunkType } from '../stream/types';
+import type { ChunkType, ModelManagerModelConfig } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
 import { Telemetry } from '../telemetry/telemetry';
 import type { CoreTool } from '../tools/types';
@@ -69,7 +69,6 @@ import type {
   ToolsInput,
   AgentMemoryOption,
   AgentAISpanProperties,
-  AgentModelManager,
 } from './types';
 export * from './input-processor';
 export { TripWire };
@@ -147,8 +146,6 @@ export class Agent<
     model: DynamicArgument<MastraLanguageModel>;
     retry: number;
     enabled: boolean;
-    score: number;
-    active: boolean;
   }[];
   #mastra?: Mastra;
   #memory?: DynamicArgument<MastraMemory>;
@@ -730,45 +727,16 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Model updated.`, { model: this.model, name: this.name });
   }
 
-  __makeFallbackModelActive(fallbackModelId: string) {
+  __disableFallbackModels() {
     if (!this.fallbackModels) {
       this.logger.warn(`[Agents:${this.name}] No fallback models found`);
       return;
     }
 
-    const fallbackModel = this.fallbackModels.find(m => m.id === fallbackModelId);
-
-    if (!fallbackModel) {
-      this.logger.warn(`[Agents:${this.name}] Fallback model ${fallbackModelId} not found`);
-      return;
-    }
-
     this.fallbackModels = this.fallbackModels.map(fallbackModel => {
-      if (fallbackModel.id === fallbackModelId) {
-        return { ...fallbackModel, active: true };
-      }
-      return { ...fallbackModel, active: false };
+      return { ...fallbackModel, enabled: false };
     });
-    this.logger.debug(`[Agents:${this.name}] Fallback model ${fallbackModelId} made active`);
-  }
-
-  __makeFallbackModelInactive(fallbackModelId: string) {
-    if (!this.fallbackModels) {
-      this.logger.warn(`[Agents:${this.name}] No fallback models found`);
-      return;
-    }
-
-    const fallbackModel = this.fallbackModels.find(m => m.id === fallbackModelId);
-
-    if (!fallbackModel) {
-      this.logger.warn(`[Agents:${this.name}] Fallback model ${fallbackModelId} not found`);
-      return;
-    }
-
-    this.fallbackModels = this.fallbackModels.map(fallbackModel => {
-      return { ...fallbackModel, active: false };
-    });
-    this.logger.debug(`[Agents:${this.name}] Fallback model ${fallbackModelId} made inactive`);
+    this.logger.debug(`[Agents:${this.name}] Fallback models disabled`);
   }
 
   __reorderFallbackModels(fallbackModelIds: string[]) {
@@ -894,7 +862,9 @@ export class Agent<
     let text = '';
 
     if (llm.getModel().specificationVersion === 'v2') {
+      const models = await this.prepareModels(runtimeContext, model);
       const result = (llm as MastraLLMVNext).stream({
+        models,
         runtimeContext,
         messages: [
           {
@@ -2333,7 +2303,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
     messages: MessageListInput,
-    options: AgentGenerateOptions<Output, ExperimentalOutput> & { model?: DynamicArgument<MastraLanguageModel> },
+    options: AgentGenerateOptions<Output, ExperimentalOutput>,
   ): Promise<{
     before: () => Promise<
       Omit<
@@ -2367,7 +2337,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     ExperimentalOutput extends ZodSchema | JSONSchema7 | undefined = undefined,
   >(
     messages: MessageListInput,
-    options: AgentStreamOptions<Output, ExperimentalOutput> & { model?: DynamicArgument<MastraLanguageModel> },
+    options: AgentStreamOptions<Output, ExperimentalOutput>,
   ): Promise<{
     before: () => Promise<
       Omit<
@@ -2403,7 +2373,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     messages: MessageListInput,
     options: (AgentGenerateOptions<Output, ExperimentalOutput> | AgentStreamOptions<Output, ExperimentalOutput>) & {
       writableStream?: WritableStream<ChunkType>;
-      model?: DynamicArgument<MastraLanguageModel>;
     },
   ): Promise<{
     before:
@@ -2470,7 +2439,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext = new RuntimeContext(),
       savePerStep,
       writableStream,
-      model,
       ...args
     } = options;
 
@@ -2482,26 +2450,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
 
     const threadFromArgs = resolveThreadIdFromArgs({ threadId: args.threadId, memory: args.memory });
     const resourceId = args.memory?.resource || resourceIdFromArgs;
-    let memoryConfig = args.memory?.options || memoryConfigFromArgs;
-
-    if (model && memoryConfig) {
-      memoryConfig = {
-        ...memoryConfig,
-        threads: {
-          ...(memoryConfig.threads || {}),
-          generateTitle: {
-            model:
-              typeof memoryConfig.threads?.generateTitle === 'object'
-                ? memoryConfig.threads?.generateTitle?.model
-                : model,
-            instructions:
-              typeof memoryConfig.threads?.generateTitle === 'object'
-                ? memoryConfig.threads?.generateTitle?.instructions
-                : undefined,
-          },
-        },
-      };
-    }
+    const memoryConfig = args.memory?.options || memoryConfigFromArgs;
 
     if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
       this.logger.warn(
@@ -2510,7 +2459,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     }
     const runId = args.runId || this.#mastra?.generateId() || randomUUID();
     const instructions = args.instructions || (await this.getInstructions({ runtimeContext }));
-    const llm = await this.getLLM({ runtimeContext, model });
+    const llm = await this.getLLM({ runtimeContext });
 
     // Set thread ID and resource ID context for telemetry
     const activeSpan = Telemetry.getActiveSpan();
@@ -2652,6 +2601,52 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     };
   }
 
+  private async prepareModels(
+    runtimeContext: RuntimeContext,
+    model?: DynamicArgument<MastraLanguageModel>,
+  ): Promise<ModelManagerModelConfig[]> {
+    if (model) {
+      const modelToUse = typeof model === 'function' ? await model({ runtimeContext, mastra: this.#mastra }) : model;
+      return [
+        {
+          id: 'main',
+          model: modelToUse as MastraLanguageModelV2,
+          retry: this.retry ?? 0,
+        },
+      ];
+    }
+    const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
+      ...fallbackModel,
+    }));
+    const allModels = [
+      {
+        id: 'main',
+        model: this.model,
+        retry: this.retry ?? 0,
+        enabled: true,
+      },
+      ...fallbacks,
+    ]?.filter(fb => fb.enabled);
+
+    const models = await Promise.all(
+      allModels.map(async modelConfig => {
+        const model =
+          typeof modelConfig.model === 'function'
+            ? await modelConfig.model({ runtimeContext, mastra: this.#mastra })
+            : modelConfig.model;
+
+        return {
+          id: modelConfig.id,
+          model: model as MastraLanguageModelV2,
+          retry: modelConfig.retry,
+          enabled: modelConfig.enabled,
+        };
+      }),
+    );
+
+    return models;
+  }
+
   async #execute<
     OUTPUT extends OutputSchema | undefined = undefined,
     FORMAT extends 'aisdk' | 'mastra' | undefined = undefined,
@@ -2659,26 +2654,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const runtimeContext = options.runtimeContext || new RuntimeContext();
     const threadFromArgs = resolveThreadIdFromArgs({ threadId: options.threadId, memory: options.memory });
 
+    const models = await this.prepareModels(runtimeContext);
+
     const resourceId = options.memory?.resource || options.resourceId;
-    let memoryConfig = options.memory?.options;
-    if (options.model && memoryConfig) {
-      memoryConfig = {
-        ...memoryConfig,
-        threads: {
-          ...(memoryConfig.threads || {}),
-          generateTitle: {
-            model:
-              typeof memoryConfig.threads?.generateTitle === 'object'
-                ? memoryConfig.threads?.generateTitle?.model
-                : options.model,
-            instructions:
-              typeof memoryConfig.threads?.generateTitle === 'object'
-                ? memoryConfig.threads?.generateTitle?.instructions
-                : undefined,
-          },
-        },
-      };
-    }
+    const memoryConfig = options.memory?.options;
 
     if (resourceId && threadFromArgs && !this.hasOwnMemory()) {
       this.logger.warn(
@@ -2686,7 +2665,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       );
     }
 
-    const llm = (await this.getLLM({ runtimeContext, model: options.model })) as MastraLLMVNext;
+    const llm = (await this.getLLM({ runtimeContext })) as MastraLLMVNext;
 
     const runId = options.runId || this.#mastra?.generateId() || randomUUID();
     const instructions = options.instructions || (await this.getInstructions({ runtimeContext }));
@@ -3127,6 +3106,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         }
 
         const loopOptions: ModelLoopStreamArgs<any, OUTPUT> = {
+          models,
           messages: result.messages as ModelMessage[],
           runtimeContext: result.runtimeContext!,
           runId,
@@ -3387,210 +3367,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     });
   }
 
-  private generateWithFallbackModels({
-    isStream,
-    // isVNext,
-  }: { isStream?: boolean; isVNext?: boolean; streamError?: any } = {}): AgentModelManager {
-    const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
-      ...fallbackModel,
-      isFallback: true,
-    }));
-    const activeFallback = fallbacks.find(m => m.active);
-    const allModels = activeFallback
-      ? [activeFallback]
-      : [
-          {
-            id: 'main',
-            model: this.model,
-            retry: this.retry ?? 0,
-            enabled: true,
-            isFallback: false,
-            score: 1,
-            active: true,
-          },
-          ...fallbacks,
-        ];
-
-    return async callback => {
-      let lastErr: unknown;
-      try {
-        for (const modelConfig of allModels) {
-          if (!modelConfig?.enabled) continue;
-
-          const maxRetries = modelConfig.retry || 0;
-          let attempt = 0;
-
-          while (attempt <= maxRetries) {
-            try {
-              let streamError: unknown;
-              // let streamErrorChecked
-              const result = await callback(modelConfig.model, (error: unknown) => {
-                console.log('update on stream error called===', error);
-                const modelLength = allModels.length;
-                const currentModelIndex = allModels.indexOf(modelConfig);
-                console.log('currentModelIndex===', currentModelIndex);
-                console.log('modelLength===', modelLength);
-                console.log('attempt===', attempt);
-                console.log('maxRetries===', maxRetries);
-                if (currentModelIndex !== modelLength - 1 || attempt !== maxRetries) {
-                  console.log('not last one');
-                  streamError = error;
-                }
-              });
-              console.log('result===', result);
-              if (isStream) {
-                console.log('streamError===', streamError);
-                if (streamError) {
-                  attempt++;
-                  if (!modelConfig.isFallback) {
-                    modelConfig.score *= 1.5;
-                  }
-                  // If we've exhausted all retries for this model, break and try the next model
-                  if (attempt > maxRetries) {
-                    break;
-                  }
-                  continue;
-                }
-              }
-              console.log('returning still');
-              if (!modelConfig.isFallback) {
-                modelConfig.score *= 0.7;
-              }
-              return result;
-            } catch (err) {
-              console.log('error in catch===', err);
-              attempt++;
-              if (!modelConfig.isFallback) {
-                modelConfig.score *= 1.5;
-              }
-              lastErr = err;
-
-              // If we've exhausted all retries for this model, break and try the next model
-              if (attempt > maxRetries) {
-                break;
-              }
-            }
-          }
-        }
-        throw lastErr;
-      } finally {
-        for (const modelConfig of allModels) {
-          if (!modelConfig.isFallback) {
-            modelConfig.score *= 0.9;
-          }
-        }
-        const updatedFallbacks = allModels.filter(m => m.isFallback && !m.active);
-        if (updatedFallbacks.length > 0) {
-          // sort by score
-          updatedFallbacks.sort((a, b) => a.score - b.score);
-          this.fallbackModels = updatedFallbacks;
-        }
-      }
-    };
-  }
-
-  private streamWithFallbackModels({
-    isStream,
-    // isVNext,
-  }: { isStream?: boolean; isVNext?: boolean; streamError?: any } = {}): AgentModelManager {
-    const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
-      ...fallbackModel,
-      isFallback: true,
-    }));
-    const activeFallback = fallbacks.find(m => m.active);
-    const allModels = activeFallback
-      ? [activeFallback]
-      : [
-          {
-            id: 'main',
-            model: this.model,
-            retry: this.retry ?? 0,
-            enabled: true,
-            isFallback: false,
-            score: 1,
-            active: true,
-          },
-          ...fallbacks,
-        ];
-
-    return async callback => {
-      let lastErr: unknown;
-      try {
-        for (const modelConfig of allModels) {
-          if (!modelConfig?.enabled) continue;
-
-          const maxRetries = modelConfig.retry || 0;
-          let attempt = 0;
-
-          while (attempt <= maxRetries) {
-            try {
-              let streamError: unknown;
-              // let streamErrorChecked
-              const result = await callback(modelConfig.model, (error: unknown) => {
-                console.log('update on stream error called===', error);
-                const modelLength = allModels.length;
-                const currentModelIndex = allModels.indexOf(modelConfig);
-                console.log('currentModelIndex===', currentModelIndex);
-                console.log('modelLength===', modelLength);
-                console.log('attempt===', attempt);
-                console.log('maxRetries===', maxRetries);
-                if (currentModelIndex !== modelLength - 1 || attempt !== maxRetries) {
-                  console.log('not last one');
-                  streamError = error;
-                }
-              });
-              console.log('result===', result);
-              if (isStream) {
-                console.log('streamError===', streamError);
-                if (streamError) {
-                  attempt++;
-                  if (!modelConfig.isFallback) {
-                    modelConfig.score *= 1.5;
-                  }
-                  // If we've exhausted all retries for this model, break and try the next model
-                  if (attempt > maxRetries) {
-                    break;
-                  }
-                  continue;
-                }
-              }
-              console.log('returning still');
-              if (!modelConfig.isFallback) {
-                modelConfig.score *= 0.7;
-              }
-              return result;
-            } catch (err) {
-              console.log('error in catch===', err);
-              attempt++;
-              if (!modelConfig.isFallback) {
-                modelConfig.score *= 1.5;
-              }
-              lastErr = err;
-
-              // If we've exhausted all retries for this model, break and try the next model
-              if (attempt > maxRetries) {
-                break;
-              }
-            }
-          }
-        }
-        throw lastErr;
-      } finally {
-        for (const modelConfig of allModels) {
-          if (!modelConfig.isFallback) {
-            modelConfig.score *= 0.9;
-          }
-        }
-        const updatedFallbacks = allModels.filter(m => m.isFallback && !m.active);
-        if (updatedFallbacks.length > 0) {
-          // sort by score
-          updatedFallbacks.sort((a, b) => a.score - b.score);
-          this.fallbackModels = updatedFallbacks;
-        }
-      }
-    };
-  }
-
   async generateVNext<
     OUTPUT extends OutputSchema | undefined = undefined,
     STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
@@ -3632,57 +3408,52 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     messages: MessageListInput,
     streamOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>,
   ): Promise<FORMAT extends 'aisdk' ? AISDKV5OutputStream<OUTPUT> : MastraModelOutput<OUTPUT>> {
-    return this.generateWithFallbackModels({ isStream: true, isVNext: true })(async model => {
-      const defaultStreamOptions = await this.getDefaultVNextStreamOptions({
-        runtimeContext: streamOptions?.runtimeContext,
-      });
-
-      const mergedStreamOptions = {
-        ...defaultStreamOptions,
-        ...streamOptions,
-      };
-
-      const llm = await this.getLLM({ runtimeContext: mergedStreamOptions.runtimeContext, model });
-
-      if (llm.getModel().specificationVersion !== 'v2') {
-        throw new MastraError({
-          id: 'AGENT_STREAM_VNEXT_V1_MODEL_NOT_SUPPORTED',
-          domain: ErrorDomain.AGENT,
-          category: ErrorCategory.USER,
-          text: 'V1 models are not supported for streamVNext. Please use stream instead.',
-        });
-      }
-
-      const result = await this.#execute({
-        ...mergedStreamOptions,
-        model,
-        messages,
-      });
-
-      if (result.status !== 'success') {
-        if (result.status === 'failed') {
-          throw new MastraError({
-            id: 'AGENT_STREAM_VNEXT_FAILED',
-            domain: ErrorDomain.AGENT,
-            category: ErrorCategory.USER,
-            text: result.error.message,
-            details: {
-              error: result.error.message,
-            },
-          });
-        }
-        throw new MastraError({
-          id: 'AGENT_STREAM_VNEXT_UNKNOWN_ERROR',
-          domain: ErrorDomain.AGENT,
-          category: ErrorCategory.USER,
-          text: 'An unknown error occurred while streaming',
-        });
-      }
-
-      return result.result as unknown as FORMAT extends 'aisdk'
-        ? AISDKV5OutputStream<OUTPUT>
-        : MastraModelOutput<OUTPUT>;
+    const defaultStreamOptions = await this.getDefaultVNextStreamOptions({
+      runtimeContext: streamOptions?.runtimeContext,
     });
+
+    const mergedStreamOptions = {
+      ...defaultStreamOptions,
+      ...streamOptions,
+    };
+
+    const llm = await this.getLLM({ runtimeContext: mergedStreamOptions.runtimeContext });
+
+    if (llm.getModel().specificationVersion !== 'v2') {
+      throw new MastraError({
+        id: 'AGENT_STREAM_VNEXT_V1_MODEL_NOT_SUPPORTED',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: 'V1 models are not supported for streamVNext. Please use stream instead.',
+      });
+    }
+
+    const result = await this.#execute({
+      ...mergedStreamOptions,
+      messages,
+    });
+
+    if (result.status !== 'success') {
+      if (result.status === 'failed') {
+        throw new MastraError({
+          id: 'AGENT_STREAM_VNEXT_FAILED',
+          domain: ErrorDomain.AGENT,
+          category: ErrorCategory.USER,
+          text: result.error.message,
+          details: {
+            error: result.error.message,
+          },
+        });
+      }
+      throw new MastraError({
+        id: 'AGENT_STREAM_VNEXT_UNKNOWN_ERROR',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        text: 'An unknown error occurred while streaming',
+      });
+    }
+
+    return result.result as unknown as FORMAT extends 'aisdk' ? AISDKV5OutputStream<OUTPUT> : MastraModelOutput<OUTPUT>;
   }
 
   async generate(
@@ -3707,215 +3478,99 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     messages: MessageListInput,
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
-    return this.generateWithFallbackModels()(async model => {
-      const defaultGenerateOptions = await this.getDefaultGenerateOptions({
-        runtimeContext: generateOptions.runtimeContext,
+    const defaultGenerateOptions = await this.getDefaultGenerateOptions({
+      runtimeContext: generateOptions.runtimeContext,
+    });
+    const mergedGenerateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
+      ...defaultGenerateOptions,
+      ...generateOptions,
+    };
+
+    const { llm, before, after } = await this.prepareLLMOptions(messages, mergedGenerateOptions);
+
+    if (llm.getModel().specificationVersion !== 'v1') {
+      this.logger.error(
+        'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
+        {
+          modelId: llm.getModel().modelId,
+        },
+      );
+
+      throw new MastraError({
+        id: 'AGENT_GENERATE_V2_MODEL_NOT_SUPPORTED',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        details: {
+          modelId: llm.getModel().modelId,
+        },
+        text: 'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
       });
-      const mergedGenerateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
-        ...defaultGenerateOptions,
-        ...generateOptions,
+    }
+
+    let llmToUse = llm as MastraLLMV1;
+
+    const beforeResult = await before();
+
+    // Check for tripwire and return early if triggered
+    if (beforeResult.tripwire) {
+      const tripwireResult = {
+        text: '',
+        object: undefined,
+        usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
+        finishReason: 'other',
+        response: {
+          id: randomUUID(),
+          timestamp: new Date(),
+          modelId: 'tripwire',
+          messages: [],
+        },
+        responseMessages: [],
+        toolCalls: [],
+        toolResults: [],
+        warnings: undefined,
+        request: {
+          body: JSON.stringify({ messages: [] }),
+        },
+        experimental_output: undefined,
+        steps: undefined,
+        experimental_providerMetadata: undefined,
+        tripwire: true,
+        tripwireReason: beforeResult.tripwireReason,
       };
 
-      const { llm, before, after } = await this.prepareLLMOptions(messages, { ...mergedGenerateOptions, model });
+      return tripwireResult as unknown as OUTPUT extends undefined
+        ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+        : GenerateObjectResult<OUTPUT>;
+    }
 
-      if (llm.getModel().specificationVersion !== 'v1') {
-        this.logger.error(
-          'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
-          {
-            modelId: llm.getModel().modelId,
-          },
-        );
+    const { experimental_output, output, agentAISpan, ...llmOptions } = beforeResult;
 
-        throw new MastraError({
-          id: 'AGENT_GENERATE_V2_MODEL_NOT_SUPPORTED',
-          domain: ErrorDomain.AGENT,
-          category: ErrorCategory.USER,
-          details: {
-            modelId: llm.getModel().modelId,
-          },
-          text: 'V2 models are not supported for the current version of generate. Please use generateVNext instead.',
-        });
-      }
+    // Handle structuredOutput option by creating an StructuredOutputProcessor
+    let finalOutputProcessors = mergedGenerateOptions.outputProcessors;
+    if (mergedGenerateOptions.structuredOutput) {
+      const structuredProcessor = new StructuredOutputProcessor(mergedGenerateOptions.structuredOutput);
+      finalOutputProcessors = finalOutputProcessors
+        ? [...finalOutputProcessors, structuredProcessor]
+        : [structuredProcessor];
+    }
 
-      let llmToUse = llm as MastraLLMV1;
-
-      const beforeResult = await before();
-
-      // Check for tripwire and return early if triggered
-      if (beforeResult.tripwire) {
-        const tripwireResult = {
-          text: '',
-          object: undefined,
-          usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
-          finishReason: 'other',
-          response: {
-            id: randomUUID(),
-            timestamp: new Date(),
-            modelId: 'tripwire',
-            messages: [],
-          },
-          responseMessages: [],
-          toolCalls: [],
-          toolResults: [],
-          warnings: undefined,
-          request: {
-            body: JSON.stringify({ messages: [] }),
-          },
-          experimental_output: undefined,
-          steps: undefined,
-          experimental_providerMetadata: undefined,
-          tripwire: true,
-          tripwireReason: beforeResult.tripwireReason,
-        };
-
-        return tripwireResult as unknown as OUTPUT extends undefined
-          ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
-          : GenerateObjectResult<OUTPUT>;
-      }
-
-      const { experimental_output, output, agentAISpan, ...llmOptions } = beforeResult;
-
-      // Handle structuredOutput option by creating an StructuredOutputProcessor
-      let finalOutputProcessors = mergedGenerateOptions.outputProcessors;
-      if (mergedGenerateOptions.structuredOutput) {
-        const structuredProcessor = new StructuredOutputProcessor(mergedGenerateOptions.structuredOutput);
-        finalOutputProcessors = finalOutputProcessors
-          ? [...finalOutputProcessors, structuredProcessor]
-          : [structuredProcessor];
-      }
-
-      if (!output || experimental_output) {
-        const result = await llmToUse.__text<any, EXPERIMENTAL_OUTPUT>({
-          ...llmOptions,
-          agentAISpan,
-          experimental_output,
-        });
-
-        const outputProcessorResult = await this.__runOutputProcessors({
-          runtimeContext: mergedGenerateOptions.runtimeContext || new RuntimeContext(),
-          outputProcessorOverrides: finalOutputProcessors,
-          messageList: new MessageList({
-            threadId: llmOptions.threadId || '',
-            resourceId: llmOptions.resourceId || '',
-          }).add(
-            {
-              role: 'assistant',
-              content: [{ type: 'text', text: result.text }],
-            },
-            'response',
-          ),
-        });
-
-        // Handle tripwire for output processors
-        if (outputProcessorResult.tripwireTriggered) {
-          const tripwireResult = {
-            text: '',
-            object: undefined,
-            usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
-            finishReason: 'other',
-            response: {
-              id: randomUUID(),
-              timestamp: new Date(),
-              modelId: 'tripwire',
-              messages: [],
-            },
-            responseMessages: [],
-            toolCalls: [],
-            toolResults: [],
-            warnings: undefined,
-            request: {
-              body: JSON.stringify({ messages: [] }),
-            },
-            experimental_output: undefined,
-            steps: undefined,
-            experimental_providerMetadata: undefined,
-            tripwire: true,
-            tripwireReason: outputProcessorResult.tripwireReason,
-          };
-
-          return tripwireResult as unknown as OUTPUT extends undefined
-            ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
-            : GenerateObjectResult<OUTPUT>;
-        }
-
-        const newText = outputProcessorResult.messageList.get.response
-          .v2()
-          .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
-          .join('');
-
-        // Update the result text with processed output
-        (result as any).text = newText;
-
-        // If there are output processors, check for structured data in message metadata
-        if (finalOutputProcessors && finalOutputProcessors.length > 0) {
-          // First check if any output processor provided structured data via metadata
-          const messages = outputProcessorResult.messageList.get.response.v2();
-          this.logger.debug(
-            'Checking messages for experimentalOutput metadata:',
-            messages.map(m => ({
-              role: m.role,
-              hasContentMetadata: !!m.content.metadata,
-              contentMetadata: m.content.metadata,
-            })),
-          );
-
-          const messagesWithStructuredData = messages.filter(
-            msg => msg.content.metadata && (msg.content.metadata as any).structuredOutput,
-          );
-
-          this.logger.debug('Messages with structured data:', messagesWithStructuredData.length);
-
-          if (messagesWithStructuredData[0] && messagesWithStructuredData[0].content.metadata?.structuredOutput) {
-            // Use structured data from processor metadata for result.object
-            (result as any).object = messagesWithStructuredData[0].content.metadata.structuredOutput;
-            this.logger.debug('Using structured data from processor metadata for result.object');
-          } else {
-            // Fallback: try to parse text as JSON (original behavior)
-            try {
-              const processedOutput = JSON.parse(newText);
-              (result as any).object = processedOutput;
-              this.logger.debug('Using fallback JSON parsing for result.object');
-            } catch (error) {
-              this.logger.warn('Failed to parse processed output as JSON, updating text only', { error });
-            }
-          }
-        }
-
-        const afterResult = await after({
-          result: result as unknown as OUTPUT extends undefined
-            ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
-            : GenerateObjectResult<OUTPUT>,
-          outputText: newText,
-          agentAISpan,
-          ...(generateOptions.scorers ? { overrideScorers: generateOptions.scorers } : {}),
-        });
-
-        if (generateOptions.returnScorerData) {
-          result.scoringData = afterResult.scoringData;
-        }
-
-        return result as unknown as OUTPUT extends undefined
-          ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
-          : GenerateObjectResult<OUTPUT>;
-      }
-
-      const result = await llmToUse.__textObject<NonNullable<OUTPUT>>({
+    if (!output || experimental_output) {
+      const result = await llmToUse.__text<any, EXPERIMENTAL_OUTPUT>({
         ...llmOptions,
         agentAISpan,
-        structuredOutput: output as NonNullable<OUTPUT>,
+        experimental_output,
       });
-
-      const outputText = JSON.stringify(result.object);
 
       const outputProcessorResult = await this.__runOutputProcessors({
         runtimeContext: mergedGenerateOptions.runtimeContext || new RuntimeContext(),
+        outputProcessorOverrides: finalOutputProcessors,
         messageList: new MessageList({
           threadId: llmOptions.threadId || '',
           resourceId: llmOptions.resourceId || '',
         }).add(
           {
             role: 'assistant',
-            content: [{ type: 'text', text: outputText }],
+            content: [{ type: 'text', text: result.text }],
           },
           'response',
         ),
@@ -3958,12 +3613,42 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
         .join('');
 
-      // Parse the processed text and update the result object
-      try {
-        const processedObject = JSON.parse(newText);
-        (result as any).object = processedObject;
-      } catch (error) {
-        this.logger.warn('Failed to parse processed output as JSON, keeping original result', { error });
+      // Update the result text with processed output
+      (result as any).text = newText;
+
+      // If there are output processors, check for structured data in message metadata
+      if (finalOutputProcessors && finalOutputProcessors.length > 0) {
+        // First check if any output processor provided structured data via metadata
+        const messages = outputProcessorResult.messageList.get.response.v2();
+        this.logger.debug(
+          'Checking messages for experimentalOutput metadata:',
+          messages.map(m => ({
+            role: m.role,
+            hasContentMetadata: !!m.content.metadata,
+            contentMetadata: m.content.metadata,
+          })),
+        );
+
+        const messagesWithStructuredData = messages.filter(
+          msg => msg.content.metadata && (msg.content.metadata as any).structuredOutput,
+        );
+
+        this.logger.debug('Messages with structured data:', messagesWithStructuredData.length);
+
+        if (messagesWithStructuredData[0] && messagesWithStructuredData[0].content.metadata?.structuredOutput) {
+          // Use structured data from processor metadata for result.object
+          (result as any).object = messagesWithStructuredData[0].content.metadata.structuredOutput;
+          this.logger.debug('Using structured data from processor metadata for result.object');
+        } else {
+          // Fallback: try to parse text as JSON (original behavior)
+          try {
+            const processedOutput = JSON.parse(newText);
+            (result as any).object = processedOutput;
+            this.logger.debug('Using fallback JSON parsing for result.object');
+          } catch (error) {
+            this.logger.warn('Failed to parse processed output as JSON, updating text only', { error });
+          }
+        }
       }
 
       const afterResult = await after({
@@ -3971,9 +3656,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
           : GenerateObjectResult<OUTPUT>,
         outputText: newText,
-        ...(generateOptions.scorers ? { overrideScorers: generateOptions.scorers } : {}),
-        structuredOutput: true,
         agentAISpan,
+        ...(generateOptions.scorers ? { overrideScorers: generateOptions.scorers } : {}),
       });
 
       if (generateOptions.returnScorerData) {
@@ -3983,7 +3667,92 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       return result as unknown as OUTPUT extends undefined
         ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
         : GenerateObjectResult<OUTPUT>;
+    }
+
+    const result = await llmToUse.__textObject<NonNullable<OUTPUT>>({
+      ...llmOptions,
+      agentAISpan,
+      structuredOutput: output as NonNullable<OUTPUT>,
     });
+
+    const outputText = JSON.stringify(result.object);
+
+    const outputProcessorResult = await this.__runOutputProcessors({
+      runtimeContext: mergedGenerateOptions.runtimeContext || new RuntimeContext(),
+      messageList: new MessageList({
+        threadId: llmOptions.threadId || '',
+        resourceId: llmOptions.resourceId || '',
+      }).add(
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: outputText }],
+        },
+        'response',
+      ),
+    });
+
+    // Handle tripwire for output processors
+    if (outputProcessorResult.tripwireTriggered) {
+      const tripwireResult = {
+        text: '',
+        object: undefined,
+        usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
+        finishReason: 'other',
+        response: {
+          id: randomUUID(),
+          timestamp: new Date(),
+          modelId: 'tripwire',
+          messages: [],
+        },
+        responseMessages: [],
+        toolCalls: [],
+        toolResults: [],
+        warnings: undefined,
+        request: {
+          body: JSON.stringify({ messages: [] }),
+        },
+        experimental_output: undefined,
+        steps: undefined,
+        experimental_providerMetadata: undefined,
+        tripwire: true,
+        tripwireReason: outputProcessorResult.tripwireReason,
+      };
+
+      return tripwireResult as unknown as OUTPUT extends undefined
+        ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+        : GenerateObjectResult<OUTPUT>;
+    }
+
+    const newText = outputProcessorResult.messageList.get.response
+      .v2()
+      .map(msg => msg.content.parts.map(part => (part.type === 'text' ? part.text : '')).join(''))
+      .join('');
+
+    // Parse the processed text and update the result object
+    try {
+      const processedObject = JSON.parse(newText);
+      (result as any).object = processedObject;
+    } catch (error) {
+      this.logger.warn('Failed to parse processed output as JSON, keeping original result', { error });
+    }
+
+    const afterResult = await after({
+      result: result as unknown as OUTPUT extends undefined
+        ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+        : GenerateObjectResult<OUTPUT>,
+      outputText: newText,
+      ...(generateOptions.scorers ? { overrideScorers: generateOptions.scorers } : {}),
+      structuredOutput: true,
+      agentAISpan,
+    });
+
+    if (generateOptions.returnScorerData) {
+      result.scoringData = afterResult.scoringData;
+    }
+
+    return result as unknown as OUTPUT extends undefined
+      ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT>
+      : GenerateObjectResult<OUTPUT>;
   }
   async stream<
     OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
@@ -4030,42 +3799,70 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
     | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>
   > {
-    return this.generateWithFallbackModels({ isStream: true })(async (model, updateStreamError) => {
-      const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions.runtimeContext });
+    const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions.runtimeContext });
 
-      const mergedStreamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
-        ...defaultStreamOptions,
-        ...streamOptions,
-      };
+    const mergedStreamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
+      ...defaultStreamOptions,
+      ...streamOptions,
+    };
 
-      const { llm, before, after } = await this.prepareLLMOptions(messages, { ...mergedStreamOptions, model });
+    const { llm, before, after } = await this.prepareLLMOptions(messages, mergedStreamOptions);
 
-      if (llm.getModel().specificationVersion !== 'v1') {
-        this.logger.error('V2 models are not supported for stream. Please use streamVNext instead.', {
+    if (llm.getModel().specificationVersion !== 'v1') {
+      this.logger.error('V2 models are not supported for stream. Please use streamVNext instead.', {
+        modelId: llm.getModel().modelId,
+      });
+
+      throw new MastraError({
+        id: 'AGENT_STREAM_V2_MODEL_NOT_SUPPORTED',
+        domain: ErrorDomain.AGENT,
+        category: ErrorCategory.USER,
+        details: {
           modelId: llm.getModel().modelId,
-        });
+        },
+        text: 'V2 models are not supported for stream. Please use streamVNext instead.',
+      });
+    }
 
-        throw new MastraError({
-          id: 'AGENT_STREAM_V2_MODEL_NOT_SUPPORTED',
-          domain: ErrorDomain.AGENT,
-          category: ErrorCategory.USER,
-          details: {
-            modelId: llm.getModel().modelId,
-          },
-          text: 'V2 models are not supported for stream. Please use streamVNext instead.',
-        });
-      }
+    const beforeResult = await before();
 
-      const beforeResult = await before();
-
-      // Check for tripwire and return early if triggered
-      if (beforeResult.tripwire) {
-        // Return a promise that resolves immediately with empty result
-        const emptyResult = {
-          textStream: (async function* () {
-            // Empty async generator - yields nothing
-          })(),
-          fullStream: Promise.resolve('').then(() => {
+    // Check for tripwire and return early if triggered
+    if (beforeResult.tripwire) {
+      // Return a promise that resolves immediately with empty result
+      const emptyResult = {
+        textStream: (async function* () {
+          // Empty async generator - yields nothing
+        })(),
+        fullStream: Promise.resolve('').then(() => {
+          const emptyStream = new (globalThis as any).ReadableStream({
+            start(controller: any) {
+              controller.close();
+            },
+          });
+          return emptyStream;
+        }),
+        text: Promise.resolve(''),
+        usage: Promise.resolve({ totalTokens: 0, promptTokens: 0, completionTokens: 0 }),
+        finishReason: Promise.resolve('other'),
+        tripwire: true,
+        tripwireReason: beforeResult.tripwireReason,
+        response: {
+          id: randomUUID(),
+          timestamp: new Date(),
+          modelId: 'tripwire',
+          messages: [],
+        },
+        toolCalls: Promise.resolve([]),
+        toolResults: Promise.resolve([]),
+        warnings: Promise.resolve(undefined),
+        request: {
+          body: JSON.stringify({ messages: [] }),
+        },
+        experimental_output: undefined,
+        steps: undefined,
+        experimental_providerMetadata: undefined,
+        toAIStream: () =>
+          Promise.resolve('').then(() => {
             const emptyStream = new (globalThis as any).ReadableStream({
               start(controller: any) {
                 controller.close();
@@ -4073,126 +3870,39 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
             });
             return emptyStream;
           }),
-          text: Promise.resolve(''),
-          usage: Promise.resolve({ totalTokens: 0, promptTokens: 0, completionTokens: 0 }),
-          finishReason: Promise.resolve('other'),
-          tripwire: true,
-          tripwireReason: beforeResult.tripwireReason,
-          response: {
-            id: randomUUID(),
-            timestamp: new Date(),
-            modelId: 'tripwire',
-            messages: [],
-          },
-          toolCalls: Promise.resolve([]),
-          toolResults: Promise.resolve([]),
-          warnings: Promise.resolve(undefined),
-          request: {
-            body: JSON.stringify({ messages: [] }),
-          },
-          experimental_output: undefined,
-          steps: undefined,
-          experimental_providerMetadata: undefined,
-          toAIStream: () =>
-            Promise.resolve('').then(() => {
-              const emptyStream = new (globalThis as any).ReadableStream({
-                start(controller: any) {
-                  controller.close();
-                },
-              });
-              return emptyStream;
-            }),
-          get experimental_partialOutputStream() {
-            return (async function* () {
-              // Empty async generator for partial output stream
-            })();
-          },
-          pipeDataStreamToResponse: () => Promise.resolve(),
-          pipeTextStreamToResponse: () => Promise.resolve(),
-          toDataStreamResponse: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
-          toTextStreamResponse: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
-        };
+        get experimental_partialOutputStream() {
+          return (async function* () {
+            // Empty async generator for partial output stream
+          })();
+        },
+        pipeDataStreamToResponse: () => Promise.resolve(),
+        pipeTextStreamToResponse: () => Promise.resolve(),
+        toDataStreamResponse: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
+        toTextStreamResponse: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
+      };
 
-        console.log('trip wire');
+      return emptyResult as unknown as
+        | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
+        | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>;
+    }
 
-        updateStreamError?.(new Error('Trip wire triggered'));
+    const { onFinish, runId, output, experimental_output, agentAISpan, ...llmOptions } = beforeResult;
 
-        return emptyResult as unknown as
-          | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
-          | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>;
-      }
-
-      const { onFinish, runId, output, experimental_output, agentAISpan, ...llmOptions } = beforeResult;
-
-      if (!output || experimental_output) {
-        console.log('streaminnnnng====');
-        this.logger.debug(`Starting agent ${this.name} llm stream call`, {
-          runId,
-        });
-
-        const streamResult = llm.__stream({
-          ...llmOptions,
-          onError: async (error: any) => {
-            console.log('onError called in llm.__stream===', error);
-            // updateStreamError?.(error);
-            await llmOptions.onError?.(error);
-            throw new Error(error);
-          },
-          onStepFinish: async props => {
-            console.log('onStepFinish called in llm.__stream===', props.finishReason);
-            if (props.finishReason === 'error') {
-              console.log('error reason');
-              throw new Error('Error streaming');
-            }
-          },
-          experimental_output,
-          agentAISpan,
-          // onStepFinish: async props => {
-          //   console.log('onStepFinish called in llm.__stream===', props);
-          // },
-          onFinish: async result => {
-            try {
-              const outputText = result.text;
-              await after({
-                result,
-                outputText,
-                agentAISpan,
-              });
-            } catch (e) {
-              this.logger.error('Error saving memory on finish', {
-                error: e,
-                runId,
-              });
-            }
-            await onFinish?.({ ...result, runId } as any);
-          },
-          runId,
-        });
-
-        return streamResult as
-          | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
-          | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>;
-      }
-
-      this.logger.debug(`Starting agent ${this.name} llm streamObject call`, {
+    if (!output || experimental_output) {
+      this.logger.debug(`Starting agent ${this.name} llm stream call`, {
         runId,
       });
 
-      return llm.__streamObject({
+      const streamResult = llm.__stream({
         ...llmOptions,
+        experimental_output,
         agentAISpan,
-        onError: async (error: any) => {
-          console.log('onError called in llm.__streamObject===', error);
-          updateStreamError?.(error);
-          await llmOptions.onError?.(error);
-        },
         onFinish: async result => {
           try {
-            const outputText = JSON.stringify(result.object);
+            const outputText = result.text;
             await after({
               result,
               outputText,
-              structuredOutput: true,
               agentAISpan,
             });
           } catch (e) {
@@ -4204,8 +3914,39 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           await onFinish?.({ ...result, runId } as any);
         },
         runId,
-        structuredOutput: output,
       });
+
+      return streamResult as
+        | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
+        | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>;
+    }
+
+    this.logger.debug(`Starting agent ${this.name} llm streamObject call`, {
+      runId,
+    });
+
+    return llm.__streamObject({
+      ...llmOptions,
+      agentAISpan,
+      onFinish: async result => {
+        try {
+          const outputText = JSON.stringify(result.object);
+          await after({
+            result,
+            outputText,
+            structuredOutput: true,
+            agentAISpan,
+          });
+        } catch (e) {
+          this.logger.error('Error saving memory on finish', {
+            error: e,
+            runId,
+          });
+        }
+        await onFinish?.({ ...result, runId } as any);
+      },
+      runId,
+      structuredOutput: output,
     });
   }
 
