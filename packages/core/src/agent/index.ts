@@ -3388,7 +3388,109 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     });
   }
 
-  private runWithFallbackModels({
+  private generateWithFallbackModels({
+    isStream,
+    // isVNext,
+  }: { isStream?: boolean; isVNext?: boolean; streamError?: any } = {}): AgentModelManager {
+    const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
+      ...fallbackModel,
+      isFallback: true,
+    }));
+    const activeFallback = fallbacks.find(m => m.active);
+    const allModels = activeFallback
+      ? [activeFallback]
+      : [
+          {
+            id: 'main',
+            model: this.model,
+            retry: this.retry ?? 0,
+            enabled: true,
+            isFallback: false,
+            score: 1,
+            active: true,
+          },
+          ...fallbacks,
+        ];
+
+    return async callback => {
+      let lastErr: unknown;
+      try {
+        for (const modelConfig of allModels) {
+          if (!modelConfig?.enabled) continue;
+
+          const maxRetries = modelConfig.retry || 0;
+          let attempt = 0;
+
+          while (attempt <= maxRetries) {
+            try {
+              let streamError: unknown;
+              // let streamErrorChecked
+              const result = await callback(modelConfig.model, (error: unknown) => {
+                console.log('update on stream error called===', error);
+                const modelLength = allModels.length;
+                const currentModelIndex = allModels.indexOf(modelConfig);
+                console.log('currentModelIndex===', currentModelIndex);
+                console.log('modelLength===', modelLength);
+                console.log('attempt===', attempt);
+                console.log('maxRetries===', maxRetries);
+                if (currentModelIndex !== modelLength - 1 || attempt !== maxRetries) {
+                  console.log('not last one');
+                  streamError = error;
+                }
+              });
+              console.log('result===', result);
+              if (isStream) {
+                console.log('streamError===', streamError);
+                if (streamError) {
+                  attempt++;
+                  if (!modelConfig.isFallback) {
+                    modelConfig.score *= 1.5;
+                  }
+                  // If we've exhausted all retries for this model, break and try the next model
+                  if (attempt > maxRetries) {
+                    break;
+                  }
+                  continue;
+                }
+              }
+              console.log('returning still');
+              if (!modelConfig.isFallback) {
+                modelConfig.score *= 0.7;
+              }
+              return result;
+            } catch (err) {
+              console.log('error in catch===', err);
+              attempt++;
+              if (!modelConfig.isFallback) {
+                modelConfig.score *= 1.5;
+              }
+              lastErr = err;
+
+              // If we've exhausted all retries for this model, break and try the next model
+              if (attempt > maxRetries) {
+                break;
+              }
+            }
+          }
+        }
+        throw lastErr;
+      } finally {
+        for (const modelConfig of allModels) {
+          if (!modelConfig.isFallback) {
+            modelConfig.score *= 0.9;
+          }
+        }
+        const updatedFallbacks = allModels.filter(m => m.isFallback && !m.active);
+        if (updatedFallbacks.length > 0) {
+          // sort by score
+          updatedFallbacks.sort((a, b) => a.score - b.score);
+          this.fallbackModels = updatedFallbacks;
+        }
+      }
+    };
+  }
+
+  private streamWithFallbackModels({
     isStream,
     // isVNext,
   }: { isStream?: boolean; isVNext?: boolean; streamError?: any } = {}): AgentModelManager {
@@ -3531,7 +3633,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     messages: MessageListInput,
     streamOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>,
   ): Promise<FORMAT extends 'aisdk' ? AISDKV5OutputStream<OUTPUT> : MastraModelOutput<OUTPUT>> {
-    return this.runWithFallbackModels({ isStream: true, isVNext: true })(async model => {
+    return this.generateWithFallbackModels({ isStream: true, isVNext: true })(async model => {
       const defaultStreamOptions = await this.getDefaultVNextStreamOptions({
         runtimeContext: streamOptions?.runtimeContext,
       });
@@ -3606,7 +3708,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     messages: MessageListInput,
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
-    return this.runWithFallbackModels()(async model => {
+    return this.generateWithFallbackModels()(async model => {
       const defaultGenerateOptions = await this.getDefaultGenerateOptions({
         runtimeContext: generateOptions.runtimeContext,
       });
@@ -3929,7 +4031,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     | StreamTextResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown>
     | StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any>
   > {
-    return this.runWithFallbackModels({ isStream: true })(async (model, updateStreamError) => {
+    return this.generateWithFallbackModels({ isStream: true })(async (model, updateStreamError) => {
       const defaultStreamOptions = await this.getDefaultStreamOptions({ runtimeContext: streamOptions.runtimeContext });
 
       const mergedStreamOptions: AgentStreamOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {
