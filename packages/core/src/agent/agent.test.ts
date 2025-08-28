@@ -6138,7 +6138,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     const fallbackIds = fallbacks?.map(f => f.id) || [];
     const reversedFallbackIds = [...fallbackIds].reverse();
 
-    agent.__reorderFallbackModels(reversedFallbackIds);
+    agent.reorderFallbackModels(reversedFallbackIds);
 
     const reorderedFallbacks = agent.fallbackModels;
     expect(reorderedFallbacks).toBeDefined();
@@ -6170,7 +6170,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     const fallbacks = agent.fallbackModels || [];
     const fallback1Id = fallbacks?.[0].id || '';
 
-    agent.__updateFallbackModel({
+    agent.updateFallbackModel({
       id: fallback1Id,
       model: openai('gpt-4'),
       retry: 5,

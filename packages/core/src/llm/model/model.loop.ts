@@ -22,18 +22,29 @@ import type { LoopOptions } from '../../loop/types';
 import type { Mastra } from '../../mastra';
 import type { MastraModelOutput } from '../../stream/base/output';
 import type { OutputSchema } from '../../stream/base/schema';
+import type { ModelManagerModelConfig } from '../../stream/types';
 import { delay } from '../../utils';
 
 import type { ModelLoopStreamArgs } from './model.loop.types';
 
 export class MastraLLMVNext extends MastraBase {
   #model: LanguageModelV2;
+  #allModels: ModelManagerModelConfig[];
   #mastra?: Mastra;
 
-  constructor({ model, mastra }: { model: LanguageModelV2; mastra?: Mastra }) {
+  constructor({
+    model,
+    mastra,
+    allModels,
+  }: {
+    model: LanguageModelV2;
+    mastra?: Mastra;
+    allModels: ModelManagerModelConfig[];
+  }) {
     super({ name: 'aisdk' });
 
     this.#model = model;
+    this.#allModels = allModels;
 
     if (mastra) {
       this.#mastra = mastra;
@@ -132,23 +143,9 @@ export class MastraLLMVNext extends MastraBase {
     output,
     options,
     outputProcessors,
-    models,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
-    if (!models || models.length === 0) {
-      throw new MastraError({
-        id: 'LLM_STREAM_NO_MODELS_PROVIDED',
-        domain: ErrorDomain.LLM,
-        category: ErrorCategory.USER,
-        details: {
-          runId: runId ?? 'unknown',
-          threadId: threadId ?? 'unknown',
-          resourceId: resourceId ?? 'unknown',
-        },
-      });
-    }
-
-    const firstModel = models[0]?.model!;
+    const firstModel = this.#allModels[0]?.model!;
     let stopWhenToUse;
 
     if (maxSteps && typeof maxSteps === 'number') {
@@ -178,7 +175,7 @@ export class MastraLLMVNext extends MastraBase {
 
       const loopOptions: LoopOptions<Tools, OUTPUT> = {
         messageList,
-        models,
+        models: this.#allModels,
         tools: tools as Tools,
         stopWhen: stopWhenToUse,
         toolChoice,

@@ -634,13 +634,13 @@ export class Agent<
    * @param options Options for getting the LLM
    * @returns A promise that resolves to the LLM instance
    */
-  public getLLM({
+  public async getLLM({
     runtimeContext = new RuntimeContext(),
     model,
   }: {
     runtimeContext?: RuntimeContext;
     model?: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
-  } = {}): MastraLLM | Promise<MastraLLM> {
+  } = {}): Promise<MastraLLM> {
     // If model is provided, resolve it; otherwise use the agent's model
     const modelToUse = model
       ? typeof model === 'function'
@@ -648,10 +648,11 @@ export class Agent<
         : model
       : this.getModel({ runtimeContext });
 
-    return resolveMaybePromise(modelToUse, resolvedModel => {
+    return resolveMaybePromise(modelToUse, async resolvedModel => {
       let llm: MastraLLM;
       if (resolvedModel.specificationVersion === 'v2') {
-        llm = new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra });
+        const allModels = await this.prepareModels(runtimeContext, model);
+        llm = new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra, allModels });
       } else {
         llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
       }
@@ -862,9 +863,7 @@ export class Agent<
     let text = '';
 
     if (llm.getModel().specificationVersion === 'v2') {
-      const models = await this.prepareModels(runtimeContext, model);
       const result = (llm as MastraLLMVNext).stream({
-        models,
         runtimeContext,
         messages: [
           {
@@ -2611,8 +2610,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const runtimeContext = options.runtimeContext || new RuntimeContext();
     const threadFromArgs = resolveThreadIdFromArgs({ threadId: options.threadId, memory: options.memory });
 
-    const models = await this.prepareModels(runtimeContext);
-
     const resourceId = options.memory?.resource || options.resourceId;
     const memoryConfig = options.memory?.options;
 
@@ -3063,7 +3060,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         }
 
         const loopOptions: ModelLoopStreamArgs<any, OUTPUT> = {
-          models,
           messages: result.messages as ModelMessage[],
           runtimeContext: result.runtimeContext!,
           runId,
