@@ -11,8 +11,6 @@ import { PostHogProvider } from "@/analytics/posthog-provider";
 import { CookieConsent } from "@/components/cookie/cookie-consent";
 import { CustomHead } from "@/components/custom-head";
 import { NextraLayout } from "@/components/nextra-layout";
-import loadTranslations from "@/loadTranslations";
-import { GTClientProvider } from "gt-next/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 const fetchStars = async () => {
@@ -62,15 +60,13 @@ export default async function RootLayout({
       <CustomHead />
 
       <body>
-        <GTClientProvider loadTranslations={loadTranslations} locale={locale}>
-          <PostHogProvider>
-            <NextraLayout stars={stars} locale={locale} pageMap={pageMap}>
-              <NuqsAdapter>{children}</NuqsAdapter>
-            </NextraLayout>
-          </PostHogProvider>
-          <Toaster />
-          <CookieConsent />
-        </GTClientProvider>
+        <PostHogProvider>
+          <NextraLayout stars={stars} locale={locale} pageMap={pageMap}>
+            <NuqsAdapter>{children}</NuqsAdapter>
+          </NextraLayout>
+        </PostHogProvider>
+        <Toaster />
+        <CookieConsent />
         <Analytics />
       </body>
     </html>

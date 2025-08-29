@@ -83,7 +83,7 @@ export const Nav = ({ stars, locale }: { stars: number; locale: string }) => {
       className="relative px-6"
     >
       <Link
-        href="/docs"
+        href={`/${locale}/docs`}
         className="px-1.5 w-[3.2rem]  absolute left-[118px] grid place-items-center h-[1.6rem] md:left-[125px] dark:text-[var(--x-color-primary-600)] font-medium tracking-wider py-0.5 text-xs rounded-[0.44rem] border border-[var(--border)] uppercase"
       >
         Docs
