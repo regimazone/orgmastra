@@ -115,8 +115,8 @@ export function watchTemplateInstallHandler(c: Context) {
             mastra,
             runtimeContext: c.get('runtimeContext'),
             runId,
-            repo: '', // These will be ignored by the watch handler
-            slug: '',
+            repo: '',
+            eventType: 'watch-v2',
           });
 
           const reader = result.getReader();
@@ -254,8 +254,7 @@ export async function resumeAsyncTemplateInstallHandler(c: Context) {
       mastra,
       runtimeContext,
       runId,
-      repo: '', // These will be retrieved from the workflow state
-      slug: '',
+      repo: '',
       body: { step, resumeData },
     });
 
@@ -281,7 +280,6 @@ export async function resumeTemplateInstallHandler(c: Context) {
       runtimeContext,
       runId,
       repo: '', // These will be retrieved from the workflow state
-      slug: '',
       body: { step, resumeData },
     });
 
@@ -301,7 +299,6 @@ export async function getTemplateInstallRunsHandler(c: Context) {
       mastra,
       runtimeContext: c.get('runtimeContext'),
       repo: '', // These will be ignored by the handler
-      slug: '',
       ...(fromDate && { fromDate: new Date(fromDate) }),
       ...(toDate && { toDate: new Date(toDate) }),
       ...(limit && { limit: Number(limit) }),
@@ -325,7 +322,6 @@ export async function getTemplateInstallRunByIdHandler(c: Context) {
       runtimeContext: c.get('runtimeContext'),
       runId,
       repo: '', // These will be ignored by the handler
-      slug: '',
     });
 
     return c.json(templateRun);
@@ -344,7 +340,6 @@ export async function getTemplateInstallRunExecutionResultHandler(c: Context) {
       runtimeContext: c.get('runtimeContext'),
       runId,
       repo: '', // These will be ignored by the handler
-      slug: '',
     });
 
     return c.json(templateRunExecutionResult);
@@ -363,7 +358,6 @@ export async function cancelTemplateInstallRunHandler(c: Context) {
       runtimeContext: c.get('runtimeContext'),
       runId,
       repo: '', // These will be ignored by the handler
-      slug: '',
     });
 
     return c.json(result);
@@ -384,7 +378,6 @@ export async function sendTemplateInstallRunEventHandler(c: Context) {
       runtimeContext: c.get('runtimeContext'),
       runId,
       repo: '', // These will be ignored by the handler
-      slug: '',
       event,
       data,
     });

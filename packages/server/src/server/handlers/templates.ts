@@ -18,6 +18,7 @@ interface TemplateContext extends Context {
   body?: { step: string | string[]; resumeData?: unknown };
   event?: string;
   data?: unknown;
+  eventType?: 'watch' | 'watch-v2';
 }
 
 export interface TemplateInstallationRequest {
@@ -210,7 +211,7 @@ export const startTemplateInstallRunHandler = createTemplateHandler(
 );
 
 export const watchTemplateInstallHandler = createTemplateHandler(
-  workflows.watchWorkflowHandlerV2,
+  workflows.watchWorkflowHandler,
   'Watching template installation',
 );
 

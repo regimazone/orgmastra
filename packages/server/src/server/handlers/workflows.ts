@@ -258,72 +258,10 @@ export async function watchWorkflowHandler({
   mastra,
   workflowId,
   runId,
-}: Pick<WorkflowContext, 'mastra' | 'workflowId' | 'runId'>): Promise<ReadableStream<string>> {
-  try {
-    if (!workflowId) {
-      throw new HTTPException(400, { message: 'Workflow ID is required' });
-    }
-
-    if (!runId) {
-      throw new HTTPException(400, { message: 'runId required to watch workflow' });
-    }
-
-    const { workflow } = await getWorkflowsFromSystem({ mastra, workflowId });
-
-    if (!workflow) {
-      throw new HTTPException(404, { message: 'Workflow not found' });
-    }
-
-    const run = await workflow.getWorkflowRunById(runId);
-
-    if (!run) {
-      throw new HTTPException(404, { message: 'Workflow run not found' });
-    }
-
-    const _run = await workflow.createRunAsync({ runId });
-    let unwatch: () => void;
-    let asyncRef: NodeJS.Immediate | null = null;
-    const stream = new ReadableStream<string>({
-      start(controller) {
-        unwatch = _run.watch(({ type, payload, eventTimestamp }) => {
-          controller.enqueue(JSON.stringify({ type, payload, eventTimestamp, runId }));
-
-          if (asyncRef) {
-            clearImmediate(asyncRef);
-            asyncRef = null;
-          }
-
-          // a run is finished if the status is not running
-          asyncRef = setImmediate(async () => {
-            const runDone = payload.workflowState.status !== 'running';
-            if (runDone) {
-              controller.close();
-              unwatch?.();
-            }
-          });
-        });
-      },
-      cancel() {
-        unwatch?.();
-      },
-    });
-
-    return stream;
-  } catch (error) {
-    return handleError(error, 'Error watching workflow');
-  }
-}
-
-/**
- * V2 version of watchWorkflowHandler with proper record separator formatting
- * for client-js compatibility. This fixes parsing issues where events were
- * coming through as {type: undefined, payload: undefined}.
- */
-export async function watchWorkflowHandlerV2({
-  mastra,
-  workflowId,
-  runId,
-}: Pick<WorkflowContext, 'mastra' | 'workflowId' | 'runId'>): Promise<ReadableStream<string>> {
+  eventType = 'watch',
+}: Pick<WorkflowContext, 'mastra' | 'workflowId' | 'runId'> & {
+  eventType?: 'watch' | 'watch-v2';
+}): Promise<ReadableStream<string>> {
   try {
     if (!workflowId) {
       throw new HTTPException(400, { message: 'Workflow ID is required' });
@@ -361,14 +299,13 @@ export async function watchWorkflowHandlerV2({
 
           // a run is finished if the status is not running
           asyncRef = setImmediate(async () => {
-            const runDone = type === 'finish';
-
+            const runDone = eventType === 'watch' ? payload.workflowState.status !== 'running' : type === 'finish';
             if (runDone) {
               controller.close();
               unwatch?.();
             }
           });
-        }, 'watch-v2');
+        }, eventType);
       },
       cancel() {
         if (asyncRef) {
@@ -381,7 +318,7 @@ export async function watchWorkflowHandlerV2({
 
     return stream;
   } catch (error) {
-    return handleError(error, 'Error watching workflow V2');
+    return handleError(error, 'Error watching workflow');
   }
 }
 
