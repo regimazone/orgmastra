@@ -307,7 +307,7 @@ export async function getTemplateInstallRunsHandler(c: Context) {
       ...(limit && { limit: Number(limit) }),
       ...(offset && { offset: Number(offset) }),
       ...(resourceId && { resourceId }),
-    } as any);
+    });
 
     return c.json(templateRuns);
   } catch (error) {
@@ -387,7 +387,7 @@ export async function sendTemplateInstallRunEventHandler(c: Context) {
       slug: '',
       event,
       data,
-    } as any);
+    });
 
     return c.json(result);
   } catch (error) {
