@@ -6173,7 +6173,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     agent.updateFallbackModel({
       id: fallback1Id,
       model: openai('gpt-4'),
-      retry: 5,
+      maxRetries: 5,
     });
 
     const updatedFallbacks = agent.fallbackModels;
@@ -6181,7 +6181,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     expect(updatedFallbacks?.length).toBe(2);
     const fallback1Model = updatedFallbacks?.[0].model as LanguageModelV1;
     expect(fallback1Model.modelId).toBe('gpt-4');
-    expect(updatedFallbacks?.[0].retry).toBe(5);
+    expect(updatedFallbacks?.[0].maxRetries).toBe(5);
     const fallback2Model = updatedFallbacks?.[1].model as LanguageModelV1;
     expect(fallback2Model.modelId).toBe('gpt-4.1');
   });
