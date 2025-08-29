@@ -152,6 +152,7 @@ export default function Observability() {
       </MainContentLayout>
       <TraceDialog
         parentTraceId={selectedTraceId}
+        trace={aiTraces.find(trace => trace.traceId === selectedTraceId)}
         isOpen={dialogIsOpen}
         onClose={() => setDialogIsOpen(false)}
         onNext={aiTraces.length > 1 ? toNextItem : undefined}
