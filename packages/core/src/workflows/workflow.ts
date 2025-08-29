@@ -1133,6 +1133,7 @@ export class Workflow<
 /**
  * Represents a workflow run that can be executed
  */
+
 export class Run<
   TEngineType = any,
   TSteps extends Step<string, any, any, any, any, TEngineType>[] = Step<string, any, any, any, any, TEngineType>[],
@@ -1310,6 +1311,13 @@ export class Run<
     stream: ReadableStream<StreamEvent>;
     getWorkflowState: () => Promise<WorkflowResult<TOutput, TSteps>>;
   } {
+    if (this.closeStreamAction) {
+      return {
+        stream: this.observeStream().stream,
+        getWorkflowState: () => this.executionResults!,
+      };
+    }
+
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
     const writer = writable.getWriter();
@@ -1329,7 +1337,7 @@ export class Run<
         payload: { runId: this.runId },
       });
       unwatch();
-      this.#observerHandlers.forEach(handler => handler());
+      await Promise.all(this.#observerHandlers.map(handler => handler()));
       this.#observerHandlers = [];
 
       try {
@@ -1376,7 +1384,16 @@ export class Run<
       } catch {}
     }, 'watch-v2');
 
-    this.#observerHandlers.push(unwatch);
+    this.#observerHandlers.push(async () => {
+      unwatch();
+      try {
+        await writer.close();
+      } catch (err) {
+        console.error('Error closing stream:', err);
+      } finally {
+        writer.releaseLock();
+      }
+    });
 
     return {
       stream: readable,
