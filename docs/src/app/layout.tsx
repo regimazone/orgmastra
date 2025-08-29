@@ -35,19 +35,15 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-  params,
 }: Readonly<{
   children: React.ReactNode;
-  params: Promise<{ locale: string }>;
 }>) {
-  const { locale } = await params;
-  let pageMap = await getPageMap(`/${locale || "en"}`);
+  let pageMap = await getPageMap();
 
   const stars = await fetchStars();
 
   return (
     <html
-      lang={locale || "en"}
       dir="ltr"
       className={cn(
         "antialiased",
@@ -61,7 +57,7 @@ export default async function RootLayout({
 
       <body>
         <PostHogProvider>
-          <NextraLayout stars={stars} locale={locale} pageMap={pageMap}>
+          <NextraLayout stars={stars} pageMap={pageMap}>
             <NuqsAdapter>{children}</NuqsAdapter>
           </NextraLayout>
         </PostHogProvider>

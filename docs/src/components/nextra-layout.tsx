@@ -24,14 +24,13 @@ export const NextraLayout = ({
 }) => {
   const pathname = usePathname();
   const isReference = pathname.includes("/reference");
-  console.log({ pageMap });
   return (
     <Layout
       search={<SearchWrapper locale={locale} />}
       navbar={
         <div className="flex  sticky top-0 z-30 bg-light-color-surface-15 dark:bg-[var(--primary-bg)] flex-col">
           <Nav stars={stars} locale={locale} />
-          <TabSwitcher locale={locale} />
+          <TabSwitcher />
         </div>
       }
       pageMap={pageMap}
@@ -60,10 +59,6 @@ export const NextraLayout = ({
       feedback={{
         content: null,
       }}
-      i18n={[
-        { locale: "en", name: "English" },
-        { locale: "ja", name: "日本語" },
-      ]}
       editLink={<>Edit this page</>}
 
       // editLink={<T id="_locale_.layout.edit_link">Edit this page</T>}

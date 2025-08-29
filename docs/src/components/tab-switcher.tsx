@@ -32,13 +32,7 @@ const docsTabs = [
   },
 ];
 
-export const TabSwitcher = ({
-  className,
-  locale,
-}: {
-  className?: string;
-  locale: string;
-}) => {
+export const TabSwitcher = ({ className }: { className?: string }) => {
   const pathname = usePathname();
 
   return (
@@ -56,12 +50,12 @@ export const TabSwitcher = ({
           {docsTabs.map((tab) => {
             const isActive =
               pathname.includes(tab.href) ||
-              pathname?.startsWith(`/${locale}/${tab.href}/`);
+              pathname?.startsWith(`/${tab.href}/`);
 
             return (
               <Link
                 key={tab.id}
-                href={`/${locale}/${tab.href}`}
+                href={`/${tab.href}`}
                 className={cn(
                   "flex min-w-fit relative x:focus-visible:nextra-focus gap-1.5 items-center px-0 py-1 text-sm font-medium transition-colors",
                   isActive

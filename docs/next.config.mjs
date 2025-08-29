@@ -25,15 +25,10 @@ const withNextra = nextra({
   },
 });
 
-const withGT = initGT();
 
-export default withGT(
+export default 
   withNextra({
     assetPrefix: process.env.NODE_ENV === "production" ? "/docs" : "",
-    i18n: {
-    locales: ['en', 'ja'],
-    defaultLocale: 'en'
-  },
     async rewrites() {
       return {
         beforeFiles: [
@@ -790,5 +785,4 @@ export default withGT(
       },
     ],
     trailingSlash: false,
-  }),
-);
+  })
