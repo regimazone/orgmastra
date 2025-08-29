@@ -920,12 +920,15 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.3.0
         version: 1.3.24(zod@3.25.76)
-      '@mastra/mcp':
-        specifier: workspace:*
-        version: link:../mcp
+      '@ai-sdk/openai_v5':
+        specifier: npm:@ai-sdk/openai@2.0.15
+        version: '@ai-sdk/openai@2.0.15(zod@3.25.76)'
       '@mastra/memory':
         specifier: workspace:*
         version: link:../memory
+      ai:
+        specifier: ^5.0.25
+        version: 5.0.28(zod@3.25.76)
       ignore:
         specifier: ^7.0.5
         version: 7.0.5
@@ -981,6 +984,9 @@ importers:
       '@mastra/agent-builder':
         specifier: workspace:*
         version: link:..
+      '@mastra/libsql':
+        specifier: workspace:*
+        version: link:../../../stores/libsql
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
