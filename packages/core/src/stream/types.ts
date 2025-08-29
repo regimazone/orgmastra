@@ -317,6 +317,6 @@ export type ExecuteStreamModelManager<T> = (
 
 export type ModelManagerModelConfig = {
   model: LanguageModelV2;
-  retry: number;
+  maxRetries: number;
   id: string;
 };

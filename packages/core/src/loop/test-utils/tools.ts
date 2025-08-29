@@ -828,7 +828,7 @@ export function toolsTests({ loopFn, runId }: { loopFn: typeof loop; runId: stri
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ prompt, tools, toolChoice }) => {

@@ -160,7 +160,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
 
       const result = loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         messageList,
         ...defaultSettings(),
       });
@@ -348,7 +348,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         ...defaultSettings(),
       });
 
@@ -363,7 +363,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         ...defaultSettings(),
       });
 
@@ -378,7 +378,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
         ...defaultSettings(),
       });
 
@@ -393,7 +393,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
         ...defaultSettings(),
       });
 
@@ -407,7 +407,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
     it.todo('should add the reasoning from the model response to the step result', async () => {
       const result = loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         messageList: new MessageList(),
         ...defaultSettings(),
       });
@@ -555,7 +555,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
         ...defaultSettings(),
       });
 
@@ -635,7 +635,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
         ...defaultSettings(),
       });
 

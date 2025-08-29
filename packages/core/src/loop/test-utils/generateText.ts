@@ -174,7 +174,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     describe('result.reasoningText', () => {
       it('should contain reasoning string from model response', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
           messageList: new MessageList(),
         });
 
@@ -187,7 +187,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     describe('result.sources', () => {
       it('should contain sources', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
           messageList: new MessageList(),
         });
 
@@ -198,7 +198,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
     describe('result.files', () => {
       it.todo('should contain files', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
           messageList: new MessageList(),
         });
 
@@ -290,7 +290,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
 
       it.todo('should add the reasoning from the model response to the step result', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
           messageList: new MessageList(),
           _internal: {
             generateId: mockId({ prefix: 'id' }),
@@ -303,7 +303,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
 
       it.todo('should contain sources', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
           messageList: new MessageList(),
           _internal: {
             generateId: mockId({ prefix: 'id' }),
@@ -318,7 +318,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
       // https://github.com/vercel/ai/blob/53569b8e0e5c958db0186009b83ce941a5bc91c1/packages/ai/src/generate-text/generate-text.ts#L540
       it.todo('should contain files', async () => {
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
           messageList: new MessageList(),
           _internal: {
             generateId: mockId({ prefix: 'id' }),
@@ -343,7 +343,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doGenerate: async ({ prompt, tools, toolChoice }) => {
@@ -450,7 +450,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doGenerate: async ({ prompt, tools, toolChoice }) => {
@@ -543,7 +543,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doGenerate: async () => ({
@@ -585,7 +585,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async ({}) => ({
@@ -618,7 +618,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doGenerate: async () => ({
@@ -663,7 +663,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
           'input',
         );
         const result = await generateText({
-          models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+          models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
           messageList,
         });
 
@@ -676,7 +676,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async ({}) => ({
@@ -708,7 +708,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         const result = await generateText({
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async ({}) => ({
@@ -1995,7 +1995,7 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
         models: [
           {
             id: 'test-model',
-            retry: 0,
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async ({}) => ({
                 ...dummyResponseValues,

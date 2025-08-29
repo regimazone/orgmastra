@@ -554,7 +554,7 @@ export function toUIMessageStreamTests({ loopFn, runId }: { loopFn: typeof loop;
       const result = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         ...defaultSettings(),
       });
 
@@ -727,7 +727,7 @@ export function toUIMessageStreamTests({ loopFn, runId }: { loopFn: typeof loop;
       const result = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
         ...defaultSettings(),
       });
 
@@ -792,7 +792,7 @@ export function toUIMessageStreamTests({ loopFn, runId }: { loopFn: typeof loop;
       const result = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithDocumentSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithDocumentSources }],
         ...defaultSettings(),
       });
 
@@ -859,7 +859,7 @@ export function toUIMessageStreamTests({ loopFn, runId }: { loopFn: typeof loop;
       const result = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
         ...defaultSettings(),
       });
 

@@ -68,11 +68,11 @@ export interface AgentConfig<
   description?: string;
   instructions: DynamicArgument<string>;
   model: DynamicArgument<MastraLanguageModel>;
-  retry?: number; //default to 0
+  maxRetries?: number; //defaults to 0
   fallbackModels?: {
     model: DynamicArgument<MastraLanguageModel>;
-    retry?: number; //default to 0
-    enabled?: boolean; //default to true
+    maxRetries?: number; //defaults to 0
+    enabled?: boolean; //defaults to true
   }[];
   tools?: DynamicArgument<TTools>;
   workflows?: DynamicArgument<Record<string, Workflow>>;

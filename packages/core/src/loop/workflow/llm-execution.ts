@@ -355,7 +355,7 @@ function executeStreamWithFallbackModels<T>(models: ModelManagerModelConfig[]): 
     let done = false;
     for (const modelConfig of models) {
       index++;
-      const maxRetries = modelConfig.retry || 0;
+      const maxRetries = modelConfig.maxRetries || 0;
       let attempt = 0;
 
       if (done) {

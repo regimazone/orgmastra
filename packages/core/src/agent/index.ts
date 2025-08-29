@@ -140,11 +140,11 @@ export class Agent<
   #instructions: DynamicArgument<string>;
   readonly #description?: string;
   model: DynamicArgument<MastraLanguageModel>;
-  retry?: number; //default to 0
+  maxRetries?: number;
   fallbackModels?: {
     id: string;
     model: DynamicArgument<MastraLanguageModel>;
-    retry: number;
+    maxRetries: number;
     enabled: boolean;
   }[];
   #mastra?: Mastra;
@@ -188,12 +188,12 @@ export class Agent<
     }
 
     this.model = config.model;
-    this.retry = config.retry ?? 0;
+    this.maxRetries = config.maxRetries ?? 0;
     this.fallbackModels =
       config.fallbackModels?.map(fallbackModel => ({
         id: randomUUID(),
         model: fallbackModel.model,
-        retry: fallbackModel.retry ?? 0,
+        maxRetries: fallbackModel.maxRetries ?? config?.maxRetries ?? 0,
         enabled: fallbackModel.enabled ?? true,
         score: 1,
         active: false,
@@ -758,12 +758,12 @@ export class Agent<
     id,
     model,
     enabled,
-    retry,
+    maxRetries,
   }: {
     id: string;
     model?: DynamicArgument<MastraLanguageModel>;
     enabled?: boolean;
-    retry?: number;
+    maxRetries?: number;
   }) {
     if (!this.fallbackModels) {
       this.logger.warn(`[Agents:${this.name}] No fallback models found`);
@@ -782,7 +782,7 @@ export class Agent<
           ...fallbackModel,
           model: model ?? fallbackModel.model,
           enabled: enabled ?? fallbackModel.enabled,
-          retry: retry ?? fallbackModel.retry,
+          maxRetries: maxRetries ?? fallbackModel.maxRetries,
         };
       }
       return fallbackModel;
@@ -2567,7 +2567,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         {
           id: 'main',
           model: modelToUse as MastraLanguageModelV2,
-          retry: this.retry ?? 0,
+          maxRetries: this.maxRetries ?? 0,
         },
       ];
     }
@@ -2578,7 +2578,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       {
         id: 'main',
         model: this.model,
-        retry: this.retry ?? 0,
+        maxRetries: this.maxRetries ?? 0,
         enabled: true,
       },
       ...fallbacks,
@@ -2594,7 +2594,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         return {
           id: modelConfig.id,
           model: model as MastraLanguageModelV2,
-          retry: modelConfig.retry,
+          maxRetries: modelConfig.maxRetries,
           enabled: modelConfig.enabled,
         };
       }),

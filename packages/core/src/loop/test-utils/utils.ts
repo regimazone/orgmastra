@@ -74,7 +74,7 @@ export function createTestModels({
   return [
     {
       model,
-      retry: 0,
+      maxRetries: 0,
       id: 'test-model',
     },
   ];

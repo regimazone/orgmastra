@@ -46,7 +46,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ prompt }) => {
@@ -177,7 +177,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ prompt }) => {
@@ -293,7 +293,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
 
       const result = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model: modelWithReasoning }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithReasoning }],
         messageList,
         ...defaultSettings(),
       });
@@ -506,7 +506,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
 
       const result = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
         messageList,
         ...defaultSettings(),
       });
@@ -606,7 +606,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
       const result = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
         ...defaultSettings(),
       });
 
@@ -706,7 +706,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         messageList,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ prompt }) => {
@@ -830,7 +830,7 @@ export function fullStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         messageList,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ prompt, tools, toolChoice }) => {

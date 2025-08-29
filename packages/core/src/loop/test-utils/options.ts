@@ -97,7 +97,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async () => {
@@ -135,7 +135,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ providerOptions }) => {
@@ -190,7 +190,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async ({ tools: toolsArg }) => {
@@ -290,7 +290,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async ({ prompt, tools, toolChoice }) => {
@@ -1422,7 +1422,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async options => {
@@ -3170,7 +3170,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async () => {
@@ -3724,7 +3724,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList,
-        models: [{ retry: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -3913,7 +3913,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ retry: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -4110,7 +4110,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            retry: 0,
+            maxRetries: 0,
             id: 'test-model',
             model: new MockLanguageModelV2({
               doStream: async () => {
@@ -6242,7 +6242,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model }],
+        models: [{ maxRetries: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: true,
       });
@@ -6408,7 +6408,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model }],
+        models: [{ maxRetries: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: true,
       });
@@ -6418,7 +6418,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result2 = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model }],
+        models: [{ maxRetries: 0, id: 'test-model', model }],
         messageList,
         includeRawChunks: false,
       });
@@ -6428,7 +6428,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result3 = await loopFn({
         runId,
-        models: [{ retry: 0, id: 'test-model', model }],
+        models: [{ maxRetries: 0, id: 'test-model', model }],
         messageList,
       });
       await result3.aisdk.v5.consumeStream();
@@ -6778,7 +6778,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           },
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async () => ({
@@ -6908,7 +6908,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           messageList: new MessageList(),
           models: [
             {
-              retry: 0,
+              maxRetries: 0,
               id: 'test-model',
               model: new MockLanguageModelV2({
                 doStream: async () => ({

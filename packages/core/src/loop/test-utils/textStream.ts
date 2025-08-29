@@ -23,7 +23,7 @@ export function textStreamTests({ loopFn, runId }: { loopFn: typeof loop; runId:
         models: [
           {
             id: 'test-model',
-            retry: 0,
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async ({ prompt }) => {
                 console.dir({ prompt }, { depth: null });
