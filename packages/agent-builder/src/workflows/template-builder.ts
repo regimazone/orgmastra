@@ -10,7 +10,7 @@ import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { AgentBuilder } from '..';
 import { AgentBuilderDefaults } from '../defaults';
-import type { TemplateUnit } from '../types';
+import type { TemplateUnit, UnitKind } from '../types';
 import {
   ApplyResultSchema,
   AgentBuilderInputSchema,
@@ -291,7 +291,7 @@ Return the actual exported names of the units, as well as the file names.`,
 
           Debug steps:
           - Check template has files in src/mastra/ directories
-          - Try a different branch (main vs openai)
+          - Try a different branch
           - Check template repository structure manually`);
       }
 
@@ -378,7 +378,7 @@ const packageMergeStep = createStep({
       let targetPkgRaw = '{}';
       try {
         targetPkgRaw = await readFile(targetPkgPath, 'utf-8');
-      } catch (e) {
+      } catch {
         console.warn(`No existing package.json at ${targetPkgPath}, creating a new one`);
       }
 
@@ -511,11 +511,11 @@ const programmaticFileCopyStep = createStep({
       const copiedFiles: Array<{
         source: string;
         destination: string;
-        unit: { kind: string; id: string };
+        unit: { kind: UnitKind; id: string };
       }> = [];
 
       const conflicts: Array<{
-        unit: { kind: string; id: string };
+        unit: { kind: UnitKind; id: string };
         issue: string;
         sourceFile: string;
         targetFile: string;

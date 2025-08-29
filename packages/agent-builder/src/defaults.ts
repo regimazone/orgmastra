@@ -4,7 +4,7 @@ import { join, dirname, relative, isAbsolute, resolve } from 'path';
 import { createTool } from '@mastra/core/tools';
 import ignore from 'ignore';
 import { z } from 'zod';
-import { exec, spawnSWPM, spawnWithOutput } from './utils';
+import { exec, execFile, spawnSWPM, spawnWithOutput } from './utils';
 
 export class AgentBuilderDefaults {
   static DEFAULT_INSTRUCTIONS = (
@@ -1114,8 +1114,7 @@ export const mastra = new Mastra({
    */
   static async createMastraProject({ features, projectName }: { features?: string[]; projectName?: string }) {
     try {
-      const args = ['pnpx', 'create-mastra@latest', projectName ?? '', '-l', 'openai', '-k', 'skip'];
-
+      const args = ['pnpx', 'create-mastra@latest', projectName?.replace(/[;&|`$(){}\[\]]/g, '') ?? '', '-l', 'openai'];
       if (features && features.length > 0) {
         args.push('--components', features.join(','));
       }
@@ -1342,10 +1341,21 @@ export const mastra = new Mastra({
    * Stop the Mastra server
    */
   static async stopMastraServer({ port = 4200, projectPath: _projectPath }: { port?: number; projectPath?: string }) {
+    // Validate port to ensure it is a safe integer
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+      return {
+        success: false,
+        status: 'error' as const,
+        error: `Invalid port value: ${String(port)}`,
+      };
+    }
     try {
-      const { stdout } = await exec(`lsof -ti:${port} || echo "No process found"`);
+      // Run lsof safely without shell interpretation
+      const { stdout } = await execFile('lsof', ['-ti', String(port)]);
+      // If no output, treat as "No process found"
+      const effectiveStdout = stdout.trim() ? stdout : 'No process found';
 
-      if (!stdout.trim() || stdout.trim() === 'No process found') {
+      if (!effectiveStdout || effectiveStdout === 'No process found') {
         return {
           success: true,
           status: 'stopped' as const,
@@ -1367,10 +1377,14 @@ export const mastra = new Mastra({
         try {
           process.kill(pid, 'SIGTERM');
           killedPids.push(pid);
-        } catch {
+        } catch (e) {
           failedPids.push(pid);
+          console.warn(`Failed to kill process ${pid}:`, e);
         }
       }
+
+      // If some processes failed to be killed, still report partial success
+      // but include warning about failed processes
 
       if (killedPids.length === 0) {
         return {
@@ -1381,12 +1395,20 @@ export const mastra = new Mastra({
         };
       }
 
+      // Report partial success if some processes were killed but others failed
+      if (failedPids.length > 0) {
+        console.warn(
+          `Killed ${killedPids.length} processes but failed to kill ${failedPids.length} processes: ${failedPids.join(', ')}`,
+        );
+      }
+
       // Wait a bit and check if processes are still running
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       try {
-        const { stdout: checkStdout } = await exec(`lsof -ti:${port} || echo "No process found"`);
-        if (checkStdout.trim() && checkStdout.trim() !== 'No process found') {
+        const { stdout: checkStdoutRaw } = await execFile('lsof', ['-ti', String(port)]);
+        const checkStdout = checkStdoutRaw.trim() ? checkStdoutRaw : 'No process found';
+        if (checkStdout && checkStdout !== 'No process found') {
           // Force kill remaining processes
           const remainingPids = checkStdout
             .trim()
@@ -1405,8 +1427,9 @@ export const mastra = new Mastra({
 
           // Final check
           await new Promise(resolve => setTimeout(resolve, 1000));
-          const { stdout: finalCheck } = await exec(`lsof -ti:${port} || echo "No process found"`);
-          if (finalCheck.trim() && finalCheck.trim() !== 'No process found') {
+          const { stdout: finalCheckRaw } = await execFile('lsof', ['-ti', String(port)]);
+          const finalCheck = finalCheckRaw.trim() ? finalCheckRaw : 'No process found';
+          if (finalCheck && finalCheck !== 'No process found') {
             return {
               success: false,
               status: 'unknown' as const,
@@ -1473,8 +1496,9 @@ export const mastra = new Mastra({
     } catch {
       // Check if process exists on port
       try {
-        const { stdout } = await exec(`lsof -ti:${port} || echo "No process found"`);
-        const hasProcess = stdout.trim() && stdout.trim() !== 'No process found';
+        const { stdout } = await execFile('lsof', ['-ti', String(port)]);
+        const effectiveStdout = stdout.trim() ? stdout : 'No process found';
+        const hasProcess = effectiveStdout && effectiveStdout !== 'No process found';
 
         return {
           success: Boolean(hasProcess),
@@ -1524,9 +1548,10 @@ export const mastra = new Mastra({
     // TypeScript validation
     if (validationType.includes('types')) {
       try {
-        const filePattern = files?.length ? files.join(' ') : '';
-        const tscCommand = files?.length ? `npx tsc --noEmit ${filePattern}` : 'npx tsc --noEmit';
-        await exec(tscCommand, execOptions);
+        const fileArgs = files?.length ? files : [];
+        // Use execFile for safe argument passing to avoid shell interpretation
+        const args = ['tsc', '--noEmit', ...fileArgs];
+        await execFile('npx', args, execOptions);
         validationsPassed.push('types');
       } catch (error: any) {
         let tsOutput = '';
@@ -1550,9 +1575,9 @@ export const mastra = new Mastra({
     // ESLint validation
     if (validationType.includes('lint')) {
       try {
-        const filePattern = files?.length ? files.join(' ') : '.';
-        const eslintCommand = `npx eslint ${filePattern} --format json`;
-        const { stdout } = await exec(eslintCommand, execOptions);
+        const fileArgs = files?.length ? files : ['.'];
+        const eslintArgs = ['eslint', ...fileArgs, '--format', 'json'];
+        const { stdout } = await execFile('npx', eslintArgs, execOptions);
 
         if (stdout) {
           const eslintResults = JSON.parse(stdout);
@@ -1767,9 +1792,17 @@ export const mastra = new Mastra({
     }>;
     taskId?: string;
   }) {
-    // In-memory task storage (could be enhanced with persistent storage)
+    // In-memory task storage with cleanup (could be enhanced with persistent storage)
     if (!AgentBuilderDefaults.taskStorage) {
       AgentBuilderDefaults.taskStorage = new Map();
+    }
+
+    // Cleanup old sessions to prevent memory leaks
+    // Keep only the last 10 sessions
+    const sessions = Array.from(AgentBuilderDefaults.taskStorage.keys());
+    if (sessions.length > 10) {
+      const sessionsToRemove = sessions.slice(0, sessions.length - 10);
+      sessionsToRemove.forEach(session => AgentBuilderDefaults.taskStorage.delete(session));
     }
 
     const sessionId = 'current'; // Could be enhanced with proper session management
@@ -1896,7 +1929,37 @@ export const mastra = new Mastra({
 
       // Use ripgrep for fast searching
       // const excludePatterns = includeTests ? [] : ['*test*', '*spec*', '__tests__'];
-      const languagePattern = language ? `*.${language}` : '*';
+
+      // Only allow a list of known extensions/language types to prevent shell injection
+      const ALLOWED_LANGUAGES = [
+        'js',
+        'ts',
+        'jsx',
+        'tsx',
+        'py',
+        'java',
+        'go',
+        'cpp',
+        'c',
+        'cs',
+        'rb',
+        'php',
+        'rs',
+        'kt',
+        'swift',
+        'm',
+        'scala',
+        'sh',
+        'json',
+        'yaml',
+        'yml',
+        'toml',
+        'ini',
+      ];
+      let languagePattern = '*';
+      if (language && ALLOWED_LANGUAGES.includes(language)) {
+        languagePattern = `*.${language}`;
+      }
 
       switch (action) {
         case 'definitions':
@@ -1913,9 +1976,15 @@ export const mastra = new Mastra({
 
           for (const pattern of definitionPatterns) {
             try {
-              const { stdout } = await exec(
-                `rg -n "${pattern}" "${path}" --type ${languagePattern} --max-depth ${depth}`,
-              );
+              const { stdout } = await execFile('rg', [
+                '-n',
+                pattern,
+                path,
+                '--type',
+                languagePattern,
+                '--max-depth',
+                String(depth),
+              ]);
               const matches = stdout.split('\n').filter(line => line.trim());
 
               matches.forEach(match => {
@@ -1972,7 +2041,7 @@ export const mastra = new Mastra({
 
           for (const pattern of depPatterns) {
             try {
-              const { stdout } = await exec(`rg -n "${pattern}" "${path}" --type ${languagePattern}`);
+              const { stdout } = await execFile('rg', ['-n', pattern, path, '--type', languagePattern]);
               const matches = stdout.split('\n').filter(line => line.trim());
 
               matches.forEach(match => {
@@ -2004,11 +2073,13 @@ export const mastra = new Mastra({
           };
 
         case 'structure':
-          const { stdout: lsOutput } = await exec(`find "${path}" -type f -name "${languagePattern}" | head -1000`);
-          const files = lsOutput.split('\n').filter(line => line.trim());
+          // Use execFile for find commands to avoid shell injection
+          const { stdout: lsOutput } = await execFile('find', [path, '-type', 'f', '-name', languagePattern]);
+          const allFiles = lsOutput.split('\n').filter(line => line.trim());
+          const files = allFiles.slice(0, 1000); // Limit to 1000 files like head -1000
 
-          const { stdout: dirOutput } = await exec(`find "${path}" -type d | wc -l`);
-          const directories = parseInt(dirOutput.trim());
+          const { stdout: dirOutput } = await execFile('find', [path, '-type', 'd']);
+          const directories = dirOutput.split('\n').filter(line => line.trim()).length;
 
           // Count languages by file extension
           const languages: Record<string, number> = {};
@@ -2317,42 +2388,48 @@ export const mastra = new Mastra({
 
       const { beforeLines = 2, afterLines = 2 } = searchContext;
 
-      let rgCommand = 'rg';
+      // Build command and arguments array safely
+      const rgArgs: string[] = [];
 
       // Add context lines
-      if (beforeLines > 0 || afterLines > 0) {
-        rgCommand += ` -A ${afterLines} -B ${beforeLines}`;
+      if (beforeLines > 0) {
+        rgArgs.push('-B', beforeLines.toString());
+      }
+      if (afterLines > 0) {
+        rgArgs.push('-A', afterLines.toString());
       }
 
       // Add line numbers
-      rgCommand += ' -n';
+      rgArgs.push('-n');
 
       // Handle search type
       if (type === 'regex') {
-        rgCommand += ' -e';
+        rgArgs.push('-e');
       } else if (type === 'fuzzy') {
-        rgCommand += ' --fixed-strings';
+        rgArgs.push('--fixed-strings');
       }
 
       // Add file type filters
       if (fileTypes.length > 0) {
         fileTypes.forEach(ft => {
-          rgCommand += ` --type-add 'custom:*.${ft}' -t custom`;
+          rgArgs.push('--type-add', `custom:*.${ft}`, '-t', 'custom');
         });
       }
 
       // Add exclude patterns
       excludePaths.forEach(path => {
-        rgCommand += ` --glob '!${path}'`;
+        rgArgs.push('--glob', `!${path}`);
       });
 
       // Add max count
-      rgCommand += ` -m ${maxResults}`;
+      rgArgs.push('-m', maxResults.toString());
 
-      // Add search paths
-      rgCommand += ` "${query}" ${paths.join(' ')}`;
+      // Add the search query and paths
+      rgArgs.push(query);
+      rgArgs.push(...paths);
 
-      const { stdout } = await exec(rgCommand, {
+      // Execute safely using execFile
+      const { stdout } = await execFile('rg', rgArgs, {
         cwd: projectPath,
       });
       const lines = stdout.split('\n').filter(line => line.trim());

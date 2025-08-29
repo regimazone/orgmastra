@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "test": "vitest run ./src/**/*.test.ts",
+    "test": "vitest run",
     "test:agent": "vitest run ./src/agent-template-behavior.test.ts",
     "test:template": "vitest run ./src/template-integration.test.ts",
     "dev": "mastra dev"
@@ -33,6 +33,6 @@
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "@mastra/core": ">=0.10.7-0 <0.14.0-0"
+    "@mastra/core": ">=0.15.2-0 <0.16.0-0"
   }
 }
