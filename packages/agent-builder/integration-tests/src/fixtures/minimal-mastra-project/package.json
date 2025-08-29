@@ -9,7 +9,6 @@
   "dependencies": {
     "@mastra/core": "latest",
     "@mastra/mcp": "latest",
-    "@mastra/libsql": "latest",
     "zod": "^3.25.0"
   },
   "devDependencies": {
