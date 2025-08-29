@@ -1,8 +1,8 @@
-import { BaseResource } from './base';
-import type { ClientOptions, TemplateInstallationRequest, TemplateInstallationResult } from '../types';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
-import { parseClientRuntimeContext } from '../utils';
 import type { WorkflowInfo } from '@mastra/core/workflows';
+import type { ClientOptions, TemplateInstallationRequest, TemplateInstallationResult } from '../types';
+import { parseClientRuntimeContext } from '../utils';
+import { BaseResource } from './base';
 
 const RECORD_SEPARATOR = '\x1E';
 
@@ -219,7 +219,7 @@ export class Templates extends BaseResource {
                 const parsedChunk = JSON.parse(newChunk);
                 controller.enqueue(parsedChunk);
                 failedChunk = undefined;
-              } catch (error) {
+              } catch {
                 failedChunk = newChunk;
               }
             }
