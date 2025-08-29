@@ -15,8 +15,8 @@ import {
   resumeAsyncTemplateInstallHandler as getOriginalResumeAsyncTemplateInstallHandler,
   resumeTemplateInstallHandler as getOriginalResumeTemplateInstallHandler,
   getAgentBuilderWorkflow as getOriginalGetAgentBuilderWorkflow,
-  type TemplateInstallationRequest,
 } from '@mastra/server/handlers/templates';
+import type { TemplateInstallationRequest } from '@mastra/server/handlers/templates';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { stream } from 'hono/streaming';
