@@ -32,10 +32,14 @@ const docsTabs = [
   },
 ];
 
-export const TabSwitcher = ({ className }: { className?: string }) => {
+export const TabSwitcher = ({
+  className,
+  locale,
+}: {
+  className?: string;
+  locale: string;
+}) => {
   const pathname = usePathname();
-
-  const locale = pathname.split("/")[1];
 
   return (
     <div

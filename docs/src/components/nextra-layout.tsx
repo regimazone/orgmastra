@@ -24,13 +24,14 @@ export const NextraLayout = ({
 }) => {
   const pathname = usePathname();
   const isReference = pathname.includes("/reference");
+  console.log({ pageMap });
   return (
     <Layout
       search={<SearchWrapper locale={locale} />}
       navbar={
         <div className="flex  sticky top-0 z-30 bg-light-color-surface-15 dark:bg-[var(--primary-bg)] flex-col">
           <Nav stars={stars} locale={locale} />
-          <TabSwitcher />
+          <TabSwitcher locale={locale} />
         </div>
       }
       pageMap={pageMap}
@@ -51,7 +52,7 @@ export const NextraLayout = ({
         attribute: "class",
       }}
       docsRepositoryBase="https://github.com/mastra-ai/mastra/blob/main/docs"
-      footer={footer}
+      // footer={footer}
       sidebar={{
         autoCollapse: true,
         defaultMenuCollapseLevel: isReference ? 1 : 3,
@@ -64,6 +65,7 @@ export const NextraLayout = ({
         { locale: "ja", name: "日本語" },
       ]}
       editLink={<>Edit this page</>}
+
       // editLink={<T id="_locale_.layout.edit_link">Edit this page</T>}
 
       // ... Your additional layout options

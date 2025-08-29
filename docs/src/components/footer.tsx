@@ -40,7 +40,6 @@ const socials: Array<{
   },
   {
     text: "discord",
-
     url: "https://discord.gg/BTYqqHKUrf",
   },
   {
