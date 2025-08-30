@@ -8,9 +8,9 @@ import type { MastraLanguageModel } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { AgentBuilder } from '..';
-import { AgentBuilderDefaults } from '../defaults';
-import type { TemplateUnit, UnitKind } from '../types';
+import { AgentBuilder } from '../..';
+import { AgentBuilderDefaults } from '../../defaults';
+import type { TemplateUnit, UnitKind } from '../../types';
 import {
   ApplyResultSchema,
   AgentBuilderInputSchema,
@@ -30,7 +30,7 @@ import {
   ValidationFixResultSchema,
   PrepareBranchInputSchema,
   PrepareBranchResultSchema,
-} from '../types';
+} from '../../types';
 import {
   getMastraTemplate,
   kindWeight,
@@ -43,7 +43,7 @@ import {
   gitCheckoutRef,
   gitRevParse,
   gitAddAndCommit,
-} from '../utils';
+} from '../../utils';
 
 // Helper function to resolve the model to use
 const resolveModel = (runtimeContext: any): MastraLanguageModel => {
