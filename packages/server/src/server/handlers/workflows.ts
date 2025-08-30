@@ -7,7 +7,7 @@ import type { Context } from '../types';
 import { getWorkflowInfo, WorkflowRegistry } from '../utils';
 import { handleError } from './error';
 
-interface WorkflowContext extends Context {
+export interface WorkflowContext extends Context {
   workflowId?: string;
   runId?: string;
 }
