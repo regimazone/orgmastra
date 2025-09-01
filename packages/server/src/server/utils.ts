@@ -1,3 +1,4 @@
+import { agentBuilderWorkflows } from '@mastra/agent-builder';
 import { zodToJsonSchema } from '@mastra/core/utils/zod-to-json';
 import type { StepWithComponent, Workflow, WorkflowInfo } from '@mastra/core/workflows';
 import { stringify } from 'superjson';
@@ -61,6 +62,15 @@ export class WorkflowRegistry {
   }
 
   /**
+   * Register all workflows from map
+   */
+  static registerTemporaryWorkflows(workflows: Record<string, Workflow>): void {
+    for (const [id, workflow] of Object.entries(workflows)) {
+      this.additionalWorkflows[id] = workflow;
+    }
+  }
+
+  /**
    * Get a workflow by ID from the registry (returns undefined if not found)
    */
   static getWorkflow(workflowId: string): Workflow | undefined {
@@ -68,10 +78,34 @@ export class WorkflowRegistry {
   }
 
   /**
+   * Get all workflows from the registry
+   */
+  static getAllWorkflows(): Record<string, Workflow> {
+    return { ...this.additionalWorkflows };
+  }
+
+  /**
    * Clean up a temporary workflow
    */
-  static cleanup(workflowId: string): void {
+  static cleanupTemporaryWorkflow(workflowId: string): void {
     delete this.additionalWorkflows[workflowId];
+  }
+  /**
+   * Clean up all agent-builder workflows
+   */
+
+  static cleanup(): void {
+    const agentBuilderIds = Object.keys(agentBuilderWorkflows);
+    for (const id of agentBuilderIds) {
+      delete this.additionalWorkflows[id];
+    }
+  }
+
+  /**
+   * Check if a workflow ID is a valid agent-builder workflow
+   */
+  static isAgentBuilderWorkflow(workflowId: string): boolean {
+    return workflowId in agentBuilderWorkflows;
   }
 
   /**

@@ -1,8 +1,11 @@
-import { workflowMap } from '@mastra/agent-builder';
+import { agentBuilderWorkflows } from '@mastra/agent-builder';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
-import { WorkflowRegistry } from '../utils';
+import { getWorkflowInfo, WorkflowRegistry } from '../utils';
 import * as workflows from './workflows';
 import type { Context } from '../types';
+import { HTTPException } from '../http-exception';
+import type { WorkflowInfo } from '@mastra/core/workflows';
+import { handleError } from './error';
 
 interface AgentBuilderContext extends Context {
   actionId?: string;
@@ -23,8 +26,13 @@ function createAgentBuilderWorkflowHandler<TWorkflowArgs, TResult>(
     const logger = mastra.getLogger();
 
     try {
-      if (actionId) {
-        WorkflowRegistry.registerTemporaryWorkflow(actionId, workflowMap[actionId as keyof typeof workflowMap]);
+      WorkflowRegistry.registerTemporaryWorkflows(agentBuilderWorkflows);
+
+      // Validate actionId if it's provided
+      if (actionId && !WorkflowRegistry.isAgentBuilderWorkflow(actionId)) {
+        throw new HTTPException(400, {
+          message: `Invalid agent-builder action: ${actionId}. Valid actions are: ${Object.keys(agentBuilderWorkflows).join(', ')}`,
+        });
       }
 
       logger.info(logMessage, { actionId, ...actionArgs });
@@ -38,10 +46,7 @@ function createAgentBuilderWorkflowHandler<TWorkflowArgs, TResult>(
         const result = await workflowHandlerFn(handlerArgs);
         return result;
       } finally {
-        if (actionId) {
-          // Clean up the temporary workflow registration
-          WorkflowRegistry.cleanup(actionId);
-        }
+        WorkflowRegistry.cleanup();
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -56,11 +61,21 @@ function createAgentBuilderWorkflowHandler<TWorkflowArgs, TResult>(
   };
 }
 
-export const getAgentBuilderActionsHandler = createAgentBuilderWorkflowHandler(
-  workflows.getWorkflowsHandler,
-  'Getting agent builder actions',
-);
-
+export const getAgentBuilderActionsHandler = createAgentBuilderWorkflowHandler(async () => {
+  try {
+    const registryWorkflows = WorkflowRegistry.getAllWorkflows();
+    const _workflows = Object.entries(registryWorkflows).reduce<Record<string, WorkflowInfo>>(
+      (acc, [key, workflow]) => {
+        acc[key] = getWorkflowInfo(workflow);
+        return acc;
+      },
+      {},
+    );
+    return _workflows;
+  } catch (error) {
+    return handleError(error, 'Error getting agent builder workflows');
+  }
+}, 'Getting agent builder actions');
 export const getAgentBuilderActionByIdHandler = createAgentBuilderWorkflowHandler(
   workflows.getWorkflowByIdHandler,
   'Getting agent builder action by ID',
