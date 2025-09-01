@@ -284,7 +284,7 @@ export async function resumeAgentBuilderActionHandler(c: Context) {
       throw new HTTPException(400, { message: 'runId required to resume action' });
     }
 
-    const result = await getOriginalResumeAgentBuilderActionHandler({
+    await getOriginalResumeAgentBuilderActionHandler({
       mastra,
       runtimeContext,
       actionId,
