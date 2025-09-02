@@ -61,6 +61,15 @@ export class WorkflowRegistry {
   }
 
   /**
+   * Register all workflows from map
+   */
+  static registerTemporaryWorkflows(workflows: Record<string, Workflow>): void {
+    for (const [id, workflow] of Object.entries(workflows)) {
+      this.additionalWorkflows[id] = workflow;
+    }
+  }
+
+  /**
    * Get a workflow by ID from the registry (returns undefined if not found)
    */
   static getWorkflow(workflowId: string): Workflow | undefined {
@@ -68,10 +77,31 @@ export class WorkflowRegistry {
   }
 
   /**
+   * Get all workflows from the registry
+   */
+  static getAllWorkflows(): Record<string, Workflow> {
+    return { ...this.additionalWorkflows };
+  }
+
+  /**
    * Clean up a temporary workflow
    */
-  static cleanup(workflowId: string): void {
+  static cleanupTemporaryWorkflow(workflowId: string): void {
     delete this.additionalWorkflows[workflowId];
+  }
+  /**
+   * Clean up all registered workflows
+   */
+  static cleanup(): void {
+    // Clear all workflows (since we register all agent-builder workflows each time)
+    this.additionalWorkflows = {};
+  }
+
+  /**
+   * Check if a workflow ID is a valid agent-builder workflow
+   */
+  static isAgentBuilderWorkflow(workflowId: string): boolean {
+    return workflowId in this.additionalWorkflows;
   }
 
   /**

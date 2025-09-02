@@ -8,5 +8,5 @@ export * from './base';
 export * from './workflow';
 export * from './a2a';
 export * from './mcp-tool';
-export * from './template';
+export * from './agent-builder';
 export * from './observability';
