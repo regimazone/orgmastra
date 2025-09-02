@@ -611,7 +611,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: ^20.17.57
-        version: 20.19.9
+        version: 20.19.11
       tsx:
         specifier: ^4.19.2
         version: 4.20.5
