@@ -91,7 +91,6 @@ export default function Template() {
       // First, check if the run exists (with error boundary)
       try {
         getTemplateInstallRun({
-          templateSlug,
           runId,
         })
           .then(runData => {
@@ -99,7 +98,6 @@ export default function Template() {
 
             // Run exists, start watching it
             return watchInstall.mutateAsync({
-              templateSlug,
               runId,
             });
           })
@@ -236,8 +234,7 @@ export default function Template() {
 
         // Step 1: Create the template installation run
         const { runId } = await createTemplateInstallRun({
-          templateSlug: template.slug,
-          params: templateParams,
+          params: { inputData: templateParams },
         });
 
         setCurrentRunId(runId);
@@ -254,8 +251,7 @@ export default function Template() {
 
         // Step 2: Start streaming the installation with the runId
         await streamInstall.mutateAsync({
-          templateSlug: template.slug,
-          params: templateParams,
+          params: { inputData: templateParams },
           runId,
         });
       } catch (err: any) {

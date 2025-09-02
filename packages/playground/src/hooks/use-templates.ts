@@ -163,8 +163,8 @@ export const useAgentBuilderWorkflow = () => {
   return useQuery({
     queryKey: ['agent-builder-workflow'],
     queryFn: async () => {
-      const template = client.getTemplates();
-      return await template.getAgentBuilderWorkflow();
+      const template = client.getAgentBuilderAction('merge-template');
+      return await template.details();
     },
   });
 };
@@ -172,25 +172,23 @@ export const useAgentBuilderWorkflow = () => {
 export const useCreateTemplateInstallRun = () => {
   return useMutation({
     mutationFn: async ({
-      templateSlug,
       params,
       runId,
     }: {
-      templateSlug: string;
       params: TemplateInstallationRequest & { runtimeContext?: RuntimeContext };
       runId?: string;
     }) => {
-      const template = client.getTemplates();
-      return await template.createInstallRun(templateSlug, params, runId);
+      const template = client.getAgentBuilderAction('merge-template');
+      return await template.createRun(params, runId);
     },
   });
 };
 
 export const useGetTemplateInstallRun = () => {
   return useMutation({
-    mutationFn: async ({ templateSlug, runId }: { templateSlug: string; runId: string }) => {
-      const template = client.getTemplates();
-      return await template.getInstallRun(templateSlug, runId);
+    mutationFn: async ({ runId }: { runId: string }) => {
+      const template = client.getAgentBuilderAction('merge-template');
+      return await template.runById(runId);
     },
   });
 };
@@ -470,7 +468,7 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
   };
 
   const watchInstall = useMutation({
-    mutationFn: async ({ templateSlug, runId }: { templateSlug: string; runId: string }) => {
+    mutationFn: async ({ runId }: { runId: string }) => {
       const maxRetries = 3;
       const retryDelay = 2000; // 2 seconds
 
@@ -480,11 +478,11 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
           await initializeState(runId);
           setInstallationResult(null);
 
-          const template = client.getTemplates();
+          const template = client.getAgentBuilderAction('merge-template');
 
           // Use correct callback API (fix the TypeScript issue when possible)
-          await template.watchInstall(
-            { templateSlug, runId },
+          await template.watch(
+            { runId },
             (record: { type: string; payload: any; runId?: string; eventTimestamp?: string }) => {
               try {
                 processTemplateRecord(record);
@@ -625,11 +623,9 @@ export const useStreamTemplateInstall = (workflowInfo?: any) => {
 
   const streamInstall = useMutation({
     mutationFn: async ({
-      templateSlug,
       params,
       runId,
     }: {
-      templateSlug: string;
       params: TemplateInstallationRequest & { runtimeContext?: RuntimeContext };
       runId?: string;
     }) => {
@@ -637,8 +633,8 @@ export const useStreamTemplateInstall = (workflowInfo?: any) => {
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const template = client.getTemplates();
-          const stream = await template.streamInstall(templateSlug, params, runId);
+          const template = client.getAgentBuilderAction('merge-template');
+          const stream = await template.stream(params, runId);
           await processStream(stream, runId);
 
           // If we get here, the stream completed successfully
