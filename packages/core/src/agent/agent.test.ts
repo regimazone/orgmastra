@@ -1320,8 +1320,12 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(usedModelName).toBe('premium');
     });
 
-    if (version === 'v2') {
-      it('should use fallback model', async () => {
+    it(
+      'should use fallback model',
+      {
+        skip: version === 'v1',
+      },
+      async () => {
         let usedModelName = '';
 
         // Create two different models
@@ -1405,8 +1409,8 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
 
         await new Promise(resolve => setTimeout(resolve, 1000));
         expect(usedModelName).toBe('premium');
-      });
-    }
+      },
+    );
 
     it('should handle boolean generateTitle config for backward compatibility', async () => {
       let titleGenerationCallCount = 0;

@@ -640,13 +640,13 @@ export class Agent<
    * @param options Options for getting the LLM
    * @returns A promise that resolves to the LLM instance
    */
-  public async getLLM({
+  public getLLM({
     runtimeContext = new RuntimeContext(),
     model,
   }: {
     runtimeContext?: RuntimeContext;
     model?: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
-  } = {}): Promise<MastraLLM> {
+  } = {}): MastraLLM | Promise<MastraLLM> {
     // If model is provided, resolve it; otherwise use the agent's model
     const modelToUse = model
       ? typeof model === 'function'
@@ -654,25 +654,28 @@ export class Agent<
         : model
       : this.getModel({ runtimeContext });
 
-    return resolveMaybePromise(modelToUse, async resolvedModel => {
-      let llm: MastraLLM;
+    return resolveMaybePromise(modelToUse, resolvedModel => {
+      let llm: MastraLLM | Promise<MastraLLM>;
       if (resolvedModel.specificationVersion === 'v2') {
-        const allModels = await this.prepareModels(runtimeContext, model);
-        llm = new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra, allModels });
+        llm = this.prepareModels(runtimeContext, model).then(
+          allModels => new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra, allModels }),
+        );
       } else {
         llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
       }
 
-      // Apply stored primitives if available
-      if (this.#primitives) {
-        llm.__registerPrimitives(this.#primitives);
-      }
+      const resulvedLLM = resolveMaybePromise(llm, resolvedLLM => {
+        // Apply stored primitives if available
+        if (this.#primitives) {
+          resolvedLLM.__registerPrimitives(this.#primitives);
+        }
+        if (this.#mastra) {
+          resolvedLLM.__registerMastra(this.#mastra);
+        }
+        return resolvedLLM;
+      });
 
-      if (this.#mastra) {
-        llm.__registerMastra(this.#mastra);
-      }
-
-      return llm;
+      return resulvedLLM as MastraLLM;
     });
   }
 
