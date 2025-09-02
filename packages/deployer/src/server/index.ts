@@ -30,7 +30,6 @@ import { vNextNetworksRouter, networksRouter } from './handlers/routes/networks/
 import { observabilityRouter } from './handlers/routes/observability/router';
 import { scoresRouter } from './handlers/routes/scores/router';
 import { telemetryRouter } from './handlers/routes/telemetry/router';
-import { templatesRouter } from './handlers/routes/templates/router';
 import { toolsRouter } from './handlers/routes/tools/router';
 import { vectorRouter } from './handlers/routes/vector/router';
 import { workflowsRouter } from './handlers/routes/workflows/router';

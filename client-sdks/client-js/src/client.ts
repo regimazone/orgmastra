@@ -508,13 +508,6 @@ export class MastraClient extends BaseResource {
   }
 
   /**
-   * Gets a Templates resource instance.
-   */
-  public getTemplates() {
-    return new Templates(this.options);
-  }
-
-  /**
    * Retrieves the working memory for a specific thread (optionally resource-scoped).
    * @param agentId - ID of the agent.
    * @param threadId - ID of the thread.
