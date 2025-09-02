@@ -364,6 +364,7 @@ function executeStreamWithFallbackModels<T>(models: ModelManagerModelConfig[]): 
 
       while (attempt <= maxRetries) {
         try {
+          console.log(`====Executing model ${modelConfig.model.modelId}, attempt ${attempt}====`);
           const isLastModel = attempt === maxRetries && index === models.length;
           const result = await callback(modelConfig.model, isLastModel);
           finalResult = result;
@@ -372,7 +373,7 @@ function executeStreamWithFallbackModels<T>(models: ModelManagerModelConfig[]): 
         } catch (err) {
           attempt++;
 
-          console.log(`Error in model ${modelConfig.model.modelId}`, err);
+          console.log(`====Error in model ${modelConfig.model.modelId}, attempt ${attempt}====`, err);
 
           // If we've exhausted all retries for this model, break and try the next model
           if (attempt > maxRetries) {
