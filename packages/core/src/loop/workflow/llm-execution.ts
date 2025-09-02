@@ -408,6 +408,8 @@ export function createLLMExecutionStep<
   controller,
   output,
   headers,
+  downloadRetries,
+  downloadConcurrency,
 }: OuterLLMRun<Tools, OUTPUT>) {
   return createStep({
     id: 'llm-execution',
@@ -435,12 +437,18 @@ export function createLLMExecutionStep<
 
           switch (model.specificationVersion) {
             case 'v2': {
+              const inputMessages = await messageList.get.all.aiV5.llmPrompt({
+                downloadRetries,
+                downloadConcurrency,
+                supportedUrls: model?.supportedUrls as Record<string, RegExp[]>,
+              });
+
               modelResult = execute({
                 runId,
                 model,
                 isLastModel,
                 providerOptions,
-                inputMessages: messageList.get.all.aiV5.llmPrompt(),
+                inputMessages,
                 tools,
                 toolChoice,
                 options,
