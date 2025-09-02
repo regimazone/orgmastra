@@ -416,8 +416,8 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
 
               if (options?.rootSpan) {
                 options.rootSpan.setAttributes({
-                  'aisdk.model.id': self.#model.modelId,
-                  'aisdk.model.provider': self.#model.provider,
+                  ...(self.#model.modelId ? { 'aisdk.model.id': self.#model.modelId } : {}),
+                  ...(self.#model.provider ? { 'aisdk.model.provider': self.#model.provider } : {}),
                   ...(baseFinishStep?.usage?.reasoningTokens
                     ? {
                         'stream.usage.reasoningTokens': baseFinishStep.usage.reasoningTokens,
