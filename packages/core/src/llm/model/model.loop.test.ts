@@ -5,8 +5,7 @@ import { RuntimeContext } from '../../runtime-context';
 import { MastraLLMVNext } from './model.loop';
 
 const model = new MastraLLMVNext({
-  model: openai('gpt-4o-mini'),
-  allModels: [{ model: openai('gpt-4o-mini'), retry: 0, id: 'test-model' }],
+  models: [{ model: openai('gpt-4o-mini'), maxRetries: 0, id: 'test-model' }],
 });
 
 describe('MastraLLMVNext', () => {
