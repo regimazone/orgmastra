@@ -154,12 +154,6 @@ export class Agent<
         enabled: boolean;
       }[];
   maxRetries?: number;
-  // fallbackModels?: {
-  //   id: string;
-  //   model: DynamicArgument<MastraLanguageModel>;
-  //   maxRetries: number;
-  //   enabled: boolean;
-  // }[];
   #mastra?: Mastra;
   #memory?: DynamicArgument<MastraMemory>;
   #workflows?: DynamicArgument<Record<string, Workflow>>;
@@ -212,15 +206,7 @@ export class Agent<
       this.model = config.model;
     }
 
-    // this.model = config.model;
     this.maxRetries = config.maxRetries ?? 0;
-    // this.fallbackModels =
-    //   config.fallbackModels?.map(fallbackModel => ({
-    //     id: randomUUID(),
-    //     model: fallbackModel.model,
-    //     maxRetries: fallbackModel.maxRetries ?? config?.maxRetries ?? 0,
-    //     enabled: fallbackModel.enabled ?? true,
-    //   })) ?? [];
 
     if (config.workflows) {
       this.#workflows = config.workflows;
