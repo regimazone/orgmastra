@@ -26,6 +26,7 @@ import type {
   StreamParams,
   UpdateModelParams,
   StreamVNextParams,
+  UpdateModelInModelListParams,
 } from '../types';
 
 import { parseClientRuntimeContext } from '../utils';
@@ -33,6 +34,7 @@ import { processClientTools } from '../utils/process-client-tools';
 import { processMastraStream } from '../utils/process-mastra-stream';
 import { zodToJsonSchema } from '../utils/zod-to-json-schema';
 import { BaseResource } from './base';
+import type { AgentModelManagerConfig } from '@mastra/core/agent';
 
 async function executeToolCallAndRespond({
   response,
@@ -1498,6 +1500,51 @@ export class Agent extends BaseResource {
     return this.request(`/api/agents/${this.agentId}/model`, {
       method: 'POST',
       body: params,
+    });
+  }
+
+  /**
+   * Gets the list of models for the agent
+   * @returns Promise containing the list of models
+   */
+  getModelList(): Promise<Array<AgentModelManagerConfig>> {
+    return this.request(`/api/agents/${this.agentId}/models`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Updates the model for the agent in the model list
+   * @param params - Parameters for updating the model
+   * @returns Promise containing the updated model
+   */
+  updateModelInModelList({ modelConfigId, ...params }: UpdateModelInModelListParams): Promise<{ message: string }> {
+    return this.request(`/api/agents/${this.agentId}/models/${modelConfigId}`, {
+      method: 'POST',
+      body: params,
+    });
+  }
+
+  /**
+   * Makes a model from the model list the active model for the agent
+   * @param modelConfigId - ID of the model to make active
+   * @returns Promise containing the updated model
+   */
+  makeModelActive(modelConfigId: string): Promise<{ message: string }> {
+    return this.request(`/api/agents/${this.agentId}/models/${modelConfigId}/active`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reorders the models for the agent
+   * @param modelConfigIds - IDs of the models to reorder in the new order
+   * @returns Promise containing the updated model list
+   */
+  reorderModelList(modelConfigIds: string[]): Promise<{ message: string }> {
+    return this.request(`/api/agents/${this.agentId}/models/reorder`, {
+      method: 'POST',
+      body: { modelConfigIds },
     });
   }
 }

@@ -112,6 +112,16 @@ export type UpdateModelParams = {
   provider: 'openai' | 'anthropic' | 'groq' | 'xai' | 'google';
 };
 
+export type UpdateModelInModelListParams = {
+  modelConfigId: string;
+  model?: {
+    modelId: string;
+    provider: 'openai' | 'anthropic' | 'groq' | 'xai' | 'google';
+  };
+  maxRetries?: number;
+  enabled?: boolean;
+};
+
 export interface GetEvalsByAgentIdResponse extends GetAgentResponse {
   evals: any[];
   instructions: string;

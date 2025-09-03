@@ -20,6 +20,9 @@ import {
   streamVNextUIMessageHandler,
   streamGenerateLegacyHandler,
   generateLegacyHandler,
+  getAgentModelListHandler,
+  makeModelActiveModelHandler,
+  reorderAgentModelListHandler,
 } from './handlers';
 import { getListenerHandler, getSpeakersHandler, speakHandler, listenHandler } from './voice';
 
@@ -554,6 +557,170 @@ export function agentsRouter(bodyLimitOptions: BodyLimitOptions) {
       },
     }),
     updateAgentModelHandler,
+  );
+
+  router.get(
+    '/:agentId/models',
+    describeRoute({
+      description: 'Get the list of models for an agent',
+      tags: ['agents'],
+      parameters: [
+        {
+          name: 'agentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Model list retrieved successfully',
+        },
+        404: {
+          description: 'Agent not found',
+        },
+      },
+    }),
+    getAgentModelListHandler,
+  );
+
+  router.post(
+    '/:agentId/models/reorder',
+    bodyLimit(bodyLimitOptions),
+    describeRoute({
+      description: 'Reorder the models for an agent',
+      tags: ['agents'],
+      parameters: [
+        {
+          name: 'agentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'The list of model ids in the new order',
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Model list reordered successfully',
+        },
+        404: {
+          description: 'Agent not found',
+        },
+      },
+    }),
+    reorderAgentModelListHandler,
+  );
+
+  router.post(
+    '/:agentId/models/:modelConfigId',
+    bodyLimit(bodyLimitOptions),
+    describeRoute({
+      description: 'Update the model for an agent in the model list',
+      tags: ['agents'],
+      parameters: [
+        {
+          name: 'agentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'modelConfigId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                model: {
+                  type: 'object',
+                  properties: {
+                    modelId: {
+                      type: 'string',
+                      description: 'The modelId to update the agent to',
+                    },
+                    provider: {
+                      type: 'string',
+                      enum: ['openai', 'anthropic', 'groq', 'xai', 'google'],
+                      description: 'The provider of the model to update the agent to',
+                    },
+                  },
+                  required: ['modelId', 'provider'],
+                },
+                maxRetries: {
+                  type: 'number',
+                  description: 'The maximum number of retries for the model',
+                },
+                enabled: {
+                  type: 'boolean',
+                  description: 'Whether the model is enabled',
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Model updated successfully',
+        },
+        404: {
+          description: 'Agent not found',
+        },
+      },
+    }),
+    updateAgentModelHandler,
+  );
+
+  router.post(
+    '/:agentId/models/:modelConfigId/active',
+    bodyLimit(bodyLimitOptions),
+    describeRoute({
+      description: 'Make a model the active model for an agent',
+      tags: ['agents'],
+      parameters: [
+        {
+          name: 'agentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'modelConfigId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Model made active successfully',
+        },
+        404: {
+          description: 'Agent not found',
+        },
+      },
+    }),
+    makeModelActiveModelHandler,
   );
 
   router.get(

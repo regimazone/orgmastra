@@ -639,12 +639,14 @@ export async function reorderAgentModelListHandler({
   }
 }
 
-export async function updateAgentModelListHandler({
+export async function updateAgentModelInModelListHandler({
   mastra,
   agentId,
+  modelConfigId,
   body,
 }: Context & {
   agentId: string;
+  modelConfigId: string;
   body: {
     model?: {
       modelId: string;
@@ -652,7 +654,6 @@ export async function updateAgentModelListHandler({
     };
     maxRetries?: number;
     enabled?: boolean;
-    id: string;
   };
 }): Promise<{ message: string }> {
   try {
@@ -661,9 +662,9 @@ export async function updateAgentModelListHandler({
     if (!agent) {
       throw new HTTPException(404, { message: 'Agent not found' });
     }
-    const { model: bodyModel, maxRetries, enabled, id } = body;
+    const { model: bodyModel, maxRetries, enabled } = body;
 
-    if (!id) {
+    if (!modelConfigId) {
       throw new HTTPException(400, { message: 'Model id is required' });
     }
 
@@ -694,7 +695,51 @@ export async function updateAgentModelListHandler({
       model = providerMap[modelVersionKey][provider];
     }
 
-    agent.updateModelList({ id, model, maxRetries, enabled });
+    agent.updateModelInModelList({ id: modelConfigId, model, maxRetries, enabled });
+
+    return { message: 'Model list updated' };
+  } catch (error) {
+    return handleError(error, 'error updating model list');
+  }
+}
+
+export async function makeModelActiveModelHandler({
+  mastra,
+  agentId,
+  modelConfigId,
+}: Context & {
+  agentId: string;
+  modelConfigId: string;
+}) {
+  try {
+    const agent = mastra.getAgent(agentId);
+
+    if (!agent) {
+      throw new HTTPException(404, { message: 'Agent not found' });
+    }
+
+    if (!modelConfigId) {
+      throw new HTTPException(400, { message: 'Model id is required' });
+    }
+
+    const modelList = await agent.getModelList();
+
+    const model = modelList.find(m => m.id === modelConfigId);
+
+    if (!model) {
+      throw new HTTPException(400, { message: 'Model not found' });
+    }
+
+    const modelIds = modelList.map(m => m.id).filter(id => id !== modelConfigId);
+
+    agent.reorderModels([modelConfigId, ...modelIds]);
+
+    for (const modelId of modelIds) {
+      agent.updateModelInModelList({
+        id: modelId,
+        enabled: false,
+      });
+    }
 
     return { message: 'Model list updated' };
   } catch (error) {
