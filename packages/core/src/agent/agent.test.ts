@@ -6337,7 +6337,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       const modelList = await agent.getModelList();
       const model1Id = modelList?.[1].id || '';
 
-      agent.updateModelList({
+      agent.updateModelInModelList({
         id: model1Id,
         model: openai('gpt-4'),
         maxRetries: 5,

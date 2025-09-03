@@ -806,7 +806,7 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Models reordered`);
   }
 
-  updateModelList({
+  updateModelInModelList({
     id,
     model,
     enabled,
