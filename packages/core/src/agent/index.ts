@@ -660,9 +660,10 @@ export class Agent<
     return resolveMaybePromise(modelToUse, resolvedModel => {
       let llm: MastraLLM | Promise<MastraLLM>;
       if (resolvedModel.specificationVersion === 'v2') {
-        llm = this.prepareModels(runtimeContext, model).then(
-          models => new MastraLLMVNext({ models, mastra: this.#mastra }),
-        );
+        llm = this.prepareModels(runtimeContext, model).then(models => {
+          const enabledModels = models.filter(model => model.enabled);
+          return new MastraLLMVNext({ models: enabledModels, mastra: this.#mastra });
+        });
       } else {
         llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
       }
@@ -2739,7 +2740,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   private async prepareModels(
     runtimeContext: RuntimeContext,
     model?: DynamicArgument<MastraLanguageModel>,
-  ): Promise<ModelManagerModelConfig[]> {
+  ): Promise<Array<ModelManagerModelConfig & { enabled: boolean }>> {
     if (model || !Array.isArray(this.model)) {
       const modelToUse = model ?? this.model;
       const resolvedModel =
@@ -2749,13 +2750,13 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           id: 'main',
           model: resolvedModel as MastraLanguageModelV2,
           maxRetries: this.maxRetries ?? 0,
+          enabled: true,
         },
       ];
     }
-    const allModels = this.model?.filter(fb => fb.enabled);
 
     const models = await Promise.all(
-      allModels.map(async modelConfig => {
+      this.model.map(async modelConfig => {
         const model =
           typeof modelConfig.model === 'function'
             ? await modelConfig.model({ runtimeContext, mastra: this.#mastra })
