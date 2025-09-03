@@ -144,14 +144,21 @@ export class Agent<
   public name: TAgentId;
   #instructions: DynamicArgument<string>;
   readonly #description?: string;
-  model: DynamicArgument<MastraLanguageModel>;
+  model:
+    | DynamicArgument<MastraLanguageModel>
+    | {
+        id: string;
+        model: DynamicArgument<MastraLanguageModel>;
+        maxRetries: number;
+        enabled: boolean;
+      }[];
   maxRetries?: number;
-  fallbackModels?: {
-    id: string;
-    model: DynamicArgument<MastraLanguageModel>;
-    maxRetries: number;
-    enabled: boolean;
-  }[];
+  // fallbackModels?: {
+  //   id: string;
+  //   model: DynamicArgument<MastraLanguageModel>;
+  //   maxRetries: number;
+  //   enabled: boolean;
+  // }[];
   #mastra?: Mastra;
   #memory?: DynamicArgument<MastraMemory>;
   #workflows?: DynamicArgument<Record<string, Workflow>>;
@@ -192,17 +199,27 @@ export class Agent<
       throw mastraError;
     }
 
-    this.model = config.model;
+    if (Array.isArray(config.model)) {
+      this.model =
+        config.model.map(mdl => ({
+          id: randomUUID(),
+          model: mdl.model,
+          maxRetries: mdl.maxRetries ?? config?.maxRetries ?? 0,
+          enabled: mdl.enabled ?? true,
+        })) ?? [];
+    } else {
+      this.model = config.model;
+    }
+
+    // this.model = config.model;
     this.maxRetries = config.maxRetries ?? 0;
-    this.fallbackModels =
-      config.fallbackModels?.map(fallbackModel => ({
-        id: randomUUID(),
-        model: fallbackModel.model,
-        maxRetries: fallbackModel.maxRetries ?? config?.maxRetries ?? 0,
-        enabled: fallbackModel.enabled ?? true,
-        score: 1,
-        active: false,
-      })) ?? [];
+    // this.fallbackModels =
+    //   config.fallbackModels?.map(fallbackModel => ({
+    //     id: randomUUID(),
+    //     model: fallbackModel.model,
+    //     maxRetries: fallbackModel.maxRetries ?? config?.maxRetries ?? 0,
+    //     enabled: fallbackModel.enabled ?? true,
+    //   })) ?? [];
 
     if (config.workflows) {
       this.#workflows = config.workflows;
@@ -657,7 +674,7 @@ export class Agent<
       let llm: MastraLLM | Promise<MastraLLM>;
       if (resolvedModel.specificationVersion === 'v2') {
         llm = this.prepareModels(runtimeContext, model).then(
-          allModels => new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra, allModels }),
+          models => new MastraLLMVNext({ models, mastra: this.#mastra }),
         );
       } else {
         llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
@@ -702,7 +719,51 @@ export class Agent<
         throw mastraError;
       }
 
-      return this.model;
+      let modelToUse: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
+
+      if (Array.isArray(this.model)) {
+        if (this.model.length === 0) {
+          const mastraError = new MastraError({
+            id: 'AGENT_GET_MODEL_MISSING_MODEL_INSTANCE',
+            domain: ErrorDomain.AGENT,
+            category: ErrorCategory.USER,
+            details: {
+              agentName: this.name,
+            },
+            text: `[Agent:${this.name}] - Empty model list provided`,
+          });
+          this.logger.trackException(mastraError);
+          this.logger.error(mastraError.toString());
+          throw mastraError;
+        }
+        modelToUse = this.model[0]!.model;
+      } else {
+        modelToUse = this.model;
+      }
+
+      if (typeof modelToUse === 'function') {
+        const result = modelToUse({ runtimeContext, mastra: this.#mastra });
+        return resolveMaybePromise(result, model => {
+          if (!model) {
+            const mastraError = new MastraError({
+              id: 'AGENT_GET_MODEL_FUNCTION_EMPTY_RETURN',
+              domain: ErrorDomain.AGENT,
+              category: ErrorCategory.USER,
+              details: {
+                agentName: this.name,
+              },
+              text: `[Agent:${this.name}] - Function-based model returned empty value`,
+            });
+            this.logger.trackException(mastraError);
+            this.logger.error(mastraError.toString());
+            throw mastraError;
+          }
+
+          return model;
+        });
+      }
+
+      return modelToUse;
     }
 
     const result = this.model({ runtimeContext, mastra: this.#mastra });
@@ -736,33 +797,33 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Model updated.`, { model: this.model, name: this.name });
   }
 
-  disableFallbackModels() {
-    if (!this.fallbackModels) {
-      this.logger.warn(`[Agents:${this.name}] No fallback models found`);
+  // disableFallbackModels() {
+  //   if (!this.fallbackModels) {
+  //     this.logger.warn(`[Agents:${this.name}] No fallback models found`);
+  //     return;
+  //   }
+
+  //   this.fallbackModels = this.fallbackModels.map(fallbackModel => {
+  //     return { ...fallbackModel, enabled: false };
+  //   });
+  //   this.logger.debug(`[Agents:${this.name}] Fallback models disabled`);
+  // }
+
+  reorderModels(modelIds: string[]) {
+    if (!Array.isArray(this.model)) {
+      this.logger.warn(`[Agents:${this.name}] model is not an array`);
       return;
     }
 
-    this.fallbackModels = this.fallbackModels.map(fallbackModel => {
-      return { ...fallbackModel, enabled: false };
-    });
-    this.logger.debug(`[Agents:${this.name}] Fallback models disabled`);
-  }
-
-  reorderFallbackModels(fallbackModelIds: string[]) {
-    if (!this.fallbackModels) {
-      this.logger.warn(`[Agents:${this.name}] No fallback models found`);
-      return;
-    }
-
-    this.fallbackModels = this.fallbackModels.sort((a, b) => {
-      const aIndex = fallbackModelIds.indexOf(a.id);
-      const bIndex = fallbackModelIds.indexOf(b.id);
+    this.model = this.model.sort((a, b) => {
+      const aIndex = modelIds.indexOf(a.id);
+      const bIndex = modelIds.indexOf(b.id);
       return aIndex - bIndex;
     });
-    this.logger.debug(`[Agents:${this.name}] Fallback models reordered`);
+    this.logger.debug(`[Agents:${this.name}] Models reordered`);
   }
 
-  updateFallbackModel({
+  updateModelList({
     id,
     model,
     enabled,
@@ -773,29 +834,29 @@ export class Agent<
     enabled?: boolean;
     maxRetries?: number;
   }) {
-    if (!this.fallbackModels) {
-      this.logger.warn(`[Agents:${this.name}] No fallback models found`);
+    if (!Array.isArray(this.model)) {
+      this.logger.warn(`[Agents:${this.name}] model is not an array`);
       return;
     }
 
-    const fallbackModel = this.fallbackModels.find(m => m.id === id);
-    if (!fallbackModel) {
-      this.logger.warn(`[Agents:${this.name}] Fallback model ${id} not found`);
+    const modelToUpdate = this.model.find(m => m.id === id);
+    if (!modelToUpdate) {
+      this.logger.warn(`[Agents:${this.name}] model ${id} not found`);
       return;
     }
 
-    this.fallbackModels = this.fallbackModels.map(fallbackModel => {
-      if (fallbackModel.id === id) {
+    this.model = this.model.map(mdl => {
+      if (mdl.id === id) {
         return {
-          ...fallbackModel,
-          model: model ?? fallbackModel.model,
-          enabled: enabled ?? fallbackModel.enabled,
-          maxRetries: maxRetries ?? fallbackModel.maxRetries,
+          ...mdl,
+          model: model ?? mdl.model,
+          enabled: enabled ?? mdl.enabled,
+          maxRetries: maxRetries ?? mdl.maxRetries,
         };
       }
-      return fallbackModel;
+      return mdl;
     });
-    this.logger.debug(`[Agents:${this.name}] Fallback model ${id} updated`);
+    this.logger.debug(`[Agents:${this.name}] model ${id} updated`);
   }
 
   #primitives?: MastraPrimitives;
@@ -1086,7 +1147,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
         };
         const convertedToCoreTool = makeCoreTool(toolObj, options);
         convertedMemoryTools[toolName] = convertedToCoreTool;
@@ -1307,7 +1368,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
           writableStream,
         };
         return [k, makeCoreTool(tool, options)];
@@ -1365,7 +1426,7 @@ export class Agent<
             agentName: this.name,
             runtimeContext,
             tracingContext,
-            model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+            model: await this.getModel({ runtimeContext }),
           };
           const convertedToCoreTool = makeCoreTool(toolObj, options, 'toolset');
           toolsForRequest[toolName] = convertedToCoreTool;
@@ -1414,7 +1475,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
         };
         const convertedToCoreTool = makeCoreTool(rest, options, 'client-tool');
         toolsForRequest[toolName] = convertedToCoreTool;
@@ -2635,28 +2696,19 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     runtimeContext: RuntimeContext,
     model?: DynamicArgument<MastraLanguageModel>,
   ): Promise<ModelManagerModelConfig[]> {
-    if (model) {
-      const modelToUse = typeof model === 'function' ? await model({ runtimeContext, mastra: this.#mastra }) : model;
+    if (model || !Array.isArray(this.model)) {
+      const modelToUse = model ?? this.model;
+      const resolvedModel =
+        typeof modelToUse === 'function' ? await modelToUse({ runtimeContext, mastra: this.#mastra }) : modelToUse;
       return [
         {
           id: 'main',
-          model: modelToUse as MastraLanguageModelV2,
+          model: resolvedModel as MastraLanguageModelV2,
           maxRetries: this.maxRetries ?? 0,
         },
       ];
     }
-    const fallbacks = (this.fallbackModels ?? []).map(fallbackModel => ({
-      ...fallbackModel,
-    }));
-    const allModels = [
-      {
-        id: 'main',
-        model: this.model,
-        maxRetries: this.maxRetries ?? 0,
-        enabled: true,
-      },
-      ...fallbacks,
-    ]?.filter(fb => fb.enabled);
+    const allModels = this.model?.filter(fb => fb.enabled);
 
     const models = await Promise.all(
       allModels.map(async modelConfig => {
@@ -2675,6 +2727,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     );
 
     return models;
+  }
+
+  async getModelList(runtimeContext: RuntimeContext = new RuntimeContext()) {
+    return this.prepareModels(runtimeContext);
   }
 
   async #execute<

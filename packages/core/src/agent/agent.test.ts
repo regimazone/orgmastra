@@ -28,6 +28,7 @@ import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
 import { assertNoDuplicateParts, MockMemory } from './test-utils';
 import { Agent } from './index';
+import { MastraLLMVNext } from '../llm/model/model.loop';
 
 config();
 
@@ -1321,7 +1322,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     });
 
     it(
-      'should use fallback model',
+      'should use model list',
       {
         skip: version === 'v1',
       },
@@ -1397,8 +1398,10 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         const agent = new Agent({
           name: 'update-model-agent',
           instructions: 'test agent',
-          model: standardModel,
-          fallbackModels: [
+          model: [
+            {
+              model: standardModel,
+            },
             {
               model: premiumModel,
             },
@@ -6234,97 +6237,123 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     });
   });
 
-  it(`${version} - should take and return fallback models`, async () => {
-    const agent = new Agent({
-      name: 'test',
-      instructions: 'test agent instructions',
-      model: openaiModel,
-      fallbackModels: [
-        {
-          model: openai('gpt-4o-mini'),
-        },
-        {
-          model: openai('gpt-4.1'),
-        },
-      ],
-    });
+  it(
+    'should take and return model list',
+    {
+      skip: version === 'v1',
+    },
+    async () => {
+      const agent = new Agent({
+        name: 'test',
+        instructions: 'test agent instructions',
+        model: [
+          {
+            model: openaiModel,
+          },
+          {
+            model: openai('gpt-4o-mini'),
+          },
+          {
+            model: openai('gpt-4.1'),
+          },
+        ],
+      });
 
-    const fallbacks = agent.fallbackModels;
-    expect(fallbacks).toBeDefined();
-    expect(fallbacks?.length).toBe(2);
-    const fallback1Model = fallbacks?.[0].model as LanguageModelV1;
-    expect(fallback1Model.modelId).toBe('gpt-4o-mini');
-    const fallback2Model = fallbacks?.[1].model as LanguageModelV1;
-    expect(fallback2Model.modelId).toBe('gpt-4.1');
-  });
+      const modelList = await agent.getModelList();
+      expect(modelList?.length).toBe(3);
+      const model0 = modelList?.[0].model as LanguageModelV2;
+      expect(model0.modelId).toBe('gpt-4o');
+      const model1 = modelList?.[1].model as LanguageModelV2;
+      expect(model1.modelId).toBe('gpt-4o-mini');
+      const model2 = modelList?.[2].model as LanguageModelV2;
+      expect(model2.modelId).toBe('gpt-4.1');
+    },
+  );
 
-  it(`${version} - should reorder fallback models`, async () => {
-    const agent = new Agent({
-      name: 'test',
-      instructions: 'test agent instructions',
-      model: openaiModel,
-      fallbackModels: [
-        {
-          model: openai('gpt-4o-mini'),
-        },
-        {
-          model: openai('gpt-4.1'),
-        },
-      ],
-    });
+  it(
+    'should reorder model list',
+    {
+      skip: version === 'v1',
+    },
+    async () => {
+      const agent = new Agent({
+        name: 'test',
+        instructions: 'test agent instructions',
+        model: [
+          {
+            model: openaiModel,
+          },
+          {
+            model: openai('gpt-4o-mini'),
+          },
+          {
+            model: openai('gpt-4.1'),
+          },
+        ],
+      });
 
-    const fallbacks = agent.fallbackModels;
+      const modelList = await agent.getModelList();
 
-    const fallbackIds = fallbacks?.map(f => f.id) || [];
-    const reversedFallbackIds = [...fallbackIds].reverse();
+      const modelIds = modelList?.map(m => m.id) || [];
+      const reversedModelIds = [...modelIds].reverse();
 
-    agent.reorderFallbackModels(reversedFallbackIds);
+      agent.reorderModels(reversedModelIds);
 
-    const reorderedFallbacks = agent.fallbackModels;
-    expect(reorderedFallbacks).toBeDefined();
-    expect(reorderedFallbacks?.length).toBe(2);
-    expect(reorderedFallbacks?.[0].id).toBe(reversedFallbackIds[0]);
-    expect(reorderedFallbacks?.[1].id).toBe(reversedFallbackIds[1]);
+      const reorderedModelList = await agent.getModelList();
 
-    const fallback1Model = reorderedFallbacks?.[0].model as LanguageModelV1;
-    expect(fallback1Model.modelId).toBe('gpt-4.1');
-    const fallback2Model = reorderedFallbacks?.[1].model as LanguageModelV1;
-    expect(fallback2Model.modelId).toBe('gpt-4o-mini');
-  });
+      expect(reorderedModelList).toBeDefined();
+      expect(reorderedModelList?.length).toBe(3);
+      expect(reorderedModelList?.[0].id).toBe(reversedModelIds[0]);
+      expect(reorderedModelList?.[1].id).toBe(reversedModelIds[1]);
 
-  it(`${version} - should update fallback model`, async () => {
-    const agent = new Agent({
-      name: 'test',
-      instructions: 'test agent instructions',
-      model: openaiModel,
-      fallbackModels: [
-        {
-          model: openai('gpt-4o-mini'),
-        },
-        {
-          model: openai('gpt-4.1'),
-        },
-      ],
-    });
+      const model0 = reorderedModelList?.[0].model as LanguageModelV2;
+      expect(model0.modelId).toBe('gpt-4.1');
+      const model1 = reorderedModelList?.[1].model as LanguageModelV2;
+      expect(model1.modelId).toBe('gpt-4o-mini');
+    },
+  );
 
-    const fallbacks = agent.fallbackModels || [];
-    const fallback1Id = fallbacks?.[0].id || '';
+  it(
+    `should update model list`,
+    {
+      skip: version === 'v1',
+    },
+    async () => {
+      const agent = new Agent({
+        name: 'test',
+        instructions: 'test agent instructions',
+        model: [
+          {
+            model: openaiModel,
+          },
+          {
+            model: openai('gpt-4o-mini'),
+          },
+          {
+            model: openai('gpt-4.1'),
+          },
+        ],
+      });
 
-    agent.updateFallbackModel({
-      id: fallback1Id,
-      model: openai('gpt-4'),
-      maxRetries: 5,
-    });
+      const modelList = await agent.getModelList();
+      const model1Id = modelList?.[1].id || '';
 
-    const updatedFallbacks = agent.fallbackModels;
-    expect(updatedFallbacks).toBeDefined();
-    expect(updatedFallbacks?.length).toBe(2);
-    const fallback1Model = updatedFallbacks?.[0].model as LanguageModelV1;
-    expect(fallback1Model.modelId).toBe('gpt-4');
-    expect(updatedFallbacks?.[0].maxRetries).toBe(5);
-    const fallback2Model = updatedFallbacks?.[1].model as LanguageModelV1;
-    expect(fallback2Model.modelId).toBe('gpt-4.1');
-  });
+      agent.updateModelList({
+        id: model1Id,
+        model: openai('gpt-4'),
+        maxRetries: 5,
+      });
+      const updatedModelList = await agent.getModelList();
+
+      expect(updatedModelList).toBeDefined();
+      expect(updatedModelList?.length).toBe(3);
+      const updatedModel1 = updatedModelList?.[1].model as LanguageModelV2;
+      expect(updatedModel1.modelId).toBe('gpt-4');
+      expect(updatedModelList?.[1]?.maxRetries).toBe(5);
+      const updatedModel2 = updatedModelList?.[2].model as LanguageModelV2;
+      expect(updatedModel2.modelId).toBe('gpt-4.1');
+    },
+  );
 
   it(`${version} - stream - should pass and call client side tools with experimental output`, async () => {
     const userAgent = new Agent({

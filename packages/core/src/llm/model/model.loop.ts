@@ -1,4 +1,4 @@
-import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
+// import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import {
   AnthropicSchemaCompatLayer,
   applyCompatLayer,
@@ -29,23 +29,13 @@ import { delay } from '../../utils';
 import type { ModelLoopStreamArgs } from './model.loop.types';
 
 export class MastraLLMVNext extends MastraBase {
-  #model: LanguageModelV2;
-  #allModels: ModelManagerModelConfig[];
+  #models: ModelManagerModelConfig[];
   #mastra?: Mastra;
 
-  constructor({
-    model,
-    mastra,
-    allModels,
-  }: {
-    model: LanguageModelV2;
-    mastra?: Mastra;
-    allModels: ModelManagerModelConfig[];
-  }) {
+  constructor({ mastra, models }: { mastra?: Mastra; models: ModelManagerModelConfig[] }) {
     super({ name: 'aisdk' });
 
-    this.#model = model;
-    this.#allModels = allModels;
+    this.#models = models;
 
     if (mastra) {
       this.#mastra = mastra;
@@ -70,19 +60,19 @@ export class MastraLLMVNext extends MastraBase {
   }
 
   getProvider() {
-    return this.#model.provider;
+    return this.#models[0]!.model?.provider;
   }
 
   getModelId() {
-    return this.#model.modelId;
+    return this.#models[0]!.model?.modelId;
   }
 
   getModel() {
-    return this.#model;
+    return this.#models[0]!.model;
   }
 
   private _applySchemaCompat(schema: OutputSchema): Schema {
-    const model = this.#model;
+    const model = this.#models[0]?.model;
 
     const schemaCompatLayers = [];
 
@@ -148,7 +138,7 @@ export class MastraLLMVNext extends MastraBase {
     tracingContext,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
-    const firstModel = this.#allModels[0]?.model!;
+    const firstModel = this.#models[0]?.model!;
     let stopWhenToUse;
 
     if (maxSteps && typeof maxSteps === 'number') {
@@ -170,12 +160,12 @@ export class MastraLLMVNext extends MastraBase {
     }
 
     const llmAISpan = tracingContext?.currentSpan?.createChildSpan({
-      name: `llm stream: '${model.modelId}'`,
+      name: `llm stream: '${firstModel.modelId}'`,
       type: AISpanType.LLM_GENERATION,
       input: messages,
       attributes: {
-        model: model.modelId,
-        provider: model.provider,
+        model: firstModel.modelId,
+        provider: firstModel.provider,
         streaming: true,
       },
       metadata: {
@@ -193,7 +183,7 @@ export class MastraLLMVNext extends MastraBase {
 
       const loopOptions: LoopOptions<Tools, OUTPUT> = {
         messageList,
-        models: this.#allModels,
+        models: this.#models,
         tools: tools as Tools,
         stopWhen: stopWhenToUse,
         toolChoice,

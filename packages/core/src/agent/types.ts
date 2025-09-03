@@ -63,13 +63,19 @@ export interface AgentConfig<
   name: TAgentId;
   description?: string;
   instructions: DynamicArgument<string>;
-  model: DynamicArgument<MastraLanguageModel>;
+  model:
+    | DynamicArgument<MastraLanguageModel>
+    | {
+        model: DynamicArgument<MastraLanguageModel>;
+        maxRetries?: number; //defaults to 0
+        enabled?: boolean; //defaults to true
+      }[];
   maxRetries?: number; //defaults to 0
-  fallbackModels?: {
-    model: DynamicArgument<MastraLanguageModel>;
-    maxRetries?: number; //defaults to 0
-    enabled?: boolean; //defaults to true
-  }[];
+  // fallbackModels?: {
+  //   model: DynamicArgument<MastraLanguageModel>;
+  //   maxRetries?: number; //defaults to 0
+  //   enabled?: boolean; //defaults to true
+  // }[];
   tools?: DynamicArgument<TTools>;
   workflows?: DynamicArgument<Record<string, Workflow>>;
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
