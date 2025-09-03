@@ -975,6 +975,9 @@ importers:
       '@internal/lint':
         specifier: workspace:*
         version: link:../_config
+      '@internal/types-builder':
+        specifier: workspace:*
+        version: link:../_types-builder
       '@mastra/core':
         specifier: workspace:*
         version: link:../core
