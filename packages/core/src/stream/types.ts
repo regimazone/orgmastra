@@ -9,6 +9,7 @@ import type {
 } from '@ai-sdk/provider-v5';
 import type { LanguageModelV1StreamPart, LanguageModelRequestMetadata } from 'ai';
 import type { CoreMessage, StepResult } from 'ai-v5';
+import type { WorkflowStreamEvent } from '../workflows/types';
 import type { OutputSchema, PartialSchemaOutput } from './base/schema';
 
 export enum ChunkFrom {
@@ -264,7 +265,8 @@ export type ChunkType<OUTPUT extends OutputSchema = undefined> =
   | (BaseChunkType & { type: 'tool-output'; payload: ToolOutputPayload })
   | (BaseChunkType & { type: 'step-output'; payload: StepOutputPayload })
   | (BaseChunkType & { type: 'watch'; payload: WatchPayload })
-  | (BaseChunkType & { type: 'tripwire'; payload: TripwirePayload });
+  | (BaseChunkType & { type: 'tripwire'; payload: TripwirePayload })
+  | (BaseChunkType & WorkflowStreamEvent);
 
 export type OnResult = (result: {
   warnings: Record<string, any>;
