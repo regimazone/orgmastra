@@ -784,18 +784,6 @@ export class Agent<
     this.logger.debug(`[Agents:${this.name}] Model updated.`, { model: this.model, name: this.name });
   }
 
-  // disableFallbackModels() {
-  //   if (!this.fallbackModels) {
-  //     this.logger.warn(`[Agents:${this.name}] No fallback models found`);
-  //     return;
-  //   }
-
-  //   this.fallbackModels = this.fallbackModels.map(fallbackModel => {
-  //     return { ...fallbackModel, enabled: false };
-  //   });
-  //   this.logger.debug(`[Agents:${this.name}] Fallback models disabled`);
-  // }
-
   reorderModels(modelIds: string[]) {
     if (!Array.isArray(this.model)) {
       this.logger.warn(`[Agents:${this.name}] model is not an array`);
