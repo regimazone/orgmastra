@@ -28,7 +28,6 @@ import { CompositeVoice, MastraVoice } from '../voice';
 import { MessageList } from './message-list/index';
 import { assertNoDuplicateParts, MockMemory } from './test-utils';
 import { Agent } from './index';
-import { MastraLLMVNext } from '../llm/model/model.loop';
 
 config();
 
