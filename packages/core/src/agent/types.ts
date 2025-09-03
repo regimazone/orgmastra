@@ -23,6 +23,7 @@ import type { MemoryConfig, StorageThreadType } from '../memory/types';
 import type { InputProcessor, OutputProcessor } from '../processors/index';
 import type { RuntimeContext } from '../runtime-context';
 import type { MastraScorer, MastraScorers, ScoringSamplingConfig } from '../scores';
+import type { ModelManagerModelConfig } from '../stream/types';
 import type { ToolAction, VercelTool, VercelToolV5 } from '../tools';
 import type { DynamicArgument } from '../types';
 import type { CompositeVoice } from '../voice';
@@ -71,11 +72,6 @@ export interface AgentConfig<
         enabled?: boolean; //defaults to true
       }[];
   maxRetries?: number; //defaults to 0
-  // fallbackModels?: {
-  //   model: DynamicArgument<MastraLanguageModel>;
-  //   maxRetries?: number; //defaults to 0
-  //   enabled?: boolean; //defaults to true
-  // }[];
   tools?: DynamicArgument<TTools>;
   workflows?: DynamicArgument<Record<string, Workflow>>;
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
@@ -254,3 +250,5 @@ export type AgentStreamOptions<
     }
 ) &
   (OUTPUT extends undefined ? DefaultLLMStreamOptions : DefaultLLMStreamObjectOptions);
+
+export type AgentModelManagerConfig = ModelManagerModelConfig & { enabled: boolean };

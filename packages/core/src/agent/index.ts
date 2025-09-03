@@ -50,7 +50,7 @@ import { runScorer } from '../scores/hooks';
 import type { AISDKV5OutputStream } from '../stream';
 import type { MastraModelOutput } from '../stream/base/output';
 import type { OutputSchema } from '../stream/base/schema';
-import type { ChunkType, ModelManagerModelConfig } from '../stream/types';
+import type { ChunkType } from '../stream/types';
 import { InstrumentClass } from '../telemetry';
 import { Telemetry } from '../telemetry/telemetry';
 import { createTool } from '../tools';
@@ -75,6 +75,7 @@ import type {
   ToolsetsInput,
   ToolsInput,
   AgentMemoryOption,
+  AgentModelManagerConfig,
 } from './types';
 export * from './input-processor';
 export { TripWire };
@@ -775,7 +776,9 @@ export class Agent<
     });
   }
 
-  public async getModelList(runtimeContext: RuntimeContext = new RuntimeContext()) {
+  public async getModelList(
+    runtimeContext: RuntimeContext = new RuntimeContext(),
+  ): Promise<Array<AgentModelManagerConfig>> {
     return this.prepareModels(runtimeContext);
   }
 
@@ -2740,7 +2743,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
   private async prepareModels(
     runtimeContext: RuntimeContext,
     model?: DynamicArgument<MastraLanguageModel>,
-  ): Promise<Array<ModelManagerModelConfig & { enabled: boolean }>> {
+  ): Promise<Array<AgentModelManagerConfig>> {
     if (model || !Array.isArray(this.model)) {
       const modelToUse = model ?? this.model;
       const resolvedModel =
