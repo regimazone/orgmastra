@@ -136,3 +136,5 @@ It's also super helpful if you leave the project a star here at the [top of the 
 We are committed to maintaining the security of this repo and of Mastra as a whole. If you discover a security finding
 we ask you to please responsibly disclose this to us at [security@mastra.ai](mailto:security@mastra.ai) and we will get
 back to you.
+
+...
