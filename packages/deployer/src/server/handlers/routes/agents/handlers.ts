@@ -13,7 +13,6 @@ import {
   streamVNextUIMessageHandler as getOriginalStreamVNextUIMessageHandler,
   generateLegacyHandler as getOriginalGenerateLegacyHandler,
   streamGenerateLegacyHandler as getOriginalStreamGenerateLegacyHandler,
-  makeModelActiveModelHandler as getOriginalMakeModelActiveModelHandler,
   reorderAgentModelListHandler as getOriginalReorderAgentModelListHandler,
   updateAgentModelInModelListHandler as getOriginalUpdateAgentModelInModelListHandler,
   getAgentModelListHandler as getOriginalGetAgentModelListHandler,
@@ -433,23 +432,5 @@ export async function reorderAgentModelListHandler(c: Context) {
     return c.json(result);
   } catch (error) {
     return handleError(error, 'Error reordering agent model list');
-  }
-}
-
-export async function makeModelActiveModelHandler(c: Context) {
-  try {
-    const mastra: Mastra = c.get('mastra');
-    const agentId = c.req.param('agentId');
-    const modelConfigId = c.req.param('modelConfigId');
-
-    const result = await getOriginalMakeModelActiveModelHandler({
-      mastra,
-      agentId,
-      modelConfigId,
-    });
-
-    return c.json(result);
-  } catch (error) {
-    return handleError(error, 'Error making agent model active');
   }
 }

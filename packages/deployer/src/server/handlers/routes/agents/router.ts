@@ -21,7 +21,6 @@ import {
   streamGenerateLegacyHandler,
   generateLegacyHandler,
   getAgentModelListHandler,
-  makeModelActiveModelHandler,
   reorderAgentModelListHandler,
 } from './handlers';
 import { getListenerHandler, getSpeakersHandler, speakHandler, listenHandler } from './voice';
@@ -689,38 +688,6 @@ export function agentsRouter(bodyLimitOptions: BodyLimitOptions) {
       },
     }),
     updateAgentModelHandler,
-  );
-
-  router.post(
-    '/:agentId/models/:modelConfigId/active',
-    bodyLimit(bodyLimitOptions),
-    describeRoute({
-      description: 'Make a model the active model for an agent',
-      tags: ['agents'],
-      parameters: [
-        {
-          name: 'agentId',
-          in: 'path',
-          required: true,
-          schema: { type: 'string' },
-        },
-        {
-          name: 'modelConfigId',
-          in: 'path',
-          required: true,
-          schema: { type: 'string' },
-        },
-      ],
-      responses: {
-        200: {
-          description: 'Model made active successfully',
-        },
-        404: {
-          description: 'Agent not found',
-        },
-      },
-    }),
-    makeModelActiveModelHandler,
   );
 
   router.get(

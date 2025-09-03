@@ -19,7 +19,6 @@ import {
   updateAgentModelHandler,
   reorderAgentModelListHandler,
   updateAgentModelInModelListHandler,
-  makeModelActiveModelHandler,
 } from './agents';
 
 const mockEvals = [
@@ -445,27 +444,6 @@ describe('Agent Handlers', () => {
       expect(updatedModelList?.[1].model.modelId).toBe('gpt-5');
       expect(updatedModelList?.[1].maxRetries).toBe(4);
       expect(updatedModelList?.[2].model.modelId).toBe('gpt-4.1');
-    });
-  });
-
-  describe('makeModelActiveModelHandler', () => {
-    it('should make a model the active model', async () => {
-      const agent = mockMastra.getAgent('test-multi-model-agent');
-      const modelList = await agent.getModelList();
-      const model1Id = modelList?.[1].id;
-      await makeModelActiveModelHandler({
-        mastra: mockMastra,
-        agentId: 'test-multi-model-agent',
-        modelConfigId: model1Id,
-      });
-
-      const updatedModelList = await agent.getModelList();
-      expect(updatedModelList?.[0].model.modelId).toBe('gpt-4o');
-      expect(updatedModelList?.[1].model.modelId).toBe('gpt-4o-mini');
-      expect(updatedModelList?.[2].model.modelId).toBe('gpt-4.1');
-      expect(updatedModelList?.[0].enabled).toBe(true);
-      expect(updatedModelList?.[1].enabled).toBe(false);
-      expect(updatedModelList?.[2].enabled).toBe(false);
     });
   });
 });

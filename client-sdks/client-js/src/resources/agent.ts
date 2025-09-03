@@ -1526,17 +1526,6 @@ export class Agent extends BaseResource {
   }
 
   /**
-   * Makes a model from the model list the active model for the agent
-   * @param modelConfigId - ID of the model to make active
-   * @returns Promise containing the updated model
-   */
-  makeModelActive(modelConfigId: string): Promise<{ message: string }> {
-    return this.request(`/api/agents/${this.agentId}/models/${modelConfigId}/active`, {
-      method: 'POST',
-    });
-  }
-
-  /**
    * Reorders the models for the agent
    * @param modelConfigIds - IDs of the models to reorder in the new order
    * @returns Promise containing the updated model list
