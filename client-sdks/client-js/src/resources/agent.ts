@@ -9,6 +9,7 @@ import type {
   UseChatOptions,
 } from '@ai-sdk/ui-utils';
 import { v4 as uuid } from '@lukeed/uuid';
+import type { AgentModelManagerConfig } from '@mastra/core/agent';
 import type { MessageListInput } from '@mastra/core/agent/message-list';
 import type { GenerateReturn, CoreMessage } from '@mastra/core/llm';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
@@ -34,7 +35,6 @@ import { processClientTools } from '../utils/process-client-tools';
 import { processMastraStream } from '../utils/process-mastra-stream';
 import { zodToJsonSchema } from '../utils/zod-to-json-schema';
 import { BaseResource } from './base';
-import type { AgentModelManagerConfig } from '@mastra/core/agent';
 
 async function executeToolCallAndRespond({
   response,
