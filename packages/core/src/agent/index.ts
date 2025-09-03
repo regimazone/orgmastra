@@ -774,6 +774,10 @@ export class Agent<
     });
   }
 
+  public async getModelList(runtimeContext: RuntimeContext = new RuntimeContext()) {
+    return this.prepareModels(runtimeContext);
+  }
+
   __updateInstructions(newInstructions: string) {
     this.#instructions = newInstructions;
     this.logger.debug(`[Agents:${this.name}] Instructions updated.`, { model: this.model, name: this.name });
@@ -2767,10 +2771,6 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     );
 
     return models;
-  }
-
-  async getModelList(runtimeContext: RuntimeContext = new RuntimeContext()) {
-    return this.prepareModels(runtimeContext);
   }
 
   async #execute<
