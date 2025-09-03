@@ -31,6 +31,7 @@ import {
   UnsubscribeRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  SetLevelRequestSchema,
   PromptSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import type {
@@ -42,6 +43,7 @@ import type {
   CallToolResult,
   ElicitResult,
   ElicitRequest,
+  LoggingLevel,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { SSEStreamingApi } from 'hono/streaming';
 import { streamSSE } from 'hono/streaming';
@@ -72,6 +74,7 @@ export class MCPServer extends MCPServerBase {
   private definedPrompts?: Prompt[];
   private promptOptions?: MCPServerPrompts;
   private subscriptions: Set<string> = new Set();
+  private currentLoggingLevel: LoggingLevel | undefined;
   public readonly resources: ServerResourceActions;
   public readonly prompts: ServerPromptActions;
   public readonly elicitation: ElicitationActions;
@@ -363,6 +366,13 @@ export class MCPServer extends MCPServerBase {
           isError: true,
         };
       }
+    });
+
+    // Set logging level handler
+    serverInstance.setRequestHandler(SetLevelRequestSchema, async request => {
+      this.currentLoggingLevel = request.params.level;
+      this.logger.debug(`Logging level set to: ${request.params.level}`);
+      return {};
     });
 
     // Register resource handlers if resources are configured
