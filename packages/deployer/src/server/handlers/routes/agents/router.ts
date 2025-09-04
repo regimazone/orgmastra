@@ -577,11 +577,16 @@ export function agentsRouter(bodyLimitOptions: BodyLimitOptions) {
         content: {
           'application/json': {
             schema: {
-              type: 'array',
-              items: {
-                type: 'string',
+              type: 'object',
+              properties: {
+                reorderedModelIds: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                  },
+                  required: ['reorderedModelIds'],
+                },
               },
-              description: 'The list of model ids in the new order',
             },
           },
         },
