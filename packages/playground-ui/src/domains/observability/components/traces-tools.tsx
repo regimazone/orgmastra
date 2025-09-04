@@ -58,7 +58,7 @@ export function TracesTools({
           placeholder="To"
           value={selectedDateTo}
           minValue={selectedDateFrom}
-          onValueChange={date => onDateChange?.(date || undefined, 'to')}
+          onValueChange={date => onDateChange?.(date, 'to')}
           className="min-w-[15rem]"
           defaultTimeStrValue="11:59 PM"
           disabled={isLoading}
