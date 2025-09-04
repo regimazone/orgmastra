@@ -1,4 +1,4 @@
-import { GetAgentResponse, UpdateModelInModelListParams } from '@mastra/client-js';
+import { GetAgentResponse, ReorderModelListParams, UpdateModelInModelListParams } from '@mastra/client-js';
 import { DragDropContext, Draggable, DropResult, Droppable } from '@hello-pangea/dnd';
 import { useState } from 'react';
 import { providerMapToIcon } from '../provider-map-icon';
@@ -14,7 +14,7 @@ export interface AgentMetadataModelListProps {
   modelList: AgentMetadataModelListType;
   modelProviders: string[];
   updateModelInModelList: AgentMetadataModelListItemProps['updateModelInModelList'];
-  reorderModelList: (params: string[]) => void;
+  reorderModelList: (params: ReorderModelListParams) => void;
 }
 
 export const AgentMetadataModelList = ({
@@ -35,7 +35,7 @@ export const AgentMetadataModelList = ({
     items.splice(result.destination.index, 0, reorderedItem);
 
     setModelConfigs(items);
-    reorderModelList(items.map(item => item.id));
+    reorderModelList({ reorderedModelIds: items.map(item => item.id) });
   };
 
   return (

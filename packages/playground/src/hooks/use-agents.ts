@@ -1,5 +1,5 @@
 import { client } from '@/lib/client';
-import { UpdateModelInModelListParams, UpdateModelParams } from '@mastra/client-js';
+import { ReorderModelListParams, UpdateModelInModelListParams, UpdateModelParams } from '@mastra/client-js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const useAgents = () => {
@@ -45,7 +45,7 @@ export const useUpdateAgentModel = (agentId: string) => {
 export const useReorderModelList = (agentId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: string[]) => client.getAgent(agentId).reorderModelList(payload),
+    mutationFn: async (payload: ReorderModelListParams) => client.getAgent(agentId).reorderModelList(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
     },
