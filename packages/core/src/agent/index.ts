@@ -77,6 +77,7 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
+import { networkLoop } from '../loop/network';
 export * from './input-processor';
 export { TripWire };
 export { MessageList };
@@ -909,16 +910,16 @@ export class Agent<
       const [memoryMessages, memorySystemMessage] =
         threadId && memory
           ? await Promise.all([
-              memory
-                .rememberMessages({
-                  threadId,
-                  resourceId,
-                  config: memoryConfig,
-                  vectorMessageSearch: messageList.getLatestUserContent() || '',
-                })
-                .then((r: any) => r.messagesV2),
-              memory.getSystemMessage({ threadId, memoryConfig }),
-            ])
+            memory
+              .rememberMessages({
+                threadId,
+                resourceId,
+                config: memoryConfig,
+                vectorMessageSearch: messageList.getLatestUserContent() || '',
+              })
+              .then((r: any) => r.messagesV2),
+            memory.getSystemMessage({ threadId, memoryConfig }),
+          ])
           : [[], null];
 
       this.logger.debug('Fetched messages from memory', {
@@ -1827,12 +1828,12 @@ export class Agent<
         let [memoryMessages, memorySystemMessage] = await Promise.all([
           existingThread
             ? this.getMemoryMessages({
-                resourceId,
-                threadId: threadObject.id,
-                vectorMessageSearch: new MessageList().add(messages, `user`).getLatestUserContent() || '',
-                memoryConfig,
-                runtimeContext,
-              })
+              resourceId,
+              threadId: threadObject.id,
+              vectorMessageSearch: new MessageList().add(messages, `user`).getLatestUserContent() || '',
+              memoryConfig,
+              runtimeContext,
+            })
             : [],
           memory.getSystemMessage({ threadId: threadObject.id, resourceId, memoryConfig }),
         ]);
@@ -2192,8 +2193,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     runtimeContext: RuntimeContext;
     structuredOutput?: boolean;
     overrideScorers?:
-      | MastraScorers
-      | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
+    | MastraScorers
+    | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
     threadId?: string;
     resourceId?: string;
   }) {
@@ -2310,11 +2311,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     before: () => Promise<
       Omit<
         Output extends undefined
-          ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
-          : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-              output?: Output;
-              experimental_output?: never;
-            },
+        ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
+        : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+          output?: Output;
+          experimental_output?: never;
+        },
         'runId'
       > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
     >;
@@ -2324,8 +2325,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       structuredOutput?: boolean;
       agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
       overrideScorers?:
-        | MastraScorers
-        | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
+      | MastraScorers
+      | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
     }) => Promise<{
       scoringData: {
         input: Omit<ScorerRunInputForAgent, 'runId'>;
@@ -2346,11 +2347,11 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     before: () => Promise<
       Omit<
         Output extends undefined
-          ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
-          : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-              output?: Output;
-              experimental_output?: never;
-            },
+        ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
+        : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+          output?: Output;
+          experimental_output?: never;
+        },
         'runId'
       > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
     >;
@@ -2360,8 +2361,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       structuredOutput?: boolean;
       agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
       overrideScorers?:
-        | MastraScorers
-        | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
+      | MastraScorers
+      | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
     }) => Promise<{
       scoringData: {
         input: Omit<ScorerRunInputForAgent, 'runId'>;
@@ -2382,52 +2383,52 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     methodType: 'generate' | 'stream',
   ): Promise<{
     before:
-      | (() => Promise<
-          Omit<
-            Output extends undefined
-              ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
-              : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-                  output?: Output;
-                  experimental_output?: never;
-                },
-            'runId'
-          > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
-        >)
-      | (() => Promise<
-          Omit<
-            Output extends undefined
-              ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
-              : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
-                  output?: Output;
-                  experimental_output?: never;
-                },
-            'runId'
-          > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
-        >);
+    | (() => Promise<
+      Omit<
+        Output extends undefined
+        ? StreamTextWithMessagesArgs<Tools, ExperimentalOutput>
+        : Omit<StreamObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+          output?: Output;
+          experimental_output?: never;
+        },
+        'runId'
+      > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
+    >)
+    | (() => Promise<
+      Omit<
+        Output extends undefined
+        ? GenerateTextWithMessagesArgs<Tools, ExperimentalOutput>
+        : Omit<GenerateObjectWithMessagesArgs<NonNullable<Output>>, 'structuredOutput'> & {
+          output?: Output;
+          experimental_output?: never;
+        },
+        'runId'
+      > & { runId: string } & TripwireProperties & { agentAISpan?: AISpan<AISpanType.AGENT_RUN> }
+    >);
     after:
-      | ((args: {
-          result: GenerateReturn<any, Output, ExperimentalOutput>;
-          outputText: string;
-          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          overrideScorers?: MastraScorers;
-        }) => Promise<{
-          scoringData: {
-            input: Omit<ScorerRunInputForAgent, 'runId'>;
-            output: ScorerRunOutputForAgent;
-          };
-        }>)
-      | ((args: {
-          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-          result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
-          outputText: string;
-          structuredOutput?: boolean;
-          overrideScorers?: MastraScorers;
-        }) => Promise<{
-          scoringData: {
-            input: Omit<ScorerRunInputForAgent, 'runId'>;
-            output: ScorerRunOutputForAgent;
-          };
-        }>);
+    | ((args: {
+      result: GenerateReturn<any, Output, ExperimentalOutput>;
+      outputText: string;
+      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+      overrideScorers?: MastraScorers;
+    }) => Promise<{
+      scoringData: {
+        input: Omit<ScorerRunInputForAgent, 'runId'>;
+        output: ScorerRunOutputForAgent;
+      };
+    }>)
+    | ((args: {
+      agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+      result: OriginalStreamTextOnFinishEventArg<any> | OriginalStreamObjectOnFinishEventArg<ExperimentalOutput>;
+      outputText: string;
+      structuredOutput?: boolean;
+      overrideScorers?: MastraScorers;
+    }) => Promise<{
+      scoringData: {
+        input: Omit<ScorerRunInputForAgent, 'runId'>;
+        output: ScorerRunOutputForAgent;
+      };
+    }>);
     llm: MastraLLM;
   }> {
     const {
@@ -2580,19 +2581,19 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         overrideScorers,
       }:
         | {
-            result: GenerateReturn<any, Output, ExperimentalOutput>;
-            outputText: string;
-            structuredOutput?: boolean;
-            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-            overrideScorers?: MastraScorers;
-          }
+          result: GenerateReturn<any, Output, ExperimentalOutput>;
+          outputText: string;
+          structuredOutput?: boolean;
+          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          overrideScorers?: MastraScorers;
+        }
         | {
-            result: StreamReturn<any, Output, ExperimentalOutput>;
-            outputText: string;
-            structuredOutput?: boolean;
-            agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
-            overrideScorers?: MastraScorers;
-          }) => {
+          result: StreamReturn<any, Output, ExperimentalOutput>;
+          outputText: string;
+          structuredOutput?: boolean;
+          agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
+          overrideScorers?: MastraScorers;
+        }) => {
         const afterResult = await after({
           result,
           outputText,
@@ -2858,12 +2859,12 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         let [memoryMessages, memorySystemMessage] = await Promise.all([
           existingThread
             ? this.getMemoryMessages({
-                resourceId,
-                threadId: threadObject.id,
-                vectorMessageSearch: new MessageList().add(options.messages, `user`).getLatestUserContent() || '',
-                memoryConfig,
-                runtimeContext,
-              })
+              resourceId,
+              threadId: threadObject.id,
+              vectorMessageSearch: new MessageList().add(options.messages, `user`).getLatestUserContent() || '',
+              memoryConfig,
+              runtimeContext,
+            })
             : [],
           memory.getSystemMessage({ threadId: threadObject.id, resourceId, memoryConfig }),
         ]);
@@ -2985,8 +2986,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           (this.#outputProcessors
             ? typeof this.#outputProcessors === 'function'
               ? await this.#outputProcessors({
-                  runtimeContext: inputData.runtimeContext || new RuntimeContext(),
-                })
+                runtimeContext: inputData.runtimeContext || new RuntimeContext(),
+              })
               : this.#outputProcessors
             : []);
 
@@ -3112,8 +3113,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
           (this.#outputProcessors
             ? typeof this.#outputProcessors === 'function'
               ? await this.#outputProcessors({
-                  runtimeContext: result.runtimeContext!,
-                })
+                runtimeContext: result.runtimeContext!,
+              })
               : this.#outputProcessors
             : []);
 
@@ -3243,8 +3244,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     structuredOutput?: boolean;
     saveQueueManager: SaveQueueManager;
     overrideScorers?:
-      | MastraScorers
-      | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
+    | MastraScorers
+    | Record<string, { scorer: MastraScorer['name']; sampling?: ScoringSamplingConfig }>;
   }) {
     const resToLog = {
       text: result?.text,
@@ -3406,6 +3407,33 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     });
   }
 
+  async #networkExecute<
+    OUTPUT extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+    FORMAT extends 'aisdk' | 'mastra' | undefined = undefined,
+  >({ format = 'mastra', options }: { format?: FORMAT, options?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT> }) {
+    const runId = options?.runId || this.#mastra?.generateId() || randomUUID();
+    const runtimeContextToUse = options?.runtimeContext || new RuntimeContext();
+
+    await networkLoop({
+      networkName: this.name,
+      runtimeContext: runtimeContextToUse,
+      runId,
+      routingAgent: this,
+      routingAgentOptions: options,
+    })
+
+  }
+
+  async loop<
+    OUTPUT extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+    FORMAT extends 'aisdk' | 'mastra' = 'mastra',
+  >(messages: MessageListInput, options?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>) {
+
+
+  }
+
   async generateVNext<
     OUTPUT extends OutputSchema | undefined = undefined,
     STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
@@ -3415,8 +3443,8 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     options?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>,
   ): Promise<
     FORMAT extends 'aisdk'
-      ? Awaited<ReturnType<AISDKV5OutputStream<OUTPUT>['getFullOutput']>>
-      : Awaited<ReturnType<MastraModelOutput<OUTPUT>['getFullOutput']>>
+    ? Awaited<ReturnType<AISDKV5OutputStream<OUTPUT>['getFullOutput']>>
+    : Awaited<ReturnType<MastraModelOutput<OUTPUT>['getFullOutput']>>
   > {
     const result = await this.streamVNext(messages, options);
 
@@ -3858,10 +3886,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       partialObjectStream: StreamTextResult<
         any,
         OUTPUT extends ZodSchema
-          ? z.infer<OUTPUT>
-          : EXPERIMENTAL_OUTPUT extends ZodSchema
-            ? z.infer<EXPERIMENTAL_OUTPUT>
-            : unknown
+        ? z.infer<OUTPUT>
+        : EXPERIMENTAL_OUTPUT extends ZodSchema
+        ? z.infer<EXPERIMENTAL_OUTPUT>
+        : unknown
       >['experimental_partialOutputStream'];
     }
   >;
@@ -3910,10 +3938,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       partialObjectStream: StreamTextResult<
         any,
         OUTPUT extends ZodSchema
-          ? z.infer<OUTPUT>
-          : EXPERIMENTAL_OUTPUT extends ZodSchema
-            ? z.infer<EXPERIMENTAL_OUTPUT>
-            : unknown
+        ? z.infer<OUTPUT>
+        : EXPERIMENTAL_OUTPUT extends ZodSchema
+        ? z.infer<EXPERIMENTAL_OUTPUT>
+        : unknown
       >['experimental_partialOutputStream'];
     }
   >;

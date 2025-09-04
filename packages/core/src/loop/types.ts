@@ -8,6 +8,7 @@ import type { OutputProcessor } from '../processors';
 import type { OutputSchema } from '../stream/base/schema';
 import type { ChunkType } from '../stream/types';
 import type { MastraIdGenerator } from '../types';
+import z from 'zod';
 
 export type StreamInternal = {
   now?: () => number;
@@ -69,3 +70,5 @@ export type OuterLLMRun<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSc
   controller: ReadableStreamDefaultController<ChunkType>;
   writer: WritableStream<ChunkType>;
 } & LoopRun<Tools, OUTPUT>;
+
+export const RESOURCE_TYPES = z.enum(['agent', 'workflow', 'none', 'tool', 'none']);
