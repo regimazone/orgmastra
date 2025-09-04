@@ -57,7 +57,7 @@ export function SelectField({
         <SelectContent>
           {options.map(option => (
             <SelectItem key={option.label} value={option.value}>
-              <span className="white-space-nowrap truncate block">{option.label}</span>
+              <span className="whitespace-nowrap truncate block">{option.label}</span>
             </SelectItem>
           ))}
         </SelectContent>
