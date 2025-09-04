@@ -733,6 +733,83 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
       expect(response.steps.length).toBe(7);
     }, 500000);
 
+    it('should retry when tool fails and eventually succeed with maxSteps=5', async () => {
+      let toolCallCount = 0;
+      const failuresBeforeSuccess = 2; // Tool will fail 2 times then succeed
+
+      const flakeyTool = createTool({
+        id: 'flakeyTool',
+        description: 'A tool that fails initially but eventually succeeds',
+        inputSchema: z.object({ input: z.string() }),
+        outputSchema: z.object({ output: z.string() }),
+        execute: async ({ context }) => {
+          toolCallCount++;
+          if (toolCallCount <= failuresBeforeSuccess) {
+            throw new Error(`Tool failed! Attempt ${toolCallCount}. Please try again.`);
+          }
+          return { output: `Success on attempt ${toolCallCount}: ${context.input}` };
+        },
+      });
+
+      const agent = new Agent({
+        name: 'retry-agent',
+        instructions: 'Call the flakey tool with input "test data".',
+        model: openaiModel,
+        tools: { flakeyTool },
+      });
+      agent.__setLogger(noopLogger);
+
+      let response;
+      if (version === 'v1') {
+        response = await agent.generate('Please call the flakey tool with input "test data"', {
+          maxSteps: 5,
+        });
+      } else {
+        response = await agent.generateVNext('Please call the flakey tool with input "test data"', {
+          maxSteps: 5,
+        });
+      }
+
+      // Should have made multiple attempts
+      expect(response.steps.length).toBeGreaterThan(1);
+      expect(response.steps.length).toBeLessThanOrEqual(5);
+
+      // Should have at least 3 tool calls total (2 failures + 1 success)
+      expect(toolCallCount).toBeGreaterThanOrEqual(3);
+
+      // Check that we eventually get a success result
+      let foundSuccess = false;
+      if (version === 'v1') {
+        for (const step of response.steps) {
+          if (step.toolResults) {
+            for (const result of step.toolResults) {
+              if (result.toolName === 'flakeyTool' && result.result && result.result.output?.includes('Success')) {
+                foundSuccess = true;
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        for (const step of response.steps) {
+          if (step.toolResults) {
+            for (const result of step.toolResults) {
+              if (
+                result.payload.toolName === 'flakeyTool' &&
+                result.payload.result &&
+                result.payload.result.output?.includes('Success')
+              ) {
+                foundSuccess = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      expect(foundSuccess).toBe(true);
+    }, 500000);
+
     it('should call testTool from TestIntegration', async () => {
       const testAgent = new Agent({
         name: 'Test agent',
@@ -2831,7 +2908,9 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         },
       });
-      await expect(userAgent['convertTools']({ runtimeContext: new RuntimeContext() })).rejects.toThrow(/same name/i);
+      await expect(
+        userAgent['convertTools']({ runtimeContext: new RuntimeContext(), tracingContext: {} }),
+      ).rejects.toThrow(/same name/i);
     });
 
     it('should sanitize tool names with invalid characters', async () => {
@@ -2903,7 +2982,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         },
       });
-      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext() });
+      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext(), tracingContext: {} });
       expect(Object.keys(tools)).toContain('bad___tool_name');
       expect(Object.keys(tools)).not.toContain(badName);
     });
@@ -2977,7 +3056,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         },
       });
-      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext() });
+      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext(), tracingContext: {} });
       expect(Object.keys(tools)).toContain('_1tool');
       expect(Object.keys(tools)).not.toContain(badStart);
     });
@@ -3051,7 +3130,7 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           },
         },
       });
-      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext() });
+      const tools = await userAgent['convertTools']({ runtimeContext: new RuntimeContext(), tracingContext: {} });
       expect(Object.keys(tools).some(k => k.length === 63)).toBe(true);
       expect(Object.keys(tools)).not.toContain(longName);
     });
@@ -4470,6 +4549,120 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         ).toBe(true);
       });
 
+      it('should format messages correctly in onStepFinish when provider sends multiple response-metadata chunks (Issue #7050)', async () => {
+        // This test reproduces the bug where real LLM providers (like OpenRouter)
+        // send multiple response-metadata chunks (after each text-delta)
+        // which causes the message to have multiple text parts, one for each chunks
+        // [{ type: 'text', text: 'Hello' }, { type: 'text', text: ' world' }]
+        // instead of properly formatted messages like:
+        // [{ role: 'assistant', content: [{ type: 'text', text: 'Hello world' }] }]
+        const mockModel =
+          version === 'v1'
+            ? new MockLanguageModelV1({
+                doStream: async () => ({
+                  rawCall: { rawPrompt: null, rawSettings: {} },
+                  finishReason: 'stop',
+                  usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+                  stream: convertArrayToReadableStream([
+                    { type: 'text-delta', textDelta: 'Hello' },
+                    { type: 'text-delta', textDelta: ' world' },
+                    {
+                      type: 'finish',
+                      finishReason: 'stop',
+                      usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+                    },
+                  ]),
+                }),
+              })
+            : new MockLanguageModelV2({
+                doStream: async () => ({
+                  rawCall: { rawPrompt: null, rawSettings: {} },
+                  finishReason: 'stop',
+                  usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+                  stream: convertArrayToReadableStream([
+                    { type: 'stream-start', warnings: [] },
+                    { type: 'response-metadata', id: 'id-0', modelId: 'mock-model-id', timestamp: new Date(0) },
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'Hello' },
+                    // add response-metadata in the middle to trigger bug where response metadata is added after each text-delta, splitting text into multiple parts, one per text delta chunk
+                    { type: 'response-metadata', id: 'id-0', modelId: 'mock-model-id', timestamp: new Date(0) },
+                    { type: 'text-delta', id: '1', delta: ' world' },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: 'stop',
+                      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+                      // Real providers DON'T include formatted messages here
+                    },
+                  ]),
+                }),
+              });
+
+        const agent = new Agent({
+          name: 'test-agent-7050',
+          instructions: 'test',
+          model: mockModel,
+        });
+
+        let capturedStep: any = null;
+
+        if (version === 'v1') {
+          const stream = await agent.stream('test message', {
+            threadId: 'test-thread-7050',
+            resourceId: 'test-resource-7050',
+            savePerStep: true,
+            onStepFinish: async (step: any) => {
+              capturedStep = step;
+            },
+          });
+
+          // Consume the v1 stream (StreamTextResult has textStream property)
+          for await (const _chunk of stream.textStream) {
+            // Just consume the stream
+          }
+        } else {
+          const result = await agent.streamVNext('test message', {
+            format: 'aisdk',
+            memory: {
+              thread: 'test-thread-7050',
+              resource: 'test-resource-7050',
+            },
+            onStepFinish: async (step: any) => {
+              capturedStep = step;
+            },
+          });
+
+          // Consume the v2 stream
+          const reader = result.textStream.getReader();
+          while (true) {
+            const { done } = await reader.read();
+            if (done) break;
+          }
+        }
+
+        // Verify that onStepFinish was called with properly formatted messages
+        expect(capturedStep).toBeDefined();
+        expect(capturedStep.response).toBeDefined();
+        expect(capturedStep.response.messages).toBeDefined();
+        expect(Array.isArray(capturedStep.response.messages)).toBe(true);
+        expect(capturedStep.response.messages.length).toBeGreaterThan(0);
+
+        // Check that messages have the correct CoreMessage structure
+        const firstMessage = capturedStep.response.messages[0];
+        expect(firstMessage).toHaveProperty('role');
+        expect(firstMessage).toHaveProperty('content');
+        expect(typeof firstMessage.role).toBe('string');
+        expect(['assistant', 'system', 'user'].includes(firstMessage.role)).toBe(true);
+
+        if (version === `v2`) {
+          // The bug would cause messages to be multiple text parts for each chunk like;
+          // [{ type: 'text', text: 'Hello' }, { type: 'text', text: ' world' }]
+          // Instead of: [{ role: 'assistant', content: [{ type: 'text', text: 'Hello world' }] }]
+          // should only have a single text part of combined text delta chunks
+          expect(firstMessage.content?.filter(p => p.type === `text`)).toHaveLength(1);
+        }
+      });
+
       it('should only call saveMessages for the user message when no assistant parts are generated', async () => {
         const mockMemory = new MockMemory();
         let saveCallCount = 0;
@@ -4940,6 +5133,78 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
 
         expect(secondResponse.response.messages).toEqual([expect.objectContaining({ role: 'assistant' })]);
       }, 30_000);
+
+      it('should include assistant messages in onFinish callback with aisdk format', async () => {
+        const mockModel = new MockLanguageModelV2({
+          doStream: async () => ({
+            rawCall: { rawPrompt: null, rawSettings: {} },
+            finishReason: 'stop',
+            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            stream: convertArrayToReadableStream([
+              { type: 'text-delta', id: '1', delta: 'Hello! ' },
+              { type: 'text-delta', id: '2', delta: 'Nice to meet you!' },
+              {
+                type: 'finish',
+                id: '3',
+                finishReason: 'stop',
+                usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+              },
+            ]),
+            warnings: [],
+          }),
+        });
+
+        const agent = new Agent({
+          id: 'test-aisdk-onfinish',
+          name: 'Test AISDK onFinish',
+          model: mockModel,
+          instructions: 'You are a helpful assistant.',
+        });
+
+        let messagesInOnFinish: any[] | undefined;
+        let hasUserMessage = false;
+        let hasAssistantMessage = false;
+
+        const result = await agent.streamVNext('Hello, please respond with a greeting.', {
+          format: 'aisdk',
+          onFinish: props => {
+            // Store the messages from onFinish
+            messagesInOnFinish = props.messages;
+
+            if (props.messages) {
+              props.messages.forEach((msg: any) => {
+                if (msg.role === 'user') hasUserMessage = true;
+                if (msg.role === 'assistant') hasAssistantMessage = true;
+              });
+            }
+          },
+        });
+
+        // Consume the stream
+        await result.consumeStream();
+
+        // Verify that messages were provided in onFinish
+        expect(messagesInOnFinish).toBeDefined();
+        expect(messagesInOnFinish).toBeInstanceOf(Array);
+
+        // response messages should not be user messages
+        expect(hasUserMessage).toBe(false);
+        // Verify that we have assistant messages
+        expect(hasAssistantMessage).toBe(true);
+
+        // Verify the assistant message content
+        const assistantMessage = messagesInOnFinish?.find((m: any) => m.role === 'assistant');
+        expect(assistantMessage).toBeDefined();
+        expect(assistantMessage?.content).toBeDefined();
+
+        // For the v2 model, the assistant message should contain the streamed text
+        if (typeof assistantMessage?.content === 'string') {
+          expect(assistantMessage.content).toContain('Hello!');
+        } else if (Array.isArray(assistantMessage?.content)) {
+          const textContent = assistantMessage.content.find((c: any) => c.type === 'text');
+          expect(textContent?.text).toContain('Hello!');
+        }
+      });
     });
   });
 
@@ -5575,6 +5840,11 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
           stream = await agentWithStreamAbort.stream('Stream abort test');
         } else {
           stream = await agentWithStreamAbort.streamVNext('Stream abort test');
+
+          for await (const chunk of stream.fullStream) {
+            expect(chunk.type).toBe('tripwire');
+            expect(chunk.payload.tripwireReason).toBe('Stream aborted');
+          }
         }
 
         expect(stream.tripwire).toBe(true);
@@ -6163,6 +6433,74 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
     }
   }, 10000);
 
+  describe('scorer output data', () => {
+    it(`${version} - should return scoring data from generate when returnScorerData is true`, async () => {
+      const agent = new Agent({
+        name: 'Scorer Agent',
+        instructions: 'You are an agent that can score things',
+        model: dummyModel,
+      });
+
+      let result;
+      if (version === 'v1') {
+        result = await agent.generate('Make it green', {
+          returnScorerData: true,
+        });
+      } else {
+        result = await agent.generateVNext('Make it green', {
+          returnScorerData: true,
+        });
+      }
+
+      expect(result.scoringData).toBeDefined();
+      expect(result.scoringData.input).toMatchObject({
+        inputMessages: expect.any(Array),
+        rememberedMessages: expect.any(Array),
+        systemMessages: expect.any(Array),
+        taggedSystemMessages: expect.any(Object),
+      });
+      expect(result.scoringData.output).toBeInstanceOf(Array);
+    });
+
+    it(`${version} - should not return scoring data from generate when returnScorerData is false`, async () => {
+      const agent = new Agent({
+        name: 'Scorer Agent',
+        instructions: 'You are an agent that can score things',
+        model: dummyModel,
+      });
+
+      let result;
+      if (version === 'v1') {
+        result = await agent.generate('Make it green', {
+          returnScorerData: false,
+        });
+      } else {
+        result = await agent.generateVNext('Make it green', {
+          returnScorerData: false,
+        });
+      }
+
+      expect(result.scoringData).toBeUndefined();
+    });
+
+    it(`${version} - should not return scoring data from generate when returnScorerData is not specified`, async () => {
+      const agent = new Agent({
+        name: 'Scorer Agent',
+        instructions: 'You are an agent that can score things',
+        model: dummyModel,
+      });
+
+      let result;
+      if (version === 'v1') {
+        result = await agent.generate('Make it green');
+      } else {
+        result = await agent.generateVNext('Make it green');
+      }
+
+      expect(result.scoringData).toBeUndefined();
+    });
+  });
+
   describe('scorer override functionality', () => {
     let agent: Agent;
     let mastra: Mastra;
@@ -6337,6 +6675,160 @@ function agentTests({ version }: { version: 'v1' | 'v2' }) {
         threadId: undefined,
         resourceId: undefined,
       });
+    });
+  });
+
+  describe('defaultStreamOptions onFinish callback bug', () => {
+    it(`${version} - should call onFinish from defaultStreamOptions when no options are passed to stream`, async () => {
+      let onFinishCalled = false;
+      let finishData: any = null;
+
+      const agent = new Agent({
+        id: 'test-default-onfinish',
+        name: 'Test Default onFinish',
+        model: dummyModel,
+        instructions: 'You are a helpful assistant.',
+        ...(version === 'v1'
+          ? {
+              defaultStreamOptions: {
+                onFinish: data => {
+                  onFinishCalled = true;
+                  finishData = data;
+                },
+              },
+            }
+          : {
+              defaultVNextStreamOptions: {
+                onFinish: data => {
+                  onFinishCalled = true;
+                  finishData = data;
+                },
+              },
+            }),
+      });
+
+      // Call stream without passing any options - should use defaultStreamOptions
+      const result = version === 'v1' ? await agent.stream('How are you?') : await agent.streamVNext('How are you?');
+
+      // Consume the stream to trigger onFinish
+      if (version === 'v1') {
+        let fullText = '';
+        for await (const chunk of result.textStream) {
+          fullText += chunk;
+        }
+        expect(fullText).toBe('Dummy response');
+      } else {
+        await result.consumeStream();
+      }
+
+      expect(onFinishCalled).toBe(true);
+      expect(finishData).toBeDefined();
+    });
+
+    it(`${version} - should call onFinish from defaultStreamOptions when empty options are passed to stream`, async () => {
+      let onFinishCalled = false;
+      let finishData: any = null;
+
+      const agent = new Agent({
+        id: 'test-default-onfinish-empty',
+        name: 'Test Default onFinish Empty',
+        model: dummyModel,
+        instructions: 'You are a helpful assistant.',
+        ...(version === 'v1'
+          ? {
+              defaultStreamOptions: {
+                onFinish: data => {
+                  onFinishCalled = true;
+                  finishData = data;
+                },
+              },
+            }
+          : {
+              defaultVNextStreamOptions: {
+                onFinish: data => {
+                  onFinishCalled = true;
+                  finishData = data;
+                },
+              },
+            }),
+      });
+
+      // Call stream with empty options - should still use defaultStreamOptions
+      const result =
+        version === 'v1' ? await agent.stream('How are you?', {}) : await agent.streamVNext('How are you?', {});
+
+      // Consume the stream to trigger onFinish
+      if (version === 'v1') {
+        let fullText = '';
+        for await (const chunk of result.textStream) {
+          fullText += chunk;
+        }
+        expect(fullText).toBe('Dummy response');
+      } else {
+        await result.consumeStream();
+      }
+
+      expect(onFinishCalled).toBe(true);
+      expect(finishData).toBeDefined();
+    });
+
+    it(`${version} - should prioritize passed onFinish over defaultStreamOptions onFinish`, async () => {
+      let defaultOnFinishCalled = false;
+      let passedOnFinishCalled = false;
+      let finishData: any = null;
+
+      const agent = new Agent({
+        id: 'test-override-onfinish',
+        name: 'Test Override onFinish',
+        model: dummyModel,
+        instructions: 'You are a helpful assistant.',
+        ...(version === 'v1'
+          ? {
+              defaultStreamOptions: {
+                onFinish: () => {
+                  defaultOnFinishCalled = true;
+                },
+              },
+            }
+          : {
+              defaultVNextStreamOptions: {
+                onFinish: () => {
+                  defaultOnFinishCalled = true;
+                },
+              },
+            }),
+      });
+
+      // Call stream with explicit onFinish - should override defaultStreamOptions
+      const result =
+        version === 'v1'
+          ? await agent.stream('How are you?', {
+              onFinish: data => {
+                passedOnFinishCalled = true;
+                finishData = data;
+              },
+            })
+          : await agent.streamVNext('How are you?', {
+              onFinish: data => {
+                passedOnFinishCalled = true;
+                finishData = data;
+              },
+            });
+
+      // Consume the stream to trigger onFinish
+      if (version === 'v1') {
+        let fullText = '';
+        for await (const chunk of result.textStream) {
+          fullText += chunk;
+        }
+        expect(fullText).toBe('Dummy response');
+      } else {
+        await result.consumeStream();
+      }
+
+      expect(defaultOnFinishCalled).toBe(false);
+      expect(passedOnFinishCalled).toBe(true);
+      expect(finishData).toBeDefined();
     });
   });
 }

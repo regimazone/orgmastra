@@ -29,6 +29,8 @@ export default function Template() {
   const { templateSlug } = useParams()! as { templateSlug: string };
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [selectedModelProvider, setSelectedModelProvider] = useState<string>('');
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [variables, setVariables] = useState({});
   const [errors, setErrors] = useState<string[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function Template() {
   const [currentRunId, setCurrentRunId] = useState<string>('');
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
   const [isFreshInstall, setIsFreshInstall] = useState(false);
+  const [completedRunValidationErrors, setCompletedRunValidationErrors] = useState<any[]>([]);
 
   const { data: template, isLoading: isLoadingTemplate } = useTemplateRepo({
     repoOrSlug: templateSlug,
@@ -52,24 +55,58 @@ export default function Template() {
   const { data: workflowInfo } = useAgentBuilderWorkflow();
   const { mutateAsync: createTemplateInstallRun } = useCreateTemplateInstallRun();
   const { mutateAsync: getTemplateInstallRun } = useGetTemplateInstallRun();
-  const { streamInstall, streamResult, isStreaming, installationResult } = useStreamTemplateInstall(workflowInfo);
-  const {
-    watchInstall,
-    streamResult: watchStreamResult,
-    installationResult: watchInstallationResult,
-  } = useWatchTemplateInstall(workflowInfo);
+  const { streamInstall, streamResult, isStreaming } = useStreamTemplateInstall(workflowInfo);
+  const { watchInstall, streamResult: watchStreamResult } = useWatchTemplateInstall(workflowInfo);
 
   // Get watching state from the mutation
   const isWatching = watchInstall.isPending;
 
-  // Auto-resume from URL parameters using the simplified watch approach
+  // Check for completed runs after hot reload recovery
+  useEffect(() => {
+    const runId = searchParams.get('runId');
+
+    if (runId && !success && !failure && !isStreaming && !isWatching) {
+      console.log('🔄 Checking completed run after hot reload:', { runId });
+
+      setCurrentRunId(runId);
+
+      getTemplateInstallRun({ runId })
+        .then((runData: any) => {
+          const snapshot = runData.snapshot;
+
+          if (snapshot?.status === 'success' && snapshot?.result?.success) {
+            setSuccess(true);
+          } else if (snapshot?.result?.success === false) {
+            // Check if this is a validation error with specific validation results
+            const hasValidationResults =
+              snapshot?.result?.validationResults &&
+              !snapshot?.result?.validationResults?.valid &&
+              snapshot?.result?.validationResults?.remainingErrors > 0;
+
+            if (hasValidationResults) {
+              const { remainingErrors, errors } = snapshot.result.validationResults;
+              const errorMessage = `Template installation completed but ${remainingErrors} validation issue${remainingErrors > 1 ? 's' : ''} remain unresolved.`;
+              setFailure(errorMessage);
+              setCompletedRunValidationErrors(errors || []);
+            } else {
+              setFailure(snapshot?.result?.message || snapshot?.result?.error || 'Template installation failed');
+            }
+          }
+        })
+        .catch(error => {
+          console.error('❌ Failed to fetch run details:', error);
+          setFailure('Failed to retrieve installation status after reload');
+        });
+    }
+  }, [searchParams, success, failure, isStreaming, isWatching, getTemplateInstallRun]);
+
+  // Auto-resume watching from URL parameters
   useEffect(() => {
     const runId = searchParams.get('runId');
     const shouldResume = searchParams.get('resume');
     const savedProvider = searchParams.get('provider');
 
-    // Only run if we have explicit resume parameters and workflow info is loaded
-    // Exclude fresh installs to prevent watch from running during normal installation
+    // Only resume watching if we have explicit resume parameters and workflow info is loaded
     if (
       runId &&
       shouldResume === 'true' &&
@@ -80,30 +117,20 @@ export default function Template() {
       !isFreshInstall &&
       workflowInfo
     ) {
-      console.log('🔄 Auto-resuming template installation from URL:', {
-        runId,
-        templateSlug,
-        savedProvider,
-      });
       setCurrentRunId(runId);
       setHasAutoResumed(true); // Prevent multiple auto-resume attempts
 
-      // First, check if the run exists (with error boundary)
+      // Check if the run exists and start watching
       try {
-        getTemplateInstallRun({
-          runId,
-        })
-          .then(runData => {
-            console.log('📊 Found existing run:', runData);
+        getTemplateInstallRun({ runId })
+          .then((runData: any) => {
+            const snapshot = runData.snapshot;
 
-            // Run exists, start watching it
-            return watchInstall.mutateAsync({
-              runId,
-            });
+            if (snapshot?.status === 'running') {
+              return watchInstall.mutateAsync({ runId });
+            }
           })
           .then(() => {
-            console.log('✅ Successfully resumed watching template installation');
-
             // Clean up URL parameters after successful resume
             setSearchParams(prev => {
               const newParams = new URLSearchParams(prev);
@@ -132,10 +159,11 @@ export default function Template() {
     isStreaming,
     isWatching,
     hasAutoResumed,
+    isFreshInstall,
+    workflowInfo,
     getTemplateInstallRun,
     watchInstall,
     setSearchParams,
-    workflowInfo,
   ]);
 
   const providerOptions = [
@@ -199,8 +227,23 @@ export default function Template() {
     }
   }, [templateEnvVars]);
 
+  // Monitor for workflow errors
+  useEffect(() => {
+    const result = streamResult || watchStreamResult;
+
+    if (result?.phase === 'error' && result?.error) {
+      setFailure(result.error);
+    }
+  }, [streamResult?.phase, streamResult?.error, watchStreamResult?.phase, watchStreamResult?.error]);
+
   const handleProviderChange = (value: string) => {
     setSelectedProvider(value);
+  };
+
+  const handleModelUpdate = async (params: { provider: string; modelId: string }) => {
+    setSelectedModelProvider(params.provider);
+    setSelectedModelId(params.modelId);
+    return { message: 'Model updated successfully' };
   };
 
   const handleInstallTemplate = async () => {
@@ -233,9 +276,7 @@ export default function Template() {
         };
 
         // Step 1: Create the template installation run
-        const { runId } = await createTemplateInstallRun({
-          params: { inputData: templateParams },
-        });
+        const { runId } = await createTemplateInstallRun({});
 
         setCurrentRunId(runId);
 
@@ -251,7 +292,11 @@ export default function Template() {
 
         // Step 2: Start streaming the installation with the runId
         await streamInstall.mutateAsync({
-          params: { inputData: templateParams },
+          inputData: templateParams,
+          selectedModel: {
+            provider: selectedModelProvider,
+            modelId: selectedModelId,
+          },
           runId,
         });
       } catch (err: any) {
@@ -261,19 +306,6 @@ export default function Template() {
       }
     }
   };
-
-  // Watch for installation completion (from both stream and watch)
-  useEffect(() => {
-    const result = installationResult || watchInstallationResult;
-    if (result) {
-      setIsFreshInstall(false); // Reset fresh install flag when done
-      if (result.success) {
-        setSuccess(true);
-      } else {
-        setFailure(result.error || result.message || 'Template installation failed');
-      }
-    }
-  }, [installationResult, watchInstallationResult]);
 
   const handleVariableChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -289,9 +321,6 @@ export default function Template() {
       [name]: value,
     }));
   };
-
-  console.log('🔍 Installation result:', installationResult);
-  console.log('🔍 Watch installation result:', watchInstallationResult);
 
   return (
     <MainContentLayout>
@@ -315,6 +344,7 @@ export default function Template() {
             imageURL={template?.imageURL}
             githubUrl={template?.githubUrl}
             infoData={templateInfoData}
+            templateSlug={templateSlug}
           />
           {template && (
             <>
@@ -327,11 +357,20 @@ export default function Template() {
                 />
               )}
 
-              {template && success && (
+              {success && (
                 <TemplateSuccess name={template.title} installedEntities={installedEntities} linkComponent={Link} />
               )}
 
-              {template && failure && <TemplateFailure errorMsg={failure} />}
+              {failure && (
+                <TemplateFailure
+                  errorMsg={failure}
+                  validationErrors={
+                    completedRunValidationErrors.length > 0
+                      ? completedRunValidationErrors
+                      : streamResult?.validationResults?.errors || watchStreamResult?.validationResults?.errors
+                  }
+                />
+              )}
 
               {!isStreaming && !isWatching && !success && !failure && (
                 <TemplateForm
@@ -345,6 +384,9 @@ export default function Template() {
                   handleInstallTemplate={handleInstallTemplate}
                   handleVariableChange={handleVariableChange}
                   isLoadingEnvVars={isLoadingEnvVars}
+                  defaultModelProvider={selectedModelProvider}
+                  defaultModelId={selectedModelId}
+                  onModelUpdate={handleModelUpdate}
                 />
               )}
             </>

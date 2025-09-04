@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { TemplateInstallationRequest, TemplateInstallationResult } from '@mastra/client-js';
-import type { RuntimeContext } from '@mastra/core/runtime-context';
+import { TemplateInstallationRequest } from '@mastra/client-js';
+import { RuntimeContext } from '@mastra/core/runtime-context';
 import { client } from '@/lib/client';
 import { useState } from 'react';
 
@@ -171,15 +171,9 @@ export const useAgentBuilderWorkflow = () => {
 
 export const useCreateTemplateInstallRun = () => {
   return useMutation({
-    mutationFn: async ({
-      params,
-      runId,
-    }: {
-      params: TemplateInstallationRequest & { runtimeContext?: RuntimeContext };
-      runId?: string;
-    }) => {
+    mutationFn: async ({ runId }: { runId?: string }) => {
       const template = client.getAgentBuilderAction('merge-template');
-      return await template.createRun(params, runId);
+      return await template.createRun({ runId });
     },
   });
 };
@@ -198,9 +192,8 @@ const processTemplateInstallRecord = (
   record: { type: string; payload: any; runId?: string; eventTimestamp?: string },
   currentState: any,
   workflowInfo?: any,
-): { newState: any; installationResult?: TemplateInstallationResult } => {
+): { newState: any } => {
   let newState = { ...currentState };
-  let installationResult: TemplateInstallationResult | undefined;
 
   // Initialize steps if not present or empty
   const hasSteps =
@@ -283,6 +276,8 @@ const processTemplateInstallRecord = (
 
   if (record.type === 'step-result') {
     const stepId = record.payload.id;
+    const status = record.payload.status;
+    const hasError = record.payload.error;
     newState = {
       ...newState,
       payload: {
@@ -309,6 +304,29 @@ const processTemplateInstallRecord = (
         },
       },
     };
+
+    // If this step failed, also set workflow-level error state
+    if (status === 'failed' && hasError) {
+      newState = {
+        ...newState,
+        status: 'failed',
+        error: hasError,
+        phase: 'error',
+        failedStep: {
+          id: stepId,
+          error: hasError,
+          description: record.payload.description || stepId,
+        },
+        payload: {
+          ...newState.payload,
+          workflowState: {
+            ...newState.payload.workflowState,
+            status: 'failed',
+          },
+        },
+        errorTimestamp: new Date(),
+      };
+    }
   }
 
   if (record.type === 'step-finish') {
@@ -322,33 +340,28 @@ const processTemplateInstallRecord = (
   }
 
   if (record.type === 'finish') {
-    const finalResult = record.payload.result;
-    newState = {
-      ...newState,
-      status: record.payload.status,
-      phase: 'completed',
-      payload: {
-        ...newState.payload,
-        currentStep: null,
-        workflowState: {
-          ...newState.payload.workflowState,
-          status: record.payload.status,
+    // Don't override error states - if we're already in error phase, stay there
+    if (newState.phase === 'error' || newState.status === 'failed') {
+      newState = {
+        ...newState,
+        // Keep existing status, phase, error, failedStep
+        completedAt: new Date(),
+      };
+    } else {
+      // Normal completion flow
+      newState = {
+        ...newState,
+        status: record.payload.status || 'completed',
+        phase: 'completed',
+        payload: {
+          ...newState.payload,
+          currentStep: null,
+          workflowState: {
+            ...newState.payload.workflowState,
+            status: record.payload.status || 'completed',
+          },
         },
-      },
-      completedAt: new Date(),
-    };
-
-    // Transform final result
-    if (finalResult) {
-      installationResult = {
-        success: finalResult.success || false,
-        applied: finalResult.applied || false,
-        branchName: finalResult.branchName,
-        message: finalResult.message || 'Template installation completed',
-        validationResults: finalResult.validationResults,
-        error: finalResult.error,
-        errors: finalResult.errors,
-        stepResults: finalResult.stepResults,
+        completedAt: new Date(),
       };
     }
   }
@@ -370,7 +383,7 @@ const processTemplateInstallRecord = (
     };
   }
 
-  return { newState, installationResult };
+  return { newState };
 };
 
 // Shared localStorage helpers for template installation state
@@ -411,22 +424,13 @@ const restoreTemplateStateFromLocalStorage = (runId: string) => {
 
 export const useWatchTemplateInstall = (workflowInfo?: any) => {
   const [streamResult, setStreamResult] = useState<any>({});
-  const [installationResult, setInstallationResult] = useState<TemplateInstallationResult | null>(null);
 
   // Use debouncing like workflows (prevents excessive re-renders)
   // Process each record immediately - no debouncing for watch events
   // (Watch events are already discrete and we can't afford to lose step completion events)
   const processTemplateRecord = (record: { type: string; payload: any; runId?: string; eventTimestamp?: string }) => {
     setStreamResult((currentState: any) => {
-      const { newState, installationResult: newResult } = processTemplateInstallRecord(
-        record,
-        currentState,
-        workflowInfo,
-      );
-
-      if (newResult) {
-        setInstallationResult(newResult);
-      }
+      const { newState } = processTemplateInstallRecord(record, currentState, workflowInfo);
 
       // Save to localStorage for refresh recovery
       if (record.runId) {
@@ -476,18 +480,17 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
         try {
           // Initialize state with hybrid approach
           await initializeState(runId);
-          setInstallationResult(null);
 
           const template = client.getAgentBuilderAction('merge-template');
 
           // Use correct callback API (fix the TypeScript issue when possible)
           await template.watch(
-            { runId },
+            { runId, eventType: 'watch-v2' },
             (record: { type: string; payload: any; runId?: string; eventTimestamp?: string }) => {
               try {
                 processTemplateRecord(record);
               } catch (err) {
-                console.error('Error processing template record:', err);
+                console.error('💥 [watchInstall] Error processing template record:', err);
                 // Set minimal error state if processing fails (graceful degradation)
                 setStreamResult((prev: any) => ({ ...prev, error: err }));
               }
@@ -497,6 +500,7 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
           // If we get here, the watch completed successfully
           return;
         } catch (error: any) {
+          console.error(`💥 [watchInstall] Attempt ${attempt} failed:`, error);
           const isNetworkError =
             error?.message?.includes('Failed to fetch') ||
             error?.message?.includes('NetworkError') ||
@@ -516,6 +520,7 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
           }
 
           // If it's not a network error or we've exhausted retries, throw
+          console.error('❌ [watchInstall] Non-network error or max retries reached, throwing:', error);
           throw error;
         }
       }
@@ -525,7 +530,6 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
   return {
     watchInstall,
     streamResult,
-    installationResult,
   };
 };
 
@@ -533,12 +537,10 @@ export const useWatchTemplateInstall = (workflowInfo?: any) => {
 const useTemplateStreamProcessor = (workflowInfo?: any, runId?: string) => {
   const [streamResult, setStreamResult] = useState<any>({});
   const [isStreaming, setIsStreaming] = useState(false);
-  const [installationResult, setInstallationResult] = useState<TemplateInstallationResult | null>(null);
 
   const processStream = async (stream: any, initialRunId?: string) => {
     setIsStreaming(true);
     setStreamResult({});
-    setInstallationResult(null);
 
     if (!stream) throw new Error('No stream returned');
 
@@ -560,25 +562,8 @@ const useTemplateStreamProcessor = (workflowInfo?: any, runId?: string) => {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          // Handle final state if no result yet
-          if (!installationResult) {
-            const { installationResult: finalResult } = processTemplateInstallRecord(
-              { type: 'finish', payload: { status: 'success' } },
-              currentState,
-              workflowInfo,
-            );
-            if (finalResult) setInstallationResult(finalResult);
-          }
-          break;
-        }
-
-        // ✅ REUSE THE EXISTING LOGIC!
-        const { newState, installationResult: newResult } = processTemplateInstallRecord(
-          value,
-          currentState,
-          workflowInfo,
-        );
+        if (done) break;
+        const { newState } = processTemplateInstallRecord(value, currentState, workflowInfo);
 
         currentState = newState;
         setStreamResult(newState);
@@ -588,13 +573,9 @@ const useTemplateStreamProcessor = (workflowInfo?: any, runId?: string) => {
           const effectiveRunId = value.runId || initialRunId || runId;
           saveTemplateStateToLocalStorage(effectiveRunId, newState);
         }
-
-        if (newResult) {
-          setInstallationResult(newResult);
-        }
       }
     } catch (error) {
-      console.error('Error processing template installation stream:', error);
+      console.error('💥 [processStream] Error processing template installation stream:', error);
 
       // Use the helper for error handling too
       const { newState } = processTemplateInstallRecord(
@@ -613,20 +594,21 @@ const useTemplateStreamProcessor = (workflowInfo?: any, runId?: string) => {
   return {
     streamResult,
     isStreaming,
-    installationResult,
     processStream,
   };
 };
 
 export const useStreamTemplateInstall = (workflowInfo?: any) => {
-  const { streamResult, isStreaming, installationResult, processStream } = useTemplateStreamProcessor(workflowInfo);
+  const { streamResult, isStreaming, processStream } = useTemplateStreamProcessor(workflowInfo);
 
   const streamInstall = useMutation({
     mutationFn: async ({
-      params,
+      inputData,
+      selectedModel,
       runId,
     }: {
-      params: TemplateInstallationRequest & { runtimeContext?: RuntimeContext };
+      inputData: TemplateInstallationRequest;
+      selectedModel: { provider: string; modelId: string };
       runId?: string;
     }) => {
       const maxRetries = 3;
@@ -634,12 +616,15 @@ export const useStreamTemplateInstall = (workflowInfo?: any) => {
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const template = client.getAgentBuilderAction('merge-template');
-          const stream = await template.stream(params, runId);
+          const runtimeContext = new RuntimeContext();
+          runtimeContext.set('selectedModel', selectedModel);
+          const stream = await template.stream({ inputData, runtimeContext }, runId);
           await processStream(stream, runId);
 
           // If we get here, the stream completed successfully
           return;
         } catch (error: any) {
+          console.error(`💥 [streamInstall] Attempt ${attempt} failed:`, error);
           const isNetworkError =
             error?.message?.includes('Failed to fetch') ||
             error?.message?.includes('NetworkError') ||
@@ -661,6 +646,7 @@ export const useStreamTemplateInstall = (workflowInfo?: any) => {
           }
 
           // If it's not a network error or we've exhausted retries, throw
+          console.error('❌ [streamInstall] Non-network error or max retries reached, throwing:', error);
           throw error;
         }
       }
@@ -671,6 +657,5 @@ export const useStreamTemplateInstall = (workflowInfo?: any) => {
     streamInstall,
     streamResult,
     isStreaming,
-    installationResult,
   };
 };
