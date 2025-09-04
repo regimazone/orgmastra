@@ -46,7 +46,7 @@ export function TraceTimeline({ spans = [], onSpanClick, selectedSpanId, isLoadi
       ) : (
         <div
           className={cn(
-            'overflow-y-auto  grid items-start content-start gap-y-[2px] xl:py-[1rem] ',
+            'overflow-y-auto grid items-start content-start gap-y-[2px] xl:py-[1rem]',
             'xl:grid-cols-[3fr_2fr] xl:gap-x-[1rem]',
           )}
         >

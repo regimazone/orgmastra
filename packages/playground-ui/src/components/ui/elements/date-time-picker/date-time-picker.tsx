@@ -72,9 +72,9 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   );
 };
 
-function getCompoundDate({ date, timeStr = '' }: { date: Date; timeStr?: string }) {
+function getCompoundDate({ date, timeStr = '' }: { date: Date; timeStr?: string }): Date | null {
   if (!isValid(date)) {
-    return '';
+    return null;
   }
 
   if (timeStr) {
@@ -105,7 +105,7 @@ export const DateTimePickerContent = ({
 }) => {
   const [localErrorMsg, setLocalErrorMsg] = React.useState<string | null>(null);
   const [dateInputValue, setDateInputValue] = React.useState<string>(
-    value ? format(getCompoundDate({ date: value, timeStr: defaultTimeStrValue }), 'PP p') : '',
+    value ? format(getCompoundDate({ date: value, timeStr: defaultTimeStrValue }) || '', 'PP p') : '',
   );
   const [timeStrValue, setTimeStrValue] = React.useState<string>(defaultTimeStrValue || '');
   const [selected, setSelected] = React.useState<Date | undefined>(value ? new Date(value) : undefined);
@@ -150,7 +150,7 @@ export const DateTimePickerContent = ({
     setSelected(date);
     if (date) {
       const newDate = getCompoundDate({ date, timeStr: timeStrValue });
-      updateInputValue(newDate);
+      updateInputValue(newDate || '');
     } else {
       updateInputValue('');
     }
@@ -160,7 +160,7 @@ export const DateTimePickerContent = ({
     setSelected(date);
     if (date) {
       const newDate = getCompoundDate({ date, timeStr: timeStrValue });
-      updateInputValue(newDate);
+      updateInputValue(newDate || '');
     } else {
       updateInputValue('');
     }
@@ -171,7 +171,7 @@ export const DateTimePickerContent = ({
 
     if (dateInputValueIsValid) {
       const newDate = getCompoundDate({ date: dateInputValueDate, timeStr: val });
-      updateInputValue(newDate);
+      updateInputValue(newDate || '');
     }
   };
 

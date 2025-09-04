@@ -124,7 +124,15 @@ export function TimePicker({ defaultValue, onValueChange, defaultMode = '12h', c
     <div className={cn('flex gap-[0.5rem] items-center', className)}>
       <Select name="hour" value={hour} onChange={handleHourChange} options={hourOptions[mode]} /> :
       <Select name="minute" value={minute} onChange={handleMinuteChange} options={minuteOptions} />
-      <Select name="period" value={timePeriod} onChange={handleTimePeriodChange} options={timePeriodOptions} />
+      {/* <Select name="period" value={timePeriod} onChange={handleTimePeriodChange} options={timePeriodOptions} /> */}
+      {mode === '12h' && (
+        <Select
+          name="period"
+          value={timePeriodOptions.indexOf(timePeriod).toString()}
+          onChange={handleTimePeriodChange}
+          options={timePeriodOptions}
+        />
+      )}
     </div>
   );
 }
