@@ -36,9 +36,10 @@ export function SideDialogCodeSection({ codeStr = '', title }: SideDialogCodeSec
   const [showAsMultilineText, setShowAsMultilineText] = useState(false);
   const hasMultilineText = useMemo(() => {
     try {
-      return containsInnerNewline(JSON.parse(codeStr));
+      const parsed = JSON.parse(codeStr);
+      return containsInnerNewline(parsed || '');
     } catch {
-      return false;
+      return false; // or handle differently
     }
   }, [codeStr]);
 
