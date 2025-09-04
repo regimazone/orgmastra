@@ -120,7 +120,7 @@ export const DateTimePickerContent = ({
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = e => {
     setDateInputValue(e.currentTarget.value);
-    const date = new Date(e.target.value);
+    const date = new Date(e.currentTarget.value);
     debouncedDateUpdate(date);
   };
 
@@ -144,7 +144,7 @@ export const DateTimePickerContent = ({
 
   const dateInputValueDate = new Date(dateInputValue);
   const dateInputValueIsValid = isValid(dateInputValueDate);
-  const newValueDefined = dateInputValueIsValid && dateInputValueDate !== value;
+  const newValueDefined = dateInputValueIsValid && dateInputValueDate.getTime() !== value?.getTime();
 
   const handleDaySelect = (date: Date | undefined) => {
     setSelected(date);

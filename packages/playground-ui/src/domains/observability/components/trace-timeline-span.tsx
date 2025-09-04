@@ -215,7 +215,11 @@ type TreeSymbolProps = {
   hasChildren?: boolean;
 };
 
-function TreePositionMark({ isLastChild, isNextToLastChild, hasChildren }: TreeSymbolProps & { hasChildren: boolean }) {
+function TreePositionMark({
+  isLastChild,
+  isNextToLastChild,
+  hasChildren = false,
+}: TreeSymbolProps & { hasChildren: boolean }) {
   return (
     <div
       className={cn(
@@ -224,7 +228,6 @@ function TreePositionMark({ isLastChild, isNextToLastChild, hasChildren }: TreeS
         'before:content-[""] before:absolute before:left-0  before:top-[50%] before:w-full before:h-[0px] before:border-b-[0.5px] before:border-white before:border-dashed',
         {
           'after:bottom-[50%]': isLastChild,
-          //     'after:bg-gray-500 after:bottom-auto after:h-[200rem] ': isNextToLastChild,
         },
       )}
     >

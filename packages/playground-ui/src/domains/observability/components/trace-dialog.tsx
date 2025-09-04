@@ -138,9 +138,6 @@ export function TraceDialog({
                 <SideDialogTop
                   onNext={thereIsNextSpan() ? toNextSpan : undefined}
                   onPrevious={thereIsPreviousSpan() ? toPreviousSpan : undefined}
-                  //onNext={toNextSpan}
-                  //onPrevious={toPreviousSpan}
-
                   showInnerNav={true}
                   className="pl-0"
                 >

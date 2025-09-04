@@ -7,9 +7,10 @@ import { useMemo } from 'react';
 import { ListTreeIcon } from 'lucide-react';
 import { TraceTimelineLegend } from './trace-timeline-legend';
 import Spinner from '@/components/ui/spinner';
+import { AISpanRecord } from '@mastra/core';
 
 type TraceTimelineProps = {
-  spans?: any;
+  spans?: AISpanRecord[];
   onSpanClick: (span: UISpan) => void;
   selectedSpanId?: string;
   isLoading?: boolean;

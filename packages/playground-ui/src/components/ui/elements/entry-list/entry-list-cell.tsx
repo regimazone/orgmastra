@@ -33,7 +33,7 @@ export function EntryListStatusCell({ status }: { status?: 'success' | 'failed' 
           })}
         ></div>
       ) : (
-        <div className="text-icon2 text-[0.75rem] leading-0">-</div>
+        <div className="text-icon2 text-[0.75rem] leading-none">-</div>
       )}
       <VisuallyHidden>Status: {status ? status : 'not provided'}</VisuallyHidden>
     </div>

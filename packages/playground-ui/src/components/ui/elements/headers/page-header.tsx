@@ -3,14 +3,12 @@ import { cn } from '@/lib/utils';
 type PageHeaderProps = {
   title?: string;
   description?: string;
-  children?: React.ReactNode;
   icon?: React.ReactNode;
-  isLoading?: boolean;
   className?: string;
   placement?: 'page' | 'sidebar';
 };
 
-export function PageHeader({ title, description, icon, children, isLoading, className }: PageHeaderProps) {
+export function PageHeader({ title, description, icon, className }: PageHeaderProps) {
   return (
     <header
       className={cn(
