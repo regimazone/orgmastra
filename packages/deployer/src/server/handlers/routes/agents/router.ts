@@ -21,6 +21,7 @@ import {
   streamGenerateLegacyHandler,
   generateLegacyHandler,
   reorderAgentModelListHandler,
+  updateAgentModelInModelListHandler,
 } from './handlers';
 import { getListenerHandler, getSpeakersHandler, speakHandler, listenHandler } from './voice';
 
@@ -661,7 +662,7 @@ export function agentsRouter(bodyLimitOptions: BodyLimitOptions) {
         },
       },
     }),
-    updateAgentModelHandler,
+    updateAgentModelInModelListHandler,
   );
 
   router.get(
