@@ -13,7 +13,7 @@ export function TextAndIcon({ children, size = 'default', className }: TextAndIc
         'flex items-center gap-[0.25rem] text-icon4',
         '[&>svg]:w-[1.2em] [&>svg]:h-[1.2em] [&>svg]:opacity-50',
         {
-          'text-[0.875rem]': size == 'default',
+          'text-[0.875rem]': size === 'default',
         },
         className,
       )}
