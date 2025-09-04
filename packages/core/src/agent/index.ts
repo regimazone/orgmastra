@@ -197,6 +197,20 @@ export class Agent<
     }
 
     if (Array.isArray(config.model)) {
+      if (config.model.length === 0) {
+        const mastraError = new MastraError({
+          id: 'AGENT_CONSTRUCTOR_MODEL_ARRAY_EMPTY',
+          domain: ErrorDomain.AGENT,
+          category: ErrorCategory.USER,
+          details: {
+            agentName: config.name,
+          },
+          text: `Model array is empty. Please provide at least one model.`,
+        });
+        this.logger.trackException(mastraError);
+        this.logger.error(mastraError.toString());
+        throw mastraError;
+      }
       this.model =
         config.model.map(mdl => ({
           id: randomUUID(),
@@ -779,7 +793,10 @@ export class Agent<
 
   public async getModelList(
     runtimeContext: RuntimeContext = new RuntimeContext(),
-  ): Promise<Array<AgentModelManagerConfig>> {
+  ): Promise<Array<AgentModelManagerConfig> | null> {
+    if (!Array.isArray(this.model)) {
+      return null;
+    }
     return this.prepareModels(runtimeContext);
   }
 
