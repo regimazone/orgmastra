@@ -134,6 +134,10 @@ export type UpdateModelInModelListParams = {
   enabled?: boolean;
 };
 
+export type ReorderModelListParams = {
+  reorderedModelIds: string[];
+};
+
 export interface GetEvalsByAgentIdResponse extends GetAgentResponse {
   evals: any[];
   instructions: string;

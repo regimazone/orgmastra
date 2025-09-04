@@ -27,6 +27,7 @@ import type {
   UpdateModelParams,
   StreamVNextParams,
   UpdateModelInModelListParams,
+  ReorderModelListParams,
 } from '../types';
 
 import { parseClientRuntimeContext } from '../utils';
@@ -1516,13 +1517,13 @@ export class Agent extends BaseResource {
 
   /**
    * Reorders the models for the agent
-   * @param modelConfigIds - IDs of the models to reorder in the new order
+   * @param params - Parameters for reordering the model list
    * @returns Promise containing the updated model list
    */
-  reorderModelList(modelConfigIds: string[]): Promise<{ message: string }> {
+  reorderModelList(params: ReorderModelListParams): Promise<{ message: string }> {
     return this.request(`/api/agents/${this.agentId}/models/reorder`, {
       method: 'POST',
-      body: { modelConfigIds },
+      body: params,
     });
   }
 }
