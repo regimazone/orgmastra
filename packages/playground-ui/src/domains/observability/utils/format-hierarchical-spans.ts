@@ -29,7 +29,7 @@ export const formatHierarchicalSpans = (spans: AISpanRecord[]): UISpan[] => {
   });
 
   // Second pass: organize into tree structure
-  spans?.forEach(spanRecord => {
+  spans.forEach(spanRecord => {
     const uiSpan = spanMap.get(spanRecord.spanId)!;
 
     if (spanRecord.parentSpanId === null) {
