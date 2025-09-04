@@ -1,6 +1,6 @@
 'use client';
 
-import { format, isValid } from 'date-fns';
+import { format, formatDate, isValid } from 'date-fns';
 import { CalendarIcon, CircleAlertIcon } from 'lucide-react';
 import * as React from 'react';
 import type { DayPickerSingleProps } from 'react-day-picker';
@@ -34,7 +34,6 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   children,
   className,
   placeholder,
-  classNames,
   ...props
 }) => {
   const [openPopover, setOpenPopover] = React.useState(false);
@@ -231,7 +230,11 @@ export const DateTimePickerContent = ({
         {...props}
       />
 
-      <TimePicker onValueChange={handleTimeStrChange} className="m-4 mt-0 w-auto" defaultValue={defaultTimeStrValue} />
+      <TimePicker
+        onValueChange={handleTimeStrChange}
+        className="m-4 mt-0 w-auto"
+        defaultValue={value ? formatDate(new Date(value), 'hh:mm a') : defaultTimeStrValue}
+      />
 
       <div className="grid grid-cols-[1fr_auto] gap-[0.5rem] m-4 mt-0">
         <Button
