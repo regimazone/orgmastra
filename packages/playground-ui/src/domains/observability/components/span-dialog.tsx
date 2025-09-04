@@ -12,9 +12,10 @@ import {
 import { PanelTopIcon, ChevronsLeftRightEllipsisIcon, HashIcon, EyeIcon, Link } from 'lucide-react';
 import { TraceSpanUsage } from './trace-span-usage';
 import { SpanDetails } from './span-details';
+import { AISpanRecord } from '@mastra/core';
 
 type SpanDialogProps = {
-  span?: any;
+  span?: AISpanRecord;
   spanInfo?: KeyValueListItemData[];
   isOpen: boolean;
   onClose?: () => void;
@@ -60,7 +61,7 @@ export function SpanDialog({
       </div>
 
       <div className="p-[1.5rem] px-[2.5rem] overflow-y-auto grid gap-[1.5rem]">
-        <SideDialogHeader className="flex  gap-[1rem] items-baseline pr-[2.5rem]">
+        <SideDialogHeader className="flex gap-[1rem] items-baseline pr-[2.5rem]">
           <SideDialogHeading>
             <ChevronsLeftRightEllipsisIcon /> {span?.name}
           </SideDialogHeading>

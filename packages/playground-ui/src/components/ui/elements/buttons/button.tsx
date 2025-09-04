@@ -4,20 +4,14 @@ import React from 'react';
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   as?: React.ElementType;
   className?: string;
-  href?: string;
-  to?: string;
-  prefetch?: boolean | null;
   children: React.ReactNode;
   variant?: 'primary' | 'outline' | 'ghost';
-  target?: string;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, as, variant = 'outline', ...props }: ButtonProps, ref) => {
-    const Component = as || 'button';
-
     return (
-      <Component
+      <button
         ref={ref}
         className={cn(
           'text-[.875rem] inline-flex items-center justify-center rounded-lg px-[1rem] gap-[.75rem] leading-0 border bg-transparent text-[rgba(255,255,255,0.7)] whitespace-nowrap ',

@@ -1,6 +1,11 @@
 import { SideDialogCodeSection } from '@/components/ui/elements';
+import { AISpanRecord } from '@mastra/core';
 
-export function SpanDetails({ span }: { span: any }) {
+export function SpanDetails({ span }: { span?: AISpanRecord }) {
+  if (!span) {
+    return null;
+  }
+
   return (
     <div className="grid gap-[1.5rem] mb-[2rem]">
       <SideDialogCodeSection title="Input" codeStr={JSON.stringify(span?.input || null, null, 2)} />

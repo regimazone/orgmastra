@@ -20,7 +20,7 @@ import { SpanDialog } from './span-dialog';
 import { SpanDetails } from './span-details';
 
 type TraceDialogProps = {
-  traceSpans?: any[];
+  traceSpans?: AISpanRecord[];
   traceId?: string;
   traceDetails?: AISpanRecord;
   isOpen: boolean;
@@ -46,8 +46,8 @@ export function TraceDialog({
   const [combinedView, setCombinedView] = useState<boolean>(false);
   const selectedSpan = traceSpans.find(span => span.spanId === selectedSpanId);
 
-  const handleSpanClick = (span: UISpan) => {
-    setSelectedSpanId(span.id);
+  const handleSpanClick = (id: string) => {
+    setSelectedSpanId(id);
     setDialogIsOpen(true);
   };
 

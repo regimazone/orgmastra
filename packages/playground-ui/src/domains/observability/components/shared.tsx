@@ -13,6 +13,7 @@ export function getSpanTypeUi(type: string) {
     agent: {
       icon: <AgentIcon />,
       color: 'oklch(0.75 0.15 250)',
+      label: 'Agent',
     },
     workflow: {
       icon: <WorkflowIcon />,
@@ -22,16 +23,6 @@ export function getSpanTypeUi(type: string) {
     llm: {
       icon: <BrainIcon />,
       color: 'oklch(0.75 0.15 320)',
-      label: 'Agent',
-    },
-    workflow: {
-      icon: <WorkflowIcon />,
-      color: 'oklch(.75 0.15 200)',
-      label: 'Workflow',
-    },
-    llm: {
-      icon: <BrainIcon />,
-      color: 'oklch(.75 0.15 320)',
       label: 'LLM',
     },
     tool: {

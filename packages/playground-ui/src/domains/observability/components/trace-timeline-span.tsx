@@ -18,7 +18,7 @@ import { useLinkComponent } from '@/lib/framework';
 type TraceTimelineSpanProps = {
   span: UISpan;
   depth?: number;
-  onSpanClick?: (span: UISpan) => void;
+  onSpanClick?: (id: string) => void;
   selectedSpanId?: string;
   isFirstChild?: boolean;
   isLastChild?: boolean;
@@ -53,7 +53,7 @@ export function TraceTimelineSpan({
   return (
     <>
       <button
-        onClick={() => onSpanClick?.(span)}
+        onClick={() => onSpanClick?.(span.id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         type="button"
@@ -115,7 +115,7 @@ export function TraceTimelineSpan({
                 style={{
                   transform:
                     percentageSpanStartTime && percentageSpanStartTime > 70
-                      ? 'translateX(calc((100% + 2rem) * -1)'
+                      ? 'translateX(calc((100% + 2rem) * -1))'
                       : 'none',
                 }}
               >
@@ -125,7 +125,7 @@ export function TraceTimelineSpan({
           </div>
           <div className="relative w-full bg-surface5  h-[3px] ">
             <div
-              className={cn('bg-icon1 h-full absolute rounded-full', {})}
+              className={cn('bg-icon1 h-full absolute rounded-full')}
               style={{
                 width: `${percentageSpanLatency}%`,
                 left: `${percentageSpanStartTime}%`,

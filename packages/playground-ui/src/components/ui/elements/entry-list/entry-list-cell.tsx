@@ -12,7 +12,7 @@ export function EntryListTextCell({ children, isLoading }: { children: React.Rea
     <div className="text-icon4 text-[0.875rem] truncate ">
       {isLoading ? (
         <div
-          className=" bg-surface4 rounded-md animate-pulse text-transparent h-[1rem] select-none"
+          className="bg-surface4 rounded-md animate-pulse text-transparent h-[1rem] select-none"
           style={{ width: `${randomWidth}%` }}
         ></div>
       ) : (

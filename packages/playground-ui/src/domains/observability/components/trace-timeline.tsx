@@ -11,7 +11,7 @@ import { AISpanRecord } from '@mastra/core';
 
 type TraceTimelineProps = {
   spans?: AISpanRecord[];
-  onSpanClick: (span: UISpan) => void;
+  onSpanClick: (id: string) => void;
   selectedSpanId?: string;
   isLoading?: boolean;
   className?: string;
@@ -19,7 +19,6 @@ type TraceTimelineProps = {
 
 export function TraceTimeline({ spans = [], onSpanClick, selectedSpanId, isLoading, className }: TraceTimelineProps) {
   const hierarchicalSpans = useMemo(() => {
-    if (!spans) return [];
     return formatHierarchicalSpans(spans || []);
   }, [spans]);
 
