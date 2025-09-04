@@ -78,7 +78,7 @@ function getCompoundDate({ date, timeStr = '' }: { date: Date; timeStr?: string 
   }
 
   if (timeStr) {
-    const dateStr = format(date, 'yyy-MM-dd');
+    const dateStr = format(date, 'yyyy-MM-dd');
     const newDate = new Date(`${dateStr} ${timeStr}`);
     if (isValid(newDate)) {
       return newDate;
