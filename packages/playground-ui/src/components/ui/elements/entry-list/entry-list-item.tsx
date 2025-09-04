@@ -11,7 +11,7 @@ export function EntryListItem({
 }: {
   item: any;
   selectedItemId?: string;
-  onClick?: (score: string) => void;
+  onClick?: (itemId: string) => void;
   children?: React.ReactNode;
   columns?: Column[];
   isLoading?: boolean;
