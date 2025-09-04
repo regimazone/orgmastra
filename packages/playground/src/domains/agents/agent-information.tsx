@@ -82,6 +82,7 @@ export function AgentInformation({ agentId, chatInputValue }: { agentId: string;
                 agent={agent}
                 updateModel={updateModel}
                 updateModelInModelList={updateModelInModelList}
+                reorderModelList={reorderModelList}
                 modelProviders={modelProviders || []}
                 hasMemoryEnabled={Boolean(memory?.result)}
                 computeToolLink={tool => `/tools/${agentId}/${tool.id}`}

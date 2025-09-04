@@ -1,10 +1,11 @@
 import { GetAgentResponse, UpdateModelInModelListParams } from '@mastra/client-js';
+import { DragDropContext, Draggable, DropResult, Droppable } from '@hello-pangea/dnd';
 import { useState } from 'react';
 import { providerMapToIcon } from '../provider-map-icon';
 import { AgentMetadataModelSwitcher } from './agent-metadata-model-switcher';
 import { Badge } from '@/ds/components/Badge';
 import { Icon } from '@/ds/icons';
-import { EditIcon } from 'lucide-react';
+import { EditIcon, GripVertical } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 type AgentMetadataModelListType = NonNullable<GetAgentResponse['modelList']>;
@@ -13,24 +14,58 @@ export interface AgentMetadataModelListProps {
   modelList: AgentMetadataModelListType;
   modelProviders: string[];
   updateModelInModelList: AgentMetadataModelListItemProps['updateModelInModelList'];
+  reorderModelList: (params: string[]) => void;
 }
 
 export const AgentMetadataModelList = ({
   modelList,
   modelProviders,
   updateModelInModelList,
+  reorderModelList,
 }: AgentMetadataModelListProps) => {
+  const [modelConfigs, setModelConfigs] = useState(() => modelList);
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) {
+      return;
+    }
+
+    const items = Array.from(modelConfigs);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setModelConfigs(items);
+    reorderModelList(items.map(item => item.id));
+  };
+
   return (
-    <div className="flex flex-col gap-2">
-      {modelList.map(modelConfig => (
-        <AgentMetadataModelListItem
-          key={modelConfig.id}
-          modelConfig={modelConfig}
-          modelProviders={modelProviders}
-          updateModelInModelList={updateModelInModelList}
-        />
-      ))}
-    </div>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="model-list">
+        {provided => (
+          <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col gap-2">
+            {modelConfigs.map((modelConfig, index) => (
+              <Draggable key={modelConfig.id} draggableId={modelConfig.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    style={provided.draggableProps.style}
+                  >
+                    <AgentMetadataModelListItem
+                      modelConfig={modelConfig}
+                      modelProviders={modelProviders}
+                      updateModelInModelList={updateModelInModelList}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
   );
 };
 
@@ -60,7 +95,12 @@ const AgentMetadataModelListItem = ({
       modelProviders={modelProviders}
     />
   ) : (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 p-2 rounded-lg bg-background hover:bg-muted/50 transition-colors">
+      <div className="text-icon3 cursor-grab active:cursor-grabbing">
+        <Icon>
+          <GripVertical />
+        </Icon>
+      </div>
       <Badge icon={providerIcon} className="font-medium">
         {modelConfig.model.modelId || 'N/A'}
       </Badge>
@@ -71,7 +111,12 @@ const AgentMetadataModelListItem = ({
           updateModelInModelList({ modelConfigId: modelConfig.id, enabled: checked });
         }}
       />
-      <button onClick={() => setIsEditingModel(true)} className="text-icon3 hover:text-icon6">
+      <button
+        onClick={() => setIsEditingModel(true)}
+        className="text-icon3 hover:text-icon6"
+        title="Edit model"
+        aria-label="Edit model"
+      >
         <Icon>
           <EditIcon />
         </Icon>

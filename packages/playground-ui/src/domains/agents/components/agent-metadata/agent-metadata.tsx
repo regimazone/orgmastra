@@ -24,6 +24,7 @@ export interface AgentMetadataProps {
   modelProviders: string[];
   updateModel: AgentMetadataModelSwitcherProps['updateModel'];
   updateModelInModelList: AgentMetadataModelListProps['updateModelInModelList'];
+  reorderModelList: AgentMetadataModelListProps['reorderModelList'];
 }
 
 export const AgentMetadata = ({
@@ -35,6 +36,7 @@ export const AgentMetadata = ({
   updateModel,
   modelProviders,
   updateModelInModelList,
+  reorderModelList,
 }: AgentMetadataProps) => {
   const [isEditingModel, setIsEditingModel] = useState(false);
   const providerIcon = providerMapToIcon[(agent.provider || 'openai.chat') as keyof typeof providerMapToIcon];
@@ -53,6 +55,7 @@ export const AgentMetadata = ({
             modelList={agent.modelList}
             modelProviders={modelProviders}
             updateModelInModelList={updateModelInModelList}
+            reorderModelList={reorderModelList}
           />
         </AgentMetadataSection>
       ) : (
