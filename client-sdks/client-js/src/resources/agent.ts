@@ -9,7 +9,6 @@ import type {
   UseChatOptions,
 } from '@ai-sdk/ui-utils';
 import { v4 as uuid } from '@lukeed/uuid';
-import type { AgentModelManagerConfig } from '@mastra/core/agent';
 import type { MessageListInput } from '@mastra/core/agent/message-list';
 import type { GenerateReturn, CoreMessage } from '@mastra/core/llm';
 import type { RuntimeContext } from '@mastra/core/runtime-context';
@@ -1500,16 +1499,6 @@ export class Agent extends BaseResource {
     return this.request(`/api/agents/${this.agentId}/model`, {
       method: 'POST',
       body: params,
-    });
-  }
-
-  /**
-   * Gets the list of models for the agent
-   * @returns Promise containing the list of models
-   */
-  getModelList(): Promise<Array<AgentModelManagerConfig>> {
-    return this.request(`/api/agents/${this.agentId}/models`, {
-      method: 'GET',
     });
   }
 

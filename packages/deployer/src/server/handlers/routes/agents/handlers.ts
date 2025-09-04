@@ -15,7 +15,6 @@ import {
   streamGenerateLegacyHandler as getOriginalStreamGenerateLegacyHandler,
   reorderAgentModelListHandler as getOriginalReorderAgentModelListHandler,
   updateAgentModelInModelListHandler as getOriginalUpdateAgentModelInModelListHandler,
-  getAgentModelListHandler as getOriginalGetAgentModelListHandler,
 } from '@mastra/server/handlers/agents';
 import type { Context } from 'hono';
 
@@ -398,22 +397,6 @@ export async function updateAgentModelInModelListHandler(c: Context) {
     return c.json(result);
   } catch (error) {
     return handleError(error, 'Error updating agent model in model list');
-  }
-}
-
-export async function getAgentModelListHandler(c: Context) {
-  try {
-    const mastra: Mastra = c.get('mastra');
-    const agentId = c.req.param('agentId');
-
-    const result = await getOriginalGetAgentModelListHandler({
-      mastra,
-      agentId,
-    });
-
-    return c.json(result);
-  } catch (error) {
-    return handleError(error, 'Error getting agent model list');
   }
 }
 

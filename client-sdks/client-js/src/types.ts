@@ -78,6 +78,18 @@ export interface GetAgentResponse {
   modelVersion: string;
   defaultGenerateOptions: WithoutMethods<AgentGenerateOptions>;
   defaultStreamOptions: WithoutMethods<AgentStreamOptions>;
+  modelList:
+    | Array<{
+        id: string;
+        enabled: boolean;
+        maxRetries: number;
+        model: {
+          modelId: string;
+          provider: string;
+          modelVersion: string;
+        };
+      }>
+    | undefined;
 }
 
 export type GenerateParams<T extends JSONSchema7 | ZodSchema | undefined = undefined> = {

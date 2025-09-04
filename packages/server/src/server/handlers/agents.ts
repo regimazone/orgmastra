@@ -8,7 +8,7 @@ import { openai } from '@ai-sdk/openai';
 import { openai as openaiV5 } from '@ai-sdk/openai-v5';
 import { xai } from '@ai-sdk/xai';
 import { xai as xaiV5 } from '@ai-sdk/xai-v5';
-import type { Agent, AgentModelManagerConfig, MastraLanguageModel } from '@mastra/core/agent';
+import type { Agent, MastraLanguageModel } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import { zodToJsonSchema } from '@mastra/core/utils/zod-to-json';
 import { stringify } from 'superjson';
@@ -71,6 +71,15 @@ export async function getAgentsHandler({ mastra, runtimeContext }: Context & { r
         const instructions = await agent.getInstructions({ runtimeContext });
         const tools = await agent.getTools({ runtimeContext });
         const llm = await agent.getLLM({ runtimeContext });
+        const models = await agent.getModelList(runtimeContext);
+        const modelList = models?.map(md => ({
+          ...md,
+          model: {
+            modelId: md.model.modelId,
+            provider: md.model.provider,
+            modelVersion: md.model.specificationVersion,
+          },
+        }));
         const defaultGenerateOptions = await agent.getDefaultGenerateOptions({ runtimeContext });
         const defaultStreamOptions = await agent.getDefaultStreamOptions({ runtimeContext });
 
@@ -105,6 +114,7 @@ export async function getAgentsHandler({ mastra, runtimeContext }: Context & { r
           workflows: serializedAgentWorkflows,
           provider: llm?.getProvider(),
           modelId: llm?.getModelId(),
+          modelList,
           modelVersion: model?.specificationVersion,
           defaultGenerateOptions: defaultGenerateOptions as any,
           defaultStreamOptions: defaultStreamOptions as any,
@@ -192,6 +202,15 @@ export async function getAgentByIdHandler({
     const defaultStreamOptions = await agent.getDefaultStreamOptions({ runtimeContext: proxyRuntimeContext });
 
     const model = llm?.getModel();
+    const models = await agent.getModelList(runtimeContext);
+    const modelList = models?.map(md => ({
+      ...md,
+      model: {
+        modelId: md.model.modelId,
+        provider: md.model.provider,
+        modelVersion: md.model.specificationVersion,
+      },
+    }));
 
     return {
       name: agent.name,
@@ -201,6 +220,7 @@ export async function getAgentByIdHandler({
       provider: llm?.getProvider(),
       modelId: llm?.getModelId(),
       modelVersion: model?.specificationVersion,
+      modelList,
       defaultGenerateOptions: defaultGenerateOptions as any,
       defaultStreamOptions: defaultStreamOptions as any,
     };
@@ -588,27 +608,6 @@ export async function updateAgentModelHandler({
     agent.__updateModel({ model });
 
     return { message: 'Agent model updated' };
-  } catch (error) {
-    return handleError(error, 'error updating agent model');
-  }
-}
-
-export async function getAgentModelListHandler({
-  mastra,
-  agentId,
-}: Context & {
-  agentId: string;
-}): Promise<Array<AgentModelManagerConfig>> {
-  try {
-    const agent = mastra.getAgent(agentId);
-
-    if (!agent) {
-      throw new HTTPException(404, { message: 'Agent not found' });
-    }
-
-    const modelList = await agent.getModelList();
-
-    return modelList;
   } catch (error) {
     return handleError(error, 'error updating agent model');
   }

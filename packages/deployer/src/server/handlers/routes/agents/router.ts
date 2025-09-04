@@ -20,7 +20,6 @@ import {
   streamVNextUIMessageHandler,
   streamGenerateLegacyHandler,
   generateLegacyHandler,
-  getAgentModelListHandler,
   reorderAgentModelListHandler,
 } from './handlers';
 import { getListenerHandler, getSpeakersHandler, speakHandler, listenHandler } from './voice';
@@ -556,31 +555,6 @@ export function agentsRouter(bodyLimitOptions: BodyLimitOptions) {
       },
     }),
     updateAgentModelHandler,
-  );
-
-  router.get(
-    '/:agentId/models',
-    describeRoute({
-      description: 'Get the list of models for an agent',
-      tags: ['agents'],
-      parameters: [
-        {
-          name: 'agentId',
-          in: 'path',
-          required: true,
-          schema: { type: 'string' },
-        },
-      ],
-      responses: {
-        200: {
-          description: 'Model list retrieved successfully',
-        },
-        404: {
-          description: 'Agent not found',
-        },
-      },
-    }),
-    getAgentModelListHandler,
   );
 
   router.post(
