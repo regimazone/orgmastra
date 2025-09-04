@@ -9,7 +9,7 @@ import {
   SideDialogHeading,
   getShortId,
 } from '@/components/ui/elements';
-import { PanelLeftIcon, PanelTopIcon, ChevronsLeftRightEllipsisIcon, HashIcon, EyeIcon, Link } from 'lucide-react';
+import { PanelTopIcon, ChevronsLeftRightEllipsisIcon, HashIcon, EyeIcon, Link } from 'lucide-react';
 import { TraceSpanUsage } from './trace-span-usage';
 import { SpanDetails } from './span-details';
 
