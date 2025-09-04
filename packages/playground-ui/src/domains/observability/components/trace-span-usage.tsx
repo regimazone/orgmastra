@@ -33,8 +33,7 @@ export function TraceSpanUsage({ traceUsage, traceSpans = [], spanUsage, classNa
 
       acc[spanModelProvider].promptTokens += spanUsage.promptTokens || 0;
       acc[spanModelProvider].completionTokens += spanUsage.completionTokens || 0;
-      acc[spanModelProvider].totalTokens +=
-        (acc[spanModelProvider].promptTokens || 0) + (acc[spanModelProvider].completionTokens || 0);
+      acc[spanModelProvider].totalTokens += (spanUsage.promptTokens || 0) + (spanUsage.completionTokens || 0);
 
       return acc;
     },

@@ -9,10 +9,11 @@ import {
   SideDialogHeading,
   getShortId,
 } from '@/components/ui/elements';
-import { PanelTopIcon, ChevronsLeftRightEllipsisIcon, HashIcon, EyeIcon, Link } from 'lucide-react';
+import { PanelTopIcon, ChevronsLeftRightEllipsisIcon, HashIcon, EyeIcon } from 'lucide-react';
 import { TraceSpanUsage } from './trace-span-usage';
 import { SpanDetails } from './span-details';
 import { AISpanRecord } from '@mastra/core';
+import { useLinkComponent } from '@/lib/framework';
 
 type SpanDialogProps = {
   span?: AISpanRecord;
@@ -33,6 +34,8 @@ export function SpanDialog({
   onViewToggle,
   spanInfo = [],
 }: SpanDialogProps) {
+  const { Link } = useLinkComponent();
+
   return (
     <SideDialog
       dialogTitle="Observability Span"

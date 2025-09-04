@@ -116,7 +116,7 @@ export const DateTimePickerContent = ({
       onValueChange?.(date);
       setOpenPopover?.(false);
     }
-  }, 2000);
+  }, 500);
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = e => {
     setDateInputValue(e.currentTarget.value);

@@ -1,6 +1,5 @@
 import { cn } from '@/lib/utils';
 import { TraceTimelineSpan } from './trace-timeline-span';
-import { type UISpan } from '../types';
 import { formatHierarchicalSpans } from '../utils/format-hierarchical-spans';
 import { SideDialogHeading } from '@/components/ui/elements';
 import { useMemo } from 'react';
@@ -50,7 +49,7 @@ export function TraceTimeline({ spans = [], onSpanClick, selectedSpanId, isLoadi
             'xl:grid-cols-[3fr_2fr] xl:gap-x-[1rem]',
           )}
         >
-          {hierarchicalSpans?.map((span: UISpan) => (
+          {hierarchicalSpans?.map(span => (
             <TraceTimelineSpan
               key={span.id}
               span={span}

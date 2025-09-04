@@ -32,7 +32,10 @@ export function getSpanTypeUi(type: string) {
     },
   };
 
-  const elements = spanTypeToUiElements?.[typePrefix as keyof typeof spanTypeToUiElements];
+  let elements;
+  if (typePrefix in spanTypeToUiElements) {
+    elements = spanTypeToUiElements[typePrefix];
+  }
 
   if (elements) {
     return elements;
