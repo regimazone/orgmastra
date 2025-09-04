@@ -459,7 +459,7 @@ export function createLLMExecutionStep<
               modelResult = execute({
                 runId,
                 model,
-                isLastModel,
+                shouldThrowError: !isLastModel,
                 providerOptions,
                 inputMessages,
                 tools,

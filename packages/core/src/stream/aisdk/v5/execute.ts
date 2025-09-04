@@ -29,7 +29,7 @@ type ExecutionProps<OUTPUT extends OutputSchema | undefined = undefined> = {
   Only applicable for HTTP-based providers.
   */
   headers?: Record<string, string | undefined>;
-  isLastModel: boolean;
+  shouldThrowError?: boolean;
 };
 
 export function execute<OUTPUT extends OutputSchema | undefined = undefined>({
@@ -47,7 +47,7 @@ export function execute<OUTPUT extends OutputSchema | undefined = undefined>({
   modelSettings,
   output,
   headers,
-  isLastModel,
+  shouldThrowError,
 }: ExecutionProps<OUTPUT>) {
   const v5 = new AISDKV5InputStream({
     component: 'LLM',
@@ -88,7 +88,7 @@ export function execute<OUTPUT extends OutputSchema | undefined = undefined>({
           console.log('Abort error', error);
         }
 
-        if (!isLastModel) {
+        if (shouldThrowError) {
           throw error;
         }
 
