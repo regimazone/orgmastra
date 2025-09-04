@@ -680,7 +680,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 {
                   "content": [
                     {
-                      "data": "Hello World",
+                      "data": "data:text/plain;base64,Hello World",
                       "filename": undefined,
                       "mediaType": "text/plain",
                       "type": "file",
@@ -690,7 +690,7 @@ export function resultObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                       "type": "text",
                     },
                     {
-                      "data": "QkFVRw==",
+                      "data": "data:image/jpeg;base64,QkFVRw==",
                       "filename": undefined,
                       "mediaType": "image/jpeg",
                       "type": "file",
