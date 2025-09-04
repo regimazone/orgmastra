@@ -24,7 +24,7 @@ export function EntryListTextCell({ children, isLoading }: { children: React.Rea
 
 export function EntryListStatusCell({ status }: { status?: 'success' | 'failed' }) {
   return (
-    <div className={cn('flex justify-center items-center w-full relative', {})}>
+    <div className={cn('flex justify-center items-center w-full relative')}>
       {status ? (
         <div
           className={cn('w-[0.6rem] h-[0.6rem] rounded-full', {
