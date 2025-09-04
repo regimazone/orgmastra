@@ -782,6 +782,36 @@ export default withGT(
         destination: "/examples/agents/supervisor-agent",
         permanent: true,
       },
+      {
+        source: "/docs/agents/streaming",
+        destination: "/docs/streaming/overview",
+        permanent: true,
+      },
+      {
+        source: "/docs/workflows/streaming",
+        destination: "/docs/streaming/overview",
+        permanent: true,
+      },
+      {
+        source: "/examples/memory/streaming-working-memory",
+        destination: "/examples/memory/working-memory-basic",
+        permanent: true,
+      },
+      {
+        source: "/examples/memory/streaming-working-memory-advanced",
+        destination: "/examples/memory/working-memory-template",
+        permanent: true,
+      },
+      {
+        source: "/examples/memory/streaming-working-memory-structured",
+        destination: "/examples/memory/working-memory-schema",
+        permanent: true,
+      },
+      {
+        source: "/examples/memory/use-chat",
+        destination: "/examples/agents/ai-sdk-v5-integration",
+        permanent: true,
+      },
     ],
     trailingSlash: false,
   }),
