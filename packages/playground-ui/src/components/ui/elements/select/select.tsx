@@ -19,7 +19,7 @@ type SelectProps = {
 export function Select({ name, onChange, defaultValue, value, options, placeholder }: SelectProps) {
   return (
     <BaseSelect name={name} onValueChange={onChange} value={value}>
-      <SelectTrigger>{value}</SelectTrigger>
+      <SelectTrigger>{value || placeholder || 'Select option'}</SelectTrigger>
       <SelectContent>
         {(options || []).map((option, idx) => (
           <SelectItem key={option} value={`${idx}`}>
