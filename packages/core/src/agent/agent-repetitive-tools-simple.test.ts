@@ -56,7 +56,7 @@ describe('Agent - Repetitive Tool Calls Issue #6827', () => {
     // Execute the agent with a request that should trigger ONE tool call
     console.log('\n=== Starting Agent Execution ===');
 
-    const result = await agent.streamVNext('Please notify my care team that I need assistance.', {
+    const result = await agent.generate('Please notify my care team that I need assistance.', {
       maxSteps: 5, // Limit to prevent infinite loops
       onStepFinish: async step => {
         onStepFinishCount++;
@@ -78,14 +78,14 @@ describe('Agent - Repetitive Tool Calls Issue #6827', () => {
     });
 
     // Consume the stream
-    console.log('\n=== Streaming Output ===');
-    for await (const chunk of result.fullStream) {
-      console.log(chunk.type);
-      // Just consume the stream
-      if (chunk.type === 'text-delta') {
-        process.stdout.write((chunk as any).textDelta || '');
-      }
-    }
+    // console.log('\n=== Streaming Output ===');
+    // for await (const chunk of result.fullStream) {
+    //   console.log(chunk.type);
+    //   // Just consume the stream
+    //   if (chunk.type === 'text-delta') {
+    //     process.stdout.write((chunk as any).textDelta || '');
+    //   }
+    // }
 
     console.log('\n\n=== FINAL RESULTS ===');
     console.log('Tool execution count:', toolExecutionCount);
@@ -150,17 +150,17 @@ describe('Agent - Repetitive Tool Calls Issue #6827', () => {
       toolExecutionCount = 0;
       console.log(`\n=== Testing prompt: "${prompt}" ===`);
 
-      const result = await agent.streamVNext(prompt, {
+      const result = await agent.generate(prompt, {
         maxSteps: 5,
         onStepFinish: async step => {
           console.log('Step finished:', step.finishReason, '- Tools:', step.toolCalls?.length || 0);
         },
       });
 
-      for await (const _ of result.fullStream) {
-        console.log(_.type);
-        // Consume stream
-      }
+      // for await (const _ of result.fullStream) {
+      //   console.log(_.type);
+      //   // Consume stream
+      // }
 
       console.log('Tool executions for this prompt:', toolExecutionCount);
 
