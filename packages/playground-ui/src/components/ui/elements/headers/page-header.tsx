@@ -19,7 +19,7 @@ export function PageHeader({ title, description, icon, className }: PageHeaderPr
       )}
     >
       <h1>
-        {icon} {title}
+        {icon && icon} {title}
       </h1>
       {description && <p>{description}</p>}
     </header>

@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import { AISpanRecord } from '@mastra/core';
 import { ArrowRightIcon, ArrowRightToLineIcon, CoinsIcon } from 'lucide-react';
 
 type TraceSpanUsageProps = {
@@ -29,13 +28,13 @@ export function TraceSpanUsage({ traceUsage, traceSpans = [], spanUsage, classNa
       const spanModelProvider = `${provider}${provider && model ? ' / ' : ''}${model}`;
 
       if (!acc?.[spanModelProvider]) {
-        acc[spanModelProvider] = { promptTokens: 0, completionTokens: 0 };
+        acc[spanModelProvider] = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       }
 
       acc[spanModelProvider].promptTokens += spanUsage.promptTokens || 0;
       acc[spanModelProvider].completionTokens += spanUsage.completionTokens || 0;
       acc[spanModelProvider].totalTokens +=
-        acc[spanModelProvider].promptTokens + acc[spanModelProvider].completionTokens;
+        (acc[spanModelProvider].promptTokens || 0) + (acc[spanModelProvider].completionTokens || 0);
 
       return acc;
     },

@@ -19,7 +19,7 @@ export function TraceTimelineLegend({ spans = [] }: TraceTimelineLegendProps) {
         return (
           <div key={item} className={cn('flex items-center gap-[.5rem]')}>
             <span className={cn('[&>svg]:w-[1.2em] [&>svg]:h-[1.2em]')} style={{ color: spanUI?.color }}>
-              {spanUI?.icon}
+              {spanUI?.icon && spanUI.icon}
             </span>
             {spanUI?.label}
           </div>

@@ -72,7 +72,6 @@ export function TraceTimelineSpan({
           {!isRootSpan && (
             <TreePositionMark
               isLastChild={isLastChild}
-              isNextToLastChild={isNextToLastChild}
               isFirstChild={isFirstChild}
               hasChildren={Boolean(hasChildren)}
             />
@@ -210,16 +209,11 @@ export function TraceTimelineSpan({
 
 type TreeSymbolProps = {
   isLastChild?: boolean;
-  isNextToLastChild?: boolean;
   isFirstChild?: boolean;
   hasChildren?: boolean;
 };
 
-function TreePositionMark({
-  isLastChild,
-  isNextToLastChild,
-  hasChildren = false,
-}: TreeSymbolProps & { hasChildren: boolean }) {
+function TreePositionMark({ isLastChild, hasChildren = false }: TreeSymbolProps) {
   return (
     <div
       className={cn(

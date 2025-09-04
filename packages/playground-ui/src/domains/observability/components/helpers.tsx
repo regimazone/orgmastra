@@ -27,7 +27,7 @@ export function getTraceInfo(trace: AISpanRecord | undefined) {
       label: 'Entity Type',
       value: [
         {
-          id: '',
+          id: trace?.attributes?.agentId || trace?.attributes?.workflowId,
           name: trace?.attributes?.agentId ? 'Agent' : trace?.attributes?.workflowId ? 'Workflow' : '-',
           path: trace?.attributes?.agentId ? `/agents` : trace?.attributes?.workflowId ? `/workflows` : undefined,
         },

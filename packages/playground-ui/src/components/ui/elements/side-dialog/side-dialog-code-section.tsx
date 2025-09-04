@@ -34,13 +34,13 @@ export type SideDialogCodeSectionProps = {
 export function SideDialogCodeSection({ codeStr = '', title }: SideDialogCodeSectionProps) {
   const theme = useCodemirrorTheme();
   const [showAsMultilineText, setShowAsMultilineText] = useState(false);
-  const hasMultilineText = (() => {
+  const hasMultilineText = useMemo(() => {
     try {
       return containsInnerNewline(JSON.parse(codeStr));
     } catch {
       return false;
     }
-  })();
+  }, [codeStr]);
 
   const finalCodeStr = showAsMultilineText ? codeStr?.replace(/\\n/g, '\n') : codeStr;
 

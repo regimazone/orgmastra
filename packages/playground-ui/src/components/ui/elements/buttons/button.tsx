@@ -2,14 +2,13 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  as?: React.ElementType;
   className?: string;
   children: React.ReactNode;
   variant?: 'primary' | 'outline' | 'ghost';
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, as, variant = 'outline', ...props }: ButtonProps, ref) => {
+  ({ className, variant = 'outline', ...props }: ButtonProps, ref) => {
     return (
       <button
         ref={ref}

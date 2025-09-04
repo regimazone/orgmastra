@@ -18,7 +18,7 @@ type CommonProps = Omit<DayPickerSingleProps, 'mode' | 'selected' | 'onSelect'> 
   minValue?: Date | null;
   maxValue?: Date | null;
   defaultTimeStrValue?: string;
-  onValueChange: (date: Date | undefined | null) => void;
+  onValueChange: (date: Date | undefined) => void;
 };
 
 export type DateTimePickerProps =
@@ -185,7 +185,7 @@ export const DateTimePickerContent = ({
   };
 
   const handleClear = () => {
-    onValueChange(null);
+    onValueChange(undefined);
     setSelected(undefined);
     setDateInputValue('');
     setTimeStrValue('');

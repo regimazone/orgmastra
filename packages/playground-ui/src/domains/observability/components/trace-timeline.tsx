@@ -19,7 +19,7 @@ type TraceTimelineProps = {
 
 export function TraceTimeline({ spans = [], onSpanClick, selectedSpanId, isLoading, className }: TraceTimelineProps) {
   const hierarchicalSpans = useMemo(() => {
-    return formatHierarchicalSpans(spans || []);
+    return formatHierarchicalSpans(spans);
   }, [spans]);
 
   const overallLatency = hierarchicalSpans?.[0]?.latency || 0;

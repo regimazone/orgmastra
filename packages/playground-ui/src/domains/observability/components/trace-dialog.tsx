@@ -8,7 +8,6 @@ import {
   SideDialogHeader,
   SideDialogHeading,
 } from '@/components/ui/elements';
-import { type UISpan } from '../types';
 import { PanelLeftIcon, HashIcon, EyeIcon, ChevronsLeftRightEllipsisIcon } from 'lucide-react';
 import { useState } from 'react';
 import { TraceTimeline } from './trace-timeline';
