@@ -161,9 +161,9 @@ describe('Agent Memory Tests', () => {
             options: {
               lastMessages: 5,
               semanticRecall: {
-                topK: 2,
-                messageRange: 1,
-                scope: 'resource', // This is the key - resource scope should allow cross-thread memory
+                topK: 5,
+                messageRange: 5,
+                scope: 'resource',
               },
             },
             storage,
@@ -197,15 +197,16 @@ describe('Agent Memory Tests', () => {
 
     // Mock the getMemoryMessages method to track if it's called
     let getMemoryMessagesCalled = false;
+    let retrievedMemoryMessages: any[] = [];
     const originalGetMemoryMessages = (agent as any).getMemoryMessages;
     (agent as any).getMemoryMessages = async (...args: any[]) => {
       getMemoryMessagesCalled = true;
-      return originalGetMemoryMessages.call(agent, ...args);
+      const result = await originalGetMemoryMessages.call(agent, ...args);
+      retrievedMemoryMessages = result || [];
+      return result;
     };
 
-    // Send first message to new thread - this should call getMemoryMessages
-    // because resource scope allows cross-thread memory access
-    await agent.generate('What did we discuss about animals?', {
+    const secondResponse = await agent.generate('What did we discuss about cats?', {
       memory: {
         thread: thread2Id,
         resource: resourceId,
@@ -215,9 +216,18 @@ describe('Agent Memory Tests', () => {
     // Restore original method
     (agent as any).getMemoryMessages = originalGetMemoryMessages;
 
-    // The bug is that getMemoryMessages is not called for the first message in a new thread
-    // even when using resource scope, which should allow access to messages from other threads
     expect(getMemoryMessagesCalled).toBe(true);
+
+    // Verify that getMemoryMessages actually returned messages from the first thread
+    expect(retrievedMemoryMessages.length).toBeGreaterThan(0);
+
+    // Verify that the retrieved messages contain content from the first thread
+    const hasMessagesFromFirstThread = retrievedMemoryMessages.some(
+      msg =>
+        msg.threadId === thread1Id || (typeof msg.content === 'string' && msg.content.toLowerCase().includes('cat')),
+    );
+    expect(hasMessagesFromFirstThread).toBe(true);
+    expect(secondResponse.text.toLowerCase()).toMatch(/(cat|animal|discuss)/);
   });
 
   describe('Agent memory message persistence', () => {
