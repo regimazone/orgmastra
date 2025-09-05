@@ -28,6 +28,7 @@ import type { DynamicArgument } from '../types';
 import type { CompositeVoice } from '../voice';
 import type { Workflow } from '../workflows';
 import type { AgentExecutionOptions } from './agent.types';
+import type { Agent } from '.';
 
 export type { MastraMessageV2, MastraMessageContentV2, UIMessageWithMetadata, MessageList } from './message-list/index';
 export type { Message as AiMessageType } from 'ai';
@@ -71,6 +72,7 @@ export interface AgentConfig<
   defaultVNextStreamOptions?: DynamicArgument<AgentExecutionOptions>;
   mastra?: Mastra;
   scorers?: DynamicArgument<MastraScorers>;
+  agents?: DynamicArgument<Record<string, Agent>>;
   evals?: TMetrics;
   memory?: DynamicArgument<MastraMemory>;
   voice?: CompositeVoice;
