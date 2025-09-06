@@ -4,7 +4,7 @@ import type { MetricResult, TestInfo } from '../eval';
 import type { MemoryConfig } from '../memory/types';
 import type { WorkflowRunState } from '../workflows';
 import type { LegacyWorkflowRunState } from '../workflows/legacy';
-import type { AISpanCreateSchema } from './domains/observability/base';
+import type { AISpanCreateSchema, AISpanUpdateSchema } from './domains/observability/schemas';
 
 export type StoragePagination = {
   page: number;
@@ -163,8 +163,6 @@ export type ThreadOrderBy = 'createdAt' | 'updatedAt';
 
 export type ThreadSortDirection = 'ASC' | 'DESC';
 
-export type AISpanRecord = z.infer<typeof AISpanCreateSchema>;
-
 export interface AITraceRecord {
   traceId: string;
   spans: AISpanRecord[];
@@ -177,3 +175,6 @@ export interface AITracesPaginatedArg {
   };
   pagination?: PaginationArgs;
 }
+
+export type AISpanRecord = z.infer<typeof AISpanCreateSchema>;
+export type AISpanUpdatePayload = z.infer<typeof AISpanUpdateSchema>;

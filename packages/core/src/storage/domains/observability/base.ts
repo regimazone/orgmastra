@@ -2,7 +2,14 @@ import z from 'zod';
 import { AISpanType, type TracingStrategy } from '../../../ai-tracing';
 import { MastraBase } from '../../../base';
 import { ErrorCategory, ErrorDomain, MastraError } from '../../../error';
-import type { AISpanRecord, AITraceRecord, AITracesPaginatedArg, PaginationInfo } from '../../types';
+import type {
+  AISpanRecord,
+  AISpanUpdatePayload,
+  AITraceRecord,
+  AITracesPaginatedArg,
+  PaginationInfo,
+} from '../../types';
+import { AISpanCreateSchema, AISpanUpdateSchema } from './schemas';
 
 export class ObservabilityStorage extends MastraBase {
   constructor() {
@@ -152,31 +159,3 @@ export class ObservabilityStorage extends MastraBase {
     });
   }
 }
-
-export const AISpanCreateSchema = z.object({
-  traceId: z.string(),
-  spanId: z.string(),
-  parentSpanId: z.string().nullable().default(null),
-  name: z.string(),
-  scope: z.record(z.any()).nullable().default(null),
-  spanType: z.nativeEnum(AISpanType),
-  attributes: z.record(z.any()).nullable().default(null),
-  metadata: z.record(z.any()).nullable().default(null),
-  links: z.any().nullable().default(null),
-  startedAt: z.date(),
-  endedAt: z.date().nullable().default(null),
-  createdAt: z.date(),
-  updatedAt: z.date().nullable().default(null),
-  input: z.any().nullable().default(null),
-  output: z.any().nullable().default(null),
-  error: z.any().nullable().default(null),
-  isEvent: z.boolean(),
-});
-
-export const AISpanUpdateSchema = AISpanCreateSchema.omit({
-  spanId: true,
-  traceId: true,
-  createdAt: true,
-}).partial();
-
-export type AISpanUpdatePayload = z.infer<typeof AISpanUpdateSchema>;
