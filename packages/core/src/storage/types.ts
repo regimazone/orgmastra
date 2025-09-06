@@ -1,4 +1,4 @@
-import type z from 'zod';
+import { z } from 'zod';
 import type { AISpanType } from '../ai-tracing';
 import type { MetricResult, TestInfo } from '../eval';
 import type { MemoryConfig } from '../memory/types';

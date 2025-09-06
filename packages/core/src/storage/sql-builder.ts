@@ -129,7 +129,7 @@ export class SqlBuilder {
     if (conflictColumns && updateMap) {
       const parsedConflictColumns = conflictColumns.map(col => parseSqlIdentifier(col, 'column name'));
       const updateClause = Object.entries(updateMap)
-        .map(([col, expr]) => `${col} = ${expr}`)
+        .map(([col, expr]) => `${parseSqlIdentifier(col, 'column name')} = ${expr}`)
         .join(', ');
       this.sql = `INSERT INTO ${parsedTableName} (${parsedColumns.join(', ')}) VALUES (${placeholders}) ON CONFLICT(${parsedConflictColumns.join(', ')}) DO UPDATE SET ${updateClause}`;
       this.params.push(...values);

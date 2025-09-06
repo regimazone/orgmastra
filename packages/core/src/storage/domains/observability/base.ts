@@ -1,5 +1,4 @@
-import z from 'zod';
-import { AISpanType, type TracingStrategy } from '../../../ai-tracing';
+import type { TracingStrategy } from '../../../ai-tracing';
 import { MastraBase } from '../../../base';
 import { ErrorCategory, ErrorDomain, MastraError } from '../../../error';
 import type {
