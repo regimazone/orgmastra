@@ -1,4 +1,5 @@
-import type { TracingStrategy } from '../../../ai-tracing';
+import z from 'zod';
+import { AISpanType, type TracingStrategy } from '../../../ai-tracing';
 import { MastraBase } from '../../../base';
 import { ErrorCategory, ErrorDomain, MastraError } from '../../../error';
 import type { AISpanRecord, AITraceRecord, AITracesPaginatedArg, PaginationInfo } from '../../types';
@@ -37,6 +38,22 @@ export class ObservabilityStorage extends MastraBase {
     });
   }
 
+  protected validateCreateAISpanPayload(span: AISpanRecord) {
+    try {
+      return AISpanCreateSchema.parse(span);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'OBSERVABILITY_STORAGE_CREATE_AI_SPAN_VALIDATION_FAILED',
+          domain: ErrorDomain.MASTRA_OBSERVABILITY,
+          category: ErrorCategory.SYSTEM,
+          text: 'Failed to validate AI span payload',
+        },
+        error,
+      );
+    }
+  }
+
   /**
    * Updates a single AI span with partial data. Primarily used for realtime trace creation.
    */
@@ -51,6 +68,22 @@ export class ObservabilityStorage extends MastraBase {
       category: ErrorCategory.SYSTEM,
       text: 'This storage provider does not support updating AI spans',
     });
+  }
+
+  protected validateUpdateAISpanPayload(span: AISpanUpdatePayload) {
+    try {
+      return AISpanUpdateSchema.parse(span);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'OBSERVABILITY_STORAGE_UPDATE_AI_SPAN_VALIDATION_FAILED',
+          domain: ErrorDomain.MASTRA_OBSERVABILITY,
+          category: ErrorCategory.SYSTEM,
+          text: 'Failed to validate AI span payload',
+        },
+        error,
+      );
+    }
   }
 
   /**
@@ -119,3 +152,31 @@ export class ObservabilityStorage extends MastraBase {
     });
   }
 }
+
+export const AISpanCreateSchema = z.object({
+  traceId: z.string(),
+  spanId: z.string(),
+  parentSpanId: z.string().nullable().default(null),
+  name: z.string(),
+  scope: z.record(z.any()).nullable().default(null),
+  spanType: z.nativeEnum(AISpanType),
+  attributes: z.record(z.any()).nullable().default(null),
+  metadata: z.record(z.any()).nullable().default(null),
+  links: z.any().nullable().default(null),
+  startedAt: z.date(),
+  endedAt: z.date().nullable().default(null),
+  createdAt: z.date(),
+  updatedAt: z.date().nullable().default(null),
+  input: z.any().nullable().default(null),
+  output: z.any().nullable().default(null),
+  error: z.any().nullable().default(null),
+  isEvent: z.boolean(),
+});
+
+export const AISpanUpdateSchema = AISpanCreateSchema.omit({
+  spanId: true,
+  traceId: true,
+  createdAt: true,
+}).partial();
+
+export type AISpanUpdatePayload = z.infer<typeof AISpanUpdateSchema>;
