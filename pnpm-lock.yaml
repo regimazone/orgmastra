@@ -322,8 +322,8 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       pino:
         specifier: ^9.7.0
         version: 9.7.0
@@ -426,8 +426,8 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       zod:
         specifier: ^3.25.0 || ^4.0.0
         version: 3.25.76
@@ -472,8 +472,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2(rollup@4.50.0)
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
     devDependencies:
       '@internal/lint':
         specifier: workspace:*
@@ -1180,8 +1180,8 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       get-port:
         specifier: ^7.1.0
         version: 7.1.0
@@ -1501,8 +1501,8 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       pino:
         specifier: ^9.7.0
         version: 9.7.0
@@ -1616,8 +1616,8 @@ importers:
         specifier: ^0.3.1
         version: 0.3.1
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       globby:
         specifier: ^14.1.0
         version: 14.1.0
@@ -1716,8 +1716,8 @@ importers:
         specifier: ^0.2.4
         version: 0.2.4
       fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
+        specifier: ^11.3.1
+        version: 11.3.1
       keyword-extractor:
         specifier: ^0.0.28
         version: 0.0.28
@@ -12693,8 +12693,8 @@ packages:
   fs-constants@1.0.0:
     resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}
 
-  fs-extra@11.3.0:
-    resolution: {integrity: sha512-Z4XaCL6dUDHfP/jT25jJKMmtxvuwbkrD1vNSMFlo9lNLY2c5FHYSQgHPRZUjAB26TpDEoW9HCOgplrdbaPV/ew==}
+  fs-extra@11.3.1:
+    resolution: {integrity: sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==}
     engines: {node: '>=14.14'}
 
   fs-extra@7.0.1:
@@ -24345,7 +24345,7 @@ snapshots:
       ajv: 8.13.0
       ajv-draft-04: 1.0.0(ajv@8.13.0)
       ajv-formats: 3.0.1(ajv@8.13.0)
-      fs-extra: 11.3.0
+      fs-extra: 11.3.1
       import-lazy: 4.0.0
       jju: 1.4.0
       resolve: 1.22.10
@@ -26810,7 +26810,7 @@ snapshots:
     dependencies:
       axios: 1.11.0(debug@4.4.1)
       debug: 4.4.1(supports-color@8.1.1)
-      fs-extra: 11.3.0
+      fs-extra: 11.3.1
       memory-stream: 1.0.0
       node-api-headers: 1.5.0
       npmlog: 6.0.2
@@ -28266,7 +28266,7 @@ snapshots:
 
   fs-constants@1.0.0: {}
 
-  fs-extra@11.3.0:
+  fs-extra@11.3.1:
     dependencies:
       graceful-fs: 4.2.11
       jsonfile: 6.1.0
@@ -33127,7 +33127,7 @@ snapshots:
       '@typescript/vfs': 1.6.1(typescript@5.8.3)
       case: 1.6.3
       chokidar: 3.6.0
-      fs-extra: 11.3.0
+      fs-extra: 11.3.1
       inquirer: 8.2.6
       lodash: 4.17.21
       ora: 5.4.1
