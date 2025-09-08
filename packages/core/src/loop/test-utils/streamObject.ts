@@ -173,8 +173,6 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         await convertAsyncIterableToArray(result.objectStream);
 
         expect(result.error).toBeUndefined();
-        // const obj = await result.object;
-        // expect(obj).toStrictEqual({});
       });
 
       it('should validate partial object chunks using zod schema.partial()', async () => {
