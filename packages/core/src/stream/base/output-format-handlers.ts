@@ -119,7 +119,6 @@ class ObjectFormatHandler<OUTPUT extends OutputSchema = undefined> extends BaseF
   async validatePartialObject(currentObjectJson: unknown, previousObject: unknown): Promise<ProcessPartialChunkResult> {
     const result = this.partialSchema?.safeParse(currentObjectJson);
     if (result?.error) {
-      // console.error('Partial object validation error', result.error);
       return {
         shouldEmit: !!this.outputSettings?.emitErrorOnPartialValidationFailure,
         error: result.error,
