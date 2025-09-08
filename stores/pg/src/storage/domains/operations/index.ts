@@ -1,5 +1,12 @@
 import { ErrorCategory, ErrorDomain, MastraError } from '@mastra/core/error';
-import { StoreOperations, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
+import {
+  StoreOperations,
+  TABLE_WORKFLOW_SNAPSHOT,
+  TABLE_THREADS,
+  TABLE_MESSAGES,
+  TABLE_TRACES,
+  TABLE_EVALS,
+} from '@mastra/core/storage';
 import type { StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
 import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { IDatabase } from 'pg-promise';
@@ -362,6 +369,118 @@ export class StoreOperationsPG extends StoreOperations {
           details: {
             tableName,
           },
+        },
+        error,
+      );
+    }
+  }
+
+  /**
+   * Creates performance indexes for storage tables to prevent full table scans
+   * This method is safe to run multiple times as it uses IF NOT EXISTS
+   */
+  async createPerformanceIndexes(): Promise<void> {
+    try {
+      const schemaPrefix = this.schemaName ? `${this.schemaName}_` : '';
+      const indexes = [
+        // Index for getThreadsByResourceId query
+        {
+          tableName: TABLE_THREADS,
+          indexName: `${schemaPrefix}mastra_threads_resourceid_idx`,
+          columns: '"resourceId"',
+          comment: 'Index for getThreadsByResourceId queries',
+        },
+        // Index for getThreadsByResourceId with ordering
+        {
+          tableName: TABLE_THREADS,
+          indexName: `${schemaPrefix}mastra_threads_resourceid_createdat_idx`,
+          columns: '"resourceId", "createdAt" DESC',
+          comment: 'Composite index for getThreadsByResourceId with ordering',
+        },
+        // Index for getMessages and getMessagesPaginated queries
+        {
+          tableName: TABLE_MESSAGES,
+          indexName: `${schemaPrefix}mastra_messages_thread_id_idx`,
+          columns: 'thread_id',
+          comment: 'Index for getMessages queries by thread_id',
+        },
+        // Index for getMessages with ordering
+        {
+          tableName: TABLE_MESSAGES,
+          indexName: `${schemaPrefix}mastra_messages_thread_id_createdat_idx`,
+          columns: 'thread_id, "createdAt" DESC',
+          comment: 'Composite index for getMessages with ordering',
+        },
+        // Index for getTracesPaginated queries
+        {
+          tableName: TABLE_TRACES,
+          indexName: `${schemaPrefix}mastra_traces_name_idx`,
+          columns: 'name',
+          comment: 'Index for getTracesPaginated queries by name',
+        },
+        // Index for getTracesPaginated with LIKE queries (using text_pattern_ops for better LIKE performance)
+        {
+          tableName: TABLE_TRACES,
+          indexName: `${schemaPrefix}mastra_traces_name_pattern_idx`,
+          columns: 'name text_pattern_ops',
+          comment: 'Index for LIKE queries on trace names',
+        },
+        // Index for getEvals queries
+        {
+          tableName: TABLE_EVALS,
+          indexName: `${schemaPrefix}mastra_evals_agent_name_idx`,
+          columns: 'agent_name',
+          comment: 'Index for getEvals queries by agent_name',
+        },
+        // Index for getEvals with ordering
+        {
+          tableName: TABLE_EVALS,
+          indexName: `${schemaPrefix}mastra_evals_agent_name_created_at_idx`,
+          columns: 'agent_name, created_at DESC',
+          comment: 'Composite index for getEvals with ordering',
+        },
+        // Index for workflow queries by resourceId (if column exists)
+        {
+          tableName: TABLE_WORKFLOW_SNAPSHOT,
+          indexName: `${schemaPrefix}mastra_workflow_snapshot_resourceid_idx`,
+          columns: '"resourceId"',
+          comment: 'Index for workflow queries by resourceId',
+          conditional: true, // Only create if resourceId column exists
+        },
+      ];
+
+      for (const index of indexes) {
+        const tableName = getTableName({ indexName: index.tableName, schemaName: getSchemaName(this.schemaName) });
+
+        // For conditional indexes, check if column exists first
+        if (index.conditional) {
+          const hasColumn = await this.hasColumn(index.tableName, 'resourceId');
+          if (!hasColumn) {
+            continue;
+          }
+        }
+
+        // Check if index exists first
+        const schemaName = this.schemaName || 'public';
+        const indexExists = await this.client.oneOrNone(
+          `SELECT 1 FROM pg_indexes 
+           WHERE indexname = $1 
+           AND schemaname = $2`,
+          [index.indexName, schemaName],
+        );
+
+        // Only create if it doesn't exist
+        if (!indexExists) {
+          const sql = `CREATE INDEX CONCURRENTLY ${index.indexName} ON ${tableName} (${index.columns})`;
+          await this.client.none(sql);
+        }
+      }
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_PG_STORE_CREATE_PERFORMANCE_INDEXES_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
         },
         error,
       );

@@ -136,6 +136,16 @@ export class PostgresStore extends MastraStorage {
       };
 
       await super.init();
+
+      // Create performance indexes to prevent full table scans
+      // This is done after table creation and is safe to run multiple times
+      try {
+        await operations.createPerformanceIndexes();
+      } catch (indexError) {
+        // Log the error but don't fail initialization
+        // Indexes are performance optimizations, not critical for functionality
+        console.warn('Failed to create performance indexes:', indexError);
+      }
     } catch (error) {
       this.isConnected = false;
       throw new MastraError(
