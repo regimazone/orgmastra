@@ -1,7 +1,7 @@
 import { TransformStream } from 'stream/web';
 import { asSchema, isDeepEqualData, parsePartialJson } from 'ai-v5';
 import type { Schema } from 'ai-v5';
-import type { OutputSettings as OutputSettings } from '../../loop/types';
+import type { OutputSettings } from '../../loop/types';
 import { safeValidateTypes } from '../aisdk/v5/compat';
 import { ChunkFrom } from '../types';
 import type { ChunkType } from '../types';
