@@ -46,7 +46,7 @@ class CompositeExporter {
       // Other @opentelemetry spans are noisy and we do not display them.
       // At the storage layer, we remove the HTTP instrumentation spans entirely.
       // And promote their direct children to root spans.
-      return !(span.instrumentationScope?.name?.startsWith('@opentelemetry') && 
+      return !(span.instrumentationScope?.name?.startsWith('@opentelemetry') &&
       span.instrumentationScope?.name !== '@opentelemetry/instrumentation-http') &&
        !telemetryTraceIds.has(span.spanContext().traceId)
     });
