@@ -871,9 +871,9 @@ export class Workflow<
   commit(
     this: OutputMatches<TOutput, TPrevSchema> extends true
       ? Workflow<TEngineType, TSteps, TWorkflowId, TInput, TOutput, TPrevSchema>
-      : never,
+      : "Error: Workflow output schema doesn't match the last step's output schema. Call commit() only when TOutput and TPrevSchema are the same type.",
   ): Workflow<TEngineType, TSteps, TWorkflowId, TInput, TOutput, TPrevSchema> {
-    (this as any).executionGraph = this.buildExecutionGraph();
+    (this as any).executionGraph = (this as any).buildExecutionGraph();
     return this as unknown as Workflow<TEngineType, TSteps, TWorkflowId, TInput, TOutput, TPrevSchema>;
   }
 
