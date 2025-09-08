@@ -17,7 +17,7 @@ import { HTTPException } from '../http-exception';
 import type { Context } from '../types';
 
 import { handleError } from './error';
-import { validateBody } from './utils';
+import { sanitizeBody, validateBody } from './utils';
 
 type GetBody<
   T extends keyof Agent & { [K in keyof Agent]: Agent[K] extends (...args: any) => any ? K : never }[keyof Agent],
@@ -313,6 +313,10 @@ export async function generateLegacyHandler({
       throw new HTTPException(404, { message: 'Agent not found' });
     }
 
+    // UI Frameworks may send "client tools" in the body,
+    // but it interferes with llm providers tool handling, so we remove them
+    sanitizeBody(body, ['tools']);
+
     const { messages, resourceId, resourceid, runtimeContext: agentRuntimeContext, ...rest } = body;
     // Use resourceId if provided, fall back to resourceid (deprecated)
     const finalResourceId = resourceId ?? resourceid;
@@ -359,6 +363,10 @@ export async function generateVNextHandler({
     if (!agent) {
       throw new HTTPException(404, { message: 'Agent not found' });
     }
+
+    // UI Frameworks may send "client tools" in the body,
+    // but it interferes with llm providers tool handling, so we remove them
+    sanitizeBody(body, ['tools']);
 
     const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
 
@@ -492,6 +500,10 @@ export function streamVNextGenerateHandler({
       throw new HTTPException(404, { message: 'Agent not found' });
     }
 
+    // UI Frameworks may send "client tools" in the body,
+    // but it interferes with llm providers tool handling, so we remove them
+    sanitizeBody(body, ['tools']);
+
     const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
     const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
       ...Array.from(runtimeContext.entries()),
@@ -536,6 +548,10 @@ export async function streamVNextUIMessageHandler({
     if (!agent) {
       throw new HTTPException(404, { message: 'Agent not found' });
     }
+
+    // UI Frameworks may send "client tools" in the body,
+    // but it interferes with llm providers tool handling, so we remove them
+    sanitizeBody(body, ['tools']);
 
     const { messages, runtimeContext: agentRuntimeContext, ...rest } = body;
     const finalRuntimeContext = new RuntimeContext<Record<string, unknown>>([
