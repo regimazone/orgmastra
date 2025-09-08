@@ -105,7 +105,9 @@ export type StreamVNextParams<OUTPUT extends OutputSchema | undefined = undefine
   output?: OUTPUT;
   runtimeContext?: RuntimeContext | Record<string, any>;
   clientTools?: ToolsInput;
-} & WithoutMethods<Omit<AgentExecutionOptions<OUTPUT>, 'output' | 'runtimeContext' | 'clientTools' | 'options'>>;
+} & WithoutMethods<
+  Omit<AgentExecutionOptions<OUTPUT>, 'output' | 'runtimeContext' | 'clientTools' | 'options' | 'abortSignal'>
+>;
 
 export type UpdateModelParams = {
   modelId: string;

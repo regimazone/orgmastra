@@ -316,8 +316,29 @@ export class Agent extends BaseResource {
   }
 
   async generateVNext<T extends OutputSchema | undefined = undefined>(
+    messages: MessageListInput,
+    options?: Omit<StreamVNextParams<T>, 'messages'>,
+  ): Promise<ReturnType<MastraModelOutput['getFullOutput']>>;
+  // Backward compatibility overload
+  async generateVNext<T extends OutputSchema | undefined = undefined>(
     params: StreamVNextParams<T>,
+  ): Promise<ReturnType<MastraModelOutput['getFullOutput']>>;
+  async generateVNext<T extends OutputSchema | undefined = undefined>(
+    messagesOrParams: MessageListInput | StreamVNextParams<T>,
+    options?: Omit<StreamVNextParams<T>, 'messages'>,
   ): Promise<ReturnType<MastraModelOutput['getFullOutput']>> {
+    // Handle both new signature (messages, options) and old signature (single param object)
+    let params: StreamVNextParams<T>;
+    if (typeof messagesOrParams === 'object' && 'messages' in messagesOrParams) {
+      // Old signature: single parameter object
+      params = messagesOrParams;
+    } else {
+      // New signature: messages as first param, options as second
+      params = {
+        messages: messagesOrParams as MessageListInput,
+        ...options,
+      } as StreamVNextParams<T>;
+    }
     const processedParams = {
       ...params,
       output: params.output ? zodToJsonSchema(params.output) : undefined,
@@ -1256,6 +1277,19 @@ export class Agent extends BaseResource {
   }
 
   async streamVNext<T extends OutputSchema | undefined = undefined>(
+    messages: MessageListInput,
+    options?: Omit<StreamVNextParams<T>, 'messages'>,
+  ): Promise<
+    Response & {
+      processDataStream: ({
+        onChunk,
+      }: {
+        onChunk: Parameters<typeof processMastraStream>[0]['onChunk'];
+      }) => Promise<void>;
+    }
+  >;
+  // Backward compatibility overload
+  async streamVNext<T extends OutputSchema | undefined = undefined>(
     params: StreamVNextParams<T>,
   ): Promise<
     Response & {
@@ -1265,7 +1299,31 @@ export class Agent extends BaseResource {
         onChunk: Parameters<typeof processMastraStream>[0]['onChunk'];
       }) => Promise<void>;
     }
+  >;
+  async streamVNext<T extends OutputSchema | undefined = undefined>(
+    messagesOrParams: MessageListInput | StreamVNextParams<T>,
+    options?: Omit<StreamVNextParams<T>, 'messages'>,
+  ): Promise<
+    Response & {
+      processDataStream: ({
+        onChunk,
+      }: {
+        onChunk: Parameters<typeof processMastraStream>[0]['onChunk'];
+      }) => Promise<void>;
+    }
   > {
+    // Handle both new signature (messages, options) and old signature (single param object)
+    let params: StreamVNextParams<T>;
+    if (typeof messagesOrParams === 'object' && 'messages' in messagesOrParams) {
+      // Old signature: single parameter object
+      params = messagesOrParams;
+    } else {
+      // New signature: messages as first param, options as second
+      params = {
+        messages: messagesOrParams as MessageListInput,
+        ...options,
+      } as StreamVNextParams<T>;
+    }
     const processedParams = {
       ...params,
       output: params.output ? zodToJsonSchema(params.output) : undefined,
