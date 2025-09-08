@@ -378,6 +378,7 @@ export function createLLMExecutionStep<
   headers,
   downloadRetries,
   downloadConcurrency,
+  outputSettings,
 }: OuterLLMRun<Tools, OUTPUT>) {
   return createStep({
     id: 'llm-execution',
@@ -459,6 +460,7 @@ export function createLLMExecutionStep<
           telemetry_settings,
           includeRawChunks,
           output,
+          outputSettings,
         },
       });
 
