@@ -82,7 +82,7 @@ export function verifyNoObjectGeneratedError(
 export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runId: string }) {
   describe('loopFn', () => {
     describe('outputSettings', () => {
-      it('should should emit an error if the partial validation fails with emitErrorOnPartialValidationFailure: true', async () => {
+      it('should emit an error if the partial validation fails with emitErrorOnPartialValidationFailure: true', async () => {
         const result = loopFn({
           model: createTestModel({
             stream: convertArrayToReadableStream([
@@ -129,7 +129,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         expect((result.error as Error).message).toContain('Expected string, received number');
       });
 
-      it('should should NOT emit an error if the partial validation fails with emitErrorOnPartialValidationFailure: false', async () => {
+      it('should NOT emit an error if the partial validation fails with emitErrorOnPartialValidationFailure: false', async () => {
         const result = loopFn({
           model: createTestModel({
             stream: convertArrayToReadableStream([
