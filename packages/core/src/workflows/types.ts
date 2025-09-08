@@ -217,6 +217,13 @@ export type WorkflowStreamEvent =
         args: any;
       };
       args: any;
+    }
+  | {
+      type: 'workflow-step-output';
+      payload: {
+        id: string;
+        output: any;
+      };
     };
 
 export type WorkflowRunStatus = 'running' | 'success' | 'failed' | 'suspended' | 'waiting' | 'pending' | 'canceled';

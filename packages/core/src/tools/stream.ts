@@ -18,7 +18,6 @@ export class ToolStream<T> extends WritableStream<T> {
     super({
       async write(chunk: any) {
         const writer = originalStream?.getWriter();
-
         try {
           await writer?.write({
             type: `${prefix}-output`,

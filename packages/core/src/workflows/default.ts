@@ -205,6 +205,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }): Promise<TOutput> {
     const { workflowId, runId, graph, input, resume, retryConfig, runtimeContext, tracingContext, disableScorers } =
       params;
+
     const { attempts = 0, delay = 0 } = retryConfig ?? {};
     const steps = graph.steps;
 

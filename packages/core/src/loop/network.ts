@@ -1,14 +1,85 @@
 import type { JSONSchema7 } from 'json-schema';
 import z from 'zod';
 import type { ZodSchema } from 'zod';
-import type { Agent, AgentExecutionOptions } from '../agent';
+import type { AgentExecutionOptions } from '../agent';
+import { Agent } from '../agent/index';
 import { MessageList } from '../agent/message-list';
 import type { MastraMessageV2, MessageListInput } from '../agent/message-list';
 import type { RuntimeContext } from '../runtime-context';
 import type { OutputSchema } from '../stream';
 import { createStep, createWorkflow } from '../workflows';
 import { EMITTER_SYMBOL } from '../workflows/constants';
+import { zodToJsonSchema } from '../zod-to-json';
 import { RESOURCE_TYPES } from './types';
+
+async function getRoutingAgent({ runtimeContext, agent }: { agent: Agent; runtimeContext: RuntimeContext }) {
+  const instructionsToUse = await agent.getInstructions({ runtimeContext: runtimeContext });
+  const agentsToUse = await agent.getAgents({ runtimeContext: runtimeContext });
+  const workflowsToUse = await agent.getWorkflows({ runtimeContext: runtimeContext });
+  const toolsToUse = await agent.getTools({ runtimeContext: runtimeContext });
+  const model = await agent.getModel({ runtimeContext: runtimeContext });
+  const memoryToUse = await agent.getMemory({ runtimeContext: runtimeContext });
+
+  const agentList = Object.entries(agentsToUse)
+    .map(([name, agent]) => {
+      // Use agent name instead of description since description might not exist
+      return ` - **${name}**: ${agent.getDescription()}`;
+    })
+    .join('\n');
+
+  const workflowList = Object.entries(workflowsToUse)
+    .map(([name, workflow]) => {
+      return ` - **${name}**: ${workflow.description}, input schema: ${JSON.stringify(
+        zodToJsonSchema(workflow.inputSchema),
+      )}`;
+    })
+    .join('\n');
+
+  const toolList = Object.entries(toolsToUse)
+    .map(([name, tool]) => {
+      return ` - **${name}**: ${tool.description}, input schema: ${JSON.stringify(
+        zodToJsonSchema((tool as any).inputSchema || z.object({})),
+      )}`;
+    })
+    .join('\n');
+
+  const instructions = `
+          You are a router in a network of specialized AI agents. 
+          Your job is to decide which agent should handle each step of a task.
+
+          If asking for completion of a task, make sure to follow system instructions closely.
+            
+          ## System Instructions
+          ${instructionsToUse}
+
+          You can only pick agents and workflows that are available in the lists below. Never call any agents or workflows that are not available in the lists below.
+
+          ## Available Agents in Network
+          ${agentList}
+
+          ## Available Workflows in Network (make sure to use inputs corresponding to the input schema when calling a workflow)
+          ${workflowList}
+
+          ## Available Tools in Network (make sure to use inputs corresponding to the input schema when calling a tool)
+          ${toolList}
+
+          If you have multiple entries that need to be called with a workflow or agent, call them separately with each input.
+          When calling a workflow, the prompt should be a JSON value that corresponds to the input schema of the workflow. The JSON value is stringified.
+          When calling a tool, the prompt should be a JSON value that corresponds to the input schema of the tool. The JSON value is stringified.
+          When calling an agent, the prompt should be a text value, like you would call an LLM in a chat interface.
+
+          Keep in mind that the user only sees the final result of the task. When reviewing completion, you should know that the user will not see the intermediate results.
+        `;
+
+  return new Agent({
+    name: 'routing-agent',
+    instructions,
+    model: model,
+    memory: memoryToUse,
+    // @ts-ignore
+    _agentNetworkAppend: true,
+  });
+}
 
 export function getLastMessage(messages: MessageListInput) {
   let message = '';
@@ -98,19 +169,18 @@ export async function createNetworkLoop<
   networkName,
   runtimeContext,
   runId,
-  routingAgent,
-  routingAgentOptions,
+  agent,
   generateId,
 }: {
   networkName: string;
   runtimeContext: RuntimeContext;
   runId: string;
-  routingAgent: Agent;
+  agent: Agent;
   routingAgentOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>;
   generateId: () => string;
 }) {
   const routingStep = createStep({
-    id: 'routing-step',
+    id: 'routing-agent-step',
     inputSchema: z.object({
       task: z.string(),
       resourceId: z.string(),
@@ -132,7 +202,7 @@ export async function createNetworkLoop<
       selectionReason: z.string(),
       iteration: z.number(),
     }),
-    execute: async ({ inputData, getInitData }) => {
+    execute: async ({ inputData, getInitData, writer }) => {
       const initData = await getInitData();
 
       const completionSchema = z.object({
@@ -140,7 +210,18 @@ export async function createNetworkLoop<
         finalResult: z.string(),
         completionReason: z.string(),
       });
+
+      await writer.write({
+        type: 'routing-agent-start',
+        payload: {
+          inputData,
+        },
+      });
+
+      const routingAgent = await getRoutingAgent({ runtimeContext, agent });
+
       let completionResult;
+
       if (inputData.resourceType !== 'none' && inputData?.result) {
         // Check if the task is complete
         const completionPrompt = `
@@ -158,15 +239,15 @@ export async function createNetworkLoop<
                       `;
 
         completionResult = await routingAgent.generateVNext([{ role: 'assistant', content: completionPrompt }], {
-          ...routingAgentOptions,
           output: completionSchema,
           threadId: initData?.threadId ?? runId,
           resourceId: initData?.threadResourceId ?? networkName,
           runtimeContext: runtimeContext,
+          maxSteps: 1,
         });
 
         if (completionResult?.object?.isComplete) {
-          return {
+          const endPayload = {
             task: inputData.task,
             resourceId: '',
             resourceType: 'none' as z.infer<typeof RESOURCE_TYPES>,
@@ -176,6 +257,13 @@ export async function createNetworkLoop<
             selectionReason: completionResult.object.completionReason || '',
             iteration: inputData.iteration + 1,
           };
+
+          await writer.write({
+            type: 'routing-agent-end',
+            payload: endPayload,
+          });
+
+          return endPayload;
         }
       }
 
@@ -214,25 +302,36 @@ export async function createNetworkLoop<
         threadId: initData?.threadId ?? runId,
         resourceId: initData?.threadResourceId ?? networkName,
         runtimeContext: runtimeContext,
+        toolChoice: 'none' as any,
+        maxSteps: 1,
       };
 
       const result = await routingAgent.generateVNext(prompt, options);
 
-      return {
+      const object = result.object;
+
+      const endPayload = {
         task: inputData.task,
         result: '',
-        resourceId: result.object.resourceId,
-        resourceType: result.object.resourceType,
-        prompt: result.object.prompt,
-        isComplete: result.object.resourceId === 'none' && result.object.resourceType === 'none' ? true : false,
-        selectionReason: result.object.selectionReason,
+        resourceId: object.resourceId,
+        resourceType: object.resourceType,
+        prompt: object.prompt,
+        isComplete: object.resourceId === 'none' && object.resourceType === 'none' ? true : false,
+        selectionReason: object.selectionReason,
         iteration: inputData.iteration + 1,
       };
+
+      await writer.write({
+        type: 'routing-agent-end',
+        payload: endPayload,
+      });
+
+      return endPayload;
     },
   });
 
   const agentStep = createStep({
-    id: 'agent-step',
+    id: 'agent-execution-step',
     inputSchema: z.object({
       task: z.string(),
       resourceId: z.string(),
@@ -251,14 +350,14 @@ export async function createNetworkLoop<
       isComplete: z.boolean().optional(),
       iteration: z.number(),
     }),
-    execute: async ({ inputData, [EMITTER_SYMBOL]: emitter, getInitData }) => {
-      const agentsMap = await routingAgent.getAgents({ runtimeContext });
+    execute: async ({ inputData, writer, getInitData }) => {
+      const agentsMap = await agent.getAgents({ runtimeContext });
 
       const agentId = inputData.resourceId;
 
-      const agent = agentsMap[inputData.resourceId];
+      const agentForStep = agentsMap[inputData.resourceId];
 
-      if (!agent) {
+      if (!agentForStep) {
         throw new Error(`Agent ${agentId} not found`);
       }
 
@@ -273,54 +372,30 @@ export async function createNetworkLoop<
         streamPromise.reject = reject;
       });
 
-      const toolData = {
-        name: agent.name,
-        args: inputData,
-      };
-
-      await emitter.emit('watch-v2', {
-        type: 'tool-call-streaming-start',
-        ...toolData,
-      });
-
-      const result = await agent.streamVNext(inputData.prompt, {
-        // resourceId: inputData.resourceId,
-        // threadId: inputData.threadId,
-        runtimeContext: runtimeContext,
-        onFinish: res => {
-          streamPromise.resolve(res.text);
+      await writer.write({
+        type: 'agent-execution-start',
+        payload: {
+          agentId: inputData.resourceId,
+          args: inputData,
         },
       });
 
-      for await (const chunk of result.fullStream) {
-        switch (chunk.type) {
-          case 'text-delta':
-            await emitter.emit('watch-v2', {
-              type: 'tool-call-delta',
-              ...toolData,
-              argsTextDelta: chunk.payload.text,
-            });
-            break;
+      const result = await agentForStep.streamVNext(inputData.prompt, {
+        // resourceId: inputData.resourceId,
+        // threadId: inputData.threadId,
+        runtimeContext: runtimeContext,
+      });
 
-          case 'step-start':
-          case 'step-finish':
-          case 'finish':
-          case 'tool-call':
-          case 'tool-result':
-          case 'tool-call-input-streaming-start':
-          case 'tool-call-delta':
-            break;
-          case 'source':
-          case 'file':
-          default:
-            await emitter.emit('watch-v2', chunk);
-            break;
-        }
+      for await (const chunk of result.fullStream) {
+        await writer.write({
+          type: `agent-execution-${chunk.type}`,
+          payload: chunk,
+        });
       }
 
-      const finalResult = await streamPromise.promise;
+      const finalResult = await result.text;
 
-      const memory = await routingAgent.getMemory({ runtimeContext: runtimeContext });
+      const memory = await agent.getMemory({ runtimeContext: runtimeContext });
 
       const initData = await getInitData();
 
@@ -339,6 +414,19 @@ export async function createNetworkLoop<
         format: 'v2',
       });
 
+      const endPayload = {
+        task: inputData.task,
+        agentId: inputData.resourceId,
+        result: finalResult,
+        isComplete: false,
+        iteration: inputData.iteration,
+      };
+
+      await writer.write({
+        type: 'agent-execution-end',
+        payload: endPayload,
+      });
+
       return {
         task: inputData.task,
         resourceId: inputData.resourceId,
@@ -351,7 +439,7 @@ export async function createNetworkLoop<
   });
 
   const workflowStep = createStep({
-    id: 'workflow-step',
+    id: 'workflow-execution-step',
     inputSchema: z.object({
       task: z.string(),
       resourceId: z.string(),
@@ -371,7 +459,9 @@ export async function createNetworkLoop<
       iteration: z.number(),
     }),
     execute: async ({ inputData, [EMITTER_SYMBOL]: emitter, getInitData }) => {
-      const workflowsMap = await routingAgent.getWorkflows({ runtimeContext: runtimeContext });
+      console.log('Workflow Step Debug - Input Data', JSON.stringify(inputData, null, 2));
+
+      const workflowsMap = await agent.getWorkflows({ runtimeContext: runtimeContext });
       const wf = workflowsMap[inputData.resourceId];
 
       if (!wf) {
@@ -386,24 +476,15 @@ export async function createNetworkLoop<
         throw new Error(`Invalid task input: ${inputData.task}`);
       }
 
-      let streamPromise = {} as {
-        promise: Promise<any>;
-        resolve: (value: any) => void;
-        reject: (reason?: any) => void;
-      };
-
-      streamPromise.promise = new Promise((resolve, reject) => {
-        streamPromise.resolve = resolve;
-        streamPromise.reject = reject;
-      });
       const toolData = {
         name: wf.name,
         args: inputData,
       };
-      await emitter.emit('watch-v2', {
-        type: 'tool-call-streaming-start',
-        ...toolData,
-      });
+
+      // await emitter.emit('watch-v2', {
+      //     type: 'tool-call-streaming-start',
+      //     ...toolData,
+      // });
 
       const run = wf.createRun();
 
@@ -412,31 +493,27 @@ export async function createNetworkLoop<
         runtimeContext: runtimeContext,
       });
 
-      let result: any;
-      let stepResults: Record<string, any> = {};
+      // let result: any;
+      // let stepResults: Record<string, any> = {};
       for await (const chunk of stream) {
         const c: any = chunk;
         // const c = chunk;
         switch (c.type) {
           case 'text-delta':
-            await emitter.emit('watch-v2', {
-              type: 'tool-call-delta',
-              ...toolData,
-              argsTextDelta: c.textDelta,
-            });
+            // await emitter.emit('watch-v2', {
+            //     type: 'tool-call-delta',
+            //     ...toolData,
+            //     argsTextDelta: c.textDelta,
+            // });
             break;
 
           case 'step-result':
-            if (c?.payload?.output) {
-              result = c?.payload?.output;
-              stepResults[c?.payload?.id] = c?.payload?.output;
-            }
-            await emitter.emit('watch-v2', c);
+            // if (c?.payload?.output) {
+            //     result = c?.payload?.output;
+            //     stepResults[c?.payload?.id] = c?.payload?.output;
+            // }
+            // await emitter.emit('watch-v2', c);
             break;
-          case 'finish':
-            streamPromise.resolve(result);
-            break;
-
           case 'start':
           case 'step-start':
           case 'step-finish':
@@ -447,13 +524,12 @@ export async function createNetworkLoop<
           case 'source':
           case 'file':
           default:
-            await emitter.emit('watch-v2', c);
+            // await emitter.emit('watch-v2', c);
             break;
         }
       }
 
       let runSuccess = true;
-      const runResult = await streamPromise.promise;
 
       const workflowState = await stream.result;
 
@@ -463,11 +539,11 @@ export async function createNetworkLoop<
 
       const finalResult = JSON.stringify({
         runId: run.runId,
-        runResult,
+        runResult: workflowState,
         runSuccess,
       });
 
-      const memory = await routingAgent.getMemory({ runtimeContext: runtimeContext });
+      const memory = await agent.getMemory({ runtimeContext: runtimeContext });
       const initData = await getInitData();
       await memory?.saveMessages({
         messages: [
@@ -484,6 +560,8 @@ export async function createNetworkLoop<
         format: 'v2',
       });
 
+      console.log('Workflow Step Debug - Final Result', JSON.stringify(finalResult, null, 2));
+
       return {
         result: finalResult || '',
         task: inputData.task,
@@ -496,7 +574,7 @@ export async function createNetworkLoop<
   });
 
   const toolStep = createStep({
-    id: 'toolStep',
+    id: 'tool-execution-step',
     inputSchema: z.object({
       task: z.string(),
       resourceId: z.string(),
@@ -515,8 +593,8 @@ export async function createNetworkLoop<
       isComplete: z.boolean().optional(),
       iteration: z.number(),
     }),
-    execute: async ({ inputData, getInitData }) => {
-      const toolsMap = await routingAgent.getTools({ runtimeContext });
+    execute: async ({ inputData, getInitData, writer }) => {
+      const toolsMap = await agent.getTools({ runtimeContext });
       const tool = toolsMap[inputData.resourceId];
 
       if (!tool) {
@@ -535,21 +613,34 @@ export async function createNetworkLoop<
         throw new Error(`Invalid task input: ${inputData.task}`);
       }
 
+      const toolCallId = generateId();
+
+      await writer?.write({
+        type: 'tool-execution-start',
+        payload: {
+          context: inputDataToUse,
+          toolId: inputData.resourceId,
+          runId,
+          toolCallId,
+        },
+      });
+
       const finalResult: any = await tool.execute(
         {
           runtimeContext,
-          mastra: routingAgent.getMastraInstance(),
+          mastra: agent.getMastraInstance(),
           resourceId: inputData.resourceId,
           threadId: runId,
           runId,
           context: inputDataToUse,
           // TODO: Pass proper tracing context when network supports tracing
           tracingContext: { currentSpan: undefined },
+          writer,
         },
-        { toolCallId: generateId(), messages: [] },
+        { toolCallId, messages: [] },
       );
 
-      const memory = await routingAgent.getMemory({ runtimeContext: runtimeContext });
+      const memory = await agent.getMemory({ runtimeContext: runtimeContext });
       const initData = await getInitData();
       await memory?.saveMessages({
         messages: [
@@ -566,7 +657,7 @@ export async function createNetworkLoop<
         format: 'v2',
       });
 
-      return {
+      const endPayload = {
         task: inputData.task,
         resourceId: inputData.resourceId,
         resourceType: inputData.resourceType,
@@ -574,6 +665,13 @@ export async function createNetworkLoop<
         isComplete: false,
         iteration: inputData.iteration,
       };
+
+      await writer?.write({
+        type: 'tool-execution-end',
+        payload: endPayload,
+      });
+
+      return endPayload;
     },
   });
 
@@ -596,6 +694,12 @@ export async function createNetworkLoop<
       iteration: z.number(),
     }),
     execute: async ({ inputData }) => {
+      console.log('Finish Step Debug - Input Data', JSON.stringify(inputData, null, 2));
+      console.log('Finish Step Debug - Is Complete', inputData.isComplete);
+      console.log('Finish Step Debug - Iteration', inputData.iteration);
+      console.log('Finish Step Debug - Result', inputData.result);
+      console.log('Finish Step Debug - Task', inputData.task);
+
       return {
         task: inputData.task,
         result: inputData.result,
@@ -719,7 +823,7 @@ export async function networkLoop<
     networkName,
     runtimeContext,
     runId,
-    routingAgent,
+    agent: routingAgent,
     routingAgentOptions,
     generateId,
   });
@@ -741,7 +845,7 @@ export async function networkLoop<
   });
 
   const mainWorkflow = createWorkflow({
-    id: 'Agent-Loop-Main-Workflow',
+    id: 'agent-loop-main-workflow',
     inputSchema: z.object({
       iteration: z.number(),
       task: z.string(),
@@ -765,12 +869,17 @@ export async function networkLoop<
     }),
   })
     .dountil(networkWorkflow, async ({ inputData }) => {
+      console.log('Main Workflow Debug - Input Data', JSON.stringify(inputData, null, 2));
+      console.log('Main Workflow Debug - Max Iterations', maxIterations);
+      console.log('Main Workflow Debug - Iteration', inputData.iteration);
+      console.log('Main Workflow Debug - Is Complete', inputData.isComplete);
+
       return inputData.isComplete || (maxIterations && inputData.iteration >= maxIterations);
     })
     .then(finalStep)
     .commit();
 
-  const run = mainWorkflow.createRun({
+  const run = await mainWorkflow.createRunAsync({
     runId,
   });
 
@@ -785,20 +894,16 @@ export async function networkLoop<
 
   const task = getLastMessage(messages);
 
-  return {
-    get fullStream() {
-      return run.streamVNext({
-        inputData: {
-          task,
-          resourceId: '',
-          resourceType: 'none',
-          iteration: 0,
-          threadResourceId: thread?.resourceId,
-          threadId: thread?.id,
-          isOneOff: false,
-          verboseIntrospection: true,
-        },
-      });
+  return run.streamVNext({
+    inputData: {
+      task,
+      resourceId: '',
+      resourceType: 'none',
+      iteration: 0,
+      threadResourceId: thread?.resourceId,
+      threadId: thread?.id,
+      isOneOff: false,
+      verboseIntrospection: true,
     },
-  };
+  });
 }
