@@ -7,21 +7,18 @@ import virtual from '@rollup/plugin-virtual';
 import esmShim from '@rollup/plugin-esm-shim';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { rollup, type OutputAsset, type OutputChunk, type Plugin } from 'rollup';
+import { rollup, type OutputAsset, type OutputChunk, type SourceMap } from 'rollup';
 import { esbuild } from './plugins/esbuild';
-import { isNodeBuiltin } from './isNodeBuiltin';
 import { aliasHono } from './plugins/hono-alias';
-import { removeDeployer } from './plugins/remove-deployer';
 import { join } from 'node:path';
 import { validate } from '../validator/validate';
-import { tsConfigPaths } from './plugins/tsconfig-paths';
 import { writeFile } from 'node:fs/promises';
 import { getBundlerOptions } from './bundlerOptions';
 import { checkConfigExport } from './babel/check-config-export';
 import { getCompiledDepCachePath, getPackageName, getPackageRootPath } from './utils';
 import { createWorkspacePackageMap, type WorkspacePackageInfo } from '../bundler/workspaceDependencies';
 import type { DependencyMetadata } from './types';
+import { analyzeEntry } from './analyze/analyzeEntry';
 
 // TODO: Make this extendable or find a rollup plugin that can do this
 const globalExternals = [
@@ -65,15 +62,16 @@ function findExternalImporter(module: OutputChunk, external: string, allOutputs:
 }
 
 /**
- * Analyzes the entry file to identify dependencies that need optimization.
- * This is the first step of the bundle analysis process.
+ * Analyzes the entry file to identify extneral dependencies and their imports. This allows us to treeshake all code that is not used.
  *
- * @param entry - The entry file path or content
- * @param mastraEntry - The mastra entry point
- * @param isVirtualFile - Whether the entry is a virtual file (content string) or a file path
- * @param platform - Target platform (node or browser)
- * @param logger - Logger instance for debugging
- * @returns Map of dependencies to optimize with their metadata (exported bindings, rootPath, isWorkspace)
+ * @param {string}entry - The entry file path or content
+ * @param {string}mastraEntry - The mastra entry point
+ * @param {boolean}isVirtualFile - Whether the entry is a virtual file (content string) or a file path
+ * @param {string}platform - Target platform (node or browser)
+ * @param {IMastraLogger}logger - Logger instance for debugging
+ * @param {boolean}sourcemapEnabled - Whether sourcemaps are enabled
+ * @param {Map<string, WorkspacePackageInfo>}workspaceMap - Map of workspace packages
+ * @returns {Promise<{dependencies: Map<string, DependencyMetadata>, output: {code: string, map: SourceMap | null}}>} Map of dependencies to optimize with their metadata (exported bindings, rootPath, isWorkspace)
  */
 async function analyze(
   entry: string,
@@ -83,106 +81,14 @@ async function analyze(
   logger: IMastraLogger,
   sourcemapEnabled: boolean = false,
   workspaceMap: Map<string, WorkspacePackageInfo>,
-) {
-  logger.info('Analyzing dependencies...');
-  let virtualPlugin = null;
-  if (isVirtualFile) {
-    virtualPlugin = virtual({
-      '#entry': entry,
-    });
-    entry = '#entry';
-  }
-
-  const normalizedMastraEntry = mastraEntry.replaceAll('\\', '/');
-  const optimizerBundler = await rollup({
-    logLevel: process.env.MASTRA_BUNDLER_DEBUG === 'true' ? 'debug' : 'silent',
-    input: isVirtualFile ? '#entry' : entry,
-    treeshake: 'smallest',
-    preserveSymlinks: true,
-    plugins: [
-      virtualPlugin,
-      tsConfigPaths(),
-      {
-        name: 'custom-alias-resolver',
-        resolveId(id: string) {
-          if (id === '#server') {
-            return fileURLToPath(import.meta.resolve('@mastra/deployer/server')).replaceAll('\\', '/');
-          }
-          if (id === '#mastra') {
-            return normalizedMastraEntry;
-          }
-          if (id.startsWith('@mastra/server')) {
-            return fileURLToPath(import.meta.resolve(id));
-          }
-
-          // Tools is generated dependency, we don't want it to be handled by the bundler but instead read from disk at runtime
-          if (id === '#tools') {
-            return {
-              id: '#tools',
-              external: true,
-            };
-          }
-        },
-      } satisfies Plugin,
-      json(),
-      esbuild(),
-      commonjs({
-        strictRequires: 'debug',
-        ignoreTryCatch: false,
-        transformMixedEsModules: true,
-        extensions: ['.js', '.ts'],
-      }),
-      removeDeployer(normalizedMastraEntry, { sourcemap: sourcemapEnabled }),
-      esbuild(),
-    ].filter(Boolean),
-  });
-
-  const { output } = await optimizerBundler.generate({
-    format: 'esm',
-    inlineDynamicImports: true,
-  });
-
-  await optimizerBundler.close();
-
-  const depsToOptimize = new Map<string, DependencyMetadata>();
-
-  for (const [dep, bindings] of Object.entries(output[0].importedBindings)) {
-    // Skip node built-in
-    if (isNodeBuiltin(dep)) {
-      continue;
-    }
-
-    const isWorkspace = workspaceMap.has(dep);
-
-    const pkgName = getPackageName(dep);
-    let rootPath: string | null = null;
-
-    if (pkgName && pkgName !== '#tools') {
-      rootPath = await getPackageRootPath(pkgName);
-    }
-
-    depsToOptimize.set(dep, { exports: bindings, rootPath, isWorkspace });
-  }
-
-  for (const o of output) {
-    if (o.type !== 'chunk') {
-      continue;
-    }
-
-    // Tools is generated dependency, we don't want our analyzer to handle it
-    const dynamicImports = o.dynamicImports.filter(d => d !== '#tools');
-    if (!dynamicImports.length) {
-      continue;
-    }
-
-    for (const dynamicImport of dynamicImports) {
-      if (!depsToOptimize.has(dynamicImport) && !isNodeBuiltin(dynamicImport)) {
-        depsToOptimize.set(dynamicImport, { exports: ['*'], rootPath: null, isWorkspace: false });
-      }
-    }
-  }
-
-  return depsToOptimize;
+): Promise<{
+  dependencies: Map<string, DependencyMetadata>;
+  output: {
+    code: string;
+    map: SourceMap | null;
+  };
+}> {
+  return analyzeEntry({ entry, isVirtualFile }, mastraEntry, { logger, sourcemapEnabled, workspaceMap });
 }
 
 /**
@@ -489,6 +395,7 @@ If you think your configuration is valid, please open an issue.`);
 
   const workspaceMap = await createWorkspacePackageMap();
 
+  let index = 0;
   const depsToOptimize = new Map<string, DependencyMetadata>();
   for (const entry of entries) {
     const isVirtualFile = entry.includes('\n') || !existsSync(entry);
@@ -502,7 +409,8 @@ If you think your configuration is valid, please open an issue.`);
       workspaceMap,
     );
 
-    for (const [dep, { exports }] of analyzeResult.entries()) {
+    await writeFile(join(outputDir, `entry-${index++}.js`), analyzeResult.output.code);
+    for (const [dep, { exports }] of analyzeResult.dependencies.entries()) {
       if (depsToOptimize.has(dep)) {
         // Merge with existing exports if dependency already exists
         const existingEntry = depsToOptimize.get(dep)!;
@@ -524,6 +432,7 @@ If you think your configuration is valid, please open an issue.`);
       }
     }
   }
+  console.log('outputDir', outputDir);
   const bundlerOptions = await getBundlerOptions(mastraEntry, outputDir);
 
   const { output, reverseVirtualReferenceMap, usedExternals } = await bundleExternals(
