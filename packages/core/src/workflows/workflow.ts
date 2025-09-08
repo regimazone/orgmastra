@@ -42,7 +42,7 @@ import type {
 
 // Helper to detect if a type is 'any' (TypeScript any or Zod any)
 type IsAny<T> =
-  // Check for TypeScript any using the proper detection method
+  // Check if the type that we pass in is a true 'any' value
   0 extends 1 & T
     ? true
     : T extends z.ZodAny
