@@ -83,7 +83,7 @@ export async function getInputOptions(
           }
 
           return {
-            id: '.mastra/.build/' + analyzedBundleInfo.dependencies.get(id)!,
+            id: analyzedBundleInfo.dependencies.get(id)!,
             external: false,
           };
         },

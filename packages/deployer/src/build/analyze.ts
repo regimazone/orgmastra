@@ -19,6 +19,8 @@ import { getCompiledDepCachePath, getPackageName, getPackageRootPath } from './u
 import { createWorkspacePackageMap, type WorkspacePackageInfo } from '../bundler/workspaceDependencies';
 import type { DependencyMetadata } from './types';
 import { analyzeEntry } from './analyze/analyzeEntry';
+import { bundleExternals as newBundleExternals } from './analyze/bundleExternals';
+import { findWorkspacesRoot } from 'find-workspaces';
 
 // TODO: Make this extendable or find a rollup plugin that can do this
 const globalExternals = [
@@ -59,36 +61,6 @@ function findExternalImporter(module: OutputChunk, external: string, allOutputs:
   }
 
   return null;
-}
-
-/**
- * Analyzes the entry file to identify extneral dependencies and their imports. This allows us to treeshake all code that is not used.
- *
- * @param {string}entry - The entry file path or content
- * @param {string}mastraEntry - The mastra entry point
- * @param {boolean}isVirtualFile - Whether the entry is a virtual file (content string) or a file path
- * @param {string}platform - Target platform (node or browser)
- * @param {IMastraLogger}logger - Logger instance for debugging
- * @param {boolean}sourcemapEnabled - Whether sourcemaps are enabled
- * @param {Map<string, WorkspacePackageInfo>}workspaceMap - Map of workspace packages
- * @returns {Promise<{dependencies: Map<string, DependencyMetadata>, output: {code: string, map: SourceMap | null}}>} Map of dependencies to optimize with their metadata (exported bindings, rootPath, isWorkspace)
- */
-async function analyze(
-  entry: string,
-  mastraEntry: string,
-  isVirtualFile: boolean,
-  platform: 'node' | 'browser',
-  logger: IMastraLogger,
-  sourcemapEnabled: boolean = false,
-  workspaceMap: Map<string, WorkspacePackageInfo>,
-): Promise<{
-  dependencies: Map<string, DependencyMetadata>;
-  output: {
-    code: string;
-    map: SourceMap | null;
-  };
-}> {
-  return analyzeEntry({ entry, isVirtualFile }, mastraEntry, { logger, sourcemapEnabled, workspaceMap });
 }
 
 /**
@@ -291,12 +263,14 @@ async function validateOutput(
     reverseVirtualReferenceMap,
     usedExternals,
     outputDir,
+    projectRoot,
     workspaceMap,
   }: {
     output: (OutputChunk | OutputAsset)[];
     reverseVirtualReferenceMap: Map<string, string>;
     usedExternals: Record<string, Record<string, string>>;
     outputDir: string;
+    projectRoot: string;
     workspaceMap: Map<string, WorkspacePackageInfo>;
   },
   logger: IMastraLogger,
@@ -308,6 +282,9 @@ async function validateOutput(
     workspaceMap,
   };
 
+  // store resolve map for validation
+  await writeFile(join(outputDir, 'module-resolve-map.json'), JSON.stringify(usedExternals, null, 2));
+
   // we should resolve the version of the deps
   for (const deps of Object.values(usedExternals)) {
     for (const dep of Object.keys(deps)) {
@@ -315,6 +292,7 @@ async function validateOutput(
     }
   }
 
+  debugger;
   for (const file of output) {
     if (file.type === 'asset') {
       continue;
@@ -328,7 +306,7 @@ async function validateOutput(
 
       if (!file.isDynamicEntry && file.isEntry) {
         // validate if the chunk is actually valid, a failsafe to make sure bundling didn't make any mistakes
-        await validate(join(outputDir, file.fileName));
+        await validate(join(projectRoot, file.fileName));
       }
     } catch (err) {
       result.invalidChunks.add(file.fileName);
@@ -368,10 +346,16 @@ async function validateOutput(
 export async function analyzeBundle(
   entries: string[],
   mastraEntry: string,
-  outputDir: string,
-  platform: 'node' | 'browser',
+  {
+    outputDir,
+    projectRoot,
+    platform,
+  }: {
+    outputDir: string;
+    projectRoot: string;
+    platform: 'node' | 'browser';
+  },
   logger: IMastraLogger,
-  sourcemapEnabled: boolean = false,
 ) {
   const mastraConfig = await readFile(mastraEntry, 'utf-8');
   const mastraConfigResult = {
@@ -393,23 +377,25 @@ export const mastra = new Mastra({
 If you think your configuration is valid, please open an issue.`);
   }
 
+  const bundlerOptions = await getBundlerOptions(mastraEntry, outputDir);
+  const workspaceRoot = findWorkspacesRoot()?.location;
   const workspaceMap = await createWorkspacePackageMap();
 
   let index = 0;
   const depsToOptimize = new Map<string, DependencyMetadata>();
+  logger.info('Analyzing dependencies...');
   for (const entry of entries) {
     const isVirtualFile = entry.includes('\n') || !existsSync(entry);
-    const analyzeResult = await analyze(
-      entry,
-      mastraEntry,
-      isVirtualFile,
-      platform,
+    const analyzeResult = await analyzeEntry({ entry, isVirtualFile }, mastraEntry, {
       logger,
-      sourcemapEnabled,
+      sourcemapEnabled: bundlerOptions?.sourcemap ?? false,
       workspaceMap,
-    );
+    });
 
-    await writeFile(join(outputDir, `entry-${index++}.js`), analyzeResult.output.code);
+    // write the entry file to the output dir for debugging purposes
+    await writeFile(join(outputDir, `entry-${index++}.mjs`), analyzeResult.output.code);
+
+    // Merge dependencies from each entry (main, tools, etc.)
     for (const [dep, { exports }] of analyzeResult.dependencies.entries()) {
       if (depsToOptimize.has(dep)) {
         // Merge with existing exports if dependency already exists
@@ -432,17 +418,31 @@ If you think your configuration is valid, please open an issue.`);
       }
     }
   }
-  console.log('outputDir', outputDir);
-  const bundlerOptions = await getBundlerOptions(mastraEntry, outputDir);
 
-  const { output, reverseVirtualReferenceMap, usedExternals } = await bundleExternals(
-    depsToOptimize,
-    outputDir,
-    logger,
-    bundlerOptions ?? undefined,
+  logger.debug(`Analyzed dependencies: ${Array.from(depsToOptimize.keys()).join(', ')}`);
+
+  logger.info('Optimizing dependencies...');
+  logger.debug(
+    `${Array.from(depsToOptimize.keys())
+      .map(key => `- ${key}`)
+      .join('\n')}`,
   );
+  const { output, fileNameToDependencyMap, usedExternals } = await newBundleExternals(depsToOptimize, outputDir, {
+    bundlerOptions,
+    projectRoot,
+    workspaceRoot,
+    workspaceMap,
+  });
+
   const result = await validateOutput(
-    { output, reverseVirtualReferenceMap, usedExternals, outputDir, workspaceMap },
+    {
+      output,
+      reverseVirtualReferenceMap: fileNameToDependencyMap,
+      usedExternals,
+      outputDir,
+      projectRoot: workspaceRoot || projectRoot,
+      workspaceMap,
+    },
     logger,
   );
 

@@ -124,7 +124,6 @@ export async function analyzeEntry(
   },
   mastraEntry: string,
   {
-    logger,
     sourcemapEnabled,
     workspaceMap,
   }: {
@@ -139,7 +138,6 @@ export async function analyzeEntry(
     map: SourceMap | null;
   };
 }> {
-  logger.info('Analyzing dependencies...');
   const optimizerBundler = await rollup({
     logLevel: process.env.MASTRA_BUNDLER_DEBUG === 'true' ? 'debug' : 'silent',
     input: isVirtualFile ? '#entry' : entry,
@@ -157,8 +155,6 @@ export async function analyzeEntry(
   await optimizerBundler.close();
 
   const depsToOptimize = await captureDependenciesToOptimize(output[0] as OutputChunk, workspaceMap);
-
-  logger.debug(`Analyzed dependencies: ${Array.from(depsToOptimize.keys()).join(', ')}`);
 
   return {
     dependencies: depsToOptimize,

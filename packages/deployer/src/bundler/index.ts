@@ -113,8 +113,11 @@ export abstract class Bundler extends MastraBundler {
     return await analyzeBundle(
       ([] as string[]).concat(entry),
       mastraFile,
-      join(outputDirectory, this.analyzeOutputDir),
-      'node',
+      {
+        outputDir: join(outputDirectory, this.analyzeOutputDir),
+        projectRoot: outputDirectory,
+        platform: 'node',
+      },
       this.logger,
     );
   }
@@ -226,16 +229,15 @@ export abstract class Bundler extends MastraBundler {
   protected async _bundle(
     serverFile: string,
     mastraEntryFile: string,
-    outputDirectory: string,
+    { projectRoot, outputDirectory }: { projectRoot: string; outputDirectory: string },
     toolsPaths: (string | string[])[] = [],
     bundleLocation: string = join(outputDirectory, this.outputDir),
   ): Promise<void> {
-    this.logger.info('Start bundling Mastra');
-
+    const analyzeDir = join(outputDirectory, this.analyzeOutputDir);
     let sourcemap = false;
 
     try {
-      const bundlerOptions = await getBundlerOptions(mastraEntryFile, outputDirectory);
+      const bundlerOptions = await getBundlerOptions(mastraEntryFile, analyzeDir);
       sourcemap = !!bundlerOptions?.sourcemap;
     } catch (error) {
       this.logger.debug('Failed to get bundler options, sourcemap will be disabled', { error });
@@ -247,10 +249,12 @@ export abstract class Bundler extends MastraBundler {
       analyzedBundleInfo = await analyzeBundle(
         [serverFile, ...Object.values(resolvedToolsPaths)],
         mastraEntryFile,
-        join(outputDirectory, this.analyzeOutputDir),
-        'node',
+        {
+          outputDir: analyzeDir,
+          projectRoot,
+          platform: 'node',
+        },
         this.logger,
-        sourcemap,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
