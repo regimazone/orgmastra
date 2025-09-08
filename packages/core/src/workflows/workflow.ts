@@ -1376,7 +1376,13 @@ export class Run<
     writableStream?: WritableStream<ChunkType>;
     tracingContext?: TracingContext;
   }): Promise<WorkflowResult<TOutput, TSteps>> {
-    return this._start({ inputData, runtimeContext, writableStream, tracingContext, format: 'aisdk' });
+    return this._start({
+      inputData,
+      runtimeContext,
+      writableStream,
+      tracingContext,
+      format: 'aisdk',
+    });
   }
 
   /**
@@ -1495,8 +1501,14 @@ export class Run<
   streamVNext({
     inputData,
     runtimeContext,
+    tracingContext,
     format,
-  }: { inputData?: z.infer<TInput>; runtimeContext?: RuntimeContext; format?: 'aisdk' | 'mastra' | undefined } = {}) {
+  }: {
+    inputData?: z.infer<TInput>;
+    runtimeContext?: RuntimeContext;
+    tracingContext?: TracingContext;
+    format?: 'aisdk' | 'mastra' | undefined;
+  } = {}) {
     this.closeStreamAction = async () => {};
 
     return new MastraWorkflowStream({
@@ -1559,15 +1571,19 @@ export class Run<
           }
         };
 
-        const executionResults = this._start({ inputData, runtimeContext, writableStream: writable, format }).then(
-          result => {
-            if (result.status !== 'suspended') {
-              this.closeStreamAction?.().catch(() => {});
-            }
+        const executionResults = this._start({
+          inputData,
+          runtimeContext,
+          tracingContext,
+          writableStream: writable,
+          format,
+        }).then(result => {
+          if (result.status !== 'suspended') {
+            this.closeStreamAction?.().catch(() => {});
+          }
 
-            return result;
-          },
-        );
+          return result;
+        });
         this.executionResults = executionResults;
 
         return readable;
