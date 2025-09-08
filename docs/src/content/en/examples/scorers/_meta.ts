@@ -9,6 +9,7 @@ const meta = {
   faithfulness: "Faithfulness",
   hallucination: "Hallucination",
   "keyword-coverage": "Keyword Coverage",
+  "multimodal-faithfulness": "Multimodal Faithfulness",
   "textual-difference": "Textual Difference",
   "tone-consistency": "Tone Consistency",
   "tool-call-accuracy": "Tool Call Accuracy",

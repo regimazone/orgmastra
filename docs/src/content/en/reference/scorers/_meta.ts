@@ -10,6 +10,7 @@ const meta = {
   faithfulness: "Faithfulness",
   hallucination: "Hallucination",
   "keyword-coverage": "KeywordCoverage",
+  "multimodal-faithfulness": "MultimodalFaithfulness",
   "textual-difference": "TextualDifference",
   "tone-consistency": "ToneConsistency",
   "tool-call-accuracy": "ToolCallAccuracy",

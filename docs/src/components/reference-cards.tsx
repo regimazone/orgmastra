@@ -479,6 +479,10 @@ export const ReferenceCards = () => {
             href: "/reference/scorers/keyword-coverage",
           },
           {
+            title: "Multimodal Faithfulness",
+            href: "/reference/scorers/multimodal-faithfulness",
+          },
+          {
             title: "Noise Sensitivity",
             href: "/reference/scorers/noise-sensitivity",
           },
