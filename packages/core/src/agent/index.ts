@@ -64,7 +64,7 @@ import { DefaultVoice } from '../voice';
 import { createStep, createWorkflow } from '../workflows';
 import type { Workflow } from '../workflows';
 import { agentToStep, LegacyStep as Step } from '../workflows/legacy';
-import type { AgentExecutionOptions, InnerAgentExecutionOptions } from './agent.types';
+import type { AgentExecutionOptions, InnerAgentExecutionOptions, MultiPrimitiveExecutionOptions } from './agent.types';
 import { MessageList } from './message-list';
 import type { MessageInput, MessageListInput, UIMessageWithMetadata } from './message-list';
 import { SaveQueueManager } from './save-queue';
@@ -3439,11 +3439,10 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     });
   }
 
-  async loop<
-    OUTPUT extends OutputSchema | undefined = undefined,
-    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
-    FORMAT extends 'aisdk' | 'mastra' = 'mastra',
-  >(messages: MessageListInput, options?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>) {
+  async loop<FORMAT extends 'aisdk' | 'mastra' = 'mastra'>(
+    messages: MessageListInput,
+    options?: MultiPrimitiveExecutionOptions<FORMAT>,
+  ) {
     const runId = options?.runId || this.#mastra?.generateId() || randomUUID();
     const runtimeContextToUse = options?.runtimeContext || new RuntimeContext();
 
@@ -3452,12 +3451,15 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
       runtimeContext: runtimeContextToUse,
       runId,
       routingAgent: this,
-      routingAgentOptions: options,
+      routingAgentOptions: {
+        telemetry: options?.telemetry,
+        modelSettings: options?.modelSettings,
+      },
       generateId: () => this.#mastra?.generateId() || randomUUID(),
       maxIterations: options?.maxSteps || 1,
       messages,
-      threadId: options?.threadId,
-      resourceId: options?.resourceId,
+      threadId: typeof options?.memory?.thread === 'string' ? options?.memory?.thread : options?.memory?.thread?.id,
+      resourceId: options?.memory?.resource,
     });
   }
 

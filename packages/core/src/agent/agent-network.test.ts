@@ -3,7 +3,6 @@ import { describe, it } from 'vitest';
 import { z } from 'zod';
 import { RuntimeContext } from '../runtime-context';
 import { createTool } from '../tools';
-import type { ChunkType } from '../workflows';
 import { createStep, createWorkflow } from '../workflows';
 import { MockMemory } from './test-utils';
 import { Agent } from './index';
@@ -126,24 +125,13 @@ describe('Agent - network', () => {
 
   const runtimeContext = new RuntimeContext();
 
-  function transformToNetworkChunk(chunk: ChunkType) {
-    if (chunk.type === 'workflow-step-output') {
-      const innerChunk = chunk.payload.output;
-      const innerChunkType = innerChunk.payload.output;
-
-      console.log(innerChunkType);
-
-      return innerChunkType;
-    }
-  }
-
   it('LOOP - execute a single tool', async () => {
     const anStream = await network.loop('Execute tool1', {
       runtimeContext,
     });
 
     for await (const chunk of anStream) {
-      transformToNetworkChunk(chunk);
+      console.log(chunk);
     }
   });
 
@@ -153,7 +141,7 @@ describe('Agent - network', () => {
     });
 
     for await (const chunk of anStream) {
-      transformToNetworkChunk(chunk);
+      console.log(chunk);
     }
   });
 
@@ -163,7 +151,7 @@ describe('Agent - network', () => {
     });
 
     for await (const chunk of anStream) {
-      transformToNetworkChunk(chunk);
+      console.log(chunk);
     }
 
     // console.log(

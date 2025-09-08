@@ -1,14 +1,15 @@
+import { TransformStream } from 'stream/web';
 import type { JSONSchema7 } from 'json-schema';
 import z from 'zod';
 import type { ZodSchema } from 'zod';
 import type { AgentExecutionOptions } from '../agent';
+import type { MultiPrimitiveExecutionOptions } from '../agent/agent.types';
 import { Agent } from '../agent/index';
 import { MessageList } from '../agent/message-list';
 import type { MastraMessageV2, MessageListInput } from '../agent/message-list';
 import type { RuntimeContext } from '../runtime-context';
-import type { OutputSchema } from '../stream';
+import type { ChunkType, OutputSchema } from '../stream';
 import { createStep, createWorkflow } from '../workflows';
-import { EMITTER_SYMBOL } from '../workflows/constants';
 import { zodToJsonSchema } from '../zod-to-json';
 import { RESOURCE_TYPES } from './types';
 
@@ -161,22 +162,19 @@ export async function prepareMemoryStep({
   return { thread };
 }
 
-export async function createNetworkLoop<
-  OUTPUT extends OutputSchema | undefined = undefined,
-  STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
-  FORMAT extends 'aisdk' | 'mastra' | undefined = undefined,
->({
+export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mastra'>({
   networkName,
   runtimeContext,
   runId,
   agent,
   generateId,
+  routingAgentOptions,
 }: {
   networkName: string;
   runtimeContext: RuntimeContext;
   runId: string;
   agent: Agent;
-  routingAgentOptions?: AgentExecutionOptions<OUTPUT, STRUCTURED_OUTPUT, FORMAT>;
+  routingAgentOptions?: Pick<MultiPrimitiveExecutionOptions<FORMAT>, 'telemetry' | 'modelSettings'>;
   generateId: () => string;
 }) {
   const routingStep = createStep({
@@ -244,6 +242,7 @@ export async function createNetworkLoop<
           resourceId: initData?.threadResourceId ?? networkName,
           runtimeContext: runtimeContext,
           maxSteps: 1,
+          ...routingAgentOptions,
         });
 
         if (completionResult?.object?.isComplete) {
@@ -304,6 +303,7 @@ export async function createNetworkLoop<
         runtimeContext: runtimeContext,
         toolChoice: 'none' as any,
         maxSteps: 1,
+        ...routingAgentOptions,
       };
 
       const result = await routingAgent.generateVNext(prompt, options);
@@ -872,7 +872,18 @@ export async function networkLoop<
 
   const task = getLastMessage(messages);
 
-  return run.streamVNext({
+  function transformToNetworkChunk(chunk: ChunkType) {
+    if (chunk.type === 'workflow-step-output') {
+      const innerChunk = chunk.payload.output;
+      const innerChunkType = innerChunk.payload.output;
+
+      console.log(innerChunkType);
+
+      return innerChunkType;
+    }
+  }
+
+  const stream = run.streamVNext({
     inputData: {
       task,
       resourceId: '',
@@ -884,4 +895,15 @@ export async function networkLoop<
       verboseIntrospection: true,
     },
   });
+
+  return stream.pipeThrough(
+    new TransformStream({
+      transform(chunk, controller) {
+        const transformedChunk = transformToNetworkChunk(chunk);
+        if (transformedChunk !== undefined) {
+          controller.enqueue(transformedChunk);
+        }
+      },
+    }),
+  );
 }
