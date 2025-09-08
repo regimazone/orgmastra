@@ -32,6 +32,7 @@ import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
+import { networkLoop } from '../loop/network';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MemoryConfig, StorageThreadType } from '../memory/types';
@@ -77,7 +78,6 @@ import type {
   ToolsInput,
   AgentMemoryOption,
 } from './types';
-import { getLastMessage, networkLoop } from '../loop/network';
 export * from './input-processor';
 export { TripWire };
 export { MessageList };
@@ -129,6 +129,7 @@ function resolveThreadIdFromArgs(args: {
     'getModel',
     'getInstructions',
     'getTools',
+    'getAgents',
     'getLLM',
     'getWorkflows',
     'getDefaultGenerateOptions',
@@ -350,7 +351,7 @@ export class Agent<
     return this.#voice;
   }
 
-  public async getWorkflows({
+  public async listWorkflows({
     runtimeContext = new RuntimeContext(),
   }: { runtimeContext?: RuntimeContext } = {}): Promise<Record<string, Workflow>> {
     let workflowRecord;
@@ -367,6 +368,12 @@ export class Agent<
     });
 
     return workflowRecord;
+  }
+
+  public async getWorkflows({
+    runtimeContext = new RuntimeContext(),
+  }: { runtimeContext?: RuntimeContext } = {}): Promise<Record<string, Workflow>> {
+    return this.listWorkflows({ runtimeContext });
   }
 
   async getScorers({
@@ -3443,7 +3450,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     });
   }
 
-  async loop<FORMAT extends 'aisdk' | 'mastra' = 'mastra'>(
+  async network<FORMAT extends 'aisdk' | 'mastra' = 'mastra'>(
     messages: MessageListInput,
     options?: MultiPrimitiveExecutionOptions<FORMAT>,
   ) {

@@ -32,6 +32,7 @@ import type {
 } from '@mastra/core/workflows/legacy';
 import type { JSONSchema7 } from 'json-schema';
 import type { ZodSchema } from 'zod';
+import type { MultiPrimitiveExecutionOptions } from '../../../packages/core/dist/agent/agent.types';
 
 export interface ClientOptions {
   /** Base URL for API requests */
@@ -72,6 +73,7 @@ type WithoutMethods<T> = {
 export interface GetAgentResponse {
   name: string;
   instructions: string;
+  agents: Record<string, { id: string; name: string }>;
   tools: Record<string, GetToolResponse>;
   workflows: Record<string, GetWorkflowResponse>;
   provider: string;
@@ -100,6 +102,10 @@ export type StreamParams<T extends JSONSchema7 | ZodSchema | undefined = undefin
 } & WithoutMethods<
   Omit<AgentStreamOptions<T>, 'output' | 'experimental_output' | 'runtimeContext' | 'clientTools' | 'abortSignal'>
 >;
+
+export type NetworkStreamParams = {
+  messages: MessageListInput;
+} & MultiPrimitiveExecutionOptions;
 
 export type StreamVNextParams<
   OUTPUT extends OutputSchema | undefined = undefined,

@@ -24,6 +24,13 @@ export const weatherInfo = createTool({
   },
 });
 
+const weatherAgent = new Agent({
+  name: 'Weather Agent',
+  instructions: `You are a helpful weather assistant that provides accurate weather information.`,
+  model: openai_v5('gpt-4o-mini'),
+  tools: { weatherInfo },
+});
+
 const memory = new Memory();
 
 export const chefModelV2Agent = new Agent({
@@ -38,7 +45,9 @@ export const chefModelV2Agent = new Agent({
   model: openai_v5('gpt-4o-mini'),
   tools: {
     cookingTool,
-    weatherInfo,
+  },
+  agents: {
+    weatherAgent,
   },
   workflows: {
     myWorkflow,

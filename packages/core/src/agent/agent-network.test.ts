@@ -126,7 +126,7 @@ describe('Agent - network', () => {
   const runtimeContext = new RuntimeContext();
 
   it('LOOP - execute a single tool', async () => {
-    const anStream = await network.loop('Execute tool1', {
+    const anStream = await network.network('Execute tool1', {
       runtimeContext,
     });
 
@@ -136,7 +136,7 @@ describe('Agent - network', () => {
   });
 
   it.only('LOOP - execute a single workflow', async () => {
-    const anStream = await network.loop('Execute workflow1 on Paris', {
+    const anStream = await network.network('Execute workflow1 on Paris', {
       runtimeContext,
     });
 
@@ -146,7 +146,7 @@ describe('Agent - network', () => {
   });
 
   it('LOOP - execute a single agent', async () => {
-    const anStream = await network.loop('Research dolphins', {
+    const anStream = await network.network('Research dolphins', {
       runtimeContext,
     });
 
