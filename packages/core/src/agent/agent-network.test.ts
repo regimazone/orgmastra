@@ -137,8 +137,18 @@ describe('Agent - network', () => {
     }
   }
 
-  it.only('LOOP - execute a single tool', async () => {
+  it('LOOP - execute a single tool', async () => {
     const anStream = await network.loop('Execute tool1', {
+      runtimeContext,
+    });
+
+    for await (const chunk of anStream) {
+      transformToNetworkChunk(chunk);
+    }
+  });
+
+  it.only('LOOP - execute a single workflow', async () => {
+    const anStream = await network.loop('Execute workflow1 on Paris', {
       runtimeContext,
     });
 

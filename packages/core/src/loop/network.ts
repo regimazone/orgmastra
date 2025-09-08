@@ -458,7 +458,7 @@ export async function createNetworkLoop<
       isComplete: z.boolean().optional(),
       iteration: z.number(),
     }),
-    execute: async ({ inputData, [EMITTER_SYMBOL]: emitter, getInitData }) => {
+    execute: async ({ inputData, writer, getInitData }) => {
       console.log('Workflow Step Debug - Input Data', JSON.stringify(inputData, null, 2));
 
       const workflowsMap = await agent.getWorkflows({ runtimeContext: runtimeContext });
@@ -481,6 +481,11 @@ export async function createNetworkLoop<
         args: inputData,
       };
 
+      await writer?.write({
+        type: 'workflow-execution-start',
+        payload: toolData,
+      });
+
       // await emitter.emit('watch-v2', {
       //     type: 'tool-call-streaming-start',
       //     ...toolData,
@@ -496,37 +501,10 @@ export async function createNetworkLoop<
       // let result: any;
       // let stepResults: Record<string, any> = {};
       for await (const chunk of stream) {
-        const c: any = chunk;
-        // const c = chunk;
-        switch (c.type) {
-          case 'text-delta':
-            // await emitter.emit('watch-v2', {
-            //     type: 'tool-call-delta',
-            //     ...toolData,
-            //     argsTextDelta: c.textDelta,
-            // });
-            break;
-
-          case 'step-result':
-            // if (c?.payload?.output) {
-            //     result = c?.payload?.output;
-            //     stepResults[c?.payload?.id] = c?.payload?.output;
-            // }
-            // await emitter.emit('watch-v2', c);
-            break;
-          case 'start':
-          case 'step-start':
-          case 'step-finish':
-          case 'tool-call':
-          case 'tool-result':
-          case 'tool-call-streaming-start':
-          case 'tool-call-delta':
-          case 'source':
-          case 'file':
-          default:
-            // await emitter.emit('watch-v2', c);
-            break;
-        }
+        await writer?.write({
+          type: `workflow-execution-${chunk.type}`,
+          payload: chunk,
+        });
       }
 
       let runSuccess = true;
@@ -560,16 +538,21 @@ export async function createNetworkLoop<
         format: 'v2',
       });
 
-      console.log('Workflow Step Debug - Final Result', JSON.stringify(finalResult, null, 2));
-
-      return {
-        result: finalResult || '',
+      const endPayload = {
         task: inputData.task,
         resourceId: inputData.resourceId,
         resourceType: inputData.resourceType,
+        result: finalResult,
         isComplete: false,
         iteration: inputData.iteration,
       };
+
+      await writer?.write({
+        type: 'workflow-execution-end',
+        payload: endPayload,
+      });
+
+      return endPayload;
     },
   });
 
@@ -869,11 +852,6 @@ export async function networkLoop<
     }),
   })
     .dountil(networkWorkflow, async ({ inputData }) => {
-      console.log('Main Workflow Debug - Input Data', JSON.stringify(inputData, null, 2));
-      console.log('Main Workflow Debug - Max Iterations', maxIterations);
-      console.log('Main Workflow Debug - Iteration', inputData.iteration);
-      console.log('Main Workflow Debug - Is Complete', inputData.isComplete);
-
       return inputData.isComplete || (maxIterations && inputData.iteration >= maxIterations);
     })
     .then(finalStep)
