@@ -178,16 +178,80 @@ export class Workflow extends BaseResource {
    * @param params - Optional object containing the optional runId
    * @returns Promise containing the runId of the created run
    */
-  createRun(params?: { runId?: string }): Promise<{ runId: string }> {
+  /** @deprecated Use createRunAsync instead */
+  async createRun(params?: { runId?: string }): Promise<{
+    runId: string;
+    start: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<{ message: string }>;
+    watch: (onRecord: (record: WorkflowWatchResult) => void) => Promise<void>;
+    resume: (params: {
+      step: string | string[];
+      resumeData?: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<{ message: string }>;
+    stream: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<ReadableStream>;
+    startAsync: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<WorkflowRunResult>;
+    resumeAsync: (params: {
+      step: string | string[];
+      resumeData?: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<WorkflowRunResult>;
+  }> {
     const searchParams = new URLSearchParams();
 
     if (!!params?.runId) {
       searchParams.set('runId', params.runId);
     }
 
-    return this.request(`/api/workflows/${this.workflowId}/create-run?${searchParams.toString()}`, {
-      method: 'POST',
-    });
+    const res = await this.request<{ runId: string }>(
+      `/api/workflows/${this.workflowId}/create-run?${searchParams.toString()}`,
+      {
+        method: 'POST',
+      },
+    );
+
+    const runId = res.runId;
+
+    return {
+      runId,
+      start: async (p: { inputData: Record<string, any>; runtimeContext?: RuntimeContext | Record<string, any> }) => {
+        return this.start({ runId, inputData: p.inputData, runtimeContext: p.runtimeContext });
+      },
+      startAsync: async (p: {
+        inputData: Record<string, any>;
+        runtimeContext?: RuntimeContext | Record<string, any>;
+      }) => {
+        return this.startAsync({ runId, inputData: p.inputData, runtimeContext: p.runtimeContext });
+      },
+      watch: async (onRecord: (record: WorkflowWatchResult) => void) => {
+        return this.watch({ runId }, onRecord);
+      },
+      stream: async (p: { inputData: Record<string, any>; runtimeContext?: RuntimeContext | Record<string, any> }) => {
+        return this.stream({ runId, inputData: p.inputData, runtimeContext: p.runtimeContext });
+      },
+      resume: async (p: {
+        step: string | string[];
+        resumeData?: Record<string, any>;
+        runtimeContext?: RuntimeContext | Record<string, any>;
+      }) => {
+        return this.resume({ runId, step: p.step, resumeData: p.resumeData, runtimeContext: p.runtimeContext });
+      },
+      resumeAsync: async (p: {
+        step: string | string[];
+        resumeData?: Record<string, any>;
+        runtimeContext?: RuntimeContext | Record<string, any>;
+      }) => {
+        return this.resumeAsync({ runId, step: p.step, resumeData: p.resumeData, runtimeContext: p.runtimeContext });
+      },
+    };
   }
 
   /**
@@ -195,7 +259,32 @@ export class Workflow extends BaseResource {
    * @param params - Optional object containing the optional runId
    * @returns Promise containing the runId of the created run
    */
-  createRunAsync(params?: { runId?: string }): Promise<{ runId: string }> {
+  createRunAsync(params?: { runId?: string }): Promise<{
+    runId: string;
+    start: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<{ message: string }>;
+    watch: (onRecord: (record: WorkflowWatchResult) => void) => Promise<void>;
+    resume: (params: {
+      step: string | string[];
+      resumeData?: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<{ message: string }>;
+    stream: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<ReadableStream>;
+    startAsync: (params: {
+      inputData: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<WorkflowRunResult>;
+    resumeAsync: (params: {
+      step: string | string[];
+      resumeData?: Record<string, any>;
+      runtimeContext?: RuntimeContext | Record<string, any>;
+    }) => Promise<WorkflowRunResult>;
+  }> {
     return this.createRun(params);
   }
 
@@ -235,7 +324,6 @@ export class Workflow extends BaseResource {
     const runtimeContext = parseClientRuntimeContext(rest.runtimeContext);
     return this.request(`/api/workflows/${this.workflowId}/resume?runId=${runId}`, {
       method: 'POST',
-      stream: true,
       body: {
         step,
         resumeData,
@@ -273,7 +361,11 @@ export class Workflow extends BaseResource {
    * @param params - Object containing the optional runId, inputData and runtimeContext
    * @returns Promise containing the workflow execution results
    */
-  async stream(params: { runId?: string; inputData: Record<string, any>; runtimeContext?: RuntimeContext }) {
+  async stream(params: {
+    runId?: string;
+    inputData: Record<string, any>;
+    runtimeContext?: RuntimeContext | Record<string, any>;
+  }) {
     const searchParams = new URLSearchParams();
 
     if (!!params?.runId) {
