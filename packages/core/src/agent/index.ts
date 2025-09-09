@@ -684,7 +684,7 @@ export class Agent<
         llm = new MastraLLMV1({ model: resolvedModel, mastra: this.#mastra });
       }
 
-      const resulvedLLM = resolveMaybePromise(llm, resolvedLLM => {
+      const resolvedLLM = resolveMaybePromise(llm, resolvedLLM => {
         // Apply stored primitives if available
         if (this.#primitives) {
           resolvedLLM.__registerPrimitives(this.#primitives);
@@ -695,7 +695,7 @@ export class Agent<
         return resolvedLLM;
       });
 
-      return resulvedLLM as MastraLLM;
+      return resolvedLLM as MastraLLM;
     });
   }
 
@@ -726,7 +726,7 @@ export class Agent<
       let modelToUse: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
 
       if (Array.isArray(this.model)) {
-        if (this.model.length === 0) {
+        if (this.model.length === 0 || !this.model[0]) {
           const mastraError = new MastraError({
             id: 'AGENT_GET_MODEL_MISSING_MODEL_INSTANCE',
             domain: ErrorDomain.AGENT,
@@ -740,7 +740,7 @@ export class Agent<
           this.logger.error(mastraError.toString());
           throw mastraError;
         }
-        modelToUse = this.model[0]!.model;
+        modelToUse = this.model[0].model;
       } else {
         modelToUse = this.model;
       }

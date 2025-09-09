@@ -31,17 +31,30 @@ import type { ModelLoopStreamArgs } from './model.loop.types';
 export class MastraLLMVNext extends MastraBase {
   #models: ModelManagerModelConfig[];
   #mastra?: Mastra;
+  #firstModel: ModelManagerModelConfig;
 
   constructor({ mastra, models }: { mastra?: Mastra; models: ModelManagerModelConfig[] }) {
     super({ name: 'aisdk' });
-
-    this.#models = models;
 
     if (mastra) {
       this.#mastra = mastra;
       if (mastra.getLogger()) {
         this.__setLogger(this.#mastra.getLogger());
       }
+    }
+
+    if (models.length === 0 || !models[0]) {
+      const mastraError = new MastraError({
+        id: 'LLM_LOOP_MODELS_EMPTY',
+        domain: ErrorDomain.LLM,
+        category: ErrorCategory.USER,
+      });
+      this.logger.trackException(mastraError);
+      this.logger.error(mastraError.toString());
+      throw mastraError;
+    } else {
+      this.#models = models;
+      this.#firstModel = models[0];
     }
   }
 
@@ -60,19 +73,19 @@ export class MastraLLMVNext extends MastraBase {
   }
 
   getProvider() {
-    return this.#models[0]!.model?.provider;
+    return this.#firstModel.model.provider;
   }
 
   getModelId() {
-    return this.#models[0]!.model?.modelId;
+    return this.#firstModel.model.modelId;
   }
 
   getModel() {
-    return this.#models[0]!.model;
+    return this.#firstModel.model;
   }
 
   private _applySchemaCompat(schema: OutputSchema): Schema {
-    const model = this.#models[0]?.model;
+    const model = this.#firstModel.model;
 
     const schemaCompatLayers = [];
 
@@ -139,7 +152,7 @@ export class MastraLLMVNext extends MastraBase {
     tracingContext,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
-    const firstModel = this.#models[0]?.model!;
+    const firstModel = this.#firstModel.model;
     let stopWhenToUse;
 
     if (maxSteps && typeof maxSteps === 'number') {
