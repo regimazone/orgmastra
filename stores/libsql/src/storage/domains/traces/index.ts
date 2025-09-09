@@ -40,7 +40,7 @@ export class TracesLibSQL extends TracesStorage {
 
   async getTrace(traceId: string): Promise<TraceRecord> {
     const result = await this.client.execute({
-      sql: `SELECT * FROM ${TABLE_TRACES} WHERE traceId = ?`,
+      sql: `SELECT * FROM ${TABLE_TRACES} WHERE traceId = ? ORDER BY "startTime" DESC`,
       args: [traceId],
     });
     const spans = this.formatSpans(result.rows);

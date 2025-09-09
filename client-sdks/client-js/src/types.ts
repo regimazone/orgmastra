@@ -375,8 +375,10 @@ export interface GetTelemetryResponse {
 }
 
 export interface GetTraceResponse {
-  id: string;
-  spans: Span[];
+  trace: {
+    id: string;
+    spans: Span[];
+  };
 }
 
 export interface GetTelemetryParams {
