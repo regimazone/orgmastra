@@ -33,6 +33,7 @@ export function createVirtualDependencies(
 } {
   const fileNameToDependencyMap = new Map<string, string>();
   const optimizedDependencyEntries = new Map();
+  const rootDir = workspaceRoot || projectRoot;
 
   for (const [dep, { exports }] of depsToOptimize.entries()) {
     const fileName = dep.replaceAll('/', '-');
@@ -63,7 +64,7 @@ export function createVirtualDependencies(
       /**
        * The Rollup output.entryFileNames option doesn't allow relative or absolute paths, so the cacheDirAbsolutePath needs to be converted to a name relative to the workspace root.
        */
-      .replace(projectRoot, '')
+      .replace(rootDir, '')
       /**
        * Remove leading slashes/backslashes
        */
@@ -89,7 +90,7 @@ export function createVirtualDependencies(
       /**
        * The Rollup output.entryFileNames option doesn't allow relative or absolute paths, so the cacheDirAbsolutePath needs to be converted to a name relative to the workspace root.
        */
-      .replace(workspaceRoot, '')
+      .replace(rootDir, '')
       /**
        * Remove leading slashes/backslashes
        */

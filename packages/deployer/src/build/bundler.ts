@@ -72,19 +72,12 @@ export async function getInputOptions(
             };
           }
 
-          if (isDev && analyzedBundleInfo.workspaceMap.has(id) && workspaceRoot) {
-            const filename = analyzedBundleInfo.dependencies.get(id)!;
-            const resolvedPath = join(workspaceRoot, filename);
-
-            return {
-              id: resolvedPath,
-              external: true,
-            };
-          }
-
+          const filename = analyzedBundleInfo.dependencies.get(id)!;
+          // also add projectRoot
+          const resolvedPath = join(workspaceRoot!, filename);
           return {
-            id: analyzedBundleInfo.dependencies.get(id)!,
-            external: false,
+            id: resolvedPath,
+            external: isDev,
           };
         },
       } satisfies Plugin,

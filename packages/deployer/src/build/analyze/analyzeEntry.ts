@@ -77,8 +77,8 @@ async function captureDependenciesToOptimize(
       continue;
     }
 
-    const isWorkspace = workspaceMap.has(dependency);
     const pkgName = getPackageName(dependency);
+    const isWorkspace = workspaceMap.has(pkgName!);
     let rootPath: string | null = null;
 
     if (pkgName) {

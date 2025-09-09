@@ -5,11 +5,11 @@ import { getInputOptions as getBundlerInputOptions } from './bundler';
 import { aliasHono } from './plugins/hono-alias';
 import { nodeModulesExtensionResolver } from './plugins/node-modules-extension-resolver';
 import { tsConfigPaths } from './plugins/tsconfig-paths';
-import { bundleExternals } from './analyze';
 import { noopLogger } from '@mastra/core/logger';
 import { createWorkspacePackageMap } from '../bundler/workspaceDependencies';
-import type { DependencyMetadata } from './types';
-import { getPackageName, getPackageRootPath } from './utils';
+import { analyzeBundle } from './analyze';
+import path from 'path';
+import { getPackageName } from './utils';
 
 export async function getInputOptions(
   entryFile: string,
@@ -17,52 +17,32 @@ export async function getInputOptions(
   env?: Record<string, string>,
   { sourcemap = false, transpilePackages = [] }: { sourcemap?: boolean; transpilePackages?: string[] } = {},
 ) {
-  const dependencies = new Map<string, string>();
   const workspaceMap = await createWorkspacePackageMap();
   const workspaceRoot = findWorkspacesRoot()?.location;
-  const depsToOptimize = new Map<string, DependencyMetadata>();
 
-  if (transpilePackages.length) {
-    for (const pkg of transpilePackages) {
-      const isWorkspace = workspaceMap.has(pkg);
-      const exports = ['*'];
+  const analyzeEntryResult = await analyzeBundle(
+    [entryFile],
+    entryFile,
+    {
+      outputDir: path.join(process.cwd(), '.mastra/.build'),
+      projectRoot: workspaceRoot || process.cwd(),
+      platform: 'node',
+      isDev: true,
+    },
+    noopLogger,
+  );
 
-      const pkgName = getPackageName(pkg);
-      let rootPath: string | null = null;
-
-      if (pkgName && pkgName !== '#tools') {
-        rootPath = await getPackageRootPath(pkgName);
-      }
-
-      depsToOptimize.set(pkg, { exports, isWorkspace, rootPath });
-    }
-
-    const { output, reverseVirtualReferenceMap } = await bundleExternals(
-      depsToOptimize,
-      '.mastra/.build',
-      noopLogger,
-      {
-        transpilePackages,
-        isDev: true,
-      },
-      { workspaceRoot, workspaceMap },
-    );
-
-    for (const file of output) {
-      if (file.type === 'asset') {
-        continue;
-      }
-
-      if (file.isEntry && reverseVirtualReferenceMap.has(file.name)) {
-        dependencies.set(reverseVirtualReferenceMap.get(file.name)!, file.fileName);
-      }
+  const deps = /* @__PURE__ */ new Map();
+  for (const [dep, metadata] of analyzeEntryResult.dependencies.entries()) {
+    const pkgName = getPackageName(dep);
+    if (pkgName && workspaceMap.has(pkgName)) {
+      deps.set(dep, metadata);
     }
   }
-
   const inputOptions = await getBundlerInputOptions(
     entryFile,
     {
-      dependencies,
+      dependencies: deps,
       externalDependencies: new Set(),
       invalidChunks: new Set(),
       workspaceMap,

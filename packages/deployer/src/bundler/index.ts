@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { MastraBundler } from '@mastra/core/bundler';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import virtual from '@rollup/plugin-virtual';
+import { findWorkspacesRoot } from 'find-workspaces';
 import fsExtra, { copy, ensureDir, readJSON, emptyDir } from 'fs-extra/esm';
 import { globby } from 'globby';
 import type { InputOptions, OutputOptions } from 'rollup';
@@ -166,6 +167,7 @@ export abstract class Bundler extends MastraBundler {
     toolsPaths: (string | string[])[],
     { enableSourcemap = false, enableEsmShim = true }: { enableSourcemap?: boolean; enableEsmShim?: boolean } = {},
   ) {
+    const workspaceRoot = findWorkspacesRoot()?.location;
     const inputOptions: InputOptions = await getInputOptions(
       mastraEntryFile,
       analyzedBundleInfo,
@@ -173,7 +175,7 @@ export abstract class Bundler extends MastraBundler {
       {
         'process.env.NODE_ENV': JSON.stringify('production'),
       },
-      { sourcemap: enableSourcemap, enableEsmShim },
+      { sourcemap: enableSourcemap, enableEsmShim, workspaceRoot },
     );
     const isVirtual = serverFile.includes('\n') || existsSync(serverFile);
 

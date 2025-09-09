@@ -292,7 +292,6 @@ async function validateOutput(
     }
   }
 
-  debugger;
   for (const file of output) {
     if (file.type === 'asset') {
       continue;
@@ -349,11 +348,12 @@ export async function analyzeBundle(
   {
     outputDir,
     projectRoot,
-    platform,
+    isDev = false,
   }: {
     outputDir: string;
     projectRoot: string;
     platform: 'node' | 'browser';
+    isDev?: boolean;
   },
   logger: IMastraLogger,
 ) {
@@ -396,25 +396,16 @@ If you think your configuration is valid, please open an issue.`);
     await writeFile(join(outputDir, `entry-${index++}.mjs`), analyzeResult.output.code);
 
     // Merge dependencies from each entry (main, tools, etc.)
-    for (const [dep, { exports }] of analyzeResult.dependencies.entries()) {
+    for (const [dep, metadata] of analyzeResult.dependencies.entries()) {
       if (depsToOptimize.has(dep)) {
         // Merge with existing exports if dependency already exists
         const existingEntry = depsToOptimize.get(dep)!;
         depsToOptimize.set(dep, {
           ...existingEntry,
-          exports: [...new Set([...existingEntry.exports, ...exports])],
+          exports: [...new Set([...existingEntry.exports, ...metadata.exports])],
         });
       } else {
-        const isWorkspace = workspaceMap.has(dep);
-
-        const pkgName = getPackageName(dep);
-        let rootPath: string | null = null;
-
-        if (pkgName && pkgName !== '#tools') {
-          rootPath = await getPackageRootPath(pkgName);
-        }
-
-        depsToOptimize.set(dep, { exports, rootPath, isWorkspace });
+        depsToOptimize.set(dep, metadata);
       }
     }
   }
@@ -428,7 +419,10 @@ If you think your configuration is valid, please open an issue.`);
       .join('\n')}`,
   );
   const { output, fileNameToDependencyMap, usedExternals } = await newBundleExternals(depsToOptimize, outputDir, {
-    bundlerOptions,
+    bundlerOptions: {
+      ...bundlerOptions,
+      isDev,
+    },
     projectRoot,
     workspaceRoot,
     workspaceMap,

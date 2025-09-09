@@ -37,6 +37,15 @@ function spawn(command: string, args: string[] = [], options: SpawnOptions = {})
 }
 
 export function validate(file: string) {
+  console.log(
+    `node ${[
+      '--import',
+      import.meta.resolve('@mastra/deployer/loader'),
+      '--input-type=module',
+      '-e',
+      `import('file://${file.replaceAll('\\', '/')}')`,
+    ].join(' ')}`,
+  );
   return spawn(
     'node',
     [
