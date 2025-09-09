@@ -388,7 +388,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
 
       for await (const chunk of result.fullStream) {
         await writer.write({
-          type: `agent-execution-${chunk.type}`,
+          type: `agent-execution-events-${chunk.type}`,
           payload: chunk,
         });
       }
@@ -502,7 +502,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       // let stepResults: Record<string, any> = {};
       for await (const chunk of stream) {
         await writer?.write({
-          type: `workflow-execution-${chunk.type}`,
+          type: `workflow-execution-events-${chunk.type}`,
           payload: chunk,
         });
       }
@@ -873,6 +873,7 @@ export async function networkLoop<
   const task = getLastMessage(messages);
 
   function transformToNetworkChunk(chunk: ChunkType) {
+    console.log('RAW CHUNK', JSON.stringify(chunk, null, 2));
     if (chunk.type === 'workflow-step-output') {
       const innerChunk = chunk.payload.output;
       const innerChunkType = innerChunk.payload.output;
