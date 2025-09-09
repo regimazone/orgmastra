@@ -418,6 +418,7 @@ If you think your configuration is valid, please open an issue.`);
       .map(key => `- ${key}`)
       .join('\n')}`,
   );
+
   const { output, fileNameToDependencyMap, usedExternals } = await newBundleExternals(depsToOptimize, outputDir, {
     bundlerOptions: {
       ...bundlerOptions,

@@ -254,7 +254,7 @@ export async function bundleExternals(
   const { externals: customExternals = [], transpilePackages = [], isDev = false } = bundlerOptions || {};
   const allExternals = [...globalExternals, ...deprecatedExternals, ...customExternals];
 
-  const workspacePackagesNames = Array.from(workspaceMap.keys()).filter(pkg => workspaceMap.get(pkg)!.isWorkspace);
+  const workspacePackagesNames = Array.from(workspaceMap.keys());
   const packagesToTranspile = new Set([...transpilePackages, ...workspacePackagesNames]);
 
   const { optimizedDependencyEntries, fileNameToDependencyMap } = createVirtualDependencies(depsToOptimize, {
