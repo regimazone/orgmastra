@@ -19,7 +19,6 @@ export async function getInputOptions(
   env: Record<string, string> = { 'process.env.NODE_ENV': JSON.stringify('production') },
   {
     sourcemap = false,
-    enableEsmShim = true,
     isDev = false,
     workspaceRoot = undefined,
   }: { sourcemap?: boolean; enableEsmShim?: boolean; isDev?: boolean; workspaceRoot?: string } = {},
@@ -125,7 +124,6 @@ export async function getInputOptions(
           return externals.includes(id);
         },
       }),
-      enableEsmShim ? esmShim() : undefined,
       nodeResolvePlugin,
       // for debugging
       // {
