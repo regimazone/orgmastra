@@ -1,3 +1,4 @@
+import { BadgeMessage } from '@/components/assistant-ui/tools/badges/agent-badge';
 import { ThreadMessageLike } from '@assistant-ui/react';
 import { ChunkType } from '@mastra/core';
 import { flushSync } from 'react-dom';
@@ -288,5 +289,246 @@ export const handleWorkflowChunk = ({ workflowChunk, setMessages, entityName }: 
 
       return [...currentConversation.slice(0, -1), newMessage];
     });
+  });
+};
+
+interface HandleAgentChunkOptions {
+  agentChunk: any;
+  setMessages: React.Dispatch<React.SetStateAction<ThreadMessageLike[]>>;
+  entityName: string;
+}
+
+export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: HandleAgentChunkOptions) => {
+  switch (agentChunk.type) {
+    case 'tool-result': {
+      setMessages(currentConversation => {
+        const lastMessage = currentConversation[currentConversation.length - 1];
+        const contentArray = Array.isArray(lastMessage.content)
+          ? lastMessage.content
+          : [{ type: 'text', text: lastMessage.content }];
+
+        console.log('lol', agentChunk);
+        const newMessage = {
+          ...lastMessage,
+          content: contentArray.map(part => {
+            if (part.type === 'tool-call') {
+              const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
+
+              const next = {
+                ...part,
+                toolName: part?.entityName || entityName,
+                args: {
+                  ...part.args,
+                  __mastraMetadata: {
+                    ...part.args?.__mastraMetadata,
+                    isStreaming: true,
+                    messages: [
+                      ...messages.slice(0, -1),
+                      {
+                        ...messages[messages.length - 1],
+                        type: 'tool',
+                        toolName: agentChunk.payload.toolName,
+                        toolInput: agentChunk.payload.args,
+                        toolOutput: agentChunk.payload.result,
+                      },
+                    ],
+                  },
+                },
+              };
+
+              return next;
+            }
+
+            return part;
+          }),
+        };
+
+        return [...currentConversation.slice(0, -1), newMessage];
+      });
+      break;
+    }
+    case 'tool-call': {
+      setMessages(currentConversation => {
+        const lastMessage = currentConversation[currentConversation.length - 1];
+        const contentArray = Array.isArray(lastMessage.content)
+          ? lastMessage.content
+          : [{ type: 'text', text: lastMessage.content }];
+
+        const newMessage = {
+          ...lastMessage,
+          content: contentArray.map(part => {
+            if (part.type === 'tool-call') {
+              const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
+
+              const next = {
+                ...part,
+                toolName: part?.entityName || entityName,
+                args: {
+                  ...part.args,
+                  __mastraMetadata: {
+                    ...part.args?.__mastraMetadata,
+                    isStreaming: true,
+                    messages: [
+                      ...messages,
+                      {
+                        type: 'tool',
+                        toolName: agentChunk.payload.toolName,
+                        toolInput: agentChunk.payload.args,
+                        toolOutput: agentChunk.payload.result,
+                      },
+                    ],
+                  },
+                },
+              };
+
+              return next;
+            }
+
+            return part;
+          }),
+        };
+
+        return [...currentConversation.slice(0, -1), newMessage];
+      });
+      break;
+    }
+    case 'text-delta': {
+      setMessages(currentConversation => {
+        const lastMessage = currentConversation[currentConversation.length - 1];
+        const contentArray = Array.isArray(lastMessage.content)
+          ? lastMessage.content
+          : [{ type: 'text', text: lastMessage.content }];
+
+        const newMessage = {
+          ...lastMessage,
+          content: contentArray.map(part => {
+            if (part.type === 'tool-call') {
+              const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
+              const lastMastraMessage = messages[messages.length - 1];
+
+              const nextMessages: BadgeMessage[] =
+                lastMastraMessage?.type === 'text'
+                  ? [
+                      ...messages.slice(0, -1),
+                      { type: 'text', content: (lastMastraMessage?.content || '') + agentChunk.payload.text },
+                    ]
+                  : [...messages, { type: 'text', content: agentChunk.payload.text }];
+
+              return {
+                ...part,
+                toolName: part?.entityName || entityName,
+                args: {
+                  ...part.args,
+                  __mastraMetadata: {
+                    ...part.args?.__mastraMetadata,
+                    isStreaming: true,
+                    messages: nextMessages,
+                  },
+                },
+              };
+            }
+
+            return part;
+          }),
+        };
+
+        return [...currentConversation.slice(0, -1), newMessage];
+      });
+      break;
+    }
+
+    case 'agent-execution-end':
+      break;
+  }
+};
+
+interface CreateRootToolAssistantMessageOptions {
+  chunk: any;
+  entityName: string;
+  setMessages: React.Dispatch<React.SetStateAction<ThreadMessageLike[]>>;
+  runId: string;
+  _sideEffects: HandleStreamChunkOptions['_sideEffects'];
+  from: 'AGENT' | 'WORKFLOW';
+}
+
+export const createRootToolAssistantMessage = ({
+  chunk,
+  entityName,
+  setMessages,
+  runId,
+  _sideEffects,
+  from,
+}: CreateRootToolAssistantMessageOptions) => {
+  setMessages(currentConversation => {
+    if (!entityName || !runId) return currentConversation;
+    // Get the last message (should be the assistant's message)
+    const lastMessage = currentConversation[currentConversation.length - 1];
+
+    // Only process if the last message is from the assistant
+    if (lastMessage && lastMessage.role === 'assistant') {
+      // Create a new message with the tool call part
+      const updatedMessage: ThreadMessageLike = {
+        ...lastMessage,
+        content: Array.isArray(lastMessage.content)
+          ? [
+              ...lastMessage.content,
+              {
+                type: 'tool-call',
+                toolCallId: runId,
+                toolName: entityName,
+                args: {
+                  ...chunk.payload.args,
+                  __mastraMetadata: {
+                    from,
+                    ...chunk.payload.args?.__mastraMetadata,
+                    isStreaming: true,
+                  },
+                },
+              },
+            ]
+          : [
+              ...(typeof lastMessage.content === 'string' ? [{ type: 'text', text: lastMessage.content }] : []),
+              {
+                type: 'tool-call',
+                toolCallId: runId,
+                toolName: entityName,
+                args: {
+                  ...chunk.payload.args,
+                  __mastraMetadata: {
+                    from,
+                    ...chunk.payload.args?.__mastraMetadata,
+                    isStreaming: true,
+                  },
+                },
+              },
+            ],
+      };
+
+      _sideEffects.assistantToolCallAddedForUpdater = true;
+      _sideEffects.assistantToolCallAddedForContent = true;
+
+      // Replace the last message with the updated one
+      return [...currentConversation.slice(0, -1), updatedMessage];
+    }
+
+    // If there's no assistant message yet, create one
+    const newMessage: ThreadMessageLike = {
+      role: 'assistant',
+      content: [
+        { type: 'text', text: _sideEffects.content },
+        {
+          type: 'tool-call',
+          toolCallId: runId,
+          toolName: entityName,
+          args: {
+            ...chunk.payload.args,
+            __mastraMetadata: { from, ...chunk.payload.args?.__mastraMetadata, isStreaming: true },
+          },
+        },
+      ],
+    };
+    _sideEffects.assistantToolCallAddedForUpdater = true;
+    _sideEffects.assistantToolCallAddedForContent = true;
+    return [...currentConversation, newMessage];
   });
 };

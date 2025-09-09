@@ -17,7 +17,12 @@ import { MastraClient } from '@mastra/client-js';
 import { useAdapters } from '@/components/assistant-ui/hooks/use-adapters';
 import { MastraModelOutput } from '@mastra/core/stream';
 
-import { handleStreamChunk, handleWorkflowChunk } from './handle-stream-chunk';
+import {
+  createRootToolAssistantMessage,
+  handleAgentChunk,
+  handleStreamChunk,
+  handleWorkflowChunk,
+} from './handle-stream-chunk';
 
 const convertMessage = (message: ThreadMessageLike): ThreadMessageLike => {
   return message;
@@ -364,13 +369,14 @@ export function MastraRuntimeProvider({
             toolCallIdToName: toolCallIdToName,
           };
 
-          let currentWorkflowId: string | undefined;
+          let currentEntityId: string | undefined;
 
           await response.processDataStream({
             onChunk: async chunk => {
               if (chunk.type.startsWith('agent-execution-event-')) {
                 const agentChunk = chunk.payload;
-                await handleStreamChunk({ chunk: agentChunk, setMessages, refreshWorkingMemory, _sideEffects });
+                if (!currentEntityId) return;
+                await handleAgentChunk({ agentChunk, setMessages, entityName: currentEntityId });
               } else if (chunk.type === 'tool-execution-start') {
                 await handleStreamChunk({
                   chunk: { ...chunk, type: 'tool-call' },
@@ -387,88 +393,24 @@ export function MastraRuntimeProvider({
                 });
               } else if (chunk.type.startsWith('workflow-execution-event-')) {
                 const workflowChunk = chunk.payload;
-                if (currentWorkflowId) {
-                  await handleWorkflowChunk({ workflowChunk, setMessages, entityName: currentWorkflowId });
-                }
-              } else if (chunk.type === 'workflow-execution-start') {
-                currentWorkflowId = chunk.payload?.args?.resourceId;
+                if (!currentEntityId) return;
+                await handleWorkflowChunk({ workflowChunk, setMessages, entityName: currentEntityId });
+              } else if (chunk.type === 'workflow-execution-start' || chunk.type === 'agent-execution-start') {
+                currentEntityId = chunk.payload?.args?.resourceId;
 
                 const runId = chunk.payload.runId;
-                if (!currentWorkflowId || !runId) return;
+                if (!currentEntityId || !runId) return;
 
-                setMessages(currentConversation => {
-                  if (!currentWorkflowId || !runId) return currentConversation;
-                  // Get the last message (should be the assistant's message)
-                  const lastMessage = currentConversation[currentConversation.length - 1];
-
-                  // Only process if the last message is from the assistant
-                  if (lastMessage && lastMessage.role === 'assistant') {
-                    // Create a new message with the tool call part
-                    const updatedMessage: ThreadMessageLike = {
-                      ...lastMessage,
-                      content: Array.isArray(lastMessage.content)
-                        ? [
-                            ...lastMessage.content,
-                            {
-                              type: 'tool-call',
-                              toolCallId: runId,
-                              toolName: currentWorkflowId,
-                              args: {
-                                ...chunk.payload.args,
-                                __mastraMetadata: {
-                                  ...chunk.payload.args?.__mastraMetadata,
-                                  isStreaming: true,
-                                },
-                              },
-                            },
-                          ]
-                        : [
-                            ...(typeof lastMessage.content === 'string'
-                              ? [{ type: 'text', text: lastMessage.content }]
-                              : []),
-                            {
-                              type: 'tool-call',
-                              toolCallId: runId,
-                              toolName: currentWorkflowId,
-                              args: {
-                                ...chunk.payload.args,
-                                __mastraMetadata: {
-                                  ...chunk.payload.args?.__mastraMetadata,
-                                  isStreaming: true,
-                                },
-                              },
-                            },
-                          ],
-                    };
-
-                    _sideEffects.assistantToolCallAddedForUpdater = true;
-                    _sideEffects.assistantToolCallAddedForContent = true;
-
-                    // Replace the last message with the updated one
-                    return [...currentConversation.slice(0, -1), updatedMessage];
-                  }
-
-                  // If there's no assistant message yet, create one
-                  const newMessage: ThreadMessageLike = {
-                    role: 'assistant',
-                    content: [
-                      { type: 'text', text: _sideEffects.content },
-                      {
-                        type: 'tool-call',
-                        toolCallId: runId,
-                        toolName: currentWorkflowId,
-                        args: {
-                          ...chunk.payload.args,
-                          __mastraMetadata: { ...chunk.payload.args?.__mastraMetadata, isStreaming: true },
-                        },
-                      },
-                    ],
-                  };
-                  _sideEffects.assistantToolCallAddedForUpdater = true;
-                  _sideEffects.assistantToolCallAddedForContent = true;
-                  return [...currentConversation, newMessage];
+                createRootToolAssistantMessage({
+                  entityName: currentEntityId,
+                  setMessages,
+                  runId,
+                  _sideEffects,
+                  chunk,
+                  from: chunk.type === 'agent-execution-start' ? 'AGENT' : 'WORKFLOW',
                 });
-                _sideEffects.toolCallIdToName.current[runId] = currentWorkflowId;
+
+                _sideEffects.toolCallIdToName.current[runId] = currentEntityId;
               } else {
                 await handleStreamChunk({ chunk, setMessages, refreshWorkingMemory, _sideEffects });
               }

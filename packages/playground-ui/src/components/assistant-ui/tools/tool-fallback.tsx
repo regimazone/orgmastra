@@ -5,10 +5,10 @@ import { useWorkflowStream, WorkflowBadge } from './badges/workflow-badge';
 import { useWorkflow } from '@/hooks/use-workflows';
 import { WorkflowRunProvider } from '@/domains/workflows';
 import { LoadingBadge } from './badges/loading-badge';
+import { useAgent } from '@/domains/agents/hooks/use-agent';
+import { AgentBadge } from './badges/agent-badge';
 
 export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText, result, args, ...props }) => {
-  console.log('hello world', toolName);
-
   return (
     <WorkflowRunProvider>
       <ToolFallbackInner toolName={toolName} argsText={argsText} result={result} args={args} {...props} />
@@ -22,8 +22,21 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
   // be resolved after we receive the first stream event
   useWorkflowStream(args.__mastraMetadata?.partialChunk);
   const { data: workflow, isLoading } = useWorkflow(toolName);
+  const { data: agent, isLoading: isAgentLoading } = useAgent(toolName);
 
-  if (isLoading) return <LoadingBadge />;
+  const isAgent = args.__mastraMetadata?.from === 'AGENT';
+
+  if (isAgent) {
+    return (
+      <AgentBadge
+        agentId={toolName}
+        isStreaming={args.__mastraMetadata?.isStreaming}
+        messages={args?.__mastraMetadata?.messages}
+      />
+    );
+  }
+
+  if (isLoading || isAgentLoading) return <LoadingBadge />;
 
   if (workflow) {
     return (

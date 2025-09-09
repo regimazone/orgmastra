@@ -376,11 +376,14 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         streamPromise.reject = reject;
       });
 
+      const runId = generateId();
+
       await writer.write({
         type: 'agent-execution-start',
         payload: {
           agentId: inputData.resourceId,
           args: inputData,
+          runId,
         },
       });
 
@@ -388,6 +391,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         // resourceId: inputData.resourceId,
         // threadId: inputData.threadId,
         runtimeContext: runtimeContext,
+        runId,
       });
 
       for await (const chunk of result.fullStream) {

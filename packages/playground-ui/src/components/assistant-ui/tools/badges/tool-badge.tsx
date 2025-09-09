@@ -18,6 +18,14 @@ export const ToolBadge = ({ toolName, argsText, result }: ToolBadgeProps) => {
     argSlot = <pre className="whitespace-pre-wrap">{argsText}</pre>;
   }
 
+  let resultSlot;
+  try {
+    const parsedResult = JSON.parse(result);
+    resultSlot = <SyntaxHighlighter data={parsedResult} />;
+  } catch {
+    resultSlot = <pre className="whitespace-pre-wrap">{result}</pre>;
+  }
+
   return (
     <BadgeWrapper icon={<ToolsIcon className="text-[#ECB047]" />} title={toolName}>
       <div className="space-y-4">
@@ -29,11 +37,7 @@ export const ToolBadge = ({ toolName, argsText, result }: ToolBadgeProps) => {
         {result !== undefined && (
           <div>
             <p className="font-medium pb-2">Tool result</p>
-            {typeof result === 'string' ? (
-              <pre className="whitespace-pre-wrap">{result}</pre>
-            ) : (
-              <SyntaxHighlighter data={result} />
-            )}
+            {resultSlot}
           </div>
         )}
       </div>
