@@ -15,7 +15,7 @@ import type { RuntimeContext } from '@mastra/core/runtime-context';
 import type { OutputSchema, MastraModelOutput } from '@mastra/core/stream';
 import type { Tool } from '@mastra/core/tools';
 import type { JSONSchema7 } from 'json-schema';
-import type { ZodType } from 'zod';
+import type { ZodType, ZodSchema } from 'zod';
 
 import type {
   GenerateParams,
@@ -43,7 +43,7 @@ async function executeToolCallAndRespond({
   runtimeContext,
   respondFn,
 }: {
-  params: StreamVNextParams<any>;
+  params: StreamVNextParams<any, any>;
   response: Awaited<ReturnType<MastraModelOutput['getFullOutput']>>;
   runId?: string;
   resourceId?: string;
@@ -315,20 +315,27 @@ export class Agent extends BaseResource {
     return response;
   }
 
-  async generateVNext<T extends OutputSchema | undefined = undefined>(
+  async generateVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
     messages: MessageListInput,
-    options?: Omit<StreamVNextParams<T>, 'messages'>,
+    options?: Omit<StreamVNextParams<T, STRUCTURED_OUTPUT>, 'messages'>,
   ): Promise<ReturnType<MastraModelOutput['getFullOutput']>>;
   // Backward compatibility overload
-  async generateVNext<T extends OutputSchema | undefined = undefined>(
-    params: StreamVNextParams<T>,
-  ): Promise<ReturnType<MastraModelOutput['getFullOutput']>>;
-  async generateVNext<T extends OutputSchema | undefined = undefined>(
-    messagesOrParams: MessageListInput | StreamVNextParams<T>,
-    options?: Omit<StreamVNextParams<T>, 'messages'>,
+  async generateVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(params: StreamVNextParams<T, STRUCTURED_OUTPUT>): Promise<ReturnType<MastraModelOutput['getFullOutput']>>;
+  async generateVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    messagesOrParams: MessageListInput | StreamVNextParams<T, STRUCTURED_OUTPUT>,
+    options?: Omit<StreamVNextParams<T, STRUCTURED_OUTPUT>, 'messages'>,
   ): Promise<ReturnType<MastraModelOutput['getFullOutput']>> {
     // Handle both new signature (messages, options) and old signature (single param object)
-    let params: StreamVNextParams<T>;
+    let params: StreamVNextParams<T, STRUCTURED_OUTPUT>;
     if (typeof messagesOrParams === 'object' && 'messages' in messagesOrParams) {
       // Old signature: single parameter object
       params = messagesOrParams;
@@ -337,13 +344,19 @@ export class Agent extends BaseResource {
       params = {
         messages: messagesOrParams as MessageListInput,
         ...options,
-      } as StreamVNextParams<T>;
+      } as StreamVNextParams<T, STRUCTURED_OUTPUT>;
     }
     const processedParams = {
       ...params,
       output: params.output ? zodToJsonSchema(params.output) : undefined,
       runtimeContext: parseClientRuntimeContext(params.runtimeContext),
       clientTools: processClientTools(params.clientTools),
+      structuredOutput: params.structuredOutput
+        ? {
+            ...params.structuredOutput,
+            schema: zodToJsonSchema(params.structuredOutput.schema),
+          }
+        : undefined,
     };
 
     const { runId, resourceId, threadId, runtimeContext } = processedParams as StreamVNextParams;
@@ -1276,9 +1289,12 @@ export class Agent extends BaseResource {
     return response;
   }
 
-  async streamVNext<T extends OutputSchema | undefined = undefined>(
+  async streamVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
     messages: MessageListInput,
-    options?: Omit<StreamVNextParams<T>, 'messages'>,
+    options?: Omit<StreamVNextParams<T, STRUCTURED_OUTPUT>, 'messages'>,
   ): Promise<
     Response & {
       processDataStream: ({
@@ -1289,8 +1305,11 @@ export class Agent extends BaseResource {
     }
   >;
   // Backward compatibility overload
-  async streamVNext<T extends OutputSchema | undefined = undefined>(
-    params: StreamVNextParams<T>,
+  async streamVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    params: StreamVNextParams<T, STRUCTURED_OUTPUT>,
   ): Promise<
     Response & {
       processDataStream: ({
@@ -1300,9 +1319,12 @@ export class Agent extends BaseResource {
       }) => Promise<void>;
     }
   >;
-  async streamVNext<T extends OutputSchema | undefined = undefined>(
-    messagesOrParams: MessageListInput | StreamVNextParams<T>,
-    options?: Omit<StreamVNextParams<T>, 'messages'>,
+  async streamVNext<
+    T extends OutputSchema | undefined = undefined,
+    STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
+  >(
+    messagesOrParams: MessageListInput | StreamVNextParams<T, STRUCTURED_OUTPUT>,
+    options?: Omit<StreamVNextParams<T, STRUCTURED_OUTPUT>, 'messages'>,
   ): Promise<
     Response & {
       processDataStream: ({
@@ -1313,7 +1335,7 @@ export class Agent extends BaseResource {
     }
   > {
     // Handle both new signature (messages, options) and old signature (single param object)
-    let params: StreamVNextParams<T>;
+    let params: StreamVNextParams<T, STRUCTURED_OUTPUT>;
     if (typeof messagesOrParams === 'object' && 'messages' in messagesOrParams) {
       // Old signature: single parameter object
       params = messagesOrParams;
@@ -1322,13 +1344,19 @@ export class Agent extends BaseResource {
       params = {
         messages: messagesOrParams as MessageListInput,
         ...options,
-      } as StreamVNextParams<T>;
+      } as StreamVNextParams<T, STRUCTURED_OUTPUT>;
     }
     const processedParams = {
       ...params,
       output: params.output ? zodToJsonSchema(params.output) : undefined,
       runtimeContext: parseClientRuntimeContext(params.runtimeContext),
       clientTools: processClientTools(params.clientTools),
+      structuredOutput: params.structuredOutput
+        ? {
+            ...params.structuredOutput,
+            schema: zodToJsonSchema(params.structuredOutput.schema),
+          }
+        : undefined,
     };
 
     // Create a readable stream that will handle the response processing
