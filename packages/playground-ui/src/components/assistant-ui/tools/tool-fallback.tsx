@@ -22,7 +22,6 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
   // be resolved after we receive the first stream event
   useWorkflowStream(args.__mastraMetadata?.partialChunk);
   const { data: workflow, isLoading } = useWorkflow(toolName);
-  const { data: agent, isLoading: isAgentLoading } = useAgent(toolName);
 
   const isAgent = args.__mastraMetadata?.from === 'AGENT';
 
@@ -36,7 +35,7 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
     );
   }
 
-  if (isLoading || isAgentLoading) return <LoadingBadge />;
+  if (isLoading) return <LoadingBadge />;
 
   if (workflow) {
     return (
