@@ -99,4 +99,11 @@ export type RefinedTrace = {
   runId?: string;
 };
 
+export type StreamChunk = {
+  type: string;
+  payload: any;
+  runId: string;
+  from: 'AGENT' | 'WORKFLOW';
+};
+
 export * from './domains/traces/types';
