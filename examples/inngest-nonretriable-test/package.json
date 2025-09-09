@@ -1,0 +1,30 @@
+{
+  "name": "examples-inngest-nonretriable-test",
+  "type": "module",
+  "private": true,
+  "description": "Test case for NonRetriableError bundling issue",
+  "main": "index.js",
+  "version": "0.0.1",
+  "dependencies": {
+    "@mastra/core": "latest",
+    "@mastra/inngest": "latest",
+    "inngest": "^3.40.2",
+    "typescript": "^5.8.3",
+    "zod": "^3.25.76"
+  },
+  "pnpm": {
+    "overrides": {
+      "@mastra/core": "link:../../packages/core",
+      "@mastra/inngest": "link:../../workflows/inngest",
+      "mastra": "link:../../packages/cli"
+    }
+  },
+  "scripts": {
+    "mastra:build": "mastra build",
+    "mastra:dev": "mastra dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
+}
