@@ -7,6 +7,8 @@ import { WorkflowRunProvider } from '@/domains/workflows';
 import { LoadingBadge } from './badges/loading-badge';
 
 export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText, result, args, ...props }) => {
+  console.log('hello world', toolName);
+
   return (
     <WorkflowRunProvider>
       <ToolFallbackInner toolName={toolName} argsText={argsText} result={result} args={args} {...props} />

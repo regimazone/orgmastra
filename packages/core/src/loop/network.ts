@@ -72,6 +72,8 @@ async function getRoutingAgent({ runtimeContext, agent }: { agent: Agent; runtim
           Keep in mind that the user only sees the final result of the task. When reviewing completion, you should know that the user will not see the intermediate results.
         `;
 
+  console.log('instructions', instructions);
+
   return new Agent({
     name: 'routing-agent',
     instructions,
@@ -306,7 +308,9 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         ...routingAgentOptions,
       };
 
+      console.log('prompt', { prompt, options });
       const result = await routingAgent.generateVNext(prompt, options);
+      console.log('result', result);
 
       const object = result.object;
 
@@ -388,7 +392,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
 
       for await (const chunk of result.fullStream) {
         await writer.write({
-          type: `agent-execution-events-${chunk.type}`,
+          type: `agent-execution-event-${chunk.type}`,
           payload: chunk,
         });
       }
@@ -476,9 +480,11 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         throw new Error(`Invalid task input: ${inputData.task}`);
       }
 
+      const run = wf.createRun();
       const toolData = {
         name: wf.name,
         args: inputData,
+        runId: run.runId,
       };
 
       await writer?.write({
@@ -491,8 +497,6 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       //     ...toolData,
       // });
 
-      const run = wf.createRun();
-
       const stream = run.streamVNext({
         inputData: input,
         runtimeContext: runtimeContext,
@@ -502,7 +506,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       // let stepResults: Record<string, any> = {};
       for await (const chunk of stream) {
         await writer?.write({
-          type: `workflow-execution-events-${chunk.type}`,
+          type: `workflow-execution-event-${chunk.type}`,
           payload: chunk,
         });
       }
@@ -577,6 +581,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       iteration: z.number(),
     }),
     execute: async ({ inputData, getInitData, writer }) => {
+      console.log('Started tool step', inputData);
       const toolsMap = await agent.getTools({ runtimeContext });
       const tool = toolsMap[inputData.resourceId];
 
@@ -601,8 +606,8 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       await writer?.write({
         type: 'tool-execution-start',
         payload: {
-          context: inputDataToUse,
-          toolId: inputData.resourceId,
+          args: inputDataToUse,
+          toolName: inputData.resourceId,
           runId,
           toolCallId,
         },
@@ -622,6 +627,8 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         },
         { toolCallId, messages: [] },
       );
+
+      console.log('finalResult', finalResult);
 
       const memory = await agent.getMemory({ runtimeContext: runtimeContext });
       const initData = await getInitData();
@@ -647,6 +654,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         result: finalResult,
         isComplete: false,
         iteration: inputData.iteration,
+        toolCallId,
       };
 
       await writer?.write({
@@ -873,12 +881,9 @@ export async function networkLoop<
   const task = getLastMessage(messages);
 
   function transformToNetworkChunk(chunk: ChunkType) {
-    console.log('RAW CHUNK', JSON.stringify(chunk, null, 2));
     if (chunk.type === 'workflow-step-output') {
       const innerChunk = chunk.payload.output;
       const innerChunkType = innerChunk.payload.output;
-
-      console.log(innerChunkType);
 
       return innerChunkType;
     }

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const myWorkflow = createWorkflow({
   id: 'my-workflow',
-  description: 'My workflow description',
+  description: 'Gives a recipe ',
   inputSchema: z.object({
     ingredient: z.string(),
   }),
@@ -22,6 +22,7 @@ const step = createStep({
     result: z.string(),
   }),
   execute: async ({ inputData }) => {
+    await new Promise(resolve => setTimeout(resolve, 3000));
     return {
       result: inputData.ingredient,
     };
