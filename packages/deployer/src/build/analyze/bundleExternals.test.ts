@@ -122,7 +122,8 @@ describe('createVirtualDependencies', () => {
 
     expect(result.optimizedDependencyEntries.get('utils-lib')).toEqual({
       name: '.mastra/.build/utils-lib',
-      virtual: "export *, { specificUtil, anotherUtil } from 'utils-lib';",
+      virtual: `export * from 'utils-lib';
+export { specificUtil, anotherUtil } from 'utils-lib';`,
     });
   });
 
@@ -146,7 +147,8 @@ describe('createVirtualDependencies', () => {
 
     expect(result.optimizedDependencyEntries.get('full-lib')).toEqual({
       name: '.mastra/.build/full-lib',
-      virtual: "export *, { default } from 'full-lib';",
+      virtual: `export * from 'full-lib';
+export { default } from 'full-lib';`,
     });
   });
 
@@ -170,7 +172,7 @@ describe('createVirtualDependencies', () => {
 
     expect(result.optimizedDependencyEntries.get('complete-lib')).toEqual({
       name: '.mastra/.build/complete-lib',
-      virtual: "export *, { default, namedExport1, namedExport2 } from 'complete-lib';",
+      virtual: "export * from 'complete-lib';\nexport { default, namedExport1, namedExport2 } from 'complete-lib';",
     });
   });
 

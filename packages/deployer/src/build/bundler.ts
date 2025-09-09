@@ -2,7 +2,6 @@ import alias from '@rollup/plugin-alias';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import nodeResolve from '@rollup/plugin-node-resolve';
-import esmShim from '@rollup/plugin-esm-shim';
 import { fileURLToPath } from 'node:url';
 import { rollup, type InputOptions, type OutputOptions, type Plugin } from 'rollup';
 import { esbuild } from './plugins/esbuild';
@@ -20,8 +19,14 @@ export async function getInputOptions(
   {
     sourcemap = false,
     isDev = false,
+    projectRoot,
     workspaceRoot = undefined,
-  }: { sourcemap?: boolean; enableEsmShim?: boolean; isDev?: boolean; workspaceRoot?: string } = {},
+  }: {
+    sourcemap?: boolean;
+    isDev?: boolean;
+    workspaceRoot?: string;
+    projectRoot: string;
+  },
 ): Promise<InputOptions> {
   let nodeResolvePlugin =
     platform === 'node'
@@ -73,7 +78,7 @@ export async function getInputOptions(
 
           const filename = analyzedBundleInfo.dependencies.get(id)!;
           // also add projectRoot
-          const resolvedPath = join(workspaceRoot!, filename);
+          const resolvedPath = join(workspaceRoot || projectRoot, filename);
           return {
             id: resolvedPath,
             external: isDev,

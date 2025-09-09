@@ -136,6 +136,7 @@
     "eslint": "^9.30.1",
     "fetch-to-node": "^2.1.0",
     "hono-openapi": "^0.4.8",
+    "package-up": "^5.0.0",
     "rollup-plugin-visualizer": "^5.14.0",
     "superjson": "^2.2.2",
     "tsup": "^8.5.0",

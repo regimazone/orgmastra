@@ -8,6 +8,7 @@ import virtual from '@rollup/plugin-virtual';
 import { findWorkspacesRoot } from 'find-workspaces';
 import fsExtra, { copy, ensureDir, readJSON, emptyDir } from 'fs-extra/esm';
 import { globby } from 'globby';
+import { packageUp } from 'package-up';
 import type { InputOptions, OutputOptions } from 'rollup';
 import { analyzeBundle } from '../build/analyze';
 import { createBundler as createBundlerUtil, getInputOptions } from '../build/bundler';
@@ -166,9 +167,11 @@ export abstract class Bundler extends MastraBundler {
     mastraEntryFile: string,
     analyzedBundleInfo: Awaited<ReturnType<typeof analyzeBundle>>,
     toolsPaths: (string | string[])[],
-    { enableSourcemap = false, enableEsmShim = true }: { enableSourcemap?: boolean; enableEsmShim?: boolean } = {},
+    { enableSourcemap = false }: { enableSourcemap?: boolean } = {},
   ) {
     const workspaceRoot = findWorkspacesRoot()?.location;
+    const closestPkgJson = await packageUp({ cwd: dirname(mastraEntryFile) });
+    const projectRoot = closestPkgJson ?? process.cwd();
     const inputOptions: InputOptions = await getInputOptions(
       mastraEntryFile,
       analyzedBundleInfo,
@@ -176,7 +179,7 @@ export abstract class Bundler extends MastraBundler {
       {
         'process.env.NODE_ENV': JSON.stringify('production'),
       },
-      { sourcemap: enableSourcemap, enableEsmShim, workspaceRoot },
+      { sourcemap: enableSourcemap, workspaceRoot, projectRoot },
     );
     const isVirtual = serverFile.includes('\n') || existsSync(serverFile);
 

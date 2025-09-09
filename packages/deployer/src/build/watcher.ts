@@ -8,15 +8,18 @@ import { tsConfigPaths } from './plugins/tsconfig-paths';
 import { noopLogger } from '@mastra/core/logger';
 import { createWorkspacePackageMap } from '../bundler/workspaceDependencies';
 import { analyzeBundle } from './analyze';
-import path from 'path';
+import path, { dirname } from 'path';
 import { getPackageName } from './utils';
+import { packageUp } from 'package-up';
 
 export async function getInputOptions(
   entryFile: string,
   platform: 'node' | 'browser',
   env?: Record<string, string>,
-  { sourcemap = false, transpilePackages = [] }: { sourcemap?: boolean; transpilePackages?: string[] } = {},
+  { sourcemap = false }: { sourcemap?: boolean } = {},
 ) {
+  const closestPkgJson = await packageUp({ cwd: dirname(entryFile) });
+  const projectRoot = closestPkgJson ?? process.cwd();
   const workspaceMap = await createWorkspacePackageMap();
   const workspaceRoot = findWorkspacesRoot()?.location;
 
@@ -49,7 +52,7 @@ export async function getInputOptions(
     },
     platform,
     env,
-    { sourcemap, isDev: true, workspaceRoot },
+    { sourcemap, isDev: true, workspaceRoot, projectRoot },
   );
 
   if (Array.isArray(inputOptions.plugins)) {
