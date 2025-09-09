@@ -102,7 +102,7 @@ export const PropertiesTable: React.FC<PropertiesTableProps> = ({
                 )}
               </div>
             </div>
-            {item?.deprecated && (
+            {item.deprecated && (
               <div className="text-sm leading-5 text-zinc-500">
                 {item.deprecated}
               </div>

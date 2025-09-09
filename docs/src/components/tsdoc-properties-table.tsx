@@ -40,7 +40,7 @@ export const TSDocPropertiesTable: React.FC<TSDocToPropertiesTableProps> = ({
   }
   if (properties && properties.length > 0) {
     content = content
-      .filter((content) => properties.includes(content.name))
+      .filter((item) => properties.includes(item.name))
       .sort((a, b) => properties.indexOf(a.name) - properties.indexOf(b.name));
   } else {
     content = content.sort((a, b) => a.name.localeCompare(b.name));
