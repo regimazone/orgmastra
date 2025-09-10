@@ -681,6 +681,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                     resourceId: inputData.resourceId,
                     args: inputDataToUse,
                     result: finalResult,
+                    toolCallId,
                   }),
                 },
               ],
