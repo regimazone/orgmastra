@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`analyzeEntry > should analyze the entry file 2`] = `
+exports[`analyzeEntry > should analyze the entry file 1`] = `
 {
   "code": "import { createLogger } from '@mastra/core/logger';
 import { Mastra } from '@mastra/core/mastra';
