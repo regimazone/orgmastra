@@ -37,12 +37,15 @@ export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
           return <React.Fragment key={index}>{message.content}</React.Fragment>;
         }
 
+        // for workflow runId
+        const isWorkflow = message.toolOutput?.runId;
+
         return (
           <React.Fragment key={index}>
             <ToolFallback
               toolName={message.toolName}
               argsText={message.toolInput ? JSON.stringify(message.toolInput) : ''}
-              result={message.toolOutput ? JSON.stringify(message.toolOutput) : ''}
+              result={isWorkflow ? message.toolOutput : message.toolOutput ? JSON.stringify(message.toolOutput) : ''}
               args={message.args}
               status={{ type: 'complete' }}
               type="tool-call"

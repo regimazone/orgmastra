@@ -42,7 +42,6 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
             type: 'tool',
             toolName: part.toolName,
             toolInput: toolCalls?.[part.toolCallId]?.args || {},
-            result: part.result, // for workflow runId
             toolOutput: part.result, // tool output
             toolCallId: part.toolCallId,
             args: part.args || {},
