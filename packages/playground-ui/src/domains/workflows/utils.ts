@@ -1,6 +1,7 @@
 import type { WorkflowRunState, StepResult } from '@mastra/core/workflows';
 
 import { WorkflowWatchResult } from '@mastra/client-js';
+import { StreamChunk } from '@/types';
 
 export function convertWorkflowRunStateToWatchResult(runState: WorkflowRunState): WorkflowWatchResult {
   const runId = runState.runId;
@@ -65,12 +66,7 @@ function determineWorkflowStatus(steps: Record<string, any>): 'running' | 'succe
 
 export const mapWorkflowStreamChunkToWatchResult = (
   prev: WorkflowWatchResult,
-  chunk: {
-    type: string;
-    payload: any;
-    runId: string;
-    from: 'AGENT' | 'WORKFLOW';
-  },
+  chunk: StreamChunk,
 ): WorkflowWatchResult => {
   if (chunk.type === 'workflow-start') {
     return {
@@ -100,9 +96,9 @@ export const mapWorkflowStreamChunkToWatchResult = (
           ...chunk.payload,
         },
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev?.payload?.workflowState,
           steps: {
-            ...prev.payload.workflowState.steps,
+            ...prev?.payload?.workflowState?.steps,
             [chunk.payload.id]: {
               ...(current || {}),
               ...chunk.payload,
@@ -127,10 +123,10 @@ export const mapWorkflowStreamChunkToWatchResult = (
           ...chunk.payload,
         },
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev?.payload?.workflowState,
           status: 'suspended',
           steps: {
-            ...prev.payload.workflowState.steps,
+            ...prev?.payload?.workflowState?.steps,
             [chunk.payload.id]: {
               ...(current || {}),
               ...chunk.payload,
@@ -147,17 +143,17 @@ export const mapWorkflowStreamChunkToWatchResult = (
     return {
       ...prev,
       payload: {
-        ...prev.payload,
+        ...prev?.payload,
         currentStep: {
           id: chunk.payload.id,
           ...(prev?.payload?.currentStep || {}),
           ...chunk.payload,
         },
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev?.payload?.workflowState,
           status: 'waiting',
           steps: {
-            ...prev.payload.workflowState.steps,
+            ...prev?.payload?.workflowState?.steps,
             [chunk.payload.id]: {
               ...current,
               ...chunk.payload,
@@ -183,10 +179,10 @@ export const mapWorkflowStreamChunkToWatchResult = (
           ...chunk.payload,
         },
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev?.payload?.workflowState,
           status,
           steps: {
-            ...prev.payload.workflowState.steps,
+            ...prev.payload?.workflowState.steps,
             [chunk.payload.id]: {
               ...current,
               ...chunk.payload,
@@ -204,7 +200,7 @@ export const mapWorkflowStreamChunkToWatchResult = (
       payload: {
         ...prev.payload,
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev.payload?.workflowState,
           status: 'canceled',
         },
       },
@@ -219,7 +215,7 @@ export const mapWorkflowStreamChunkToWatchResult = (
         ...prev.payload,
         currentStep: undefined,
         workflowState: {
-          ...prev.payload.workflowState,
+          ...prev.payload?.workflowState,
           status: chunk.payload.workflowStatus,
         },
       },
