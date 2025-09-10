@@ -11,12 +11,11 @@ import { ToolCoinIcon } from '@/ds/icons/ToolCoinIcon';
 import { ToolsIcon } from '@/ds/icons/ToolsIcon';
 import { useLinkComponent } from '@/lib/framework';
 import { GetAgentResponse, GetToolResponse } from '@mastra/client-js';
-import { SearchIcon } from 'lucide-react';
 import { startTransition, useMemo, useRef, useState } from 'react';
 
 export interface ToolListProps {
   isLoading: boolean;
-  tools: Record<string, GetToolResponse>;
+  tools: Record<string, Omit<GetToolResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>>;
   agents: Record<string, GetAgentResponse>;
   computeLink: (toolId: string, agentId?: string) => string;
   computeAgentLink: (toolId: string, agentId: string) => string;
