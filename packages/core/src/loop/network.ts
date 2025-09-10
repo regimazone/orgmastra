@@ -240,10 +240,13 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
 
         completionResult = await routingAgent.generateVNext([{ role: 'assistant', content: completionPrompt }], {
           output: completionSchema,
-          threadId: initData?.threadId ?? runId,
-          resourceId: initData?.threadResourceId ?? networkName,
           runtimeContext: runtimeContext,
           maxSteps: 1,
+          memory: {
+            thread: initData?.threadId ?? runId,
+            resource: initData?.threadResourceId ?? networkName,
+            readOnly: true,
+          },
           ...routingAgentOptions,
         });
 
@@ -300,11 +303,14 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
           prompt: z.string(),
           selectionReason: z.string(),
         }),
-        threadId: initData?.threadId ?? runId,
-        resourceId: initData?.threadResourceId ?? networkName,
         runtimeContext: runtimeContext,
         toolChoice: 'none' as any,
         maxSteps: 1,
+        memory: {
+          thread: initData?.threadId ?? runId,
+          resource: initData?.threadResourceId ?? networkName,
+          readOnly: true,
+        },
         ...routingAgentOptions,
       };
 

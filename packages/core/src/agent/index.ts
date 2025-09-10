@@ -3205,6 +3205,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
                   instructions,
                   thread: result.thread,
                   threadId: result.threadId,
+                  readOnly: options.memory?.readOnly,
                   resourceId,
                   memoryConfig,
                   runtimeContext,
@@ -3259,6 +3260,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     instructions,
     thread: threadAfter,
     threadId,
+    readOnly,
     resourceId,
     memoryConfig,
     outputText,
@@ -3276,6 +3278,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     result: Record<string, any>;
     thread: StorageThreadType | null | undefined;
     threadId?: string;
+    readOnly?: boolean;
     resourceId?: string;
     runtimeContext: RuntimeContext;
     tracingContext: TracingContext;
@@ -3322,7 +3325,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     const memory = await this.getMemory({ runtimeContext });
     const thread = usedWorkingMemory ? (threadId ? await memory?.getThreadById({ threadId }) : undefined) : threadAfter;
 
-    if (memory && resourceId && thread) {
+    if (memory && resourceId && thread && !readOnly) {
       try {
         // Add LLM response messages to the list
         let responseMessages = result.response.messages;
