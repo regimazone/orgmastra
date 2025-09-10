@@ -40,9 +40,9 @@ const step2 = createStep({
   }),
   execute: async ({ inputData, mastra, tracingContext }) => {
     const agent = mastra.getAgent('chefAgentResponses');
-    const response = await agent.generate(inputData.result, {
-      tracingContext,
-    });
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
     return {
       result: 'suh',
     };

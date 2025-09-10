@@ -31,6 +31,7 @@ export const WorkflowBadge = ({ workflow, runId, workflowId, isStreaming }: Work
     <BadgeWrapper icon={<WorkflowIcon className="text-accent3" />} title={workflow.name} initialCollapsed={false}>
       {!isStreaming && !isLoading && (
         <WorkflowRunProvider snapshot={snapshot}>
+          {console.log('reaching here') || null}
           <WorkflowBadgeExtended workflowId={workflowId} workflow={workflow} runId={runId} />
         </WorkflowRunProvider>
       )}

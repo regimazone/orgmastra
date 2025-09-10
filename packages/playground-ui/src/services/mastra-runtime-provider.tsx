@@ -23,6 +23,7 @@ import {
   handleStreamChunk,
   handleWorkflowChunk,
 } from './handle-stream-chunk';
+import { handleNetworkMessageFromMemory } from './handle-network-message-from-memory';
 
 const convertMessage = (message: ThreadMessageLike): ThreadMessageLike => {
   return message;
@@ -136,6 +137,14 @@ export function MastraRuntimeProvider({
       if (initialMessages && threadId && memory) {
         const convertedMessages: ThreadMessageLike[] = initialMessages
           ?.map((message: Message) => {
+            let content;
+            try {
+              content = JSON.parse(message.content);
+              if (content.isNetwork) {
+                return handleNetworkMessageFromMemory(content);
+              }
+            } catch (e) {}
+
             const attachmentsAsContentParts = (message.experimental_attachments || []).map((image: any) => ({
               type: image.contentType.startsWith(`image/`)
                 ? 'image'
