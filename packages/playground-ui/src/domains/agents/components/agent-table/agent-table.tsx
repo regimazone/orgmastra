@@ -15,7 +15,7 @@ import { AgentTableData } from './types';
 import { useLinkComponent } from '@/lib/framework';
 
 export interface AgentsTableProps {
-  agents: Record<string, GetAgentResponse>;
+  agents: Record<string, Omit<GetAgentResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>>;
   isLoading: boolean;
   computeLink: (agentId: string) => string;
 }
