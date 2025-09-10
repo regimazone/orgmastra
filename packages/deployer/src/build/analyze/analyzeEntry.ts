@@ -3,7 +3,7 @@ import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import virtual from '@rollup/plugin-virtual';
 import { fileURLToPath } from 'node:url';
-import { rollup, type OutputAsset, type OutputChunk, type Plugin, type SourceMap } from 'rollup';
+import { rollup, type OutputChunk, type Plugin, type SourceMap } from 'rollup';
 import { esbuild } from '../plugins/esbuild';
 import { isNodeBuiltin } from '../isNodeBuiltin';
 import { removeDeployer } from '../plugins/remove-deployer';
@@ -13,6 +13,10 @@ import { type WorkspacePackageInfo } from '../../bundler/workspaceDependencies';
 import type { DependencyMetadata } from '../types';
 import { DEPS_TO_IGNORE } from './constants';
 
+/**
+ * Configures and returns the Rollup plugins needed for analyzing entry files.
+ * Sets up module resolution, transpilation, and custom alias handling for Mastra-specific imports.
+ */
 function getInputPlugins(
   { entry, isVirtualFile }: { entry: string; isVirtualFile: boolean },
   mastraEntry: string,
@@ -65,6 +69,11 @@ function getInputPlugins(
   return plugins;
 }
 
+/**
+ * Extracts and categorizes dependencies from Rollup output to determine which ones need optimization.
+ * Analyzes both static imports and dynamic imports while filtering out Node.js built-ins and ignored dependencies.
+ * Identifies workspace packages and resolves package root paths for proper bundling optimization.
+ */
 async function captureDependenciesToOptimize(
   output: OutputChunk,
   workspaceMap: Map<string, WorkspacePackageInfo>,
@@ -72,23 +81,24 @@ async function captureDependenciesToOptimize(
   const depsToOptimize = new Map<string, DependencyMetadata>();
 
   for (const [dependency, bindings] of Object.entries(output.importedBindings)) {
-    // Skip node built-in
     if (isNodeBuiltin(dependency) || DEPS_TO_IGNORE.includes(dependency)) {
       continue;
     }
 
+    // The `getPackageName` helper also handles subpaths so we only get the proper package name
     const pkgName = getPackageName(dependency);
-    const isWorkspace = workspaceMap.has(pkgName!);
     let rootPath: string | null = null;
+    let isWorkspace = false;
 
     if (pkgName) {
       rootPath = await getPackageRootPath(pkgName);
+      isWorkspace = workspaceMap.has(pkgName);
     }
 
     depsToOptimize.set(dependency, { exports: bindings, rootPath, isWorkspace });
   }
 
-  // Tools is generated dependency, we don't want our analyzer to handle it
+  // #tools is a generated dependency, we don't want our analyzer to handle it
   const dynamicImports = output.dynamicImports.filter(d => !DEPS_TO_IGNORE.includes(d));
   if (dynamicImports.length) {
     for (const dynamicImport of dynamicImports) {

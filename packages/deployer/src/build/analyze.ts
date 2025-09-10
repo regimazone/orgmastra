@@ -1,250 +1,17 @@
 import type { IMastraLogger } from '@mastra/core/logger';
 import * as babel from '@babel/core';
-import commonjs from '@rollup/plugin-commonjs';
-import json from '@rollup/plugin-json';
-import nodeResolve from '@rollup/plugin-node-resolve';
-import virtual from '@rollup/plugin-virtual';
-import esmShim from '@rollup/plugin-esm-shim';
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { rollup, type OutputAsset, type OutputChunk, type SourceMap } from 'rollup';
-import { esbuild } from './plugins/esbuild';
-import { aliasHono } from './plugins/hono-alias';
+import { readFile, writeFile } from 'node:fs/promises';
+import { findWorkspacesRoot } from 'find-workspaces';
+import type { OutputAsset, OutputChunk } from 'rollup';
 import { join } from 'node:path';
 import { validate } from '../validator/validate';
-import { writeFile } from 'node:fs/promises';
 import { getBundlerOptions } from './bundlerOptions';
 import { checkConfigExport } from './babel/check-config-export';
-import { getCompiledDepCachePath, getPackageName, getPackageRootPath } from './utils';
 import { createWorkspacePackageMap, type WorkspacePackageInfo } from '../bundler/workspaceDependencies';
 import type { DependencyMetadata } from './types';
 import { analyzeEntry } from './analyze/analyzeEntry';
-import { bundleExternals as newBundleExternals } from './analyze/bundleExternals';
-import { findWorkspacesRoot } from 'find-workspaces';
-
-// TODO: Make this extendable or find a rollup plugin that can do this
-const globalExternals = [
-  'pino',
-  'pino-pretty',
-  '@libsql/client',
-  'pg',
-  'libsql',
-  'jsdom',
-  'sqlite3',
-  'fastembed',
-  'nodemailer',
-  '#tools',
-];
-
-function findExternalImporter(module: OutputChunk, external: string, allOutputs: OutputChunk[]): OutputChunk | null {
-  const capturedFiles = new Set();
-
-  for (const id of module.imports) {
-    if (id === external) {
-      return module;
-    } else {
-      if (id.endsWith('.mjs')) {
-        capturedFiles.add(id);
-      }
-    }
-  }
-
-  for (const file of capturedFiles) {
-    const nextModule = allOutputs.find(o => o.fileName === file);
-    if (nextModule) {
-      const importer = findExternalImporter(nextModule, external, allOutputs);
-
-      if (importer) {
-        return importer;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Bundles vendor dependencies identified in the analysis step.
- * Creates virtual modules for each dependency and bundles them using rollup.
- *
- * @param depsToOptimize - Map of dependencies to optimize with their metadata (exported bindings, rootPath, isWorkspace)
- * @param outputDir - Directory where bundled files will be written
- * @param logger - Logger instance for debugging
- * @returns Object containing bundle output and reference map for validation
- */
-export async function bundleExternals(
-  depsToOptimize: Map<string, DependencyMetadata>,
-  outputDir: string,
-  logger: IMastraLogger,
-  bundlerOptions?: {
-    externals?: string[];
-    transpilePackages?: string[];
-    isDev?: boolean;
-  },
-  meta?: {
-    workspaceRoot?: string;
-    workspaceMap?: Map<string, WorkspacePackageInfo>;
-  },
-) {
-  logger.info('Optimizing dependencies...');
-  logger.debug(
-    `${Array.from(depsToOptimize.keys())
-      .map(key => `- ${key}`)
-      .join('\n')}`,
-  );
-
-  const { externals: customExternals = [], transpilePackages = [], isDev = false } = bundlerOptions || {};
-  const { workspaceRoot = null, workspaceMap = new Map() } = meta || {};
-  const allExternals = [...globalExternals, ...customExternals];
-  const reverseVirtualReferenceMap = new Map<string, string>();
-  const virtualDependencies = new Map();
-
-  for (const [dep, { exports, isWorkspace, rootPath }] of depsToOptimize.entries()) {
-    let name = dep.replaceAll('/', '-');
-
-    if (isWorkspace && rootPath && isDev && workspaceRoot) {
-      const absolutePath = getCompiledDepCachePath(rootPath, name);
-
-      /**
-       * Further below `[name].mjs` is used. By making the name something like `packages/bar/node_modules/.cache/@monorepo-bar` Rollup writes the file to that path. For this also the `dir` needs adjusting.
-       */
-      name = absolutePath
-        /**
-         * The Rollup output.entryFileNames option doesn't allow relative or absolute paths, so the cacheDirAbsolutePath needs to be converted to a name relative to the workspace root.
-         */
-        .replace(workspaceRoot, '')
-        /**
-         * Remove leading slashes/backslashes
-         */
-        .replace(/^[/\\]+/, '');
-    }
-
-    reverseVirtualReferenceMap.set(name, dep);
-
-    const virtualFile: string[] = [];
-    let exportStringBuilder = [];
-    for (const local of exports) {
-      if (local === '*') {
-        virtualFile.push(`export * from '${dep}';`);
-      } else if (local === 'default') {
-        virtualFile.push(`export { default } from '${dep}';`);
-      } else {
-        exportStringBuilder.push(local);
-      }
-    }
-
-    if (exportStringBuilder.length > 0) {
-      virtualFile.push(`export { ${exportStringBuilder.join(', ')} } from '${dep}';`);
-    }
-
-    virtualDependencies.set(dep, {
-      name,
-      virtual: virtualFile.join('\n'),
-    });
-  }
-
-  const transpilePackagesMap = new Map<string, string>();
-  for (const pkg of transpilePackages) {
-    const dir = await getPackageRootPath(pkg);
-
-    if (dir) {
-      transpilePackagesMap.set(pkg, dir);
-    }
-  }
-
-  const bundler = await rollup({
-    logLevel: process.env.MASTRA_BUNDLER_DEBUG === 'true' ? 'debug' : 'silent',
-    input: Array.from(virtualDependencies.entries()).reduce(
-      (acc, [dep, virtualDep]) => {
-        acc[virtualDep.name] = `#virtual-${dep}`;
-        return acc;
-      },
-      {} as Record<string, string>,
-    ),
-    external: allExternals,
-    treeshake: 'smallest',
-    plugins: [
-      virtual(
-        Array.from(virtualDependencies.entries()).reduce(
-          (acc, [dep, virtualDep]) => {
-            acc[`#virtual-${dep}`] = virtualDep.virtual;
-            return acc;
-          },
-          {} as Record<string, string>,
-        ),
-      ),
-      transpilePackagesMap.size
-        ? esbuild({
-            format: 'esm',
-            include: [...transpilePackagesMap.values()].map(p => {
-              // Match files from transpilePackages but exclude any nested node_modules
-              // Escapes regex special characters in the path and uses negative lookahead to avoid node_modules
-              // generated by cursor
-              return new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/(?!.*node_modules).*$`);
-            }),
-          })
-        : null,
-      commonjs({
-        strictRequires: 'strict',
-        transformMixedEsModules: true,
-        ignoreTryCatch: false,
-      }),
-      isDev ? esmShim() : undefined,
-      nodeResolve({
-        preferBuiltins: true,
-        exportConditions: ['node'],
-        // Do not embed external dependencies into files that we write to `node_modules/.cache` (for the mastra dev + workspace use case)
-        ...(workspaceMap.size > 0 && isDev ? { resolveOnly: Array.from(workspaceMap.keys()) } : {}),
-      }),
-      // hono is imported from deployer, so we need to resolve from here instead of the project root
-      aliasHono(),
-      json(),
-    ].filter(Boolean),
-  });
-
-  const { output } = await bundler.write({
-    format: 'esm',
-    /**
-     * If Mastra is used inside a monorepo, we need to find the workspace root so that Rollup can use it as base for the output dir. This should only happen during `mastra dev`.
-     *
-     * Otherwise, use outputDir as normal.
-     */
-    dir: isDev ? (workspaceRoot ? workspaceRoot : outputDir) : outputDir,
-    entryFileNames: '[name].mjs',
-    chunkFileNames: '[name].mjs',
-    hoistTransitiveImports: false,
-  });
-  const moduleResolveMap = {} as Record<string, Record<string, string>>;
-  const filteredChunks = output.filter(o => o.type === 'chunk');
-
-  for (const o of filteredChunks.filter(o => o.isEntry || o.isDynamicEntry)) {
-    for (const external of allExternals) {
-      if (external === '#tools') {
-        continue;
-      }
-
-      const importer = findExternalImporter(o, external, filteredChunks);
-
-      if (importer) {
-        const fullPath = join(outputDir, importer.fileName);
-        moduleResolveMap[fullPath] = moduleResolveMap[fullPath] || {};
-        if (importer.moduleIds.length) {
-          moduleResolveMap[fullPath][external] = importer.moduleIds[importer.moduleIds.length - 1]?.startsWith(
-            '\x00virtual:#virtual',
-          )
-            ? importer.moduleIds[importer.moduleIds.length - 2]!
-            : importer.moduleIds[importer.moduleIds.length - 1]!;
-        }
-      }
-    }
-  }
-
-  await writeFile(join(outputDir, 'module-resolve-map.json'), JSON.stringify(moduleResolveMap, null, 2));
-
-  await bundler.close();
-
-  return { output, reverseVirtualReferenceMap, usedExternals: moduleResolveMap };
-}
+import { bundleExternals } from './analyze/bundleExternals';
 
 /**
  * Validates the bundled output by attempting to import each generated module.
@@ -315,19 +82,6 @@ async function validateOutput(
 
         result.externalDependencies.add(dep!);
       }
-
-      // we might need this on other projects but not sure so let's keep it commented out for now
-      // console.log(file.fileName, file.isEntry, file.isDynamicEntry, err);
-      // result.invalidChunks.add(file.fileName);
-      // const externalImports = excludeInternalDeps(file.imports.filter(file => !internalFiles.has(file)));
-      // externalImports.push(...excludeInternalDeps(file.dynamicImports.filter(file => !internalFiles.has(file))));
-      // for (const externalImport of externalImports) {
-      //   result.externalDependencies.add(externalImport);
-      // }
-
-      // if (reverseVirtualReferenceMap.has(file.name)) {
-      //   result.externalDependencies.add(reverseVirtualReferenceMap.get(file.name)!);
-      // }
     }
   }
 
@@ -383,7 +137,9 @@ If you think your configuration is valid, please open an issue.`);
 
   let index = 0;
   const depsToOptimize = new Map<string, DependencyMetadata>();
+
   logger.info('Analyzing dependencies...');
+
   for (const entry of entries) {
     const isVirtualFile = entry.includes('\n') || !existsSync(entry);
     const analyzeResult = await analyzeEntry({ entry, isVirtualFile }, mastraEntry, {
@@ -419,7 +175,7 @@ If you think your configuration is valid, please open an issue.`);
       .join('\n')}`,
   );
 
-  const { output, fileNameToDependencyMap, usedExternals } = await newBundleExternals(depsToOptimize, outputDir, {
+  const { output, fileNameToDependencyMap, usedExternals } = await bundleExternals(depsToOptimize, outputDir, {
     bundlerOptions: {
       ...bundlerOptions,
       isDev,

@@ -1,29 +1,26 @@
-import type { IMastraLogger } from '@mastra/core/logger';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import virtual from '@rollup/plugin-virtual';
 import esmShim from '@rollup/plugin-esm-shim';
+import { basename } from 'node:path/posix';
+import { join } from 'node:path';
 import { rollup, type OutputChunk } from 'rollup';
 import { esbuild } from '../plugins/esbuild';
 import { aliasHono } from '../plugins/hono-alias';
-import { join } from 'node:path';
-import { writeFile } from 'node:fs/promises';
 import { getCompiledDepCachePath, getPackageRootPath } from '../utils';
 import { type WorkspacePackageInfo } from '../../bundler/workspaceDependencies';
 import type { DependencyMetadata } from '../types';
-import { basename } from 'node:path/posix';
-import { DEPS_TO_IGNORE } from './constants';
-
-// TODO: Make this extendable or find a rollup plugin that can do this
-const globalExternals = ['pino', 'pino-pretty', '@libsql/client', 'pg', 'libsql', '#tools'];
-const deprecatedExternals = ['fastembed', 'nodemailer', 'jsdom', 'sqlite3'];
+import { DEPS_TO_IGNORE, GLOBAL_EXTERNALS, DEPRECATED_EXTERNALS } from './constants';
 
 type VirtualDependency = {
   name: string;
   virtual: string;
 };
 
+/**
+ * Creates virtual dependency modules for optimized bundling by generating virtual entry points for each dependency with their specific exports and handling workspace package path resolution.
+ */
 export function createVirtualDependencies(
   depsToOptimize: Map<string, DependencyMetadata>,
   { projectRoot, workspaceRoot, outputDir }: { workspaceRoot: string | null; projectRoot: string; outputDir: string },
@@ -32,7 +29,7 @@ export function createVirtualDependencies(
   fileNameToDependencyMap: Map<string, string>;
 } {
   const fileNameToDependencyMap = new Map<string, string>();
-  const optimizedDependencyEntries = new Map();
+  const optimizedDependencyEntries = new Map<string, VirtualDependency>();
   const rootDir = workspaceRoot || projectRoot;
 
   for (const [dep, { exports }] of depsToOptimize.entries()) {
@@ -62,7 +59,7 @@ export function createVirtualDependencies(
     // Determine the entry name based on the complexity of exports
     let entryName = `${outputDir}/${fileName}`
       /**
-       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths, so the cacheDirAbsolutePath needs to be converted to a name relative to the workspace root.
+       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
        */
       .replace(rootDir, '')
       /**
@@ -85,10 +82,15 @@ export function createVirtualDependencies(
     }
 
     const currentDepPath = optimizedDependencyEntries.get(dep);
+
+    if (!currentDepPath) {
+      continue;
+    }
+
     const fileName = basename(currentDepPath.name);
     const absolutePath = getCompiledDepCachePath(rootPath, fileName)
       /**
-       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths, so the cacheDirAbsolutePath needs to be converted to a name relative to the workspace root.
+       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
        */
       .replace(rootDir, '')
       /**
@@ -106,6 +108,10 @@ export function createVirtualDependencies(
   return { optimizedDependencyEntries, fileNameToDependencyMap };
 }
 
+/**
+ * Configures and returns Rollup plugins for bundling external dependencies.
+ * Sets up virtual modules, TypeScript compilation, CommonJS transformation, and workspace resolution.
+ */
 async function getInputPlugins(
   virtualDependencies: Map<string, { virtual: string }>,
   transpilePackages: Set<string>,
@@ -159,6 +165,10 @@ async function getInputPlugins(
   ];
 }
 
+/**
+ * Executes the Rollup build process for virtual dependencies using configured plugins.
+ * Bundles all virtual dependency modules into optimized ESM files with proper external handling.
+ */
 async function buildExternalDependencies(
   virtualDependencies: Map<string, VirtualDependency>,
   {
@@ -200,6 +210,10 @@ async function buildExternalDependencies(
   return output;
 }
 
+/**
+ * Recursively searches through Rollup output chunks to find which module imports a specific external dependency.
+ * Used to build the module resolution map for proper external dependency tracking.
+ */
 function findExternalImporter(module: OutputChunk, external: string, allOutputs: OutputChunk[]): OutputChunk | null {
   const capturedFiles = new Set();
 
@@ -252,7 +266,7 @@ export async function bundleExternals(
 ) {
   const { workspaceRoot = null, workspaceMap = new Map(), projectRoot = outputDir, bundlerOptions = {} } = options;
   const { externals: customExternals = [], transpilePackages = [], isDev = false } = bundlerOptions || {};
-  const allExternals = [...globalExternals, ...deprecatedExternals, ...customExternals];
+  const allExternals = [...GLOBAL_EXTERNALS, ...DEPRECATED_EXTERNALS, ...customExternals];
 
   const workspacePackagesNames = Array.from(workspaceMap.keys());
   const packagesToTranspile = new Set([...transpilePackages, ...workspacePackagesNames]);
@@ -270,7 +284,7 @@ export async function bundleExternals(
     rootDir: workspaceRoot || projectRoot,
   });
 
-  const moduleResolveMap = {} as Record<string, Record<string, string>>;
+  const moduleResolveMap = new Map<string, Map<string, string>>();
   const filteredChunks = output.filter(o => o.type === 'chunk');
 
   for (const o of filteredChunks.filter(o => o.isEntry || o.isDynamicEntry)) {
@@ -283,17 +297,36 @@ export async function bundleExternals(
 
       if (importer) {
         const fullPath = join(workspaceRoot || projectRoot, importer.fileName);
-        moduleResolveMap[fullPath] = moduleResolveMap[fullPath] || {};
+        let innerMap = moduleResolveMap.get(fullPath);
+
+        if (!innerMap) {
+          innerMap = new Map<string, string>();
+          moduleResolveMap.set(fullPath, innerMap);
+        }
+
         if (importer.moduleIds.length) {
-          moduleResolveMap[fullPath][external] = importer.moduleIds[importer.moduleIds.length - 1]?.startsWith(
-            '\x00virtual:#virtual',
-          )
-            ? importer.moduleIds[importer.moduleIds.length - 2]!
-            : importer.moduleIds[importer.moduleIds.length - 1]!;
+          innerMap.set(
+            external,
+            importer.moduleIds[importer.moduleIds.length - 1]?.startsWith('\x00virtual:#virtual')
+              ? importer.moduleIds[importer.moduleIds.length - 2]!
+              : importer.moduleIds[importer.moduleIds.length - 1]!,
+          );
         }
       }
     }
   }
 
-  return { output, fileNameToDependencyMap, usedExternals: moduleResolveMap };
+  /**
+   * Convert moduleResolveMap to a plain object with prototype-less objects
+   */
+  const usedExternals = Object.create(null) as Record<string, Record<string, string>>;
+  for (const [fullPath, innerMap] of moduleResolveMap) {
+    const innerObj = Object.create(null) as Record<string, string>;
+    for (const [external, value] of innerMap) {
+      innerObj[external] = value;
+    }
+    usedExternals[fullPath] = innerObj;
+  }
+
+  return { output, fileNameToDependencyMap, usedExternals };
 }
