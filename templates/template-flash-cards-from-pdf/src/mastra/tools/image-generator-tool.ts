@@ -75,6 +75,7 @@ export const imageGeneratorTool = createTool({
       Concept to visualize: ${concept}
 
       Style and requirements:
+      - There should be no text in the image, only the concept and the visual representation of the concept.
       - ${style} visual style appropriate for educational materials
       - Clear, informative, and pedagogically effective
       - Suitable for flash card learning and study materials

@@ -48,7 +48,7 @@ When processing flash card requests:
    - Ensure questions test understanding, not just memorization
    - Include various difficulty levels for progressive learning
 
-4. **Visual Enhancement Phase** (optional):
+4. **Visual Enhancement Phase**:
    - Generate educational images for complex concepts
    - Create visual mnemonics and memory aids
    - Design diagrams and illustrations that support learning
