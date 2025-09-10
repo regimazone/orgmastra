@@ -4,7 +4,7 @@ import type { Schema } from 'ai-v5';
 import { safeValidateTypes } from '../aisdk/v5/compat';
 import { ChunkFrom } from '../types';
 import type { ChunkType } from '../types';
-import { getTransformedSchema, getResponseFormat } from './schema';
+import { getTransformedSchema, getResponseFormat, isJsonSchema } from './schema';
 import type { InferSchemaOutput, OutputSchema, PartialSchemaOutput, ZodLikePartialSchema } from './schema';
 
 interface ProcessPartialChunkParams {
@@ -68,7 +68,7 @@ abstract class BaseFormatHandler<OUTPUT extends OutputSchema = undefined> {
     if (!schema) {
       this.schema = undefined;
     } else {
-      this.schema = asSchema(schema);
+      this.schema = isJsonSchema(schema) ? (schema as Schema<InferSchemaOutput<OUTPUT>>) : asSchema(schema);
     }
     if (options.validatePartialChunks) {
       if (schema !== undefined && 'partial' in schema && typeof schema.partial === 'function') {

@@ -30,8 +30,13 @@ export type ZodLikePartialSchema<T = any> = (
   safeParse(value: unknown): { success: boolean; data?: Partial<T>; error?: any };
 };
 
+export function isJsonSchema(schema?: unknown): schema is JSONSchema7 {
+  return !!(schema && typeof schema === 'object' && '$schema' in schema);
+}
+
 export function getTransformedSchema<OUTPUT extends OutputSchema = undefined>(schema?: OUTPUT) {
-  const jsonSchema = schema ? asSchema(schema).jsonSchema : undefined;
+  const jsonSchema = isJsonSchema(schema) ? schema : schema ? asSchema(schema).jsonSchema : undefined;
+
   if (!jsonSchema) {
     return undefined;
   }
