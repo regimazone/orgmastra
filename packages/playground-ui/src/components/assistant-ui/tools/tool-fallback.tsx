@@ -42,7 +42,5 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
     );
   }
 
-  console.log('result', result);
-
   return <ToolBadge toolName={toolName} argsText={argsText} result={result} />;
 };

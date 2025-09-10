@@ -30,7 +30,6 @@ export interface AgentBadgeProps {
 }
 
 export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
-  console.log('messages', messages);
   return (
     <BadgeWrapper icon={<AgentIcon className="text-accent1" />} title={agentId} initialCollapsed={false}>
       {messages.map((message, index) => {

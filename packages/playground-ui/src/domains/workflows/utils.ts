@@ -193,8 +193,6 @@ export const mapWorkflowStreamChunkToWatchResult = (
       eventTimestamp: new Date(),
     };
 
-    console.log('next', next);
-
     return next;
   }
 

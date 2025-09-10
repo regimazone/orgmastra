@@ -2,8 +2,6 @@ import { BadgeMessage } from '@/components/assistant-ui/tools/badges/agent-badge
 import { ThreadMessageLike } from '@assistant-ui/react';
 
 export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike => {
-  console.log('content', content);
-
   if (content.resourceType === 'workflow') {
     return {
       role: 'assistant',
@@ -40,7 +38,6 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
             content: part.content,
           });
         } else if (part.type === 'tool-result') {
-          console.log('tool-result', toolCalls);
           badgeMessages.push({
             type: 'tool',
             toolName: part.toolName,
@@ -51,9 +48,7 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
             args: part.args || {},
           });
         } else if (part.type === 'tool-call') {
-          console.log('tool-call', part);
           toolCalls[part.toolCallId] = part;
-          console.log('toolCalls', toolCalls);
         }
       }
     }
