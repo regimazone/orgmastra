@@ -750,7 +750,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     const stepAISpan = tracingContext.currentSpan?.createChildSpan({
       name: `workflow step: '${step.id}'`,
       type: AISpanType.WORKFLOW_STEP,
-      //input: prevOutput,
+      input: prevOutput,
       attributes: {
         stepId: step.id,
       },
@@ -1122,7 +1122,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }): Promise<StepResult<any, any, any, any>> {
     const parallelSpan = tracingContext.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_PARALLEL,
-      name: `parallel: ${entry.steps.length} branches`,
+      name: `parallel: '${entry.steps.length} branches'`,
       input: this.getStepOutput(stepResults, prevStep),
       attributes: {
         branchCount: entry.steps.length,
@@ -1241,7 +1241,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }): Promise<StepResult<any, any, any, any>> {
     const conditionalSpan = tracingContext.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_CONDITIONAL,
-      name: `conditional: ${entry.conditions.length} conditions`,
+      name: `conditional: '${entry.conditions.length} conditions'`,
       input: prevOutput,
       attributes: {
         conditionCount: entry.conditions.length,
@@ -1254,7 +1254,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         entry.conditions.map(async (cond, index) => {
           const evalSpan = conditionalSpan?.createChildSpan({
             type: AISpanType.WORKFLOW_CONDITIONAL_EVAL,
-            name: `condition ${index}`,
+            name: `condition '${index}'`,
             input: prevOutput,
             attributes: {
               conditionIndex: index,
@@ -1495,7 +1495,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
     const loopSpan = tracingContext.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_LOOP,
-      name: `loop: ${entry.loopType}`,
+      name: `loop: '${entry.loopType}'`,
       input: prevOutput,
       attributes: {
         loopType: entry.loopType,
@@ -1545,7 +1545,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
       const evalSpan = loopSpan?.createChildSpan({
         type: AISpanType.WORKFLOW_CONDITIONAL_EVAL,
-        name: `condition: ${entry.loopType}`,
+        name: `condition: '${entry.loopType}'`,
         input: selectFields(result.output, ['stepResult', 'output.text', 'output.object', 'messages']),
         attributes: {
           conditionIndex: iteration,
@@ -1665,7 +1665,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
     const loopSpan = tracingContext.currentSpan?.createChildSpan({
       type: AISpanType.WORKFLOW_LOOP,
-      name: `loop: foreach`,
+      name: `loop: 'foreach'`,
       input: prevOutput,
       attributes: {
         loopType: 'foreach',
@@ -1717,7 +1717,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
             executionContext,
             resume,
             prevOutput: item,
-            tracingContext,
+            tracingContext: { currentSpan: loopSpan },
             emitter,
             abortController,
             runtimeContext,
@@ -1784,12 +1784,6 @@ export class DefaultExecutionEngine extends ExecutionEngine {
               },
             });
           }
-          if (execResults.error) {
-            loopSpan?.error({ error: execResults.error });
-          } else {
-            loopSpan?.end({ output: result });
-          }
-
           return result;
         }
 
