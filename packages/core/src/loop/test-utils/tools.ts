@@ -1174,7 +1174,7 @@ export function toolsTests({ loopFn, runId }: { loopFn: typeof loop; runId: stri
       const result = loopFn({
         runId,
         messageList: new MessageList(),
-        model: createTestModel({
+        models: createTestModels({
           stream: convertArrayToReadableStream([
             {
               type: 'response-metadata',

@@ -1,4 +1,4 @@
-import type { SharedV2ProviderOptions } from '@ai-sdk/provider-v5';
+import type { LanguageModelV2, SharedV2ProviderOptions } from '@ai-sdk/provider-v5';
 import type { Span } from '@opentelemetry/api';
 import type {
   CallSettings,

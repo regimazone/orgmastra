@@ -143,8 +143,8 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
     options,
   }: {
     model: {
-      modelId: string | undefined;
-      provider: string | undefined;
+      modelId: string;
+      provider: string;
       version: 'v1' | 'v2';
     };
     stream: ReadableStream<ChunkType<OUTPUT>>;
