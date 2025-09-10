@@ -1,10 +1,11 @@
 import { AgentIcon } from '@/ds/icons';
 import { BadgeWrapper } from './badge-wrapper';
-import { ToolBadge } from './tool-badge';
+
 import { useWorkflow } from '@/hooks/use-workflows';
 import { useWorkflowStream, WorkflowBadge } from './workflow-badge';
 import { LoadingBadge } from './loading-badge';
 import { ToolFallback } from '../tool-fallback';
+import { WorkflowWatchResult } from '@mastra/client-js';
 
 export type BadgeMessage =
   | {
@@ -49,19 +50,4 @@ export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
       })}
     </BadgeWrapper>
   );
-};
-
-const InnerWorkflowHandler = ({ partialChunk, workflowId }: { partialChunk: any; workflowId: string }) => {
-  useWorkflowStream(partialChunk);
-  const { data: workflow, isLoading } = useWorkflow(workflowId);
-
-  console.log('workflow', workflow);
-
-  if (isLoading) return <LoadingBadge />;
-
-  if (workflow) {
-    return <WorkflowBadge workflow={workflow} workflowId={workflowId} isStreaming />;
-  }
-
-  return null;
 };

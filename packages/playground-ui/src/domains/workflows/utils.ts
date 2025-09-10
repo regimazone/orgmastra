@@ -169,7 +169,7 @@ export const mapWorkflowStreamChunkToWatchResult = (
     const status = chunk.payload.status;
     const current = prev?.payload?.workflowState?.steps?.[chunk.payload.id] || {};
 
-    return {
+    const next = {
       ...prev,
       payload: {
         ...prev.payload,
@@ -192,6 +192,10 @@ export const mapWorkflowStreamChunkToWatchResult = (
       },
       eventTimestamp: new Date(),
     };
+
+    console.log('next', next);
+
+    return next;
   }
 
   if (chunk.type === 'workflow-canceled') {

@@ -474,9 +474,13 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                         {
                           ...lastMastraMessage,
                           args: {
+                            ...agentChunk.payload.args,
                             __mastraMetadata: {
                               ...agentChunk.payload.args?.__mastraMetadata,
-                              partialChunk: agentChunk.payload.output,
+                              workflowFullState: mapWorkflowStreamChunkToWatchResult(
+                                lastMastraMessage.args?.__mastraMetadata?.workflowFullState || {},
+                                agentChunk.payload.output as StreamChunk,
+                              ),
                               isStreaming: true,
                             },
                           },
