@@ -1,6 +1,7 @@
 import type { InputOptions, OutputOptions, Plugin } from 'rollup';
 import { watch } from 'rollup';
 import { findWorkspacesRoot } from 'find-workspaces';
+import * as pkg from 'empathic/package';
 import { getInputOptions as getBundlerInputOptions } from './bundler';
 import { aliasHono } from './plugins/hono-alias';
 import { nodeModulesExtensionResolver } from './plugins/node-modules-extension-resolver';
@@ -10,7 +11,6 @@ import { createWorkspacePackageMap } from '../bundler/workspaceDependencies';
 import { analyzeBundle } from './analyze';
 import path, { dirname } from 'path';
 import { getPackageName } from './utils';
-import { packageUp } from 'package-up';
 
 export async function getInputOptions(
   entryFile: string,
@@ -18,7 +18,7 @@ export async function getInputOptions(
   env?: Record<string, string>,
   { sourcemap = false }: { sourcemap?: boolean } = {},
 ) {
-  const closestPkgJson = await packageUp({ cwd: dirname(entryFile) });
+  const closestPkgJson = pkg.up({ cwd: dirname(entryFile) });
   const projectRoot = closestPkgJson ?? process.cwd();
   const workspaceMap = await createWorkspacePackageMap();
   const workspaceRoot = findWorkspacesRoot()?.location;

@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { MastraBundler } from '@mastra/core/bundler';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import virtual from '@rollup/plugin-virtual';
+import * as pkg from 'empathic/package';
 import { findWorkspacesRoot } from 'find-workspaces';
 import fsExtra, { copy, ensureDir, readJSON, emptyDir } from 'fs-extra/esm';
-import { globby } from 'globby';
-import { packageUp } from 'package-up';
 import type { InputOptions, OutputOptions } from 'rollup';
+import { glob } from 'tinyglobby';
 import { analyzeBundle } from '../build/analyze';
 import { createBundler as createBundlerUtil, getInputOptions } from '../build/bundler';
 import { getBundlerOptions } from '../build/bundlerOptions';
@@ -170,7 +170,7 @@ export abstract class Bundler extends MastraBundler {
     { enableSourcemap = false }: { enableSourcemap?: boolean } = {},
   ) {
     const workspaceRoot = findWorkspacesRoot()?.location;
-    const closestPkgJson = await packageUp({ cwd: dirname(mastraEntryFile) });
+    const closestPkgJson = pkg.up({ cwd: dirname(mastraEntryFile) });
     const projectRoot = closestPkgJson ?? process.cwd();
     const inputOptions: InputOptions = await getInputOptions(
       mastraEntryFile,
@@ -204,7 +204,10 @@ export abstract class Bundler extends MastraBundler {
     const inputs: Record<string, string> = {};
 
     for (const toolPath of toolsPaths) {
-      const expandedPaths = await globby(toolPath, {});
+      const expandedPaths = await glob(toolPath, {
+        absolute: true,
+        expandDirectories: false,
+      });
 
       for (const path of expandedPaths) {
         if (await fsExtra.pathExists(path)) {
