@@ -5,6 +5,7 @@ import { BadgeWrapper } from './badge-wrapper';
 export interface ToolBadgeProps {
   toolName: string;
   argsText: string;
+
   result: any;
 }
 
@@ -12,7 +13,7 @@ export const ToolBadge = ({ toolName, argsText, result }: ToolBadgeProps) => {
   let argSlot;
 
   try {
-    const { __mastraMetadata: _, ...rest } = JSON.parse(result);
+    const { __mastraMetadata: _, ...rest } = JSON.parse(argsText);
     argSlot = <SyntaxHighlighter data={rest} />;
   } catch {
     argSlot = <pre className="whitespace-pre-wrap">{argsText}</pre>;

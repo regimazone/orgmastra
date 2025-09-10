@@ -318,6 +318,7 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
             if (part.type === 'tool-call') {
               const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
 
+              console.log('agentChunk', agentChunk);
               const next = {
                 ...part,
                 toolName: part?.entityName || entityName,
@@ -327,15 +328,14 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                     ...part.args?.__mastraMetadata,
                     isStreaming: true,
                     messages: [
-                      ...messages,
-                      // ...messages.slice(0, -1),
-                      // {
-                      //   ...messages[messages.length - 1],
-                      //   type: 'tool',
-                      //   toolName: agentChunk.payload.toolName,
-                      //   toolInput: agentChunk.payload.args,
-                      //   toolOutput: agentChunk.payload.result,
-                      // },
+                      ...messages.slice(0, -1),
+                      {
+                        ...messages[messages.length - 1],
+                        type: 'tool',
+                        toolName: agentChunk.payload.toolName,
+                        toolInput: agentChunk.payload.args,
+                        toolOutput: agentChunk.payload.result,
+                      },
                     ],
                   },
                 },
@@ -364,6 +364,7 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
           content: contentArray.map(part => {
             if (part.type === 'tool-call') {
               const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
+              console.log('TOOL CALL', agentChunk);
 
               const next = {
                 ...part,
@@ -393,6 +394,8 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                   },
                 },
               };
+
+              console.log('TOOL CALL NEXT', { next, part });
 
               return next;
             }
@@ -451,6 +454,7 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
     }
 
     case 'tool-output': {
+      console.log('TOOL OUTPUT', agentChunk);
       flushSync(() => {
         setMessages(currentConversation => {
           if (!agentChunk.payload.output.type.startsWith('workflow-')) return currentConversation;
@@ -552,7 +556,6 @@ export const createRootToolAssistantMessage = ({
                 toolCallId: runId,
                 toolName: entityName,
                 args: {
-                  ...chunk.payload.args,
                   __mastraMetadata: {
                     from,
                     ...chunk.payload.args?.__mastraMetadata,
@@ -568,7 +571,6 @@ export const createRootToolAssistantMessage = ({
                 toolCallId: runId,
                 toolName: entityName,
                 args: {
-                  ...chunk.payload.args,
                   __mastraMetadata: {
                     from,
                     ...chunk.payload.args?.__mastraMetadata,
@@ -596,7 +598,6 @@ export const createRootToolAssistantMessage = ({
           toolCallId: runId,
           toolName: entityName,
           args: {
-            ...chunk.payload.args,
             __mastraMetadata: { from, ...chunk.payload.args?.__mastraMetadata, isStreaming: true },
           },
         },

@@ -6,6 +6,7 @@ import { useWorkflowStream, WorkflowBadge } from './workflow-badge';
 import { LoadingBadge } from './loading-badge';
 import { ToolFallback } from '../tool-fallback';
 import { WorkflowWatchResult } from '@mastra/client-js';
+import React from 'react';
 
 export type BadgeMessage =
   | {
@@ -29,25 +30,27 @@ export interface AgentBadgeProps {
 }
 
 export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
+  console.log('messages', messages);
   return (
     <BadgeWrapper icon={<AgentIcon className="text-accent1" />} title={agentId} initialCollapsed={false}>
-      {messages.map(message => {
-        console.log('message', message);
+      {messages.map((message, index) => {
         if (message.type === 'text') {
-          return message.content;
+          return <React.Fragment key={index}>{message.content}</React.Fragment>;
         }
 
         return (
-          <ToolFallback
-            toolName={message.toolName}
-            argsText={message.toolInput ? JSON.stringify(message.toolInput) : ''}
-            result={message?.result || (message.toolOutput ? JSON.stringify(message.toolOutput) : '')}
-            args={message.args}
-            status={{ type: 'complete' }}
-            type="tool-call"
-            toolCallId={message.toolCallId}
-            addResult={() => {}}
-          />
+          <React.Fragment key={index}>
+            <ToolFallback
+              toolName={message.toolName}
+              argsText={message.toolInput ? JSON.stringify(message.toolInput) : ''}
+              result={message.toolOutput ? JSON.stringify(message.toolOutput) : ''}
+              args={message.args}
+              status={{ type: 'complete' }}
+              type="tool-call"
+              toolCallId={message.toolCallId}
+              addResult={() => {}}
+            />
+          </React.Fragment>
         );
       })}
     </BadgeWrapper>

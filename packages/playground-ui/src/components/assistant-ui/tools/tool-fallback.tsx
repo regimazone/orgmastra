@@ -32,7 +32,6 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
   if (isLoading) return <LoadingBadge />;
 
   if (workflow) {
-    console.log('plooow', result);
     return (
       <WorkflowBadge
         workflowId={toolName}
@@ -42,6 +41,8 @@ const ToolFallbackInner: ToolCallMessagePartComponent = ({ toolName, argsText, r
       />
     );
   }
+
+  console.log('result', result);
 
   return <ToolBadge toolName={toolName} argsText={argsText} result={result} />;
 };
