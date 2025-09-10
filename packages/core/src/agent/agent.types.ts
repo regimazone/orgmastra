@@ -4,7 +4,7 @@ import type { ModelMessage, ToolChoice } from 'ai-v5';
 import type { z } from 'zod';
 import type { ZodSchema as ZodSchemaV3 } from 'zod/v3';
 import type { ZodAny } from 'zod/v4';
-import type { TracingContext } from '../ai-tracing';
+import type { TracingContext, TracingOptions } from '../ai-tracing';
 import type { StreamTextOnFinishCallback, StreamTextOnStepFinishCallback } from '../llm/model/base.types';
 import type { LoopConfig, LoopOptions, PrepareStepFunction } from '../loop/types';
 import type { InputProcessor, OutputProcessor } from '../processors';
@@ -14,6 +14,27 @@ import type { OutputSchema } from '../stream/base/schema';
 import type { ChunkType } from '../stream/types';
 import type { MessageListInput } from './message-list';
 import type { AgentMemoryOption, ToolsetsInput, ToolsInput, StructuredOutputOptions } from './types';
+
+export type MultiPrimitiveExecutionOptions = {
+  /** Memory configuration for conversation persistence and retrieval */
+  memory?: AgentMemoryOption;
+  /** Unique identifier for this execution run */
+  runId?: string;
+
+  /** Runtime context containing dynamic configuration and state */
+  runtimeContext?: RuntimeContext;
+
+  /** Maximum number of steps to run */
+  maxSteps?: number;
+
+  /** AI tracing context for span hierarchy and metadata */
+  tracingContext?: TracingContext;
+
+  /** Model-specific settings like temperature, maxTokens, topP, etc. */
+  modelSettings?: LoopOptions['modelSettings'];
+
+  telemetry?: TelemetrySettings;
+};
 
 export type AgentExecutionOptions<
   OUTPUT extends OutputSchema | undefined = undefined,
@@ -103,6 +124,8 @@ export type AgentExecutionOptions<
   returnScorerData?: boolean;
   /** AI tracing context for span hierarchy and metadata */
   tracingContext?: TracingContext;
+  /** AI tracing options for starting new traces */
+  tracingOptions?: TracingOptions;
 
   /** Callback function called before each step of multi-step execution */
   prepareStep?: PrepareStepFunction<any>;
