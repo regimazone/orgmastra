@@ -4,7 +4,7 @@ import nodeResolve from '@rollup/plugin-node-resolve';
 import virtual from '@rollup/plugin-virtual';
 import esmShim from '@rollup/plugin-esm-shim';
 import { basename } from 'node:path/posix';
-import { join } from 'node:path';
+import * as path from 'node:path';
 import { rollup, type OutputChunk } from 'rollup';
 import { esbuild } from '../plugins/esbuild';
 import { aliasHono } from '../plugins/hono-alias';
@@ -17,6 +17,21 @@ type VirtualDependency = {
   name: string;
   virtual: string;
 };
+
+function prepareEntryFileName(name: string, rootDir: string) {
+  /**
+   * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
+   */
+  const relativePath = path.relative(rootDir, name);
+
+  return (
+    relativePath
+      /**
+       * Use posix separators (/) for entry names, as Rollup expects that
+       */
+      .replaceAll(path.sep, path.posix.sep)
+  );
+}
 
 /**
  * Creates virtual dependency modules for optimized bundling by generating virtual entry points for each dependency with their specific exports and handling workspace package path resolution.
@@ -57,15 +72,7 @@ export function createVirtualDependencies(
     }
 
     // Determine the entry name based on the complexity of exports
-    let entryName = `${outputDir}/${fileName}`
-      /**
-       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
-       */
-      .replace(rootDir, '')
-      /**
-       * Remove leading slashes/backslashes
-       */
-      .replace(/^[/\\]+/, '');
+    let entryName = prepareEntryFileName(path.join(outputDir, fileName), rootDir);
 
     fileNameToDependencyMap.set(entryName, dep);
     optimizedDependencyEntries.set(dep, {
@@ -88,20 +95,12 @@ export function createVirtualDependencies(
     }
 
     const fileName = basename(currentDepPath.name);
-    const absolutePath = getCompiledDepCachePath(rootPath, fileName)
-      /**
-       * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
-       */
-      .replace(rootDir, '')
-      /**
-       * Remove leading slashes/backslashes
-       */
-      .replace(/^[/\\]+/, '');
+    const entryName = prepareEntryFileName(getCompiledDepCachePath(rootPath, fileName), rootDir);
 
-    fileNameToDependencyMap.set(absolutePath, dep);
+    fileNameToDependencyMap.set(entryName, dep);
     optimizedDependencyEntries.set(dep, {
       ...currentDepPath,
-      name: absolutePath,
+      name: entryName,
     });
   }
 
@@ -176,11 +175,13 @@ async function buildExternalDependencies(
     packagesToTranspile,
     workspaceMap,
     rootDir,
+    outputDir,
   }: {
     externals: string[];
     packagesToTranspile: Set<string>;
     workspaceMap: Map<string, WorkspacePackageInfo>;
     rootDir: string;
+    outputDir: string;
   },
 ) {
   const bundler = await rollup({
@@ -197,11 +198,17 @@ async function buildExternalDependencies(
     plugins: getInputPlugins(virtualDependencies, packagesToTranspile, workspaceMap),
   });
 
+  const outputDirRelative = prepareEntryFileName(outputDir, rootDir);
+
   const { output } = await bundler.write({
     format: 'esm',
     dir: rootDir,
     entryFileNames: '[name].mjs',
-    chunkFileNames: '[name].mjs',
+    /**
+     * Rollup creates chunks for common dependencies, but these chunks are by default written to the root directory instead of respecting the entryFileNames structure.
+     * So we want to write them to the `.mastra/output` folder as well.
+     */
+    chunkFileNames: `${outputDirRelative}/[name].mjs`,
     hoistTransitiveImports: false,
   });
 
@@ -282,6 +289,7 @@ export async function bundleExternals(
     packagesToTranspile,
     workspaceMap: isDev ? workspaceMap : new Map(),
     rootDir: workspaceRoot || projectRoot,
+    outputDir,
   });
 
   const moduleResolveMap = new Map<string, Map<string, string>>();
@@ -296,7 +304,7 @@ export async function bundleExternals(
       const importer = findExternalImporter(o, external, filteredChunks);
 
       if (importer) {
-        const fullPath = join(workspaceRoot || projectRoot, importer.fileName);
+        const fullPath = path.join(workspaceRoot || projectRoot, importer.fileName);
         let innerMap = moduleResolveMap.get(fullPath);
 
         if (!innerMap) {
