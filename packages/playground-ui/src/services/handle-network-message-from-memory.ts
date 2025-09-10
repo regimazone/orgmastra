@@ -20,6 +20,7 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
 
   if (content.resourceType === 'agent') {
     const badgeMessages: BadgeMessage[] = [];
+    let toolCalls: Record<string, any> = {};
     // First message is sliced because it's the agent network prompt
     const messages = content.finalResult.messages.slice(1);
     for (const message of messages) {
@@ -32,8 +33,6 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
         continue;
       }
 
-      let toolCalls: Record<string, any> = {};
-
       for (const part of message.content) {
         if (part.type === 'text') {
           badgeMessages.push({
@@ -41,7 +40,7 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
             content: part.content,
           });
         } else if (part.type === 'tool-result') {
-          console.log('lolx', toolCalls, part);
+          console.log('tool-result', toolCalls);
           badgeMessages.push({
             type: 'tool',
             toolName: part.toolName,
@@ -52,7 +51,9 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
             args: part.args || {},
           });
         } else if (part.type === 'tool-call') {
+          console.log('tool-call', part);
           toolCalls[part.toolCallId] = part;
+          console.log('toolCalls', toolCalls);
         }
       }
     }
