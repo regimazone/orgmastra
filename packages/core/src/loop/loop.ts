@@ -80,8 +80,8 @@ export function loop<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSchem
   const { rootSpan: modelStreamSpan } = getRootSpan({
     operationId: `mastra.${mode}.aisdk.doStream`,
     model: {
-      modelId: models[0]?.model?.modelId!,
-      provider: models[0]?.model?.provider!,
+      modelId: firstModel.model.modelId,
+      provider: firstModel.model.provider,
     },
     modelSettings,
     headers: modelSettings?.headers ?? rest.headers,
@@ -135,6 +135,7 @@ export function loop<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSchem
       outputProcessors,
       outputProcessorRunnerMode: 'result',
       returnScorerData,
+      tracingContext: { currentSpan: llmAISpan },
     },
   });
 }

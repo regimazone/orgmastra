@@ -429,7 +429,7 @@ export function createLLMExecutionStep<
     id: 'llm-execution',
     inputSchema: llmIterationOutputSchema,
     outputSchema: llmIterationOutputSchema,
-    execute: async ({ inputData, bail }) => {
+    execute: async ({ inputData, bail, tracingContext }) => {
       const { outputStream, runState, request, warnings, rawResponse, callBail } =
         await executeStreamWithFallbackModels<{
           outputStream: MastraModelOutput<OUTPUT | undefined>;
@@ -567,6 +567,7 @@ export function createLLMExecutionStep<
               output,
               outputProcessors,
               outputProcessorRunnerMode: 'stream',
+              tracingContext,
             },
           });
 
