@@ -410,7 +410,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       const memory = await agent.getMemory({ runtimeContext: runtimeContext });
 
       const initData = await getInitData();
-      const messages = result.messageList.get.all.v2();
+      const messages = result.messageList.get.all.aiV4.ui();
 
       await memory?.saveMessages({
         messages: [
