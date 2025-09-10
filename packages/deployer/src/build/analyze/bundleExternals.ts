@@ -20,7 +20,8 @@ type VirtualDependency = {
 
 function prepareEntryFileName(name: string, rootDir: string) {
   /**
-   * The Rollup output.entryFileNames option doesn't allow relative or absolute paths
+   * The Rollup output.entryFileNames option doesn't allow relative (like `../../foo`) or absolute paths
+   * Since the current working directory is the project root, the resulting path won't have any `..` segments
    */
   const relativePath = path.relative(rootDir, name);
 
