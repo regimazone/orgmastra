@@ -556,7 +556,7 @@ export function createLLMExecutionStep<
               provider: model.provider,
               version: model.specificationVersion,
             },
-            stream: modelResult as unknown as ReadableStream<ChunkType>,
+            stream: modelResult.stream as ReadableStream<ChunkType>,
             messageList,
             options: {
               runId,

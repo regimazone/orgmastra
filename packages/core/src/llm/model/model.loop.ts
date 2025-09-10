@@ -1,4 +1,3 @@
-// import type { LanguageModelV2 } from '@ai-sdk/provider-v5';
 import {
   AnthropicSchemaCompatLayer,
   applyCompatLayer,
@@ -151,7 +150,6 @@ export class MastraLLMVNext extends MastraBase {
     _internal,
     // ...rest
   }: ModelLoopStreamArgs<Tools, OUTPUT>): MastraModelOutput<OUTPUT | undefined> {
-    const firstModel = this.#firstModel.model;
     let stopWhenToUse;
 
     if (maxSteps && typeof maxSteps === 'number') {
@@ -162,6 +160,7 @@ export class MastraLLMVNext extends MastraBase {
 
     const messages = messageList.get.all.aiV5.model();
 
+    const firstModel = this.#firstModel.model;
     this.logger.debug(`[LLM] - Streaming text`, {
       runId,
       threadId,
