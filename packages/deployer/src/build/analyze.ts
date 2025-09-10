@@ -8,7 +8,11 @@ import { join } from 'node:path';
 import { validate } from '../validator/validate';
 import { getBundlerOptions } from './bundlerOptions';
 import { checkConfigExport } from './babel/check-config-export';
-import { createWorkspacePackageMap, type WorkspacePackageInfo } from '../bundler/workspaceDependencies';
+import {
+  createWorkspacePackageMap,
+  workspacesCache,
+  type WorkspacePackageInfo,
+} from '../bundler/workspaceDependencies';
 import type { DependencyMetadata } from './types';
 import { analyzeEntry } from './analyze/analyzeEntry';
 import { bundleExternals } from './analyze/bundleExternals';
@@ -132,8 +136,12 @@ If you think your configuration is valid, please open an issue.`);
   }
 
   const bundlerOptions = await getBundlerOptions(mastraEntry, outputDir);
-  const workspaceRoot = findWorkspacesRoot()?.location;
-  const workspaceMap = await createWorkspacePackageMap();
+  const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
+  let workspaceMap: Map<string, WorkspacePackageInfo> = new Map();
+
+  if (workspaceRoot) {
+    workspaceMap = await createWorkspacePackageMap();
+  }
 
   let index = 0;
   const depsToOptimize = new Map<string, DependencyMetadata>();
@@ -148,8 +156,10 @@ If you think your configuration is valid, please open an issue.`);
       workspaceMap,
     });
 
-    // write the entry file to the output dir for debugging purposes
-    await writeFile(join(outputDir, `entry-${index++}.mjs`), analyzeResult.output.code);
+    if (process.env.MASTRA_BUNDLER_DEBUG === 'true') {
+      // Write the entry file to the output dir for debugging purposes
+      await writeFile(join(outputDir, `entry-${index++}.mjs`), analyzeResult.output.code);
+    }
 
     // Merge dependencies from each entry (main, tools, etc.)
     for (const [dep, metadata] of analyzeResult.dependencies.entries()) {

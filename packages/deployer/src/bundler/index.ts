@@ -18,7 +18,11 @@ import { writeTelemetryConfig } from '../build/telemetry';
 import { getPackageRootPath } from '../build/utils';
 import { DepsService } from '../services/deps';
 import { FileService } from '../services/fs';
-import { collectTransitiveWorkspaceDependencies, packWorkspaceDependencies } from './workspaceDependencies';
+import {
+  collectTransitiveWorkspaceDependencies,
+  packWorkspaceDependencies,
+  workspacesCache,
+} from './workspaceDependencies';
 
 export abstract class Bundler extends MastraBundler {
   protected analyzeOutputDir = '.build';
@@ -169,7 +173,7 @@ export abstract class Bundler extends MastraBundler {
     toolsPaths: (string | string[])[],
     { enableSourcemap = false }: { enableSourcemap?: boolean } = {},
   ) {
-    const workspaceRoot = findWorkspacesRoot()?.location;
+    const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
     const closestPkgJson = pkg.up({ cwd: dirname(mastraEntryFile) });
     const projectRoot = closestPkgJson ?? process.cwd();
     const inputOptions: InputOptions = await getInputOptions(

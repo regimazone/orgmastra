@@ -7,7 +7,11 @@ import { aliasHono } from './plugins/hono-alias';
 import { nodeModulesExtensionResolver } from './plugins/node-modules-extension-resolver';
 import { tsConfigPaths } from './plugins/tsconfig-paths';
 import { noopLogger } from '@mastra/core/logger';
-import { createWorkspacePackageMap } from '../bundler/workspaceDependencies';
+import {
+  createWorkspacePackageMap,
+  workspacesCache,
+  type WorkspacePackageInfo,
+} from '../bundler/workspaceDependencies';
 import { analyzeBundle } from './analyze';
 import path, { dirname } from 'path';
 import { getPackageName } from './utils';
@@ -20,8 +24,12 @@ export async function getInputOptions(
 ) {
   const closestPkgJson = pkg.up({ cwd: dirname(entryFile) });
   const projectRoot = closestPkgJson ?? process.cwd();
-  const workspaceMap = await createWorkspacePackageMap();
-  const workspaceRoot = findWorkspacesRoot()?.location;
+  const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
+  let workspaceMap: Map<string, WorkspacePackageInfo> = new Map();
+
+  if (workspaceRoot) {
+    workspaceMap = await createWorkspacePackageMap();
+  }
 
   const analyzeEntryResult = await analyzeBundle(
     [entryFile],

@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import type { IMastraLogger } from '@mastra/core/logger';
 import slugify from '@sindresorhus/slugify';
-import { findWorkspaces, findWorkspacesRoot } from 'find-workspaces';
+import { findWorkspaces, findWorkspacesRoot, createWorkspacesCache } from 'find-workspaces';
 import { ensureDir } from 'fs-extra';
 import { DepsService } from '../services';
 
@@ -17,12 +17,17 @@ type TransitiveDependencyResult = {
 };
 
 /**
+ * Create a shared cache for find-workspaces
+ */
+export const workspacesCache = createWorkspacesCache();
+
+/**
  * Creates a map of workspace packages with their metadata for dependency resolution
  * @returns Map of package names to their location, dependencies and version
  */
 export const createWorkspacePackageMap = async () => {
   // TODO move to our own implementation - pkg is 4 years old
-  const workspaces = await findWorkspaces();
+  const workspaces = await findWorkspaces(process.cwd(), { cache: workspacesCache });
   const workspaceMap = new Map(
     workspaces?.map(workspace => [
       workspace.package.name,
