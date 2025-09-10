@@ -400,20 +400,17 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         runId,
       });
 
-      const chunks: any[] = [];
       for await (const chunk of result.fullStream) {
-        chunks.push(chunk);
         await writer.write({
           type: `agent-execution-event-${chunk.type}`,
           payload: chunk,
         });
       }
 
-      const finalResult = chunks;
-
       const memory = await agent.getMemory({ runtimeContext: runtimeContext });
 
       const initData = await getInitData();
+      const messages = result.messageList.get.all.v3();
 
       await memory?.saveMessages({
         messages: [
@@ -430,7 +427,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                     selectionReason: inputData.selectionReason,
                     resourceType: inputData.resourceType,
                     resourceId: inputData.resourceId,
-                    finalResult: finalResult,
+                    finalResult: { text: await result.text, toolCalls: await result.toolCalls, messages },
                   }),
                 },
               ],
@@ -447,7 +444,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       const endPayload = {
         task: inputData.task,
         agentId: inputData.resourceId,
-        result: finalResult,
+        result: await result.text,
         isComplete: false,
         iteration: inputData.iteration,
       };
