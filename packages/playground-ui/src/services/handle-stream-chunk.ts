@@ -1,4 +1,6 @@
 import { BadgeMessage } from '@/components/assistant-ui/tools/badges/agent-badge';
+import { mapWorkflowStreamChunkToWatchResult } from '@/domains/workflows/utils';
+import { StreamChunk } from '@/types';
 import { ThreadMessageLike } from '@assistant-ui/react';
 import { ChunkType } from '@mastra/core';
 import { flushSync } from 'react-dom';
@@ -276,7 +278,10 @@ export const handleWorkflowChunk = ({ workflowChunk, setMessages, entityName }: 
                 ...part.args,
                 __mastraMetadata: {
                   ...part.args?.__mastraMetadata,
-                  partialChunk: workflowChunk,
+                  workflowFullState: mapWorkflowStreamChunkToWatchResult(
+                    part.args?.__mastraMetadata?.workflowFullState || {},
+                    workflowChunk as StreamChunk,
+                  ),
                   isStreaming: true,
                 },
               },
