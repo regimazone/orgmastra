@@ -5,7 +5,7 @@ import { findWorkspaces, findWorkspacesRoot } from 'find-workspaces';
 import { ensureDir } from 'fs-extra';
 import { DepsService } from '../services';
 
-type WorkspacePackageInfo = {
+export type WorkspacePackageInfo = {
   location: string;
   dependencies: Record<string, string> | undefined;
   version: string | undefined;
@@ -131,9 +131,10 @@ export const packWorkspaceDependencies = async ({
       await Promise.all(
         batch.map(async pkgName => {
           const dep = workspaceMap.get(pkgName);
+          const sanitizedName = slugify(pkgName);
           if (!dep) return;
 
-          await depsService.pack({ dir: dep.location, destination: workspaceDirPath });
+          await depsService.pack({ dir: dep.location, destination: workspaceDirPath, sanitizedName: sanitizedName });
         }),
       );
     }

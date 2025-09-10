@@ -8,12 +8,12 @@ import type { LanguageModelV2CallWarning, LanguageModelV2StreamPart } from '@ai-
 import { jsonSchema, NoObjectGeneratedError, pipeTextStreamToResponse } from 'ai-v5';
 import type { FinishReason, LanguageModelResponseMetadata, LanguageModelUsage } from 'ai-v5';
 import { MockLanguageModelV2 } from 'ai-v5/test';
-import { assert, beforeEach, describe, expect, it } from 'vitest';
+import { assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import z from 'zod';
 import { MessageList } from '../../agent/message-list';
 import type { loop } from '../loop';
 import { createMockServerResponse } from './mock-server-response';
-import { testUsage } from './utils';
+import { mockDate, testUsage } from './utils';
 
 function createTestModel({
   warnings = [],
@@ -86,9 +86,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: createTestModel(),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           messageList: new MessageList(),
         });
 
@@ -116,9 +114,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               },
             ]),
           }),
-          objectOptions: {
-            schema: z.array(z.object({ content: z.string() })),
-          },
+          output: z.array(z.object({ content: z.string() })),
           messageList: new MessageList(),
         });
 
@@ -132,9 +128,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: createTestModel(),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           messageList: new MessageList(),
         });
 
@@ -159,9 +153,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             runId,
             model: mockModel,
             messageList,
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
           });
 
           expect(await convertAsyncIterableToArray(result.objectStream)).toMatchInlineSnapshot(`
@@ -179,24 +171,25 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             ]
           `);
 
-          expect(mockModel?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
-            {
-              "schema": {
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "additionalProperties": false,
-                "properties": {
-                  "content": {
-                    "type": "string",
-                  },
-                },
-                "required": [
-                  "content",
-                ],
-                "type": "object",
-              },
-              "type": "json",
-            }
-          `);
+          // TODO: responseFormat disabled in favor of json schema in system prompt
+          // expect(mockModel?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
+          //   {
+          //     "schema": {
+          //       "$schema": "http://json-schema.org/draft-07/schema#",
+          //       "additionalProperties": false,
+          //       "properties": {
+          //         "content": {
+          //           "type": "string",
+          //         },
+          //       },
+          //       "required": [
+          //         "content",
+          //       ],
+          //       "type": "object",
+          //     },
+          //     "type": "json",
+          //   }
+          // `);
         });
 
         it('should use name and description', async () => {
@@ -204,9 +197,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           const result = loopFn({
             runId,
             model,
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -227,9 +218,15 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           expect(model.doStreamCalls?.[0]?.prompt).toMatchInlineSnapshot(`
             [
               {
+                "content": "JSON schema:
+            {"type":"object","properties":{"content":{"type":"string"}},"required":["content"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}
+            You MUST answer with a JSON object that matches the JSON schema above.",
+                "role": "system",
+              },
+              {
                 "content": [
                   {
-                    "text": " ",
+                    "text": ".",
                     "type": "text",
                   },
                 ],
@@ -239,24 +236,25 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             ]
           `);
 
-          expect(model?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
-            {
-              "schema": {
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "additionalProperties": false,
-                "properties": {
-                  "content": {
-                    "type": "string",
-                  },
-                },
-                "required": [
-                  "content",
-                ],
-                "type": "object",
-              },
-              "type": "json",
-            }
-          `);
+          // TODO: responseFormat disabled in favor of json schema in system prompt
+          // expect(model?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
+          //   {
+          //     "schema": {
+          //       "$schema": "http://json-schema.org/draft-07/schema#",
+          //       "additionalProperties": false,
+          //       "properties": {
+          //         "content": {
+          //           "type": "string",
+          //         },
+          //       },
+          //       "required": [
+          //         "content",
+          //       ],
+          //       "type": "object",
+          //     },
+          //     "type": "json",
+          //   }
+          // `);
         });
 
         it('should suppress error in partialObjectStream', async () => {
@@ -267,9 +265,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 throw new Error('test error');
               },
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
             options: {
               onError: () => {},
@@ -289,9 +285,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 throw new Error('test error');
               },
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
             options: {
               onError(event) {
@@ -313,9 +307,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           const result = loopFn({
             runId,
             model: createTestModel(),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -394,9 +386,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           const result = loopFn({
             runId,
             model: createTestModel(),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -426,9 +416,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           const result = loopFn({
             runId,
             model: createTestModel(),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -451,13 +439,12 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
 
       describe('result.pipeTextStreamToResponse', async () => {
         it('should write text deltas to a Node.js response-like object', async () => {
+          vi.useRealTimers();
           const mockResponse = createMockServerResponse();
 
           const result = loopFn({
             model: createTestModel(),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -485,6 +472,8 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               " }",
             ]
           `);
+          vi.useFakeTimers();
+          vi.setSystemTime(mockDate);
         });
       });
 
@@ -503,9 +492,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 { type: 'finish', finishReason: 'stop', usage: testUsage },
               ]),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -549,9 +536,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 },
               ]),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -593,9 +578,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               ]),
               response: { headers: { call: '2' } },
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -617,6 +600,22 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             messages: [
               {
                 content: [
+                  {
+                    text: '{"content": "Hello, world!"}',
+                    type: 'text',
+                  },
+                ],
+                role: 'assistant',
+              },
+            ],
+            uiMessages: [
+              {
+                id: expect.any(String),
+                metadata: {
+                  __originalContent: '{"content": "Hello, world!"}',
+                  createdAt: expect.any(Date),
+                },
+                parts: [
                   {
                     text: '{"content": "Hello, world!"}',
                     type: 'text',
@@ -663,9 +662,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 request: { body: 'test body' },
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -703,9 +700,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -739,9 +734,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -773,9 +766,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -808,9 +799,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -850,14 +839,13 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             options: {
               onFinish: async event => {
                 result = event;
               },
             },
+            _internal: { generateId: () => '1234', currentDate: () => new Date(0), now: () => 0 },
             messageList: new MessageList(),
           });
           // consume stream
@@ -894,6 +882,22 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ],
                 "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:00.000Z,
+                "uiMessages": [
+                  {
+                    "id": "1234",
+                    "metadata": {
+                      "__originalContent": "{ "content": "Hello, world!" }",
+                      "createdAt": ${mockDate.toISOString()},
+                    },
+                    "parts": [
+                      {
+                        "text": "{ "content": "Hello, world!" }",
+                        "type": "text",
+                      },
+                    ],
+                    "role": "assistant",
+                  },
+                ],
               },
               "sources": [],
               "staticToolCalls": [],
@@ -990,14 +994,13 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             options: {
               onFinish: async event => {
                 result = event;
               },
             },
+            _internal: { generateId: () => '1234', currentDate: () => new Date(0), now: () => 0 },
             messageList: new MessageList(),
           });
           // consume stream
@@ -1038,6 +1041,22 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ],
                 "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:00.000Z,
+                "uiMessages": [
+                  {
+                    "id": "1234",
+                    "metadata": {
+                      "__originalContent": "{ "invalid": "Hello, world!" }",
+                      "createdAt": ${mockDate.toISOString()},
+                    },
+                    "parts": [
+                      {
+                        "text": "{ "invalid": "Hello, world!" }",
+                        "type": "text",
+                      },
+                    ],
+                    "role": "assistant",
+                  },
+                ],
               },
               "sources": [],
               "staticToolCalls": [],
@@ -1130,9 +1149,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 };
               },
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
             modelSettings: { headers: { 'custom-request-header': 'request-header-value' } },
             headers: { 'custom-request-header': 'request-header-value' },
@@ -1176,9 +1193,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 };
               },
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
             providerOptions: {
               aProvider: { someKey: 'someValue' },
@@ -1203,14 +1218,12 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           const result = loopFn({
             runId,
             model: mockModel,
-            objectOptions: {
-              schema: jsonSchema({
-                type: 'object',
-                properties: { content: { type: 'string' } },
-                required: ['content'],
-                additionalProperties: false,
-              }),
-            },
+            output: jsonSchema({
+              type: 'object',
+              properties: { content: { type: 'string' } },
+              required: ['content'],
+              additionalProperties: false,
+            }),
             messageList: new MessageList(),
           });
           const expectedOutput = `
@@ -1230,6 +1243,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           expect(await convertAsyncIterableToArray(result.aisdk.v5.objectStream)).toMatchInlineSnapshot(expectedOutput);
           expect(await convertAsyncIterableToArray(result.objectStream)).toMatchInlineSnapshot(expectedOutput);
 
+          // TODO: responseFormat disabled in favor of json schema in system prompt
           //   expect(mockModel.doStreamCalls[0].responseFormat).toMatchInlineSnapshot(`
           //   {
           //     "description": undefined,
@@ -1277,9 +1291,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -1324,9 +1336,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -1368,9 +1378,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 ]),
               }),
             }),
-            objectOptions: {
-              schema: z.object({ content: z.string() }),
-            },
+            output: z.object({ content: z.string() }),
             messageList: new MessageList(),
           });
 
@@ -1433,9 +1441,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 },
               ]),
             }),
-            objectOptions: {
-              schema: z.array(z.object({ content: z.string() })),
-            },
+            output: z.array(z.object({ content: z.string() })),
             options: {
               onFinish: async event => {
                 onFinishResult = event as unknown as typeof onFinishResult;
@@ -1523,9 +1529,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 },
               ]),
             }),
-            objectOptions: {
-              schema: z.array(z.object({ content: z.string() })),
-            },
+            output: z.array(z.object({ content: z.string() })),
             options: {
               // schema: z.object({ content: z.string() }),
               // output: 'array',
@@ -1607,9 +1611,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 },
               ]),
             }),
-            objectOptions: {
-              schema: z.array(z.object({ content: z.string() })),
-            },
+            output: z.array(z.object({ content: z.string() })),
 
             messageList: new MessageList(),
           });
@@ -1638,9 +1640,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: mockModel,
-          objectOptions: {
-            schema: z.enum(['sunny', 'rainy', 'snowy']),
-          },
+          output: z.enum(['sunny', 'rainy', 'snowy']),
           messageList: new MessageList(),
         });
 
@@ -1650,29 +1650,30 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
           ]
         `);
 
-        expect(mockModel?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
-          {
-            "schema": {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "additionalProperties": false,
-              "properties": {
-                "result": {
-                  "enum": [
-                    "sunny",
-                    "rainy",
-                    "snowy",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "result",
-              ],
-              "type": "object",
-            },
-            "type": "json",
-          }
-        `);
+        // TODO: responseFormat disabled in favor of json schema in system prompt
+        // expect(mockModel?.doStreamCalls?.[0]?.responseFormat).toMatchInlineSnapshot(`
+        //   {
+        //     "schema": {
+        //       "$schema": "http://json-schema.org/draft-07/schema#",
+        //       "additionalProperties": false,
+        //       "properties": {
+        //         "result": {
+        //           "enum": [
+        //             "sunny",
+        //             "rainy",
+        //             "snowy",
+        //           ],
+        //           "type": "string",
+        //         },
+        //       },
+        //       "required": [
+        //         "result",
+        //       ],
+        //       "type": "object",
+        //     },
+        //     "type": "json",
+        //   }
+        // `);
       });
 
       it('should not stream incorrect values', async () => {
@@ -1699,9 +1700,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: mockModel,
-          objectOptions: {
-            schema: z.enum(['sunny', 'rainy', 'snowy']),
-          },
+          output: z.enum(['sunny', 'rainy', 'snowy']),
           messageList: new MessageList(),
         });
 
@@ -1729,9 +1728,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: mockModel,
-          objectOptions: {
-            schema: z.enum(['foobar', 'foobar2']),
-          },
+          output: z.enum(['foobar', 'foobar2']),
           messageList: new MessageList(),
         });
 
@@ -1765,9 +1762,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
         const result = loopFn({
           runId,
           model: mockModel,
-          objectOptions: {
-            schema: z.enum(['foobar', 'barfoo']),
-          },
+          output: z.enum(['foobar', 'barfoo']),
           messageList: new MessageList(),
         });
 
@@ -1807,9 +1802,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               ]),
             }),
           }),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           // TODO
           // options: {
           //   experimental_repairText: async ({ text, error }) => {
@@ -1856,9 +1849,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               ]),
             }),
           }),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           // TODO
           // options: {
           //   experimental_repairText: async ({ text, error }) => {
@@ -1906,9 +1897,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
             }),
           }),
 
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
 
           // TODO: experimental_repairText?
           // options: {
@@ -1956,9 +1945,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               ]),
             }),
           }),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           // TODO
           // options: {
           //   experimental_repairText: async ({ text, error }) => {
@@ -2004,9 +1991,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               ]),
             }),
           }),
-          objectOptions: {
-            schema: z.object({ content: z.string() }),
-          },
+          output: z.object({ content: z.string() }),
           // TODO
           // options: {
           //   experimental_repairText: async ({ text }) => text + '{',
