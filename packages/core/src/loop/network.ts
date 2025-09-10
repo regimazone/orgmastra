@@ -394,14 +394,16 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         runId,
       });
 
+      const chunks: any[] = [];
       for await (const chunk of result.fullStream) {
+        chunks.push(chunk);
         await writer.write({
           type: `agent-execution-event-${chunk.type}`,
           payload: chunk,
         });
       }
 
-      const finalResult = await result.text;
+      const finalResult = chunks;
 
       const memory = await agent.getMemory({ runtimeContext: runtimeContext });
 
@@ -413,7 +415,19 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
             id: generateId(),
             type: 'text',
             role: 'assistant',
-            content: { parts: [{ type: 'text', text: finalResult }], format: 2 },
+            content: {
+              parts: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    resourceType: inputData.resourceType,
+                    resourceId: inputData.resourceId,
+                    finalResult: finalResult,
+                  }),
+                },
+              ],
+              format: 2,
+            },
             createdAt: new Date(),
             threadId: initData.threadId || runId,
             resourceId: initData.threadResourceId || networkName,
@@ -439,7 +453,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         task: inputData.task,
         resourceId: inputData.resourceId,
         resourceType: inputData.resourceType,
-        result: finalResult,
+        result: await result.text,
         isComplete: false,
         iteration: inputData.iteration,
       };
@@ -508,7 +522,9 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
 
       // let result: any;
       // let stepResults: Record<string, any> = {};
+      let chunks: any[] = [];
       for await (const chunk of stream) {
+        chunks.push(chunk);
         await writer?.write({
           type: `workflow-execution-event-${chunk.type}`,
           payload: chunk,
@@ -524,9 +540,14 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       }
 
       const finalResult = JSON.stringify({
-        runId: run.runId,
-        runResult: workflowState,
-        runSuccess,
+        resourceType: inputData.resourceType,
+        resourceId: inputData.resourceId,
+        finalResult: {
+          runId: run.runId,
+          runResult: workflowState,
+          chunks,
+          runSuccess,
+        },
       });
 
       const memory = await agent.getMemory({ runtimeContext: runtimeContext });
@@ -642,7 +663,19 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
             id: generateId(),
             type: 'text',
             role: 'assistant',
-            content: { parts: [{ type: 'text', text: JSON.stringify(finalResult) }], format: 2 },
+            content: {
+              parts: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    resourceType: inputData.resourceType,
+                    resourceId: inputData.resourceId,
+                    result: finalResult,
+                  }),
+                },
+              ],
+              format: 2,
+            },
             createdAt: new Date(),
             threadId: initData.threadId || runId,
             resourceId: initData.threadResourceId || networkName,
