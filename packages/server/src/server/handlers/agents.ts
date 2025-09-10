@@ -569,7 +569,10 @@ export function streamNetworkHandler({
 }: Context & {
   runtimeContext: RuntimeContext;
   agentId: string;
-  body: GetBody<'network'>;
+  body: GetBody<'network'> & {
+    thread?: string;
+    resourceId?: string;
+  };
   // abortSignal?: AbortSignal;
 }): ReturnType<Agent['network']> {
   try {
@@ -593,6 +596,10 @@ export function streamNetworkHandler({
 
     const streamResult = agent.network(messages, {
       ...rest,
+      memory: {
+        thread: rest.thread ?? '',
+        resource: rest.resourceId ?? '',
+      },
       runtimeContext: finalRuntimeContext,
       format: body.format ?? 'mastra',
     });
