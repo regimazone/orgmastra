@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { RuntimeContext } from '@mastra/core/di';
 import { pdfContentExtractorTool } from '../tools/pdf-content-extractor-tool';
 import { contentAnalyzerTool } from '../tools/content-analyzer-tool';
-import { flashCardsGeneratorTool } from '../tools/flash-cards-generator-tool';
-import { imageGeneratorTool } from '../tools/image-generator-tool';
+import { flashCardGeneratorTool } from '../tools/flash-card-generator-tool';
+import { educationalImageTool } from '../tools/educational-image-tool';
 
 const inputSchema = z
   .object({
@@ -25,7 +25,7 @@ const inputSchema = z
       .optional()
       .default(['definition', 'concept', 'application'])
       .describe('Types of questions to generate'),
-    generateImages: z.boolean().optional().default(false).describe('Whether to generate educational images'),
+    generateImages: z.boolean().optional().default(true).describe('Whether to generate educational images'),
     imageStyle: z
       .enum(['educational', 'diagram', 'illustration', 'realistic', 'minimalist', 'scientific'])
       .optional()
@@ -107,7 +107,7 @@ const extractPdfContentStep = createStep({
   execute: async ({ inputData, runtimeContext, mastra }) => {
     const { pdfUrl, pdfData, filename, subjectArea, focusAreas } = inputData;
 
-    const inputType = pdfData ? 'attachment' : 'url';
+    const inputType: 'url' | 'attachment' = pdfData ? 'attachment' : 'url';
     const source = pdfData ? filename || 'attached file' : pdfUrl;
 
     console.log(`📄 Extracting educational content from PDF ${inputType}: ${source}`);
@@ -317,7 +317,7 @@ const generateFlashCardsStep = createStep({
     console.log(`🃏 Generating ${numberOfCards} flash cards...`);
 
     try {
-      const generationResult = await flashCardsGeneratorTool.execute({
+      const generationResult = await flashCardGeneratorTool.execute({
         mastra,
         context: {
           concepts: analyzedConcepts,
@@ -395,25 +395,30 @@ const generateImagesStep = createStep({
       for (const card of flashCards) {
         let imageUrl;
 
-        // Generate images for cards that would benefit from visual aids
+        // Generate images for most cards to enhance visual learning
         const shouldGenerateImage =
           card.questionType === 'concept' ||
+          card.questionType === 'definition' ||
+          card.questionType === 'application' ||
           card.tags.some(tag =>
-            ['diagram', 'process', 'structure', 'anatomy', 'geography'].includes(tag.toLowerCase()),
+            ['diagram', 'process', 'structure', 'anatomy', 'geography', 'visual', 'illustration'].includes(
+              tag.toLowerCase(),
+            ),
           ) ||
-          card.category.toLowerCase().includes('biology') ||
-          card.category.toLowerCase().includes('chemistry') ||
-          card.category.toLowerCase().includes('physics');
+          ['biology', 'chemistry', 'physics', 'mathematics', 'history', 'geography', 'science'].some(
+            subject => card.category.toLowerCase().includes(subject) || subjectArea.toLowerCase().includes(subject),
+          );
 
         if (shouldGenerateImage) {
           try {
-            const imageResult = await imageGeneratorTool.execute({
+            const imageResult = await educationalImageTool.execute({
               mastra,
               context: {
                 concept: `${card.question} - ${card.answer}`,
                 subjectArea,
                 style: imageStyle,
-                complexity: card.difficulty,
+                complexity: card.difficulty as 'beginner' | 'intermediate' | 'advanced',
+                size: '1024x1024' as const,
               },
               runtimeContext: runtimeContext || new RuntimeContext(),
             });
@@ -642,10 +647,10 @@ export const flashCardsGenerationWorkflow = createWorkflow({
         }),
         generatedAt: z.string(),
       }),
-      fn: async ({ getInitData, getStepData }) => {
+      fn: async ({ getInitData, getStepResult }) => {
         const initData = getInitData();
-        const flashCardsData = getStepData(generateFlashCardsStep);
-        const pdfData = getStepData(extractPdfContentStep);
+        const flashCardsData = getStepResult(generateFlashCardsStep);
+        const pdfData = getStepResult(extractPdfContentStep);
 
         return {
           ...flashCardsData.metadata,
