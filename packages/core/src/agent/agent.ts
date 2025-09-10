@@ -31,6 +31,7 @@ import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
 import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
+import { networkLoop } from '../loop/network';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MemoryConfig, StorageThreadType } from '../memory/types';
@@ -63,7 +64,7 @@ import { DefaultVoice } from '../voice';
 import { createStep, createWorkflow } from '../workflows';
 import type { Workflow } from '../workflows';
 import { agentToStep, LegacyStep as Step } from '../workflows/legacy';
-import type { AgentExecutionOptions, InnerAgentExecutionOptions } from './agent.types';
+import type { AgentExecutionOptions, InnerAgentExecutionOptions, MultiPrimitiveExecutionOptions } from './agent.types';
 import { MessageList } from './message-list';
 import type { MessageInput, MessageListInput, UIMessageWithMetadata } from './message-list';
 import { SaveQueueManager } from './save-queue';
@@ -3453,6 +3454,27 @@ export class Agent<
     });
   }
 
+  async network(messages: MessageListInput, options?: MultiPrimitiveExecutionOptions) {
+    const runId = options?.runId || this.#mastra?.generateId() || randomUUID();
+    const runtimeContextToUse = options?.runtimeContext || new RuntimeContext();
+
+    return await networkLoop({
+      networkName: this.name,
+      runtimeContext: runtimeContextToUse,
+      runId,
+      routingAgent: this,
+      routingAgentOptions: {
+        telemetry: options?.telemetry,
+        modelSettings: options?.modelSettings,
+      },
+      generateId: () => this.#mastra?.generateId() || randomUUID(),
+      maxIterations: options?.maxSteps || 1,
+      messages,
+      threadId: typeof options?.memory?.thread === 'string' ? options?.memory?.thread : options?.memory?.thread?.id,
+      resourceId: options?.memory?.resource,
+    });
+  }
+
   async generateVNext<
     OUTPUT extends OutputSchema | undefined = undefined,
     STRUCTURED_OUTPUT extends ZodSchema | JSONSchema7 | undefined = undefined,
@@ -3567,7 +3589,7 @@ export class Agent<
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
     this.logger.warn(
-      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 16th. Please use generateLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 16th, 2025. Please use generateLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.generateLegacy(messages, generateOptions);
@@ -3934,7 +3956,7 @@ export class Agent<
     | (StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any> & TracingProperties)
   > {
     this.logger.warn(
-      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 16th. Please use streamLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 16th, 2025. Please use streamLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.streamLegacy(messages, streamOptions);
