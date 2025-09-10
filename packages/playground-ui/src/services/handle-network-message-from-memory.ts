@@ -68,7 +68,20 @@ export const handleNetworkMessageFromMemory = (content: any): ThreadMessageLike 
     };
   }
 
-  console.log('content', content);
+  if (content.resourceType === 'tool') {
+    return {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool-call',
+          toolCallId: content.toolCallId,
+          toolName: content.resourceId,
+          result: content.result,
+          args: content.args,
+        },
+      ],
+    };
+  }
 
   return { role: 'assistant', content: [{ type: 'text', text: 'blah' }] };
 };
