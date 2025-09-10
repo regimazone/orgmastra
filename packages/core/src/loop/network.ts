@@ -421,6 +421,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                   type: 'text',
                   text: JSON.stringify({
                     isNetwork: true,
+                    selectionReason: inputData.selectionReason,
                     resourceType: inputData.resourceType,
                     resourceId: inputData.resourceId,
                     finalResult: finalResult,
@@ -544,6 +545,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
         isNetwork: true,
         resourceType: inputData.resourceType,
         resourceId: inputData.resourceId,
+        selectionReason: inputData.selectionReason,
         finalResult: {
           runId: run.runId,
           runResult: workflowState,
@@ -671,6 +673,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                   type: 'text',
                   text: JSON.stringify({
                     isNetwork: true,
+                    selectionReason: inputData.selectionReason,
                     resourceType: inputData.resourceType,
                     resourceId: inputData.resourceId,
                     result: finalResult,
