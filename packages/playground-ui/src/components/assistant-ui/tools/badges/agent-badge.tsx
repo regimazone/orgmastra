@@ -19,6 +19,7 @@ export type BadgeMessage =
       toolOutput?: any;
       args?: any;
       toolCallId: string;
+      result?: any;
     };
 [];
 
@@ -31,6 +32,7 @@ export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
   return (
     <BadgeWrapper icon={<AgentIcon className="text-accent1" />} title={agentId} initialCollapsed={false}>
       {messages.map(message => {
+        console.log('message', message);
         if (message.type === 'text') {
           return message.content;
         }
@@ -39,7 +41,7 @@ export const AgentBadge = ({ agentId, messages = [] }: AgentBadgeProps) => {
           <ToolFallback
             toolName={message.toolName}
             argsText={message.toolInput ? JSON.stringify(message.toolInput) : ''}
-            result={message.toolOutput ? JSON.stringify(message.toolOutput) : ''}
+            result={message?.result || (message.toolOutput ? JSON.stringify(message.toolOutput) : '')}
             args={message.args}
             status={{ type: 'complete' }}
             type="tool-call"

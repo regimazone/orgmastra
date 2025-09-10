@@ -12,8 +12,8 @@ export const ToolBadge = ({ toolName, argsText, result }: ToolBadgeProps) => {
   let argSlot;
 
   try {
-    const parsedArgs = JSON.parse(argsText);
-    argSlot = <SyntaxHighlighter data={parsedArgs} />;
+    const { __mastraMetadata: _, ...rest } = JSON.parse(result);
+    argSlot = <SyntaxHighlighter data={rest} />;
   } catch {
     argSlot = <pre className="whitespace-pre-wrap">{argsText}</pre>;
   }

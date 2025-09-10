@@ -380,7 +380,7 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                         toolCallId: agentChunk.payload.toolCallId,
                         toolName: agentChunk.payload.toolName,
                         toolInput: agentChunk.payload.args,
-                        toolOutput: agentChunk.payload.result,
+                        //toolOutput: agentChunk.payload.result,
                         args: {
                           ...agentChunk.payload.args,
                           __mastraMetadata: {
