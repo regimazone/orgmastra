@@ -133,6 +133,7 @@ export function loop<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSchem
       includeRawChunks: !!includeRawChunks,
       output: rest.output,
       outputProcessors,
+      outputProcessorRunnerMode: 'result',
       returnScorerData,
     },
   });

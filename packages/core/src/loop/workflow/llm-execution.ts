@@ -2,7 +2,7 @@ import type { ReadableStream } from 'stream/web';
 import { isAbortError } from '@ai-sdk/provider-utils-v5';
 import type { LanguageModelV2, LanguageModelV2Usage } from '@ai-sdk/provider-v5';
 import type { ToolSet } from 'ai-v5';
-import type { MessageList } from '../../agent/message-list';
+import { MessageList } from '../../agent/message-list';
 import { execute } from '../../stream/aisdk/v5/execute';
 import { DefaultStepResult } from '../../stream/aisdk/v5/output-helpers';
 import { convertMastraChunkToAISDKv5 } from '../../stream/aisdk/v5/transform';
@@ -420,6 +420,7 @@ export function createLLMExecutionStep<
   toolCallStreaming,
   controller,
   output,
+  outputProcessors,
   headers,
   downloadRetries,
   downloadConcurrency,
@@ -440,7 +441,7 @@ export function createLLMExecutionStep<
         }>(models)(async (model, isLastModel) => {
           const runState = new AgenticRunState({
             _internal: _internal!,
-            model: model,
+            model,
           });
 
           let modelResult;
@@ -450,20 +451,70 @@ export function createLLMExecutionStep<
 
           switch (model.specificationVersion) {
             case 'v2': {
-              const inputMessages = await messageList.get.all.aiV5.llmPrompt({
+              const messageListPromptArgs = {
                 downloadRetries,
                 downloadConcurrency,
                 supportedUrls: model?.supportedUrls as Record<string, RegExp[]>,
-              });
+              };
+              let inputMessages = await messageList.get.all.aiV5.llmPrompt(messageListPromptArgs);
+
+              // Call prepareStep callback if provided
+              let stepModel = model;
+              let stepToolChoice = toolChoice;
+              let stepTools = tools;
+
+              if (options?.prepareStep) {
+                try {
+                  const prepareStepResult = await options.prepareStep({
+                    stepNumber: inputData.output?.steps?.length || 0,
+                    steps: inputData.output?.steps || [],
+                    model,
+                    messages: messageList.get.all.aiV5.model(),
+                  });
+
+                  if (prepareStepResult) {
+                    if (prepareStepResult.model) {
+                      stepModel = prepareStepResult.model;
+                    }
+                    if (prepareStepResult.toolChoice) {
+                      stepToolChoice = prepareStepResult.toolChoice;
+                    }
+                    if (prepareStepResult.activeTools && stepTools) {
+                      const activeToolsSet = new Set(prepareStepResult.activeTools);
+                      stepTools = Object.fromEntries(
+                        Object.entries(stepTools).filter(([toolName]) => activeToolsSet.has(toolName)),
+                      ) as typeof tools;
+                    }
+                    if (prepareStepResult.messages) {
+                      const newMessages = prepareStepResult.messages;
+                      const newMessageList = new MessageList();
+
+                      for (const message of newMessages) {
+                        if (message.role === 'system') {
+                          newMessageList.addSystem(message);
+                        } else if (message.role === 'user') {
+                          newMessageList.add(message, 'input');
+                        } else if (message.role === 'assistant' || message.role === 'tool') {
+                          newMessageList.add(message, 'response');
+                        }
+                      }
+
+                      inputMessages = await newMessageList.get.all.aiV5.llmPrompt(messageListPromptArgs);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error in prepareStep callback:', error);
+                }
+              }
 
               modelResult = execute({
                 runId,
-                model,
-                shouldThrowError: !isLastModel,
+                model: stepModel,
+                shouldThrowError: isLastModel,
                 providerOptions,
                 inputMessages,
-                tools,
-                toolChoice,
+                tools: stepTools,
+                toolChoice: stepToolChoice,
                 options,
                 modelSettings,
                 telemetry_settings,
@@ -501,11 +552,11 @@ export function createLLMExecutionStep<
 
           const outputStream = new MastraModelOutput({
             model: {
-              modelId: modelResult.model.modelId,
-              provider: modelResult.model.provider,
-              version: modelResult.model.specificationVersion,
+              modelId: model.modelId,
+              provider: model.provider,
+              version: model.specificationVersion,
             },
-            stream: modelResult.stream as ReadableStream<ChunkType>,
+            stream: modelResult as unknown as ReadableStream<ChunkType>,
             messageList,
             options: {
               runId,
@@ -514,6 +565,8 @@ export function createLLMExecutionStep<
               telemetry_settings,
               includeRawChunks,
               output,
+              outputProcessors,
+              outputProcessorRunnerMode: 'stream',
             },
           });
 
@@ -601,6 +654,26 @@ export function createLLMExecutionStep<
         });
       }
 
+      // Check if the inner stream encountered a tripwire and propagate it
+      if (outputStream.tripwire) {
+        controller.enqueue({
+          type: 'tripwire',
+          runId,
+          from: ChunkFrom.AGENT,
+          payload: {
+            tripwireReason: outputStream.tripwireReason || 'Content blocked by output processor',
+          },
+        });
+
+        // Set the step result to indicate abort
+        runState.setState({
+          stepResult: {
+            isContinued: false,
+            reason: 'abort',
+          },
+        });
+      }
+
       /**
        * Add tool calls to the message list
        */
@@ -637,6 +710,9 @@ export function createLLMExecutionStep<
       const responseMetadata = runState.state.responseMetadata;
       const text = outputStream._getImmediateText();
 
+      // Check if tripwire was triggered
+      const tripwireTriggered = outputStream.tripwire;
+
       const steps = inputData.output?.steps || [];
 
       steps.push(
@@ -661,9 +737,9 @@ export function createLLMExecutionStep<
       return {
         messageId,
         stepResult: {
-          reason: hasErrored ? 'error' : finishReason,
+          reason: tripwireTriggered ? 'abort' : hasErrored ? 'error' : finishReason,
           warnings,
-          isContinued: !['stop', 'error'].includes(finishReason),
+          isContinued: tripwireTriggered ? false : !['stop', 'error'].includes(finishReason),
         },
         metadata: {
           providerMetadata: runState.state.providerOptions,
