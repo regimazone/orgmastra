@@ -26,10 +26,13 @@ export const weatherInfo = createTool({
 
 const weatherAgent = new Agent({
   name: 'Weather Agent',
-  instructions: `You are a weather agent that can help you get weather information for a given city.`,
-  description: `An agent that can help you get weather information for a given city.`,
+  instructions: `You are a weather agent that can help you get weather information for a given city OR give a recipe based on an ingredient.`,
+  description: `An agent that can help you get weather information for a given city OR give a recipe based on an ingredient.`,
   model: openai_v5('gpt-4o-mini'),
   tools: { weatherInfo },
+  workflows: {
+    myWorkflow,
+  },
 });
 
 const memory = new Memory();

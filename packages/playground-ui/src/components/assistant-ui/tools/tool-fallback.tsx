@@ -5,7 +5,6 @@ import { useWorkflowStream, WorkflowBadge } from './badges/workflow-badge';
 import { useWorkflow } from '@/hooks/use-workflows';
 import { WorkflowRunProvider } from '@/domains/workflows';
 import { LoadingBadge } from './badges/loading-badge';
-import { useAgent } from '@/domains/agents/hooks/use-agent';
 import { AgentBadge } from './badges/agent-badge';
 
 export const ToolFallback: ToolCallMessagePartComponent = ({ toolName, argsText, result, args, ...props }) => {

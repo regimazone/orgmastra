@@ -70,7 +70,8 @@ const WorkflowBadgeExtended = ({ workflowId, workflow, runId }: WorkflowBadgeExt
 
 export const useWorkflowStream = (partialWorkflowOutput?: StreamChunk) => {
   const streamResult = useHandleAgentWorkflowStream(partialWorkflowOutput);
-  const { setResult } = useContext(WorkflowRunContext);
+  const { setResult, result } = useContext(WorkflowRunContext);
+  console.log('result', result);
 
   useEffect(() => {
     if (!streamResult) return;

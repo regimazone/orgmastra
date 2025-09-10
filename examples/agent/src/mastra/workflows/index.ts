@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const myWorkflow = createWorkflow({
   id: 'my-workflow',
-  description: 'Gives a recipe ',
+  description: 'Gives a recipe',
   inputSchema: z.object({
     ingredient: z.string(),
   }),

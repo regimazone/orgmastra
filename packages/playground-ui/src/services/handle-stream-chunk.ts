@@ -307,7 +307,6 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
           ? lastMessage.content
           : [{ type: 'text', text: lastMessage.content }];
 
-        console.log('lol', agentChunk);
         const newMessage = {
           ...lastMessage,
           content: contentArray.map(part => {
@@ -323,14 +322,15 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                     ...part.args?.__mastraMetadata,
                     isStreaming: true,
                     messages: [
-                      ...messages.slice(0, -1),
-                      {
-                        ...messages[messages.length - 1],
-                        type: 'tool',
-                        toolName: agentChunk.payload.toolName,
-                        toolInput: agentChunk.payload.args,
-                        toolOutput: agentChunk.payload.result,
-                      },
+                      ...messages,
+                      // ...messages.slice(0, -1),
+                      // {
+                      //   ...messages[messages.length - 1],
+                      //   type: 'tool',
+                      //   toolName: agentChunk.payload.toolName,
+                      //   toolInput: agentChunk.payload.args,
+                      //   toolOutput: agentChunk.payload.result,
+                      // },
                     ],
                   },
                 },
@@ -372,9 +372,17 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
                       ...messages,
                       {
                         type: 'tool',
+                        toolCallId: agentChunk.payload.toolCallId,
                         toolName: agentChunk.payload.toolName,
                         toolInput: agentChunk.payload.args,
                         toolOutput: agentChunk.payload.result,
+                        args: {
+                          ...agentChunk.payload.args,
+                          __mastraMetadata: {
+                            ...agentChunk.payload.args?.__mastraMetadata,
+                            isStreaming: true,
+                          },
+                        },
                       },
                     ],
                   },
@@ -433,6 +441,64 @@ export const handleAgentChunk = ({ agentChunk, setMessages, entityName }: Handle
         };
 
         return [...currentConversation.slice(0, -1), newMessage];
+      });
+      break;
+    }
+
+    case 'tool-output': {
+      flushSync(() => {
+        setMessages(currentConversation => {
+          if (!agentChunk.payload.output.type.startsWith('workflow-')) return currentConversation;
+
+          const lastMessage = currentConversation[currentConversation.length - 1];
+          const contentArray = Array.isArray(lastMessage.content)
+            ? lastMessage.content
+            : [{ type: 'text', text: lastMessage.content }];
+
+          const newMessage = {
+            ...lastMessage,
+            content: contentArray.map(part => {
+              if (part.type === 'tool-call') {
+                const messages: BadgeMessage[] = part.args?.__mastraMetadata?.messages || [];
+                const lastMastraMessage = messages[messages.length - 1];
+
+                const nextMessages: BadgeMessage[] =
+                  lastMastraMessage?.type === 'tool'
+                    ? [
+                        ...messages.slice(0, -1),
+                        {
+                          ...lastMastraMessage,
+                          args: {
+                            __mastraMetadata: {
+                              ...agentChunk.payload.args?.__mastraMetadata,
+                              partialChunk: agentChunk.payload.output,
+                              isStreaming: true,
+                            },
+                          },
+                        },
+                      ]
+                    : messages;
+
+                return {
+                  ...part,
+                  toolName: part?.entityName || entityName,
+                  args: {
+                    ...part.args,
+                    __mastraMetadata: {
+                      ...part.args?.__mastraMetadata,
+                      isStreaming: true,
+                      messages: nextMessages,
+                    },
+                  },
+                };
+              }
+
+              return part;
+            }),
+          };
+
+          return [...currentConversation.slice(0, -1), newMessage];
+        });
       });
       break;
     }
