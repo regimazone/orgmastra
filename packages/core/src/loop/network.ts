@@ -420,6 +420,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                 {
                   type: 'text',
                   text: JSON.stringify({
+                    isNetwork: true,
                     resourceType: inputData.resourceType,
                     resourceId: inputData.resourceId,
                     finalResult: finalResult,
@@ -540,6 +541,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
       }
 
       const finalResult = JSON.stringify({
+        isNetwork: true,
         resourceType: inputData.resourceType,
         resourceId: inputData.resourceId,
         finalResult: {
@@ -668,6 +670,7 @@ export async function createNetworkLoop<FORMAT extends 'aisdk' | 'mastra' = 'mas
                 {
                   type: 'text',
                   text: JSON.stringify({
+                    isNetwork: true,
                     resourceType: inputData.resourceType,
                     resourceId: inputData.resourceId,
                     result: finalResult,
