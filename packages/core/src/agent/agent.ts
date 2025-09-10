@@ -2059,7 +2059,7 @@ export class Agent<
                 result += `\nthe following messages are from ${ymd}\n`;
               }
               result += `
-Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conversation' : ''} at ${timeofday}: ${JSON.stringify(msg)}`;
+  Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conversation' : ''} at ${timeofday}: ${JSON.stringify(msg)}`;
 
               lastYmd = ymd;
             }
@@ -2891,6 +2891,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
         threadId: threadFromArgs ? threadFromArgs.id : undefined,
       },
       tracingContext: options.tracingContext,
+      tracingOptions: options.tracingOptions,
       runtimeContext,
     });
 
@@ -3765,7 +3766,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
     this.logger.warn(
-      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 16th. Please use generateLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 16th, 2025. Please use generateLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.generateLegacy(messages, generateOptions);
@@ -4132,7 +4133,7 @@ Message ${msg.threadId && msg.threadId !== threadObject.id ? 'from previous conv
     | (StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any> & TracingProperties)
   > {
     this.logger.warn(
-      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 16th. Please use streamLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 16th, 2025. Please use streamLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.streamLegacy(messages, streamOptions);
