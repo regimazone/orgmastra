@@ -15,7 +15,7 @@ import { EditIcon } from 'lucide-react';
 import { AgentMetadataModelSwitcher, AgentMetadataModelSwitcherProps } from './agent-metadata-model-switcher';
 
 export interface AgentMetadataProps {
-  agent: GetAgentResponse;
+  agent: Omit<GetAgentResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>;
   promptSlot: ReactNode;
   hasMemoryEnabled: boolean;
   computeToolLink: (tool: GetToolResponse) => string;
