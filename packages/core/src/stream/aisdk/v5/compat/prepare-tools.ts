@@ -5,6 +5,7 @@ import type {
 } from '@ai-sdk/provider-v5';
 import { asSchema, tool as toolFn } from 'ai-v5';
 import type { Tool, ToolChoice } from 'ai-v5';
+import { isJsonSchema } from '../../../base/schema';
 
 export function prepareToolsAndToolChoice<TOOLS extends Record<string, Tool>>({
   tools,
@@ -59,7 +60,9 @@ export function prepareToolsAndToolChoice<TOOLS extends Record<string, Tool>>({
                 type: 'function' as const,
                 name,
                 description: sdkTool.description,
-                inputSchema: asSchema(sdkTool.inputSchema).jsonSchema,
+                inputSchema: isJsonSchema(sdkTool.inputSchema)
+                  ? sdkTool.inputSchema
+                  : asSchema(sdkTool.inputSchema).jsonSchema,
                 providerOptions: sdkTool.providerOptions,
               };
             case 'provider-defined':
