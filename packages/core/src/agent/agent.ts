@@ -29,7 +29,9 @@ import type {
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
 import type { ModelLoopStreamArgs } from '../llm/model/model.loop.types';
-import type { TripwireProperties, MastraLanguageModel } from '../llm/model/shared.types';
+import type { TripwireProperties, MastraLanguageModel, MastraModelConfig } from '../llm/model/shared.types';
+import { OpenAICompatibleModel } from '../llm/model/openai-compatible';
+import type { OpenAICompatibleModelId } from '../llm/model/provider-registry.generated';
 import { RegisteredLogger } from '../logger';
 import { networkLoop } from '../loop/network';
 import type { Mastra } from '../mastra';
@@ -139,7 +141,7 @@ export class Agent<
   public name: TAgentId;
   #instructions: DynamicArgument<string>;
   readonly #description?: string;
-  model?: DynamicArgument<MastraLanguageModel>;
+  model?: DynamicArgument<MastraModelConfig | OpenAICompatibleModelId>;
   #mastra?: Mastra;
   #memory?: DynamicArgument<MastraMemory>;
   #workflows?: DynamicArgument<Record<string, Workflow>>;
@@ -668,7 +670,7 @@ export class Agent<
     model,
   }: {
     runtimeContext?: RuntimeContext;
-    model?: MastraLanguageModel | DynamicArgument<MastraLanguageModel>;
+    model?: MastraModelConfig | DynamicArgument<MastraModelConfig>;
   } = {}): MastraLLM | Promise<MastraLLM> {
     // If model is provided, resolve it; otherwise use the agent's model
     const modelToUse = model
@@ -677,7 +679,13 @@ export class Agent<
         : model
       : this.getModel({ runtimeContext });
 
-    return resolveMaybePromise(modelToUse, resolvedModel => {
+    return resolveMaybePromise(modelToUse, modelConfig => {
+      // Resolve model configuration to actual LanguageModel
+      const resolvedModel =
+        typeof modelConfig === 'object' && 'specificationVersion' in modelConfig
+          ? (modelConfig as MastraLanguageModel)
+          : this.resolveModelConfig(modelConfig);
+
       let llm: MastraLLM;
       if (resolvedModel.specificationVersion === 'v2') {
         llm = new MastraLLMVNext({ model: resolvedModel, mastra: this.#mastra });
@@ -695,6 +703,35 @@ export class Agent<
       }
 
       return llm;
+    });
+  }
+
+  /**
+   * Resolves a model configuration to a LanguageModel instance
+   * @param modelConfig The model configuration (magic string, config object, or LanguageModel)
+   * @returns A LanguageModel instance
+   */
+  private resolveModelConfig(modelConfig: MastraModelConfig): MastraLanguageModel {
+    // If it's already a LanguageModel, return it
+    if (typeof modelConfig === 'object' && 'specificationVersion' in modelConfig) {
+      return modelConfig as MastraLanguageModel;
+    }
+
+    // If it's a string (magic string like "openai/gpt-4o" or URL) or OpenAICompatibleConfig, create OpenAICompatibleModel
+    if (typeof modelConfig === 'string' || (typeof modelConfig === 'object' && 'id' in modelConfig)) {
+      return new OpenAICompatibleModel(modelConfig);
+    }
+
+    // This shouldn't happen if types are correct
+    throw new MastraError({
+      id: 'AGENT_INVALID_MODEL_CONFIG',
+      domain: ErrorDomain.AGENT,
+      category: ErrorCategory.USER,
+      details: {
+        agentName: this.name,
+        modelConfig,
+      },
+      text: `[Agent:${this.name}] - Invalid model configuration`,
     });
   }
 
@@ -722,7 +759,7 @@ export class Agent<
         throw mastraError;
       }
 
-      return this.model;
+      return this.resolveModelConfig(this.model);
     }
 
     const result = this.model({ runtimeContext, mastra: this.#mastra });
@@ -742,7 +779,7 @@ export class Agent<
         throw mastraError;
       }
 
-      return model;
+      return this.resolveModelConfig(model);
     });
   }
 
@@ -1054,7 +1091,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
         };
         const convertedToCoreTool = makeCoreTool(toolObj, options);
         convertedMemoryTools[toolName] = convertedToCoreTool;
@@ -1275,7 +1312,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
           writableStream,
         };
         return [k, makeCoreTool(tool, options)];
@@ -1333,7 +1370,7 @@ export class Agent<
             agentName: this.name,
             runtimeContext,
             tracingContext,
-            model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+            model: await this.getModel({ runtimeContext }),
           };
           const convertedToCoreTool = makeCoreTool(toolObj, options, 'toolset');
           toolsForRequest[toolName] = convertedToCoreTool;
@@ -1382,7 +1419,7 @@ export class Agent<
           agentName: this.name,
           runtimeContext,
           tracingContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
         };
         const convertedToCoreTool = makeCoreTool(rest, options, 'client-tool');
         toolsForRequest[toolName] = convertedToCoreTool;
@@ -1507,7 +1544,7 @@ export class Agent<
           memory: await this.getMemory({ runtimeContext }),
           agentName: this.name,
           runtimeContext,
-          model: typeof this.model === 'function' ? await this.getModel({ runtimeContext }) : this.model,
+          model: await this.getModel({ runtimeContext }),
           tracingContext,
         };
 

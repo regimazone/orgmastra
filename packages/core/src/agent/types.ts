@@ -16,7 +16,8 @@ import type {
   StreamTextOnStepFinishCallback,
   StreamObjectOnFinishCallback,
 } from '../llm/model/base.types';
-import type { MastraLanguageModel } from '../llm/model/shared.types';
+import type { MastraLanguageModel, MastraModelConfig } from '../llm/model/shared.types';
+import type { OpenAICompatibleModelId } from '../llm/model/provider-registry.generated';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MemoryConfig, StorageThreadType } from '../memory/types';
@@ -64,7 +65,7 @@ export interface AgentConfig<
   name: TAgentId;
   description?: string;
   instructions: DynamicArgument<string>;
-  model: DynamicArgument<MastraLanguageModel>;
+  model: DynamicArgument<MastraModelConfig | OpenAICompatibleModelId>;
   tools?: DynamicArgument<TTools>;
   workflows?: DynamicArgument<Record<string, Workflow>>;
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
