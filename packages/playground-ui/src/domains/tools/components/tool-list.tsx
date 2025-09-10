@@ -15,8 +15,8 @@ import { startTransition, useMemo, useRef, useState } from 'react';
 
 export interface ToolListProps {
   isLoading: boolean;
-  tools: Record<string, Omit<GetToolResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>>;
-  agents: Record<string, GetAgentResponse>;
+  tools: Record<string, GetToolResponse>;
+  agents: Record<string, Omit<GetAgentResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>>;
   computeLink: (toolId: string, agentId?: string) => string;
   computeAgentLink: (toolId: string, agentId: string) => string;
 }
@@ -184,7 +184,7 @@ export const ToolListEmpty = () => {
 
 const prepareAgents = (
   tools: Record<string, GetToolResponse>,
-  agents: Record<string, GetAgentResponse>,
+  agents: Record<string, Omit<GetAgentResponse, 'defaultGenerateOptions' | 'defaultStreamOptions'>>,
 ): ToolWithAgents[] => {
   const toolsWithAgents = new Map<string, ToolWithAgents>();
   const agentsKeys = Object.keys(agents);
