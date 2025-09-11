@@ -1250,11 +1250,6 @@ describe('Workflow', () => {
         },
         {
           payload: {
-            messages: {
-              all: [],
-              nonUser: [],
-              user: [],
-            },
             metadata: {},
             output: {
               usage: {
@@ -1777,11 +1772,6 @@ describe('Workflow', () => {
               },
             },
             metadata: {},
-            messages: {
-              all: [],
-              user: [],
-              nonUser: [],
-            },
           },
         },
       ]);
@@ -1918,11 +1908,6 @@ describe('Workflow', () => {
         },
         {
           payload: {
-            messages: {
-              all: [],
-              nonUser: [],
-              user: [],
-            },
             metadata: {},
             output: {
               usage: {
@@ -2093,11 +2078,6 @@ describe('Workflow', () => {
         },
         {
           payload: {
-            messages: {
-              all: [],
-              nonUser: [],
-              user: [],
-            },
             metadata: {},
             output: {
               usage: {
@@ -2307,11 +2287,6 @@ describe('Workflow', () => {
         },
         {
           payload: {
-            messages: {
-              all: [],
-              nonUser: [],
-              user: [],
-            },
             metadata: {},
             output: {
               usage: {
