@@ -28,24 +28,41 @@ const step = createStep({
   },
 });
 
-const step2 = createStep({
-  id: 'my-step-2',
-  description: 'My step description',
+const step2a = createStep({
+  id: 'my-step-2a',
+  description: 'call the chefAgentResponses agent',
   inputSchema: z.object({
     result: z.string(),
   }),
   outputSchema: z.object({
     result: z.string(),
   }),
-  execute: async ({ inputData, mastra, tracingContext }) => {
+  execute: async ({ inputData, mastra }) => {
     const agent = mastra.getAgent('chefAgentResponses');
-    const response = await agent.generate(inputData.result, {
-      tracingContext,
-    });
+    const response = await agent.generate(inputData.result);
     return {
-      result: 'suh',
+      result: response.text,
     };
   },
 });
 
-myWorkflow.then(step).then(step2).commit();
+const step2b = createStep({
+  id: 'my-step-2b',
+  description: 'call the chefModelV2Agent agent',
+  inputSchema: z.object({
+    result: z.string(),
+  }),
+  outputSchema: z.object({
+    result: z.string(),
+  }),
+  execute: async ({ inputData, mastra }) => {
+    const agent = mastra.getAgent('chefModelV2Agent');
+    const response = await agent.generateVNext(inputData.result);
+
+    return {
+      result: response.text,
+    };
+  },
+});
+
+myWorkflow.then(step).parallel([step2a, step2b]).commit();

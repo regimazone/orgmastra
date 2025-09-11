@@ -38,10 +38,10 @@ export const chefModelV2Agent = new Agent({
   model: openai_v5('gpt-4o-mini'),
   tools: {
     cookingTool,
-    weatherInfo,
+    //weatherInfo,
   },
   workflows: {
-    myWorkflow,
+    // myWorkflow,
   },
   scorers: ({ mastra }) => {
     if (!mastra) {

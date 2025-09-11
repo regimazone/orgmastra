@@ -12,6 +12,8 @@
     "@mastra/client-js": "latest",
     "@mastra/core": "latest",
     "@mastra/evals": "latest",
+    "@mastra/langfuse": "latest",
+    "@mastra/braintrust": "latest",
     "@mastra/libsql": "latest",
     "@mastra/loggers": "latest",
     "@mastra/mcp": "latest",
@@ -34,6 +36,8 @@
       "@mastra/mcp": "link:../../packages/mcp",
       "@mastra/libsql": "link:../../stores/libsql",
       "@mastra/evals": "link:../../packages/evals",
+      "@mastra/langfuse": "link:../../observability/langfuse",
+      "@mastra/braintrust": "link:../../observability/braintrust",
       "mastra": "link:../../packages/cli"
     }
   },

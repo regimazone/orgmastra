@@ -4,7 +4,7 @@ import { jsonSchema, tool } from 'ai';
 import { OpenAIVoice } from '@mastra/voice-openai';
 import { Memory } from '@mastra/memory';
 import { Agent, InputProcessor } from '@mastra/core/agent';
-import { cookingTool } from '../tools/index.js';
+import { cookingTool, ian_tool } from '../tools/index.js';
 import { myWorkflow } from '../workflows/index.js';
 import { PIIDetector, LanguageDetector, PromptInjectionDetector, ModerationProcessor } from '@mastra/core/processors';
 import { createAnswerRelevancyScorer } from '@mastra/evals/scorers/llm';
@@ -139,15 +139,16 @@ export const chefAgentResponses = new Agent({
   // model: cerebras('qwen-3-coder-480b'),
   tools: async () => {
     return {
-      web_search_preview: openai.tools.webSearchPreview(),
+      //web_search_preview: openai.tools.webSearchPreview(),
       cooking_tool: cookingTool,
+      ian_tool,
     };
   },
   workflows: {
-    myWorkflow,
+    //myWorkflow,
   },
   inputProcessors: [
-    piiDetector,
+    //piiDetector,
     // vegetarianProcessor,
     // languageDetector,
     // promptInjectionDetector,
