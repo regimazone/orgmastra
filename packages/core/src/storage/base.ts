@@ -112,6 +112,7 @@ export abstract class MastraStorage extends MastraBase {
     createTable: boolean;
     deleteMessages: boolean;
     aiTracing?: boolean;
+    indexManagement?: boolean;
   } {
     return {
       selectByIncludeResourceScope: false,
@@ -120,6 +121,7 @@ export abstract class MastraStorage extends MastraBase {
       createTable: false,
       deleteMessages: false,
       aiTracing: false,
+      indexManagement: false,
     };
   }
 
