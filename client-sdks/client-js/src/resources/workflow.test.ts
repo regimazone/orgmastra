@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ClientOptions } from '../types';
 import { Workflow } from './workflow';
+import { MastraClient } from '../client';
 
 const createJsonResponse = (data: any) => ({ ok: true, json: async () => data });
 
@@ -102,5 +103,110 @@ describe('Workflow (fetch-mocked)', () => {
   it('start uses provided runId', async () => {
     const res = await wf.start({ runId: 'r-x', inputData: { b: 2 } });
     expect(res).toEqual({ message: 'started' });
+  });
+});
+
+// Mock fetch globally for client tests
+global.fetch = vi.fn();
+
+describe('Workflow Client Methods', () => {
+  let client: MastraClient;
+  const clientOptions = {
+    baseUrl: 'http://localhost:4111',
+    headers: {
+      Authorization: 'Bearer test-key',
+      'x-mastra-client-type': 'js',
+    },
+  };
+
+  // Helper to mock successful API responses
+  const mockFetchResponse = (data: any, options: { isStream?: boolean } = {}) => {
+    if (options.isStream) {
+      let contentType = 'text/event-stream';
+      let responseBody: ReadableStream;
+
+      if (data instanceof ReadableStream) {
+        responseBody = data;
+        contentType = 'audio/mp3';
+      } else {
+        responseBody = new ReadableStream({
+          start(controller) {
+            if (typeof data === 'string') {
+              controller.enqueue(new TextEncoder().encode(data));
+            } else if (typeof data === 'object' && data !== null) {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify(data)));
+            } else {
+              controller.enqueue(new TextEncoder().encode(String(data)));
+            }
+            controller.close();
+          },
+        });
+      }
+
+      const headers = new Headers();
+      if (contentType === 'audio/mp3') {
+        headers.set('Transfer-Encoding', 'chunked');
+      }
+      headers.set('Content-Type', contentType);
+
+      (global.fetch as any).mockResolvedValueOnce(
+        new Response(responseBody, {
+          status: 200,
+          statusText: 'OK',
+          headers,
+        }),
+      );
+    } else {
+      const response = new Response(undefined, {
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({
+          'Content-Type': 'application/json',
+        }),
+      });
+      response.json = () => Promise.resolve(data);
+      (global.fetch as any).mockResolvedValueOnce(response);
+    }
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client = new MastraClient(clientOptions);
+  });
+
+  it('should get all workflows', async () => {
+    const mockResponse = {
+      workflow1: { name: 'Workflow 1' },
+      workflow2: { name: 'Workflow 2' },
+    };
+    mockFetchResponse(mockResponse);
+    const result = await client.getWorkflows();
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${clientOptions.baseUrl}/api/workflows`,
+      expect.objectContaining({
+        headers: expect.objectContaining(clientOptions.headers),
+      }),
+    );
+  });
+
+  it('should get all workflows with runtimeContext', async () => {
+    const mockResponse = {
+      workflow1: { name: 'Workflow 1' },
+      workflow2: { name: 'Workflow 2' },
+    };
+    const runtimeContext = { userId: '123', tenantId: 'tenant-456' };
+    const expectedBase64 = btoa(JSON.stringify(runtimeContext));
+    const expectedEncodedBase64 = encodeURIComponent(expectedBase64);
+
+    mockFetchResponse(mockResponse);
+    const result = await client.getWorkflows(runtimeContext);
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${clientOptions.baseUrl}/api/workflows?runtimeContext=${expectedEncodedBase64}`,
+      expect.objectContaining({
+        headers: expect.objectContaining(clientOptions.headers),
+      }),
+    );
   });
 });
