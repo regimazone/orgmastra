@@ -17,12 +17,13 @@ vi.mock('./analyze', () => ({
   }),
 }));
 vi.mock('../bundler/workspaceDependencies', () => ({
-  createWorkspacePackageMap: vi
-    .fn()
-    .mockResolvedValue(
-      new Map([['@mastra/core', { location: '/workspace/packages/core', dependencies: {}, version: '1.0.0' }]]),
-    ),
-  workspacesCache: {},
+  getWorkspaceInformation: vi.fn().mockResolvedValue({
+    workspaceMap: new Map([
+      ['@mastra/core', { location: '/workspace/packages/core', dependencies: {}, version: '1.0.0' }],
+    ]),
+    workspaceRoot: '/workspace',
+    isWorkspacePackage: true,
+  }),
 }));
 vi.mock('find-workspaces', () => ({
   findWorkspacesRoot: vi.fn().mockReturnValue({ location: '/workspace' }),
