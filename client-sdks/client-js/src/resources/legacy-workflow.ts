@@ -1,3 +1,4 @@
+import type { RuntimeContext } from '@mastra/core/runtime-context';
 import type {
   ClientOptions,
   LegacyWorkflowRunResult,
@@ -5,7 +6,6 @@ import type {
   GetWorkflowRunsParams,
   GetLegacyWorkflowResponse,
 } from '../types';
-import type { RuntimeContext } from '@mastra/core/runtime-context';
 import { base64RuntimeContext, parseClientRuntimeContext } from '../utils';
 
 import { BaseResource } from './base';
