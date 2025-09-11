@@ -43,6 +43,7 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
       sampling: config.sampling ?? { type: SamplingStrategyType.ALWAYS },
       exporters: config.exporters ?? [],
       processors: config.processors ?? [],
+      includeInternalSpans: config.includeInternalSpans ?? false,
     };
   }
 
@@ -161,6 +162,11 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * This ensures all spans emit events regardless of implementation
    */
   private wireSpanLifecycle<TType extends AISpanType>(span: AISpan<TType>): void {
+    // bypass wire up if internal span and not includeInternalSpans
+    if (!this.config.includeInternalSpans && span.isInternal) {
+      return
+    }
+    
     // Store original methods
     const originalEnd = span.end.bind(span);
     const originalUpdate = span.update.bind(span);
@@ -246,6 +252,11 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * Emit a span started event
    */
   protected emitSpanStarted(span: AnyAISpan): void {
+    // bypass event if internal span and not includeInternalSpans
+    if (!this.config.includeInternalSpans && span.isInternal) {
+      return
+    }
+
     // Process the span before emitting
     const processedSpan = this.processSpan(span);
     if (processedSpan) {
@@ -259,6 +270,11 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * Emit a span ended event (called automatically when spans end)
    */
   protected emitSpanEnded(span: AnyAISpan): void {
+    // bypass event if internal span and not includeInternalSpans
+    if (!this.config.includeInternalSpans && span.isInternal) {
+      return
+    }
+
     // Process the span through all processors
     const processedSpan = this.processSpan(span);
     if (processedSpan) {
@@ -272,6 +288,11 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * Emit a span updated event
    */
   protected emitSpanUpdated(span: AnyAISpan): void {
+    // bypass event if internal span and not includeInternalSpans
+    if (!this.config.includeInternalSpans && span.isInternal) {
+      return
+    }
+
     // Process the span before emitting
     const processedSpan = this.processSpan(span);
     if (processedSpan) {

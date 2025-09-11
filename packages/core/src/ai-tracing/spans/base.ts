@@ -23,6 +23,7 @@ export abstract class BaseAISpan<TType extends AISpanType = any> implements AISp
   public startTime: Date;
   public endTime?: Date;
   public isEvent: boolean;
+  public isInternal: boolean;
   public aiTracing: AITracing;
   public input?: any;
   public output?: any;
@@ -44,6 +45,7 @@ export abstract class BaseAISpan<TType extends AISpanType = any> implements AISp
     this.startTime = new Date();
     this.aiTracing = aiTracing;
     this.isEvent = options.isEvent ?? false;
+    this.isInternal = options.isInternal ?? false;
 
     if (this.isEvent) {
       // Event spans don't have endTime or input.
@@ -79,6 +81,14 @@ export abstract class BaseAISpan<TType extends AISpanType = any> implements AISp
 
   /** Returns `TRUE` if the span is a valid span (not a NO-OP Span) */
   abstract get isValid(): boolean;
+
+  /** Get the closest parent spanId that isn't an internal span */
+  get parentSpanId(): string | undefined {
+    if (this.parent?.isInternal) {
+      return this.parentSpanId;
+    }
+    return this.parent?.id;
+  }
 }
 
 const DEFAULT_KEYS_TO_STRIP = new Set([

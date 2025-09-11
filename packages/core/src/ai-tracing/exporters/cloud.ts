@@ -119,7 +119,7 @@ export class CloudExporter implements AITracingExporter {
     const spanRecord: MastraCloudSpanRecord = {
       traceId: span.traceId,
       spanId: span.id,
-      parentSpanId: span.parent?.id ?? null,
+      parentSpanId: span.parentSpanId ?? null,
       name: span.name,
       spanType: span.type,
       attributes: span.attributes ?? null,

@@ -370,7 +370,7 @@ export class DefaultExporter implements AITracingExporter {
 
   private buildCreateRecord(span: AnyAISpan): InternalAISpanRecord {
     return {
-      parentSpanId: span.parent?.id ?? null,
+      parentSpanId: span.parentSpanId ?? null,
       name: span.name,
       scope: null,
       spanType: span.type,

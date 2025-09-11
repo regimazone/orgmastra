@@ -133,7 +133,7 @@ export class LangfuseExporter implements AITracingExporter {
         spanName: span.name,
         spanType: span.type,
         isRootSpan: span.isRootSpan,
-        parentSpanId: span.parent?.id,
+        parentSpanId: span.parentSpanId,
         method,
       });
       return;
@@ -194,7 +194,7 @@ export class LangfuseExporter implements AITracingExporter {
       spanName: span.name,
       spanType: span.type,
       isRootSpan: span.isRootSpan,
-      parentSpanId: span.parent?.id,
+      parentSpanId: span.parentSpanId,
       method,
     });
   }
@@ -206,7 +206,7 @@ export class LangfuseExporter implements AITracingExporter {
   }): LangfuseParent | undefined {
     const { traceData, span, method } = options;
 
-    const parentId = span.parent?.id;
+    const parentId = span.parentSpanId;
     if (!parentId) {
       return traceData.trace;
     }
@@ -222,7 +222,7 @@ export class LangfuseExporter implements AITracingExporter {
       spanName: span.name,
       spanType: span.type,
       isRootSpan: span.isRootSpan,
-      parentSpanId: span.parent?.id,
+      parentSpanId: span.parentSpanId,
       method,
     });
   }

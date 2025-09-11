@@ -279,6 +279,8 @@ export interface AISpan<TType extends AISpanType> {
   endTime?: Date;
   /** Is an event span? (event occurs at startTime, has no endTime) */
   isEvent: boolean;
+  /** Is an internal span? (spans internal to the operation of mastra) */
+  isInternal: boolean;
   /** AI-specific attributes - strongly typed based on span type */
   attributes?: AISpanTypeMap[TType];
   /** Parent span reference (undefined for root spans) */
@@ -326,6 +328,9 @@ export interface AISpan<TType extends AISpanType> {
 
   /** Returns `TRUE` if the span is a valid span (not a NO-OP Span) */
   get isValid(): boolean;
+
+  /** Get the closest parent spanId that isn't an internal span */
+  get parentSpanId(): string | undefined;
 }
 
 /**
@@ -404,6 +409,8 @@ export interface CreateSpanOptions<TType extends AISpanType> extends CreateBaseO
   parent?: AnyAISpan;
   /** Is an event span? */
   isEvent?: boolean;
+  /** Is an internal span? */
+  isInternal?: boolean;
 }
 
 /**
@@ -505,6 +512,8 @@ export interface TracingConfig {
   exporters?: AITracingExporter[];
   /** Custom processors */
   processors?: AISpanProcessor[];
+  /** Set to `true` if you want to see spans internal to the operation of mastra */
+  includeInternalSpans?: boolean;
 }
 
 /**

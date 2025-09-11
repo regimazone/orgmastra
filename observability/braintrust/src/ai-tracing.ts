@@ -135,7 +135,7 @@ export class BraintrustExporter implements AITracingExporter {
         spanName: span.name,
         spanType: span.type,
         isRootSpan: span.isRootSpan,
-        parentSpanId: span.parent?.id,
+        parentSpanId: span.parentSpanId,
         method,
       });
       return;
@@ -216,7 +216,7 @@ export class BraintrustExporter implements AITracingExporter {
       spanName: span.name,
       spanType: span.type,
       isRootSpan: span.isRootSpan,
-      parentSpanId: span.parent?.id,
+      parentSpanId: span.parentSpanId,
       method,
     });
   }
@@ -228,7 +228,7 @@ export class BraintrustExporter implements AITracingExporter {
   }): Logger<true> | Span | undefined {
     const { spanData, span, method } = options;
 
-    const parentId = span.parent?.id;
+    const parentId = span.parentSpanId;
     if (!parentId) {
       return spanData.logger;
     }
@@ -243,7 +243,7 @@ export class BraintrustExporter implements AITracingExporter {
       spanName: span.name,
       spanType: span.type,
       isRootSpan: span.isRootSpan,
-      parentSpanId: span.parent?.id,
+      parentSpanId: span.parentSpanId,
       method,
     });
   }

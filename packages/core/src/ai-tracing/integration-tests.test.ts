@@ -1081,15 +1081,15 @@ describe('AI Tracing Integration Tests', () => {
 
       // verify span nesting
       if (name.includes('Legacy')) {
-        expect(llmGenerationSpan.parent?.id).toEqual(agentRunSpan.id);
-        expect(toolCallSpan.parent?.id).toEqual(agentRunSpan.id);
+        expect(llmGenerationspan.parentSpanId).toEqual(agentRunSpan.id);
+        expect(toolCallspan.parentSpanId).toEqual(agentRunSpan.id);
       } else {
         // VNext
         const executionWorkflowSpan = workflowSpans.filter(span => span.name?.includes('execution-workflow'))[0];
         const agenticLoopWorkflowSpan = workflowSpans.filter(span => span.name?.includes('agentic-loop'))[0];
         const streamTextStepSpan = workflowSteps.filter(span => span.name?.includes('stream-text-step'))[0];
-        expect(streamTextStepSpan.parent?.id).toEqual(executionWorkflowSpan.id);
-        expect(agenticLoopWorkflowSpan.parent?.id).toEqual(llmGenerationSpan.id);
+        expect(streamTextStepspan.parentSpanId).toEqual(executionWorkflowSpan.id);
+        expect(agenticLoopWorkflowspan.parentSpanId).toEqual(llmGenerationSpan.id);
       }
 
       expect(llmGenerationSpan.name).toBe("llm: 'mock-model-id'");
