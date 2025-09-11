@@ -2085,10 +2085,10 @@ export class Agent<
           messageList,
         });
 
+        const systemMessages = messageList.getSystemMessages();
+
         const systemMessage =
-          [...messageList.getSystemMessages(), ...messageList.getSystemMessages('memory')]
-            ?.map(m => m.content)
-            ?.join(`\n`) ?? undefined;
+          [...systemMessages, ...messageList.getSystemMessages('memory')]?.map(m => m.content)?.join(`\n`) ?? undefined;
 
         const processedMemoryMessages = await memory.processMessages({
           // these will be processed
@@ -2109,6 +2109,7 @@ export class Agent<
         })
           .addSystem(instructions || `${this.instructions}.`)
           .addSystem(memorySystemMessage)
+          .addSystem(systemMessages)
           .add(context || [], 'context')
           .add(processedMemoryMessages, 'memory')
           .add(messageList.get.input.v2(), 'user')
@@ -2340,7 +2341,9 @@ export class Agent<
 
         agentAISpan?.end({
           output: {
-            status: 'success',
+            text: result?.text,
+            object: result?.object,
+            files: result?.files,
           },
         });
 
@@ -2877,6 +2880,7 @@ export class Agent<
     const instructions = options.instructions || (await this.getInstructions({ runtimeContext }));
 
     // Set AI Tracing context
+    // Note this span is ended at the end of #executeOnFinish
     const agentAISpan = getOrCreateSpan({
       type: AISpanType.AGENT_RUN,
       name: `agent run: '${this.id}'`,
@@ -2888,7 +2892,7 @@ export class Agent<
       metadata: {
         runId,
         resourceId,
-        threadId: threadFromArgs ? threadFromArgs.id : undefined,
+        threadId: threadFromArgs?.id,
       },
       tracingContext: options.tracingContext,
       tracingOptions: options.tracingOptions,
@@ -3148,10 +3152,10 @@ export class Agent<
           messageList,
         });
 
+        const systemMessages = messageList.getSystemMessages();
+
         const systemMessage =
-          [...messageList.getSystemMessages(), ...messageList.getSystemMessages('memory')]
-            ?.map(m => m.content)
-            ?.join(`\n`) ?? undefined;
+          [...systemMessages, ...messageList.getSystemMessages('memory')]?.map(m => m.content)?.join(`\n`) ?? undefined;
 
         const processedMemoryMessages = await memory.processMessages({
           // these will be processed
@@ -3172,6 +3176,7 @@ export class Agent<
         })
           .addSystem(instructions || `${this.instructions}.`)
           .addSystem(memorySystemMessage)
+          .addSystem(systemMessages)
           .add(options.context || [], 'context')
           .add(processedMemoryMessages, 'memory')
           .add(messageList.get.input.v2(), 'user');
@@ -3233,7 +3238,7 @@ export class Agent<
       steps: [prepareToolsStep, prepareMemory],
     })
       .parallel([prepareToolsStep, prepareMemory])
-      .map(async ({ inputData, bail, tracingContext }) => {
+      .map(async ({ inputData, bail }) => {
         const result = {
           ...options,
           tools: inputData['prepare-tools-step'].convertedTools as Record<string, Tool>,
@@ -3383,10 +3388,11 @@ export class Agent<
                   instructions,
                   thread: result.thread,
                   threadId: result.threadId,
+                  readOnlyMemory: options.memory?.readOnly,
                   resourceId,
                   memoryConfig,
                   runtimeContext,
-                  tracingContext,
+                  agentAISpan: agentAISpan,
                   runId,
                   messageList,
                   threadExists: inputData['prepare-memory-step'].threadExists,
@@ -3402,7 +3408,7 @@ export class Agent<
               }
 
               await options?.onFinish?.({
-                ...result,
+                ...payload,
                 runId,
                 messages: messageList.get.response.aiV5.model(),
                 usage: payload.usage,
@@ -3433,25 +3439,20 @@ export class Agent<
     const run = await executionWorkflow.createRunAsync();
     const result = await run.start({ tracingContext: { currentSpan: agentAISpan } });
 
-    agentAISpan?.end({
-      output: {
-        status: result.status,
-      },
-    });
-
     return result;
   }
 
   async #executeOnFinish({
     result,
     instructions,
+    readOnlyMemory,
     thread: threadAfter,
     threadId,
     resourceId,
     memoryConfig,
     outputText,
     runtimeContext,
-    tracingContext,
+    agentAISpan,
     runId,
     messageList,
     threadExists,
@@ -3463,10 +3464,11 @@ export class Agent<
     runId: string;
     result: Record<string, any>;
     thread: StorageThreadType | null | undefined;
+    readOnlyMemory?: boolean;
     threadId?: string;
     resourceId?: string;
     runtimeContext: RuntimeContext;
-    tracingContext: TracingContext;
+    agentAISpan?: AISpan<AISpanType.AGENT_RUN>;
     memoryConfig: MemoryConfig | undefined;
     outputText: string;
     messageList: MessageList;
@@ -3510,7 +3512,7 @@ export class Agent<
     const memory = await this.getMemory({ runtimeContext });
     const thread = usedWorkingMemory ? (threadId ? await memory?.getThreadById({ threadId }) : undefined) : threadAfter;
 
-    if (memory && resourceId && thread) {
+    if (memory && resourceId && thread && !readOnlyMemory) {
       try {
         // Add LLM response messages to the list
         let responseMessages = result.response.messages;
@@ -3560,7 +3562,13 @@ export class Agent<
 
           if (shouldGenerate && userMessage) {
             promises.push(
-              this.genTitle(userMessage, runtimeContext, tracingContext, titleModel, titleInstructions).then(title => {
+              this.genTitle(
+                userMessage,
+                runtimeContext,
+                { currentSpan: agentAISpan },
+                titleModel,
+                titleInstructions,
+              ).then(title => {
                 if (title) {
                   return memory.createThread({
                     threadId: thread.id,
@@ -3627,7 +3635,15 @@ export class Agent<
       runtimeContext,
       structuredOutput,
       overrideScorers,
-      tracingContext,
+      tracingContext: { currentSpan: agentAISpan },
+    });
+
+    agentAISpan?.end({
+      output: {
+        text: result?.text,
+        object: result?.object,
+        files: result?.files,
+      },
     });
   }
 
@@ -3766,7 +3782,7 @@ export class Agent<
     generateOptions: AgentGenerateOptions<OUTPUT, EXPERIMENTAL_OUTPUT> = {},
   ): Promise<OUTPUT extends undefined ? GenerateTextResult<any, EXPERIMENTAL_OUTPUT> : GenerateObjectResult<OUTPUT>> {
     this.logger.warn(
-      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 16th, 2025. Please use generateLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nGenerate method will switch to use generateVNext implementation September 23rd, 2025. Please use generateLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.generateLegacy(messages, generateOptions);
@@ -4133,7 +4149,7 @@ export class Agent<
     | (StreamObjectResult<any, OUTPUT extends ZodSchema ? z.infer<OUTPUT> : unknown, any> & TracingProperties)
   > {
     this.logger.warn(
-      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 16th, 2025. Please use streamLegacy if you don't want to upgrade just yet.",
+      "Deprecation NOTICE:\nStream method will switch to use streamVNext implementation September 23rd, 2025. Please use streamLegacy if you don't want to upgrade just yet.",
     );
     // @ts-expect-error - generic type issues
     return this.streamLegacy(messages, streamOptions);

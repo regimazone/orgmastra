@@ -321,6 +321,7 @@ interface ToolExecutionEndPayload {
   isComplete: boolean;
   iteration: number;
   toolCallId: string;
+  toolName: string;
 }
 
 interface NetworkStepFinishPayload {

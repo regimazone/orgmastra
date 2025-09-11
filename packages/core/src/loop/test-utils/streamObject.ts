@@ -924,6 +924,9 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 "provider": "",
                 "specificationVersion": "",
               },
+              "object": {
+                "content": "Hello, world!",
+              },
               "reasoning": [],
               "reasoningText": undefined,
               "request": {},
@@ -948,7 +951,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                     "id": "1234",
                     "metadata": {
                       "__originalContent": "{ "content": "Hello, world!" }",
-                      "createdAt": ${mockDate.toISOString()},
+                      "createdAt": 2024-01-01T00:00:00.000Z,
                     },
                     "parts": [
                       {
@@ -1094,6 +1097,9 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                 "provider": "",
                 "specificationVersion": "",
               },
+              "object": {
+                "invalid": "Hello, world!",
+              },
               "reasoning": [],
               "reasoningText": undefined,
               "request": {},
@@ -1118,7 +1124,7 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
                     "id": "1234",
                     "metadata": {
                       "__originalContent": "{ "invalid": "Hello, world!" }",
-                      "createdAt": ${mockDate.toISOString()},
+                      "createdAt": 2024-01-01T00:00:00.000Z,
                     },
                     "parts": [
                       {
