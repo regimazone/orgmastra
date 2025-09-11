@@ -757,6 +757,8 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
               },
             ],
             "modelId": "test-response-model-id",
+            "modelProvider": "mock-provider",
+            "modelVersion": "v2",
             "timestamp": 1970-01-01T00:00:10.000Z,
           }
         `);
@@ -779,6 +781,8 @@ export function generateTextTestsV5({ loopFn, runId }: { loopFn: typeof loop; ru
               },
             ],
             "modelId": "test-response-model-id",
+            "modelProvider": "mock-provider",
+            "modelVersion": "v2",
             "timestamp": 1970-01-01T00:00:10.000Z,
             "uiMessages": [
               {

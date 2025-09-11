@@ -920,9 +920,9 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               "files": [],
               "finishReason": "stop",
               "model": {
-                "modelId": "",
-                "provider": "",
-                "specificationVersion": "",
+                "modelId": "mock-model-id",
+                "provider": "mock-provider",
+                "version": "v2",
               },
               "object": {
                 "content": "Hello, world!",
@@ -1093,9 +1093,9 @@ export function streamObjectTests({ loopFn, runId }: { loopFn: typeof loop; runI
               "files": [],
               "finishReason": "error",
               "model": {
-                "modelId": "",
-                "provider": "",
-                "specificationVersion": "",
+                "modelId": "mock-model-id",
+                "provider": "mock-provider",
+                "version": "v2",
               },
               "object": {
                 "invalid": "Hello, world!",

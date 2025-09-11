@@ -1722,8 +1722,6 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "id": "id-0",
                     "messages": [],
                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
                     "timestamp": 1970-01-01T00:00:00.000Z,
                   },
                   "usage": {
@@ -1808,9 +1806,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "assistant",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:01.000Z,
                   },
                   "usage": {

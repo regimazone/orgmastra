@@ -105,31 +105,23 @@ export function loop<Tools extends ToolSet = ToolSet, OUTPUT extends OutputSchem
     ...rest,
   };
 
-  const { stream: streamFn, model } = workflowLoopStream(workflowLoopProps);
+  const stream = workflowLoopStream(workflowLoopProps);
 
   return new MastraModelOutput({
     model: {
-      modelId: model.modelId,
-      provider: model.provider,
-      version: model.specificationVersion,
+      modelId: firstModel.model.modelId,
+      provider: firstModel.model.provider,
+      version: firstModel.model.specificationVersion,
     },
-    stream: streamFn,
+    stream,
     messageList,
     options: {
       runId: runIdToUse!,
       telemetry_settings,
       rootSpan,
       toolCallStreaming: rest.toolCallStreaming,
-      onFinish: props =>
-        rest.options?.onFinish?.({
-          ...props,
-          model,
-        }),
-      onStepFinish: props =>
-        rest.options?.onStepFinish?.({
-          ...props,
-          model,
-        }),
+      onFinish: rest.options?.onFinish,
+      onStepFinish: rest.options?.onStepFinish,
       includeRawChunks: !!includeRawChunks,
       output: rest.output,
       outputProcessors,

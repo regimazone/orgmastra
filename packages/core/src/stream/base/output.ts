@@ -119,8 +119,8 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
   #returnScorerData = false;
 
   #model: {
-    modelId: string;
-    provider: string;
+    modelId: string | undefined;
+    provider: string | undefined;
     version: 'v1' | 'v2';
   };
 
@@ -150,8 +150,8 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
     options,
   }: {
     model: {
-      modelId: string;
-      provider: string;
+      modelId: string | undefined;
+      provider: string | undefined;
       version: 'v1' | 'v2';
     };
     stream: ReadableStream<ChunkType<OUTPUT>>;
@@ -324,7 +324,10 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
                 content: messageList.get.response.aiV5.stepContent(),
               };
 
-              await options?.onStepFinish?.(stepResult);
+              await options?.onStepFinish?.({
+                ...(self.#model.modelId && self.#model.provider && self.#model.version ? { model: self.#model } : {}),
+                ...stepResult,
+              });
 
               self.#bufferedSteps.push(stepResult);
 
@@ -475,6 +478,7 @@ export class MastraModelOutput<OUTPUT extends OutputSchema = undefined> extends 
                 const { stepType: _stepType, isContinued: _isContinued } = baseFinishStep;
 
                 const onFinishPayload = {
+                  ...(self.#model.modelId && self.#model.provider && self.#model.version ? { model: self.#model } : {}),
                   text: baseFinishStep.text,
                   warnings: baseFinishStep.warnings ?? [],
                   finishReason: chunk.payload.stepResult.reason,

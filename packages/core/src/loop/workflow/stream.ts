@@ -22,12 +22,7 @@ export function workflowLoopStream<
   llmAISpan,
   ...rest
 }: LoopRun<Tools, OUTPUT>) {
-  let model = {
-    modelId: '',
-    provider: '',
-    specificationVersion: '' as 'v1' | 'v2',
-  };
-  const stream = new ReadableStream<ChunkType>({
+  return new ReadableStream<ChunkType>({
     start: async controller => {
       const writer = new WritableStream<ChunkType>({
         write: chunk => {
@@ -108,12 +103,6 @@ export function workflowLoopStream<
                 }
               : {}),
           });
-
-          model = {
-            modelId: inputData.metadata.modelId,
-            provider: inputData.metadata.modelProvider,
-            specificationVersion: inputData.metadata.modelVersion as 'v1' | 'v2',
-          };
 
           modelStreamSpan.end();
 
@@ -197,9 +186,4 @@ export function workflowLoopStream<
       controller.close();
     },
   });
-
-  return {
-    stream,
-    model,
-  };
 }
