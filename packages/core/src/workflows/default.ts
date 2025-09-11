@@ -1959,6 +1959,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       execResults = await this.executeStep({
         workflowId,
         runId,
+        resourceId,
         step,
         stepResults,
         executionContext,
@@ -2453,6 +2454,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         execResults = await this.executeStep({
           workflowId,
           runId,
+          resourceId,
           step,
           stepResults,
           executionContext,
