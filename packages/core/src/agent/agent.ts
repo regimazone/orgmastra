@@ -3231,7 +3231,7 @@ export class Agent<
               }
 
               await options?.onFinish?.({
-                ...result,
+                ...payload,
                 runId,
                 messages: messageList.get.response.aiV5.model(),
                 usage: payload.usage,
