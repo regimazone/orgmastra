@@ -10,7 +10,7 @@ import type {
   GetWorkflowRunExecutionResultResponse,
 } from '../types';
 
-import { parseClientRuntimeContext } from '../utils';
+import { parseClientRuntimeContext, base64RuntimeContext } from '../utils';
 import { BaseResource } from './base';
 
 const RECORD_SEPARATOR = '\x1E';
@@ -96,18 +96,34 @@ export class Workflow extends BaseResource {
 
   /**
    * Retrieves details about the workflow
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing workflow details including steps and graphs
    */
-  details(): Promise<GetWorkflowResponse> {
-    return this.request(`/api/workflows/${this.workflowId}`);
+  details(runtimeContext?: RuntimeContext | Record<string, any>): Promise<GetWorkflowResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(`/api/workflows/${this.workflowId}${queryString ? `?${queryString}` : ''}`);
   }
 
   /**
    * Retrieves all runs for a workflow
    * @param params - Parameters for filtering runs
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing workflow runs array
    */
-  runs(params?: GetWorkflowRunsParams): Promise<GetWorkflowRunsResponse> {
+  runs(
+    params?: GetWorkflowRunsParams,
+    runtimeContext?: RuntimeContext | Record<string, any>,
+  ): Promise<GetWorkflowRunsResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
     const searchParams = new URLSearchParams();
     if (params?.fromDate) {
       searchParams.set('fromDate', params.fromDate.toISOString());
@@ -124,6 +140,9 @@ export class Workflow extends BaseResource {
     if (params?.resourceId) {
       searchParams.set('resourceId', params.resourceId);
     }
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
 
     if (searchParams.size) {
       return this.request(`/api/workflows/${this.workflowId}/runs?${searchParams}`);
@@ -135,19 +154,44 @@ export class Workflow extends BaseResource {
   /**
    * Retrieves a specific workflow run by its ID
    * @param runId - The ID of the workflow run to retrieve
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing the workflow run details
    */
-  runById(runId: string): Promise<GetWorkflowRunByIdResponse> {
-    return this.request(`/api/workflows/${this.workflowId}/runs/${runId}`);
+  runById(runId: string, runtimeContext?: RuntimeContext | Record<string, any>): Promise<GetWorkflowRunByIdResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(`/api/workflows/${this.workflowId}/runs/${runId}${queryString ? `?${queryString}` : ''}`);
   }
 
   /**
    * Retrieves the execution result for a specific workflow run by its ID
    * @param runId - The ID of the workflow run to retrieve the execution result for
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing the workflow run execution result
    */
-  runExecutionResult(runId: string): Promise<GetWorkflowRunExecutionResultResponse> {
-    return this.request(`/api/workflows/${this.workflowId}/runs/${runId}/execution-result`);
+  runExecutionResult(
+    runId: string,
+    runtimeContext?: RuntimeContext | Record<string, any>,
+  ): Promise<GetWorkflowRunExecutionResultResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(
+      `/api/workflows/${this.workflowId}/runs/${runId}/execution-result${queryString ? `?${queryString}` : ''}`,
+    );
   }
 
   /**

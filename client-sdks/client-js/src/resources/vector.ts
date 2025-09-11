@@ -6,6 +6,8 @@ import type {
   ClientOptions,
   UpsertVectorParams,
 } from '../types';
+import type { RuntimeContext } from '@mastra/core/runtime-context';
+import { base64RuntimeContext, parseClientRuntimeContext } from '../utils';
 
 import { BaseResource } from './base';
 
@@ -20,10 +22,20 @@ export class Vector extends BaseResource {
   /**
    * Retrieves details about a specific vector index
    * @param indexName - Name of the index to get details for
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing vector index details
    */
-  details(indexName: string): Promise<GetVectorIndexResponse> {
-    return this.request(`/api/vector/${this.vectorName}/indexes/${indexName}`);
+  details(indexName: string, runtimeContext?: RuntimeContext | Record<string, any>): Promise<GetVectorIndexResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(`/api/vector/${this.vectorName}/indexes/${indexName}${queryString ? `?${queryString}` : ''}`);
   }
 
   /**
@@ -39,10 +51,20 @@ export class Vector extends BaseResource {
 
   /**
    * Retrieves a list of all available indexes
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing array of index names
    */
-  getIndexes(): Promise<{ indexes: string[] }> {
-    return this.request(`/api/vector/${this.vectorName}/indexes`);
+  getIndexes(runtimeContext?: RuntimeContext | Record<string, any>): Promise<{ indexes: string[] }> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(`/api/vector/${this.vectorName}/indexes${queryString ? `?${queryString}` : ''}`);
   }
 
   /**

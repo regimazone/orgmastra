@@ -1,7 +1,7 @@
 import type { RuntimeContext } from '@mastra/core/runtime-context';
 import type { GetToolResponse, ClientOptions } from '../types';
 
-import { parseClientRuntimeContext } from '../utils';
+import { parseClientRuntimeContext, base64RuntimeContext } from '../utils';
 import { BaseResource } from './base';
 
 export class Tool extends BaseResource {
@@ -14,10 +14,20 @@ export class Tool extends BaseResource {
 
   /**
    * Retrieves details about the tool
+   * @param runtimeContext - Optional runtime context to pass as query parameter
    * @returns Promise containing tool details including description and schemas
    */
-  details(): Promise<GetToolResponse> {
-    return this.request(`/api/tools/${this.toolId}`);
+  details(runtimeContext?: RuntimeContext | Record<string, any>): Promise<GetToolResponse> {
+    const runtimeContextParam = base64RuntimeContext(parseClientRuntimeContext(runtimeContext));
+
+    const searchParams = new URLSearchParams();
+
+    if (runtimeContextParam) {
+      searchParams.set('runtimeContext', runtimeContextParam);
+    }
+
+    const queryString = searchParams.toString();
+    return this.request(`/api/tools/${this.toolId}${queryString ? `?${queryString}` : ''}`);
   }
 
   /**
