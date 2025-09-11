@@ -7773,10 +7773,8 @@ describe('Workflow', () => {
       // Verify both runs have correct resourceIds
       const { runs: allRuns } = await workflow.getWorkflowRuns();
       expect(allRuns).toHaveLength(2);
-      
       const runWithResource123 = allRuns.find(r => r.resourceId === resourceId);
       const runWithResource456 = allRuns.find(r => r.resourceId === resourceId2);
-      
       expect(runWithResource123).toBeDefined();
       expect(runWithResource456).toBeDefined();
       expect(runWithResource123?.runId).toBe(run.runId);
@@ -7788,7 +7786,6 @@ describe('Workflow', () => {
 
       const { runs: finalRuns } = await workflow.getWorkflowRuns();
       expect(finalRuns).toHaveLength(3);
-      
       const runWithoutResource = finalRuns.find(r => r.runId === run3.runId);
       expect(runWithoutResource).toBeDefined();
       expect(runWithoutResource?.resourceId).toBeUndefined();
