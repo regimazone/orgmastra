@@ -1403,6 +1403,103 @@ describe('AI Tracing Integration Tests', () => {
     });
   });
 
+  describe.each(agentMethods)('should trace agent with input and output processing $name', ({ name, method, model }) => {
+    it(`should trace spans correctly`, async () => {
+      // Helper function to transform text in messages
+      const transformText = (messages: any[], transform: (text: string) => string) =>
+        messages.map(msg => ({
+          ...msg,
+          content: {
+            ...msg.content,
+            parts: msg.content.parts.map((part: any) =>
+              part.type === 'text' ? { ...part, text: transform(part.text) } : part
+            )
+          }
+        }));
+
+      // Custom lowercase input processor
+      class LowercaseProcessor {
+        readonly name = 'lowercase-processor';
+        processInput({ messages }: any) {
+          return transformText(messages, text => text.toLowerCase());
+        }
+      }
+
+      // Custom uppercase output processor
+      class UppercaseProcessor {
+        readonly name = 'uppercase-processor';
+        
+        processOutputResult({ messages }: any) {
+          return transformText(messages, text => text.toUpperCase());
+        }
+        
+        processOutputStream({ part }: any) {
+          return part?.type === 'text-delta' 
+            ? { ...part, payload: { ...part.payload, text: part.payload.text.toUpperCase() } }
+            : part;
+        }
+      }
+      
+      const testAgent = new Agent({
+        name: 'Test Agent',
+        instructions: 'You are a test agent',
+        model,
+        inputProcessors: [new LowercaseProcessor()],
+        outputProcessors: [new UppercaseProcessor()]
+      });
+
+      const mastra = new Mastra({
+        ...getBaseMastraConfig(testExporter),
+        agents: { testAgent },
+      });
+
+      const agent = mastra.getAgent('testAgent');
+      const result = await method(agent, 'TesT ReqUEst');
+      expect(result.text).toBeDefined();
+      expect(result.traceId).toBeDefined();
+
+      const agentRunSpans = testExporter.getSpansByType(AISpanType.AGENT_RUN);
+      const llmGenerationSpans = testExporter.getSpansByType(AISpanType.LLM_GENERATION);
+      const processorSpans = testExporter.getSpansByType(AISpanType.PROCESSOR);
+
+      expect(agentRunSpans.length).toBe(1); // one agent run
+      expect(llmGenerationSpans.length).toBe(1); // one llm generation
+      expect(processorSpans.length).toBe(2); // one input processor, one output processor
+
+      const agentRunSpan = agentRunSpans[0];
+      const llmGenerationSpan = llmGenerationSpans[0];
+      const inputProcessorSpan = processorSpans.find(s => s.attributes?.processorType === 'input');
+      const outputProcessorSpan = processorSpans.find(s => s.attributes?.processorType === 'output');
+
+      // Verify processor spans
+      expect(inputProcessorSpan).toBeDefined();
+      expect(inputProcessorSpan?.attributes?.name).toBe('lowercase-processor');
+      expect(inputProcessorSpan?.attributes?.processorType).toBe('input');
+
+      expect(outputProcessorSpan).toBeDefined();
+      expect(outputProcessorSpan?.attributes?.name).toBe('uppercase-processor');
+      expect(outputProcessorSpan?.attributes?.processorType).toBe('output');
+
+      expect(llmGenerationSpan.name).toBe("llm: 'mock-model-id'");
+      expect(llmGenerationSpan.input.messages).toHaveLength(2);
+      switch (name) {
+        case 'generateLegacy':
+          expect(llmGenerationSpan.output.text).toBe('Mock response');
+          break;
+        case 'streamLegacy':
+          expect(llmGenerationSpan.output.text).toBe('Mock streaming response');
+          break;
+        default: // VNext generate & stream
+          expect(llmGenerationSpan.output.text).toBe('Mock V2 streaming response');
+          break;
+      }
+      expect(llmGenerationSpan.attributes?.usage?.totalTokens).toBeGreaterThan(1);
+
+      expect(agentRunSpan.output?.status).toBe('success');
+      testExporter.finalExpectations();
+    });
+  });
+
   it('should trace generate object (structured output)', async () => {
     // Create a mock for structured output
     const structuredMock = new MockLanguageModelV1({

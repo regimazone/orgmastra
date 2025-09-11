@@ -2,6 +2,7 @@
  * AI Tracing interfaces
  */
 
+import type { aI } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js';
 import type { MastraError } from '../error';
 import type { RuntimeContext } from '../runtime-context';
 import type { WorkflowRunStatus, WorkflowStepStatus } from '../workflows';
@@ -25,6 +26,8 @@ export enum AISpanType {
   LLM_CHUNK = 'llm_chunk',
   /** MCP (Model Context Protocol) tool execution */
   MCP_TOOL_CALL = 'mcp_tool_call',
+  /** Processor for input or output processors */
+  PROCESSOR = 'processor',
   /** Function/tool execution with inputs, outputs, errors */
   TOOL_CALL = 'tool_call',
   /** Workflow run - root span for workflow processes */
@@ -143,6 +146,16 @@ export interface MCPToolCallAttributes extends AIBaseAttributes {
 }
 
 /**
+ * Processor attributes
+ */
+export interface ProcessorAttributes extends AIBaseAttributes {
+  /** Name of the processor */
+  name: string;
+  /** Type of the processor (input or output) */
+  processorType: string;
+}
+
+/**
  * Workflow Run attributes
  */
 export interface WorkflowRunAttributes extends AIBaseAttributes {
@@ -244,6 +257,7 @@ export interface AISpanTypeMap {
   [AISpanType.LLM_CHUNK]: LLMChunkAttributes;
   [AISpanType.TOOL_CALL]: ToolCallAttributes;
   [AISpanType.MCP_TOOL_CALL]: MCPToolCallAttributes;
+  [AISpanType.PROCESSOR]: ProcessorAttributes;
   [AISpanType.WORKFLOW_STEP]: WorkflowStepAttributes;
   [AISpanType.WORKFLOW_CONDITIONAL]: WorkflowConditionalAttributes;
   [AISpanType.WORKFLOW_CONDITIONAL_EVAL]: WorkflowConditionalEvalAttributes;
