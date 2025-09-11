@@ -41,6 +41,7 @@ AI Tracing complements Mastra's existing [OpenTelemetry-based tracing](./tracing
 **Supported Exporters:**
 - ✅ [Langfuse](https://langfuse.com/) - Full support with real-time mode
 - ✅ [Braintrust](https://www.braintrust.dev/home) - Initial release
+- ✅ [LangSmith](https://langsmith.langchain.com/) - RunTree-based integration
 - 🔄 [OpenTelemetry](https://opentelemetry.io/) - Coming soon
 
 **Known Limitations:**
@@ -345,6 +346,60 @@ export const mastra = new Mastra({
           new BraintrustExporter({
             apiKey: process.env.BRAINTRUST_API_KEY,
             endpoint: process.env.BRAINTRUST_ENDPOINT, // optional
+          }),
+        ],
+      },
+    },
+  },
+});
+```
+
+### LangSmith Exporter
+
+The LangSmith exporter sends trace data to [LangSmith](https://langsmith.langchain.com/) for AI observability and debugging using LangSmith's native RunTree API.
+
+#### Installation
+
+```bash
+npm install @mastra/langsmith
+```
+
+#### Configuration
+
+```ts
+type LangSmithExporterConfig = {
+  // LangSmith API key (required)
+  apiKey?: string;
+
+  // LangSmith project name (optional - defaults to 'mastra-tracing')
+  projectName?: string;
+
+  // Custom endpoint URL (optional)
+  endpoint?: string;
+
+  // Logger level for diagnostic messages (default: 'warn')
+  logLevel?: 'debug' | 'info' | 'warn' | 'error';
+
+  // Additional options passed to the LangSmith client
+  options?: any;
+};
+```
+
+#### Basic Setup
+
+```ts filename="src/mastra/index.ts" showLineNumbers copy
+import { LangSmithExporter } from '@mastra/langsmith';
+
+export const mastra = new Mastra({
+  observability: {
+    configs: {
+      langsmith: {
+        serviceName: 'my-service',
+        exporters: [
+          new LangSmithExporter({
+            apiKey: process.env.LANGSMITH_API_KEY,
+            projectName: 'mastra-tracing', // optional
+            endpoint: process.env.LANGSMITH_ENDPOINT, // optional
           }),
         ],
       },
