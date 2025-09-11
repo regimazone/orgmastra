@@ -6,7 +6,6 @@ import { MastraBundler } from '@mastra/core/bundler';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import virtual from '@rollup/plugin-virtual';
 import * as pkg from 'empathic/package';
-import { findWorkspacesRoot } from 'find-workspaces';
 import fsExtra, { copy, ensureDir, readJSON, emptyDir } from 'fs-extra/esm';
 import type { InputOptions, OutputOptions } from 'rollup';
 import { glob } from 'tinyglobby';
@@ -20,8 +19,8 @@ import { DepsService } from '../services/deps';
 import { FileService } from '../services/fs';
 import {
   collectTransitiveWorkspaceDependencies,
+  getWorkspaceInformation,
   packWorkspaceDependencies,
-  workspacesCache,
 } from './workspaceDependencies';
 
 export abstract class Bundler extends MastraBundler {
@@ -173,9 +172,10 @@ export abstract class Bundler extends MastraBundler {
     toolsPaths: (string | string[])[],
     { enableSourcemap = false }: { enableSourcemap?: boolean } = {},
   ) {
-    const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
+    const { workspaceRoot } = await getWorkspaceInformation({ mastraEntryFile });
     const closestPkgJson = pkg.up({ cwd: dirname(mastraEntryFile) });
-    const projectRoot = closestPkgJson ?? process.cwd();
+    const projectRoot = closestPkgJson ? dirname(closestPkgJson) : process.cwd();
+
     const inputOptions: InputOptions = await getInputOptions(
       mastraEntryFile,
       analyzedBundleInfo,

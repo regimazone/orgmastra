@@ -1,17 +1,12 @@
 import type { InputOptions, OutputOptions, Plugin } from 'rollup';
 import { watch } from 'rollup';
-import { findWorkspacesRoot } from 'find-workspaces';
 import * as pkg from 'empathic/package';
 import { getInputOptions as getBundlerInputOptions } from './bundler';
 import { aliasHono } from './plugins/hono-alias';
 import { nodeModulesExtensionResolver } from './plugins/node-modules-extension-resolver';
 import { tsConfigPaths } from './plugins/tsconfig-paths';
 import { noopLogger } from '@mastra/core/logger';
-import {
-  createWorkspacePackageMap,
-  workspacesCache,
-  type WorkspacePackageInfo,
-} from '../bundler/workspaceDependencies';
+import { getWorkspaceInformation } from '../bundler/workspaceDependencies';
 import { analyzeBundle } from './analyze';
 import path, { dirname } from 'path';
 import { getPackageName } from './utils';
@@ -23,13 +18,8 @@ export async function getInputOptions(
   { sourcemap = false }: { sourcemap?: boolean } = {},
 ) {
   const closestPkgJson = pkg.up({ cwd: dirname(entryFile) });
-  const projectRoot = closestPkgJson ?? process.cwd();
-  const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
-  let workspaceMap: Map<string, WorkspacePackageInfo> = new Map();
-
-  if (workspaceRoot) {
-    workspaceMap = await createWorkspacePackageMap();
-  }
+  const projectRoot = closestPkgJson ? dirname(closestPkgJson) : process.cwd();
+  const { workspaceMap, workspaceRoot } = await getWorkspaceInformation({ mastraEntryFile: entryFile });
 
   const analyzeEntryResult = await analyzeBundle(
     [entryFile],

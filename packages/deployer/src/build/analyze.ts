@@ -2,17 +2,12 @@ import type { IMastraLogger } from '@mastra/core/logger';
 import * as babel from '@babel/core';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { findWorkspacesRoot } from 'find-workspaces';
 import type { OutputAsset, OutputChunk } from 'rollup';
 import { join } from 'node:path';
 import { validate } from '../validator/validate';
 import { getBundlerOptions } from './bundlerOptions';
 import { checkConfigExport } from './babel/check-config-export';
-import {
-  createWorkspacePackageMap,
-  workspacesCache,
-  type WorkspacePackageInfo,
-} from '../bundler/workspaceDependencies';
+import { getWorkspaceInformation, type WorkspacePackageInfo } from '../bundler/workspaceDependencies';
 import type { DependencyMetadata } from './types';
 import { analyzeEntry } from './analyze/analyzeEntry';
 import { bundleExternals } from './analyze/bundleExternals';
@@ -136,12 +131,7 @@ If you think your configuration is valid, please open an issue.`);
   }
 
   const bundlerOptions = await getBundlerOptions(mastraEntry, outputDir);
-  const workspaceRoot = findWorkspacesRoot(process.cwd(), { cache: workspacesCache })?.location;
-  let workspaceMap: Map<string, WorkspacePackageInfo> = new Map();
-
-  if (workspaceRoot) {
-    workspaceMap = await createWorkspacePackageMap();
-  }
+  const { workspaceMap, workspaceRoot } = await getWorkspaceInformation({ mastraEntryFile: mastraEntry });
 
   let index = 0;
   const depsToOptimize = new Map<string, DependencyMetadata>();
