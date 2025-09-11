@@ -1,27 +1,31 @@
+import { randomUUID } from 'node:crypto';
 import { mastra } from './mastra';
 
 const workflow = mastra.getWorkflow('myWorkflow');
 
 async function main() {
+  const resourceId = randomUUID();
+
   const result = await workflow.createRunAsync({
-    resourceId: '123',
+    resourceId: resourceId,
   });
 
-  console.log(result);
+  console.log('result.runId', result.runId);
 
-  const run = await result.start({
+  await result.start({
     inputData: {
       ingredient: 'pasta',
     },
   });
 
-  console.log(run);
+  const runById = await workflow.getWorkflowRunById(result.runId);
+  console.log('runById', runById);
 
-  const runs = await workflow.getWorkflowRuns({
-    resourceId: '123',
-  });
-
-  console.log(runs);
+  if (runById?.resourceId !== resourceId) {
+    throw new Error('Resource ID mismatch');
+  } else {
+    console.log('✅ Resource ID matches expected value', resourceId);
+  }
 }
 
 main();
