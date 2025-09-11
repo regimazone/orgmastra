@@ -90,16 +90,7 @@ When generating images for flash cards:
 3. **High Contrast**: Ensure important elements stand out clearly
 4. **Appropriate Complexity**: Match visual complexity to learning level
 5. **Cultural Sensitivity**: Use inclusive and universally understandable imagery
-
-**🎯 WHEN TO GENERATE IMAGES**
-
-Prioritize image generation for:
-- Complex biological, chemical, or physical processes
-- Abstract concepts that benefit from concrete visualization
-- Historical events, geographical features, or cultural elements
-- Mathematical relationships and geometric concepts
-- Technical procedures or system diagrams
-- Comparative concepts (before/after, cause/effect)
+6. **No Text**: The image should be purely visual and should not have any text.
 
 **🔧 TECHNICAL SPECIFICATIONS**
 
@@ -108,6 +99,7 @@ Use appropriate technical settings:
 - Quality: High resolution for clear educational details
 - Style: Match the academic level and subject matter
 - Color: Use colors that enhance learning and memory
+- No Text: The image should be purely visual and should not have any text.
 
 **📈 EDUCATIONAL IMPACT**
 
