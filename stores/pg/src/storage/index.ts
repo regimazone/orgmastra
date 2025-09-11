@@ -26,12 +26,11 @@ import type { ISSLConfig } from 'pg-promise/typescript/pg-subset';
 import { LegacyEvalsPG } from './domains/legacy-evals';
 import { MemoryPG } from './domains/memory';
 import { StoreOperationsPG } from './domains/operations';
-import type { CreateIndexOptions, IndexInfo } from './domains/operations';
 import { ScoresPG } from './domains/scores';
 import { TracesPG } from './domains/traces';
 import { WorkflowsPG } from './domains/workflows';
 
-export type { CreateIndexOptions, IndexInfo };
+export type { CreateIndexOptions, IndexInfo } from '@mastra/core/storage';
 
 export type PostgresConfig = {
   schemaName?: string;
@@ -475,39 +474,6 @@ export class PostgresStore extends MastraStorage {
     }
     this.#pgp = undefined;
     this.isConnected = false;
-  }
-
-  /**
-   * Create a custom index
-   * @override from MastraStorage base class
-   */
-  async createIndex(options: CreateIndexOptions): Promise<void> {
-    if (!this.stores.operations) {
-      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
-    }
-    return this.stores.operations.createIndex(options);
-  }
-
-  /**
-   * Drop an index
-   * @override from MastraStorage base class
-   */
-  async dropIndex(indexName: string): Promise<void> {
-    if (!this.stores.operations) {
-      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
-    }
-    return this.stores.operations.dropIndex(indexName);
-  }
-
-  /**
-   * List indexes for a table or all tables
-   * @override from MastraStorage base class
-   */
-  async listIndexes(tableName?: string): Promise<IndexInfo[]> {
-    if (!this.stores.operations) {
-      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
-    }
-    return this.stores.operations.listIndexes(tableName);
   }
 
   /**

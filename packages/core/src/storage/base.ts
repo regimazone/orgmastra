@@ -44,6 +44,8 @@ import type {
   AISpanRecord,
   AITraceRecord,
   AITracesPaginatedArg,
+  CreateIndexOptions,
+  IndexInfo,
 } from './types';
 
 export type StorageDomains = {
@@ -657,5 +659,35 @@ export abstract class MastraStorage extends MastraBase {
       category: ErrorCategory.SYSTEM,
       text: `AI tracing is not supported by this storage adapter (${this.constructor.name})`,
     });
+  }
+
+  /**
+   * DATABASE INDEX MANAGEMENT
+   * These methods delegate to the operations store for index management.
+   * Storage adapters that support indexes should implement these in their operations class.
+   */
+
+  /**
+   * Creates a database index on specified columns
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async createIndex(options: CreateIndexOptions): Promise<void> {
+    return this.stores!.operations.createIndex(options);
+  }
+
+  /**
+   * Drops a database index by name
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async dropIndex(indexName: string): Promise<void> {
+    return this.stores!.operations.dropIndex(indexName);
+  }
+
+  /**
+   * Lists database indexes for a table or all tables
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async listIndexes(tableName?: string): Promise<IndexInfo[]> {
+    return this.stores!.operations.listIndexes(tableName);
   }
 }

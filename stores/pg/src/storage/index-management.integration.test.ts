@@ -340,7 +340,7 @@ describe('PostgreSQL Index Management', () => {
           table: TABLE_THREADS,
           columns: ['id'],
         }),
-      ).rejects.toThrow('Store is not initialized');
+      ).rejects.toThrow();
     });
   });
 
