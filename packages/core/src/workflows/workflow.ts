@@ -1262,6 +1262,7 @@ export class Run<
   }
 
   protected closeStreamAction?: () => Promise<void>;
+  protected activeStream?: MastraWorkflowStream;
   protected executionResults?: Promise<WorkflowResult<TOutput, TSteps>>;
 
   protected cleanup?: () => void;
@@ -1532,6 +1533,71 @@ export class Run<
   } {
     const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
 
+    let currentToolData: { name: string; args: any } | undefined = undefined;
+
+    const writer = writable.getWriter();
+    const unwatch = this.watch(async event => {
+      if ((event as any).type === 'workflow-agent-call-start') {
+        currentToolData = {
+          name: (event as any).payload.name,
+          args: (event as any).payload.args,
+        };
+        await writer.write({
+          ...event.payload,
+          type: 'tool-call-streaming-start',
+        } as any);
+
+        return;
+      }
+
+      try {
+        if ((event as any).type === 'workflow-agent-call-finish') {
+          return;
+        } else if (!(event as any).type.startsWith('workflow-')) {
+          if ((event as any).type === 'text-delta') {
+            await writer.write({
+              type: 'tool-call-delta',
+              ...(currentToolData ?? {}),
+              argsTextDelta: (event as any).textDelta,
+            } as any);
+          }
+          return;
+        }
+
+        const e: any = {
+          ...event,
+          type: event.type.replace('workflow-', ''),
+        };
+        // watch-v2 events are data stream events, so we need to cast them to the correct type
+        await writer.write(e as any);
+      } catch {}
+    }, 'watch-v2');
+
+    this.#observerHandlers.push(async () => {
+      unwatch();
+      try {
+        await writer.close();
+      } catch (err) {
+        console.error('Error closing stream:', err);
+      } finally {
+        writer.releaseLock();
+      }
+    });
+
+    return {
+      stream: readable,
+    };
+  }
+
+  /**
+   * Observe the workflow stream
+   * @returns A readable stream of the workflow events
+   */
+  observeStreamVNext(): {
+    stream: ReadableStream<StreamEvent>;
+  } {
+    const { readable, writable } = new TransformStream<StreamEvent, StreamEvent>();
+
     const writer = writable.getWriter();
     const unwatch = this.watch(async event => {
       try {
@@ -1582,9 +1648,13 @@ export class Run<
     tracingContext?: TracingContext;
     format?: 'aisdk' | 'mastra' | undefined;
   } = {}) {
+    if (this.closeStreamAction) {
+      this.activeStream;
+    }
+
     this.closeStreamAction = async () => {};
 
-    return new MastraWorkflowStream({
+    this.activeStream = new MastraWorkflowStream({
       run: this,
       createStream: () => {
         const { readable, writable } = new TransformStream<ChunkType, ChunkType>({
@@ -1662,6 +1732,8 @@ export class Run<
         return readable;
       },
     });
+
+    return this.activeStream;
   }
 
   /**
@@ -1682,6 +1754,13 @@ export class Run<
     tracingContext?: TracingContext;
     format?: 'aisdk' | 'mastra' | undefined;
   } = {}) {
+    if (this.closeStreamAction) {
+      return {
+        stream: this.observeStreamVNext().stream,
+        getWorkflowState: () => this.executionResults!,
+      };
+    }
+
     this.closeStreamAction = async () => {};
 
     return new MastraWorkflowStream({
