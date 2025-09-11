@@ -3576,7 +3576,7 @@ export class Agent<
       ...mergedStreamOptions,
       messages,
       methodType: 'streamVNext',
-      _modelOverride: modelOverride,
+      model: modelOverride,
     });
 
     if (result.status !== 'success') {
