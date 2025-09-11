@@ -8196,7 +8196,7 @@ describe('Stream ID Consistency', () => {
   }, 10000); // Increase timeout to 10 seconds
 });
 
-describe.only('Agent structuredOutput to output deprecation mapping', () => {
+describe('Agent structuredOutput to output deprecation mapping', () => {
   it('should map structuredOutput to output when maxSteps is 1', async () => {
     let structuredOutputProcessorGotCalled = false;
     const mockModel = new MockLanguageModelV2({
