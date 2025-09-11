@@ -143,5 +143,5 @@ export type InnerAgentExecutionOptions<
   messages: MessageListInput;
   methodType: 'generate' | 'stream' | 'streamVNext';
   /** Internal: Model override for when structuredOutput.model is used with maxSteps=1 */
-  _modelOverride?: MastraLanguageModel;
+  model?: MastraLanguageModel;
 };
