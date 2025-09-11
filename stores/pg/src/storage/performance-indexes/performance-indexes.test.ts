@@ -28,90 +28,63 @@ describe('PostgresStore Performance Indexes', () => {
       schemaName: 'test_schema',
     });
 
-    // Mock hasColumn to return true for all columns
-    vi.spyOn(operations, 'hasColumn').mockResolvedValue(true);
+    // Mock createIndex method to simulate the actual implementation
+    vi.spyOn(operations, 'createIndex').mockResolvedValue(undefined);
   });
 
-  describe('createPerformanceIndexes', () => {
-    it('should create all necessary performance indexes', async () => {
-      await operations.createPerformanceIndexes();
+  describe('createAutomaticIndexes', () => {
+    it('should create all necessary composite indexes', async () => {
+      await operations.createAutomaticIndexes();
 
-      // Verify that CREATE INDEX statements were executed
-      expect(mockClient.none).toHaveBeenCalledTimes(9); // 8 regular indexes + 1 conditional
+      // Verify that createIndex was called 4 times for composite indexes
+      expect(operations.createIndex).toHaveBeenCalledTimes(4);
 
-      // Check that indexes for threads are created
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_threads_resourceid_idx'),
-      );
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_threads_resourceid_createdat_idx'),
-      );
+      // Check that composite index for threads is created
+      expect(operations.createIndex).toHaveBeenCalledWith({
+        name: 'test_schema_mastra_threads_resourceid_createdat_idx',
+        table: 'mastra_threads',
+        columns: ['resourceId', 'createdAt DESC'],
+      });
 
-      // Check that indexes for messages are created
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_messages_thread_id_idx'),
-      );
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_messages_thread_id_createdat_idx'),
-      );
+      // Check that composite index for messages is created
+      expect(operations.createIndex).toHaveBeenCalledWith({
+        name: 'test_schema_mastra_messages_thread_id_createdat_idx',
+        table: 'mastra_messages',
+        columns: ['thread_id', 'createdAt DESC'],
+      });
 
-      // Check that indexes for traces are created
-      expect(mockClient.none).toHaveBeenCalledWith(expect.stringContaining('test_schema_mastra_traces_name_idx'));
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_traces_name_pattern_idx'),
-      );
+      // Check that composite index for traces is created
+      expect(operations.createIndex).toHaveBeenCalledWith({
+        name: 'test_schema_mastra_traces_name_starttime_idx',
+        table: 'mastra_traces',
+        columns: ['name', 'startTime DESC'],
+      });
 
-      // Check that indexes for evals are created
-      expect(mockClient.none).toHaveBeenCalledWith(expect.stringContaining('test_schema_mastra_evals_agent_name_idx'));
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_evals_agent_name_created_at_idx'),
-      );
-
-      // Check that conditional workflow index is created when column exists
-      expect(mockClient.none).toHaveBeenCalledWith(
-        expect.stringContaining('test_schema_mastra_workflow_snapshot_resourceid_idx'),
-      );
-    });
-
-    it('should skip conditional indexes when columns do not exist', async () => {
-      // Mock hasColumn to return false for resourceId
-      vi.spyOn(operations, 'hasColumn').mockResolvedValue(false);
-
-      await operations.createPerformanceIndexes();
-
-      // Should create 8 indexes (skip the conditional workflow index)
-      expect(mockClient.none).toHaveBeenCalledTimes(8);
-
-      // Verify the conditional index was not created
-      const calls = mockClient.none.mock.calls;
-      const workflowIndexCall = calls.find(call => call[0].includes('mastra_workflow_snapshot_resourceid_idx'));
-      expect(workflowIndexCall).toBeUndefined();
+      // Check that composite index for evals is created
+      expect(operations.createIndex).toHaveBeenCalledWith({
+        name: 'test_schema_mastra_evals_agent_name_created_at_idx',
+        table: 'mastra_evals',
+        columns: ['agent_name', 'created_at DESC'],
+      });
     });
 
     it('should handle index creation errors gracefully', async () => {
-      const error = new Error('Index creation failed');
-      mockClient.none.mockRejectedValueOnce(error);
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await expect(operations.createPerformanceIndexes()).rejects.toThrow('Index creation failed');
-    });
+      // Make createIndex fail for the first index
+      vi.spyOn(operations, 'createIndex')
+        .mockRejectedValueOnce(new Error('Index already exists'))
+        .mockResolvedValue(undefined);
 
-    it('should use CONCURRENTLY for index creation to avoid blocking', async () => {
-      await operations.createPerformanceIndexes();
+      await operations.createAutomaticIndexes();
 
-      const calls = mockClient.none.mock.calls;
-      calls.forEach(call => {
-        expect(call[0]).toContain('CREATE INDEX CONCURRENTLY');
-      });
-    });
+      // Should log warning but continue with other indexes
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to create index'), expect.any(Error));
 
-    it('should use IF NOT EXISTS to prevent duplicate index creation', async () => {
-      await operations.createPerformanceIndexes();
+      // Should still try to create all 4 indexes
+      expect(operations.createIndex).toHaveBeenCalledTimes(4);
 
-      const calls = mockClient.none.mock.calls;
-      calls.forEach(call => {
-        expect(call[0]).toContain('IF NOT EXISTS');
-        expect(call[0]).toContain('pg_indexes');
-      });
+      consoleWarnSpy.mockRestore();
     });
 
     it('should work with default schema (public)', async () => {
@@ -120,35 +93,51 @@ describe('PostgresStore Performance Indexes', () => {
         // No schemaName provided, should default to public
       });
 
-      vi.spyOn(publicOperations, 'hasColumn').mockResolvedValue(true);
+      vi.spyOn(publicOperations, 'createIndex').mockResolvedValue(undefined);
 
-      await publicOperations.createPerformanceIndexes();
+      await publicOperations.createAutomaticIndexes();
 
       // Verify indexes are created without schema prefix
-      const calls = mockClient.none.mock.calls;
-      const firstCall = calls[0][0];
-      expect(firstCall).toContain('mastra_threads_resourceid_idx'); // No schema prefix
-      expect(firstCall).not.toContain('test_schema_');
+      expect(publicOperations.createIndex).toHaveBeenCalledWith({
+        name: 'mastra_threads_resourceid_createdat_idx', // No schema prefix
+        table: 'mastra_threads',
+        columns: ['resourceId', 'createdAt DESC'],
+      });
     });
   });
 
   describe('PostgresStore initialization', () => {
-    it('should create performance indexes during init without failing on index errors', async () => {
-      // Mock the parent init
+    it('should create indexes during init without failing on index errors', async () => {
+      // Create a fresh store instance
+      const testStore = new PostgresStore({
+        connectionString: 'postgresql://test:test@localhost:5432/test',
+      });
+
+      // Mock pgPromise and database connection
+      const mockDb = {
+        none: vi.fn().mockRejectedValue(new Error('Index creation failed')),
+        one: vi.fn(),
+        manyOrNone: vi.fn(),
+        oneOrNone: vi.fn(),
+      };
+
+      // Mock pg-promise module
+      const pgPromiseMock = vi.fn(() => mockDb);
+      vi.spyOn(await import('pg-promise'), 'default').mockReturnValue(pgPromiseMock as any);
+
+      // Mock the parent init to avoid actual table creation
       const mockSuperInit = vi.fn().mockResolvedValue(undefined);
-      vi.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(store)), 'init').mockImplementation(mockSuperInit);
+      vi.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(testStore)), 'init').mockImplementation(mockSuperInit);
 
       // Mock console.warn to capture warnings
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      // Mock index creation to fail
-      mockClient.none.mockRejectedValue(new Error('Index creation failed'));
-
       // Init should still succeed even if index creation fails
-      await expect(store.init()).resolves.not.toThrow();
+      await expect(testStore.init()).resolves.not.toThrow();
 
-      // Verify warning was logged
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to create performance indexes:', expect.any(Error));
+      // Verify warnings were logged for each index creation failure
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to create index'), expect.any(Error));
 
       consoleSpy.mockRestore();
     });

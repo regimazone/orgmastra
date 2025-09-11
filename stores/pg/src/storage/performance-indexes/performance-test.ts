@@ -46,10 +46,14 @@ export class PostgresPerformanceTest {
   }
 
   async cleanup(): Promise<void> {
-    // Clean up test data
+    // Clean up test data more aggressively
     const db = this.store.db;
-    await db.none('DELETE FROM mastra_threads WHERE title LIKE $1', ['perf_test_%']);
-    await db.none('DELETE FROM mastra_messages WHERE content LIKE $1', ['%perf_test%']);
+
+    console.log('🧹 Cleaning up all test data...');
+
+    // Clean threads and messages with broader patterns
+    await db.none('DELETE FROM mastra_threads WHERE title LIKE $1 OR id LIKE $2', ['perf_test_%', 'thread_%']);
+    await db.none('DELETE FROM mastra_messages WHERE content LIKE $1 OR id LIKE $2', ['%perf_test%', 'message_%']);
 
     // Clean up traces and evals (if tables exist)
     try {
@@ -59,16 +63,42 @@ export class PostgresPerformanceTest {
     }
 
     try {
-      await db.none('DELETE FROM mastra_evals WHERE id LIKE $1', ['eval_%']);
+      await db.none('DELETE FROM mastra_evals WHERE input LIKE $1 OR global_run_id LIKE $2', [
+        '%perf_test%',
+        'global_run_%',
+      ]);
     } catch (error) {
       // Table might not exist
+    }
+
+    // Update PostgreSQL statistics after cleanup
+    try {
+      await db.none('ANALYZE mastra_threads, mastra_messages, mastra_traces, mastra_evals');
+      console.log('📊 Updated PostgreSQL statistics after cleanup');
+    } catch (error) {
+      console.warn('Could not update statistics:', error);
+    }
+  }
+
+  async resetDatabase(): Promise<void> {
+    // Nuclear option: completely reset all tables
+    const db = this.store.db;
+
+    console.log('💥 NUCLEAR CLEANUP: Resetting all tables...');
+
+    try {
+      await db.none('TRUNCATE TABLE mastra_threads CASCADE');
+      await db.none('TRUNCATE TABLE mastra_messages CASCADE');
+      await db.none('TRUNCATE TABLE mastra_traces CASCADE');
+      await db.none('TRUNCATE TABLE mastra_evals CASCADE');
+      console.log('🧨 All tables truncated');
+    } catch (error) {
+      console.warn('Could not truncate tables:', error);
     }
   }
 
   async dropPerformanceIndexes(): Promise<void> {
     console.log('Dropping performance indexes...');
-    const db = this.store.db;
-
     // Get schema name for index naming
     const schemaPrefix = this.store['schema'] ? `${this.store['schema']}_` : '';
 
@@ -86,7 +116,7 @@ export class PostgresPerformanceTest {
 
     for (const indexName of indexesToDrop) {
       try {
-        await db.none(`DROP INDEX IF EXISTS ${indexName}`);
+        await this.store.stores.operations.dropIndex(indexName);
       } catch (error) {
         // Ignore errors for non-existent indexes
         console.warn(`Could not drop index ${indexName}:`, error);
@@ -94,10 +124,10 @@ export class PostgresPerformanceTest {
     }
   }
 
-  async createPerformanceIndexes(): Promise<void> {
-    console.log('Creating performance indexes...');
+  async createAutomaticIndexes(): Promise<void> {
+    console.log('Creating indexes...');
     const operations = this.store.stores.operations as any; // Cast to access PG-specific method
-    await operations.createPerformanceIndexes();
+    await operations.createAutomaticIndexes();
   }
 
   async seedTestData(): Promise<void> {
@@ -169,15 +199,15 @@ export class PostgresPerformanceTest {
       type: string;
       createdAt: Date;
     }> = [];
-    for (let i = 0; i < this.config.testDataSize * 2; i++) {
-      const threadId = `thread_${Math.floor(i / 2)}`;
-      const resourceId = resourceIds[Math.floor(i / 2) % resourceIds.length]!;
+    for (let i = 0; i < this.config.testDataSize; i++) {
+      const threadId = `thread_${i}`;
+      const resourceId = resourceIds[i % resourceIds.length]!;
       messages.push({
         id: `message_${i}`,
         thread_id: threadId,
         resourceId,
         content: `perf_test message content ${i}`,
-        role: i % 2 === 0 ? 'user' : 'assistant',
+        role: 'user',
         type: 'text',
         createdAt: new Date(Date.now() - Math.random() * 86400000 * 30),
       });
@@ -215,46 +245,45 @@ export class PostgresPerformanceTest {
       }
     }
 
-    // Create test traces for trace performance testing - PROPERLY SCALED!
+    // Create test traces for trace performance testing
     console.log('Inserting traces...');
-
-    // Ensure traces table exists first
-    await db.none(`
-      CREATE TABLE IF NOT EXISTS mastra_traces (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        scope TEXT,
-        kind INTEGER,
-        "startTime" TIMESTAMP,
-        "endTime" TIMESTAMP,
-        "createdAt" TIMESTAMP DEFAULT NOW()
-      )
-    `);
 
     try {
       const traces: Array<{
         id: string;
         name: string;
+        traceId: string;
         scope: string;
         kind: number;
-        startTime: Date;
-        endTime: Date;
+        startTime: string; // bigint as string
+        endTime: string; // bigint as string
         createdAt: Date;
+        parentSpanId?: string;
+        attributes?: object;
+        status?: object;
+        events?: object;
+        links?: object;
+        other?: string;
       }> = [];
 
-      // Use 50% of main dataset size - this is realistic and will show index benefits!
-      const tracesCount = Math.floor(this.config.testDataSize * 0.5);
+      // Use same scale as main dataset - equal scaling across all tables!
+      const tracesCount = Math.floor(this.config.testDataSize);
       console.log(`  Creating ${tracesCount.toLocaleString()} traces...`);
 
       for (let i = 0; i < tracesCount; i++) {
+        const now = Date.now();
+        const startTimeMs = now - Math.random() * 86400000 * 30; // Random time in last 30 days
+        const endTimeMs = startTimeMs + Math.random() * 10000; // End 0-10 seconds after start
+
         traces.push({
           id: `trace_${i}`,
           name: i % 5 === 0 ? 'test_trace' : `trace_${i % 10}`, // Some will match our test query
+          traceId: `trace_${i}`,
           scope: 'test_scope',
           kind: 1,
-          startTime: new Date(Date.now() - Math.random() * 86400000 * 30),
-          endTime: new Date(Date.now() - Math.random() * 86400000 * 29),
-          createdAt: new Date(Date.now() - Math.random() * 86400000 * 30),
+          startTime: (startTimeMs * 1000000).toString(), // Convert to nanoseconds as string
+          endTime: (endTimeMs * 1000000).toString(), // Convert to nanoseconds as string
+          createdAt: new Date(now - Math.random() * 86400000 * 30),
         });
       }
 
@@ -264,13 +293,14 @@ export class PostgresPerformanceTest {
           const values = batch
             .map(
               (_, index) =>
-                `($${index * 7 + 1}, $${index * 7 + 2}, $${index * 7 + 3}, $${index * 7 + 4}, $${index * 7 + 5}, $${index * 7 + 6}, $${index * 7 + 7})`,
+                `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`,
             )
             .join(', ');
 
           const params = batch.flatMap(trace => [
             trace.id,
             trace.name,
+            trace.traceId,
             trace.scope,
             trace.kind,
             trace.startTime,
@@ -279,7 +309,7 @@ export class PostgresPerformanceTest {
           ]);
 
           await db.none(
-            `INSERT INTO mastra_traces (id, name, scope, kind, "startTime", "endTime", "createdAt") VALUES ${values} ON CONFLICT (id) DO NOTHING`,
+            `INSERT INTO mastra_traces (id, name, "traceId", scope, kind, "startTime", "endTime", "createdAt") VALUES ${values}`,
             params,
           );
 
@@ -290,41 +320,44 @@ export class PostgresPerformanceTest {
         console.log(`  Inserted ${traces.length} test traces`);
       }
     } catch (error) {
-      // Table might not exist, skip traces
-      console.log('  Skipping traces (table may not exist)');
+      throw new Error(`Failed to seed traces data: ${error}`);
     }
 
     // Create test evals for eval performance testing - PROPERLY SCALED!
     console.log('Inserting evals...');
 
-    // Ensure evals table exists first
-    await db.none(`
-      CREATE TABLE IF NOT EXISTS mastra_evals (
-        id TEXT PRIMARY KEY,
-        agent_name TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
-        score DECIMAL
-      )
-    `);
-
     try {
       const evals: Array<{
-        id: string;
+        input: string;
+        output: string;
+        result: object;
         agent_name: string;
+        metric_name: string;
+        instructions: string;
+        test_info?: object;
+        global_run_id: string;
+        run_id: string;
         created_at: Date;
-        score: number;
+        createdAt?: Date;
       }> = [];
 
-      // Use 25% of main dataset size - this is realistic and will show index benefits!
-      const evalsCount = Math.floor(this.config.testDataSize * 0.25);
+      // Use same scale as main dataset - test at full scale to show index benefits!
+      const evalsCount = Math.floor(this.config.testDataSize);
       console.log(`  Creating ${evalsCount.toLocaleString()} evals...`);
 
+      const agentNames = ['test_agent', 'chat_agent', 'search_agent', 'summary_agent', 'code_agent'];
       for (let i = 0; i < evalsCount; i++) {
         evals.push({
-          id: `eval_${i}`,
-          agent_name: i % 3 === 0 ? 'test_agent' : `agent_${i % 5}`, // Some will match our test query
+          input: `perf_test input ${i}`,
+          output: `perf_test output ${i}`,
+          result: { score: Math.random(), passed: Math.random() > 0.5 },
+          agent_name: agentNames[i % agentNames.length]!, // Distribute across different agents
+          metric_name: 'test_metric',
+          instructions: 'Performance test instructions',
+          test_info: { testId: i, category: 'performance' },
+          global_run_id: `global_run_${Math.floor(i / 100)}`,
+          run_id: `run_${i}`,
           created_at: new Date(Date.now() - Math.random() * 86400000 * 30),
-          score: Math.random(),
         });
       }
 
@@ -332,13 +365,27 @@ export class PostgresPerformanceTest {
         for (let i = 0; i < evals.length; i += batchSize) {
           const batch = evals.slice(i, i + batchSize);
           const values = batch
-            .map((_, index) => `($${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})`)
+            .map(
+              (_, index) =>
+                `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${index * 10 + 4}, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${index * 10 + 8}, $${index * 10 + 9}, $${index * 10 + 10})`,
+            )
             .join(', ');
 
-          const params = batch.flatMap(evalRow => [evalRow.id, evalRow.agent_name, evalRow.created_at, evalRow.score]);
+          const params = batch.flatMap(evalRow => [
+            evalRow.input,
+            evalRow.output,
+            JSON.stringify(evalRow.result),
+            evalRow.agent_name,
+            evalRow.metric_name,
+            evalRow.instructions,
+            JSON.stringify(evalRow.test_info),
+            evalRow.global_run_id,
+            evalRow.run_id,
+            evalRow.created_at,
+          ]);
 
           await db.none(
-            `INSERT INTO mastra_evals (id, agent_name, created_at, score) VALUES ${values} ON CONFLICT (id) DO NOTHING`,
+            `INSERT INTO mastra_evals (input, output, result, agent_name, metric_name, instructions, test_info, global_run_id, run_id, created_at) VALUES ${values}`,
             params,
           );
 
@@ -349,8 +396,7 @@ export class PostgresPerformanceTest {
         console.log(`  Inserted ${evals.length} test evals`);
       }
     } catch (error) {
-      // Table might not exist, skip evals
-      console.log('  Skipping evals (table may not exist)');
+      throw new Error(`Failed to seed evals data: ${error}`);
     }
 
     console.log('Test data seeding completed');
@@ -468,7 +514,7 @@ export class PostgresPerformanceTest {
     const withoutIndexes = await this.runPerformanceTests('without_indexes');
 
     // Then, test with indexes
-    await this.createPerformanceIndexes();
+    await this.createAutomaticIndexes();
     await this.analyzeCurrentQueries(); // Show query plans with indexes
     const withIndexes = await this.runPerformanceTests('with_indexes');
 

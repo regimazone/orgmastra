@@ -7,10 +7,13 @@ import {
   TABLE_TRACES,
   TABLE_EVALS,
 } from '@mastra/core/storage';
-import type { StorageColumn, TABLE_NAMES } from '@mastra/core/storage';
+import type { StorageColumn, TABLE_NAMES, CreateIndexOptions, IndexInfo } from '@mastra/core/storage';
 import { parseSqlIdentifier } from '@mastra/core/utils';
 import type { IDatabase } from 'pg-promise';
 import { getSchemaName, getTableName } from '../utils';
+
+// Re-export the types for convenience
+export type { CreateIndexOptions, IndexInfo };
 
 export class StoreOperationsPG extends StoreOperations {
   public client: IDatabase<{}>;
@@ -376,103 +379,226 @@ export class StoreOperationsPG extends StoreOperations {
   }
 
   /**
-   * Creates performance indexes for storage tables to prevent full table scans
-   * This method is safe to run multiple times as it uses IF NOT EXISTS
+   * Create a new index on a table
    */
-  async createPerformanceIndexes(): Promise<void> {
+  async createIndex(options: CreateIndexOptions): Promise<void> {
+    try {
+      const { name, table, columns, unique = false, concurrent = true, where, method = 'btree' } = options;
+
+      const schemaName = this.schemaName || 'public';
+      const fullTableName = getTableName({
+        indexName: table as TABLE_NAMES,
+        schemaName: getSchemaName(this.schemaName),
+      });
+
+      // Check if index already exists
+      const indexExists = await this.client.oneOrNone(
+        `SELECT 1 FROM pg_indexes 
+         WHERE indexname = $1 
+         AND schemaname = $2`,
+        [name, schemaName],
+      );
+
+      if (indexExists) {
+        // Index already exists, skip creation
+        return;
+      }
+
+      // Build index creation SQL
+      const uniqueStr = unique ? 'UNIQUE ' : '';
+      const concurrentStr = concurrent ? 'CONCURRENTLY ' : '';
+      const methodStr = method !== 'btree' ? `USING ${method} ` : '';
+      const columnsStr = columns
+        .map(col => {
+          // Handle columns with DESC/ASC modifiers
+          if (col.includes(' DESC') || col.includes(' ASC')) {
+            const [colName, ...modifiers] = col.split(' ');
+            if (!colName) {
+              throw new Error(`Invalid column specification: ${col}`);
+            }
+            return `"${parseSqlIdentifier(colName, 'column name')}" ${modifiers.join(' ')}`;
+          }
+          return `"${parseSqlIdentifier(col, 'column name')}"`;
+        })
+        .join(', ');
+      const whereStr = where ? ` WHERE ${where}` : '';
+
+      const sql = `CREATE ${uniqueStr}INDEX ${concurrentStr}${name} ON ${fullTableName} ${methodStr}(${columnsStr})${whereStr}`;
+
+      await this.client.none(sql);
+    } catch (error) {
+      // Check if error is due to concurrent index creation on a table that doesn't support it
+      if (error instanceof Error && error.message.includes('CONCURRENTLY')) {
+        // Retry without CONCURRENTLY
+        const retryOptions = { ...options, concurrent: false };
+        return this.createIndex(retryOptions);
+      }
+
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_PG_INDEX_CREATE_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: {
+            indexName: options.name,
+            tableName: options.table,
+          },
+        },
+        error,
+      );
+    }
+  }
+
+  /**
+   * Drop an existing index
+   */
+  async dropIndex(indexName: string): Promise<void> {
+    try {
+      // Check if index exists first
+      const schemaName = this.schemaName || 'public';
+      const indexExists = await this.client.oneOrNone(
+        `SELECT 1 FROM pg_indexes 
+         WHERE indexname = $1 
+         AND schemaname = $2`,
+        [indexName, schemaName],
+      );
+
+      if (!indexExists) {
+        // Index doesn't exist, nothing to drop
+        return;
+      }
+
+      const sql = `DROP INDEX IF EXISTS ${getSchemaName(this.schemaName)}.${indexName}`;
+      await this.client.none(sql);
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_PG_INDEX_DROP_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: {
+            indexName,
+          },
+        },
+        error,
+      );
+    }
+  }
+
+  /**
+   * List indexes for a specific table or all tables
+   */
+  async listIndexes(tableName?: string): Promise<IndexInfo[]> {
+    try {
+      const schemaName = this.schemaName || 'public';
+
+      let query: string;
+      let params: any[];
+
+      if (tableName) {
+        query = `
+          SELECT 
+            i.indexname as name,
+            i.tablename as table,
+            i.indexdef as definition,
+            ix.indisunique as is_unique,
+            pg_size_pretty(pg_relation_size(quote_ident(i.indexname)::regclass)) as size,
+            array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns
+          FROM pg_indexes i
+          JOIN pg_class c ON c.relname = i.indexname
+          JOIN pg_index ix ON ix.indexrelid = c.oid
+          JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
+          WHERE i.schemaname = $1 
+          AND i.tablename = $2
+          GROUP BY i.indexname, i.tablename, i.indexdef, ix.indisunique, c.oid
+        `;
+        params = [schemaName, tableName];
+      } else {
+        query = `
+          SELECT 
+            i.indexname as name,
+            i.tablename as table,
+            i.indexdef as definition,
+            ix.indisunique as is_unique,
+            pg_size_pretty(pg_relation_size(quote_ident(i.indexname)::regclass)) as size,
+            array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns
+          FROM pg_indexes i
+          JOIN pg_class c ON c.relname = i.indexname
+          JOIN pg_index ix ON ix.indexrelid = c.oid
+          JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
+          WHERE i.schemaname = $1
+          GROUP BY i.indexname, i.tablename, i.indexdef, ix.indisunique, c.oid
+        `;
+        params = [schemaName];
+      }
+
+      const results = await this.client.manyOrNone(query, params);
+
+      return results.map(row => ({
+        name: row.name,
+        table: row.table,
+        columns: row.columns || [],
+        unique: row.is_unique || false,
+        size: row.size || '0',
+        definition: row.definition || '',
+      }));
+    } catch (error) {
+      throw new MastraError(
+        {
+          id: 'MASTRA_STORAGE_PG_INDEX_LIST_FAILED',
+          domain: ErrorDomain.STORAGE,
+          category: ErrorCategory.THIRD_PARTY,
+          details: tableName
+            ? {
+                tableName,
+              }
+            : {},
+        },
+        error,
+      );
+    }
+  }
+
+  /**
+   * Creates automatic indexes for optimal query performance
+   * These composite indexes cover both filtering and sorting in single index
+   */
+  async createAutomaticIndexes(): Promise<void> {
     try {
       const schemaPrefix = this.schemaName ? `${this.schemaName}_` : '';
-      const indexes = [
-        // Index for getThreadsByResourceId query
+      const indexes: CreateIndexOptions[] = [
+        // Composite index for threads (filter + sort)
         {
-          tableName: TABLE_THREADS,
-          indexName: `${schemaPrefix}mastra_threads_resourceid_idx`,
-          columns: '"resourceId"',
-          comment: 'Index for getThreadsByResourceId queries',
+          name: `${schemaPrefix}mastra_threads_resourceid_createdat_idx`,
+          table: TABLE_THREADS,
+          columns: ['resourceId', 'createdAt DESC'],
         },
-        // Index for getThreadsByResourceId with ordering
+        // Composite index for messages (filter + sort)
         {
-          tableName: TABLE_THREADS,
-          indexName: `${schemaPrefix}mastra_threads_resourceid_createdat_idx`,
-          columns: '"resourceId", "createdAt" DESC',
-          comment: 'Composite index for getThreadsByResourceId with ordering',
+          name: `${schemaPrefix}mastra_messages_thread_id_createdat_idx`,
+          table: TABLE_MESSAGES,
+          columns: ['thread_id', 'createdAt DESC'],
         },
-        // Index for getMessages and getMessagesPaginated queries
+        // Composite index for traces (filter + sort)
         {
-          tableName: TABLE_MESSAGES,
-          indexName: `${schemaPrefix}mastra_messages_thread_id_idx`,
-          columns: 'thread_id',
-          comment: 'Index for getMessages queries by thread_id',
+          name: `${schemaPrefix}mastra_traces_name_starttime_idx`,
+          table: TABLE_TRACES,
+          columns: ['name', 'startTime DESC'],
         },
-        // Index for getMessages with ordering
+        // Composite index for evals (filter + sort)
         {
-          tableName: TABLE_MESSAGES,
-          indexName: `${schemaPrefix}mastra_messages_thread_id_createdat_idx`,
-          columns: 'thread_id, "createdAt" DESC',
-          comment: 'Composite index for getMessages with ordering',
-        },
-        // Index for getTracesPaginated queries
-        {
-          tableName: TABLE_TRACES,
-          indexName: `${schemaPrefix}mastra_traces_name_idx`,
-          columns: 'name',
-          comment: 'Index for getTracesPaginated queries by name',
-        },
-        // Index for getTracesPaginated with LIKE queries (using text_pattern_ops for better LIKE performance)
-        {
-          tableName: TABLE_TRACES,
-          indexName: `${schemaPrefix}mastra_traces_name_pattern_idx`,
-          columns: 'name text_pattern_ops',
-          comment: 'Index for LIKE queries on trace names',
-        },
-        // Index for getEvals queries
-        {
-          tableName: TABLE_EVALS,
-          indexName: `${schemaPrefix}mastra_evals_agent_name_idx`,
-          columns: 'agent_name',
-          comment: 'Index for getEvals queries by agent_name',
-        },
-        // Index for getEvals with ordering
-        {
-          tableName: TABLE_EVALS,
-          indexName: `${schemaPrefix}mastra_evals_agent_name_created_at_idx`,
-          columns: 'agent_name, created_at DESC',
-          comment: 'Composite index for getEvals with ordering',
-        },
-        // Index for workflow queries by resourceId (if column exists)
-        {
-          tableName: TABLE_WORKFLOW_SNAPSHOT,
-          indexName: `${schemaPrefix}mastra_workflow_snapshot_resourceid_idx`,
-          columns: '"resourceId"',
-          comment: 'Index for workflow queries by resourceId',
-          conditional: true, // Only create if resourceId column exists
+          name: `${schemaPrefix}mastra_evals_agent_name_created_at_idx`,
+          table: TABLE_EVALS,
+          columns: ['agent_name', 'created_at DESC'],
         },
       ];
 
-      for (const index of indexes) {
-        const tableName = getTableName({ indexName: index.tableName, schemaName: getSchemaName(this.schemaName) });
-
-        // For conditional indexes, check if column exists first
-        if (index.conditional) {
-          const hasColumn = await this.hasColumn(index.tableName, 'resourceId');
-          if (!hasColumn) {
-            continue;
-          }
-        }
-
-        // Check if index exists first
-        const schemaName = this.schemaName || 'public';
-        const indexExists = await this.client.oneOrNone(
-          `SELECT 1 FROM pg_indexes 
-           WHERE indexname = $1 
-           AND schemaname = $2`,
-          [index.indexName, schemaName],
-        );
-
-        // Only create if it doesn't exist
-        if (!indexExists) {
-          const sql = `CREATE INDEX CONCURRENTLY ${index.indexName} ON ${tableName} (${index.columns})`;
-          await this.client.none(sql);
+      for (const indexOptions of indexes) {
+        try {
+          await this.createIndex(indexOptions);
+        } catch (error) {
+          // Log but continue with other indexes
+          console.warn(`Failed to create index ${indexOptions.name}:`, error);
         }
       }
     } catch (error) {

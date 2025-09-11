@@ -195,3 +195,23 @@ export interface AITracesPaginatedArg {
   };
   pagination?: PaginationArgs;
 }
+
+// Basic Index Management Types
+export interface CreateIndexOptions {
+  name: string;
+  table: string;
+  columns: string[];
+  unique?: boolean;
+  concurrent?: boolean;
+  where?: string;
+  method?: 'btree' | 'hash' | 'gin' | 'gist';
+}
+
+export interface IndexInfo {
+  name: string;
+  table: string;
+  columns: string[];
+  unique: boolean;
+  size: string;
+  definition: string;
+}

@@ -1,6 +1,7 @@
 import { MastraBase } from '../../../base';
+import { ErrorCategory, ErrorDomain, MastraError } from '../../../error';
 import type { TABLE_NAMES } from '../../constants';
-import type { StorageColumn } from '../../types';
+import type { StorageColumn, CreateIndexOptions, IndexInfo } from '../../types';
 
 export abstract class StoreOperations extends MastraBase {
   constructor() {
@@ -72,4 +73,49 @@ export abstract class StoreOperations extends MastraBase {
   }): Promise<void>;
 
   abstract load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, any> }): Promise<R | null>;
+
+  /**
+   * DATABASE INDEX MANAGEMENT
+   * Optional methods for database index management.
+   * Storage adapters can override these to provide index management capabilities.
+   */
+
+  /**
+   * Creates a database index on specified columns
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async createIndex(options: CreateIndexOptions): Promise<void> {
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_CREATE_INDEX_NOT_SUPPORTED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.SYSTEM,
+      text: `Index management is not supported by this storage adapter`,
+    });
+  }
+
+  /**
+   * Drops a database index by name
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async dropIndex(indexName: string): Promise<void> {
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_DROP_INDEX_NOT_SUPPORTED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.SYSTEM,
+      text: `Index management is not supported by this storage adapter`,
+    });
+  }
+
+  /**
+   * Lists database indexes for a table or all tables
+   * @throws {MastraError} if not supported by the storage adapter
+   */
+  async listIndexes(tableName?: string): Promise<IndexInfo[]> {
+    throw new MastraError({
+      id: 'MASTRA_STORAGE_LIST_INDEXES_NOT_SUPPORTED',
+      domain: ErrorDomain.STORAGE,
+      category: ErrorCategory.SYSTEM,
+      text: `Index management is not supported by this storage adapter`,
+    });
+  }
 }

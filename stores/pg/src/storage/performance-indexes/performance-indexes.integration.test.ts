@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PostgresStore } from '../index';
 import { PostgresPerformanceTest } from './performance-test';
 
@@ -20,26 +20,24 @@ describe('PostgresStore Performance Indexes Integration', () => {
     await performanceTest.init();
   }, 30000); // 30 second timeout for setup
 
+  beforeEach(async () => {
+    await performanceTest.cleanup();
+  });
+
   afterAll(async () => {
     await performanceTest?.cleanup();
   });
 
   it('should create performance indexes during store initialization', async () => {
-    const db = store.db;
-
-    // Check that indexes exist
-    const indexes = await db.manyOrNone(`
-      SELECT indexname 
-      FROM pg_indexes 
-      WHERE indexname LIKE '%mastra_%_idx'
-    `);
+    // Composite indexes are created by default during init
+    const indexes = await store.listIndexes();
 
     expect(indexes.length).toBeGreaterThan(0);
 
-    // Verify specific indexes exist
-    const indexNames = indexes.map(idx => idx.indexname);
-    expect(indexNames).toContain('public_mastra_threads_resourceid_idx');
-    expect(indexNames).toContain('public_mastra_messages_thread_id_idx');
+    // Verify specific indexes exist (using our optimized composite indexes)
+    const indexNames = indexes.map(idx => idx.name);
+    expect(indexNames.some(name => name.includes('threads_resourceid_createdat'))).toBe(true);
+    expect(indexNames.some(name => name.includes('messages_thread_id_createdat'))).toBe(true);
   });
 
   it('should demonstrate performance scaling with indexes across dataset sizes', async () => {
@@ -48,7 +46,7 @@ describe('PostgresStore Performance Indexes Integration', () => {
       { name: 'Small', size: 1000 },
       { name: 'Medium', size: 10000 },
       { name: 'Large', size: 100000 },
-      { name: 'XLarge', size: 1000000 }, // Ultimate test - should show massive improvements
+      { name: 'XLarge', size: 1000000 },
     ];
 
     console.log('\n=== Comprehensive Performance Scaling Analysis ===');
@@ -152,20 +150,18 @@ describe('PostgresStore Performance Indexes Integration', () => {
   }, 300000); // 5 minute timeout for comprehensive testing
 
   it('should handle index creation gracefully when indexes already exist', async () => {
+    // Access operations to test index creation
     const operations = store.stores.operations as any;
 
-    // Create indexes again - should not fail
-    await expect(operations.createPerformanceIndexes()).resolves.not.toThrow();
+    // Create automatic indexes again - should not fail
+    await expect(operations.createAutomaticIndexes()).resolves.not.toThrow();
 
     // Verify indexes still exist
-    const db = store.db;
-    const indexes = await db.manyOrNone(`
-      SELECT indexname 
-      FROM pg_indexes 
-      WHERE indexname LIKE '%mastra_%_idx'
-    `);
-
-    expect(indexes.length).toBeGreaterThan(0);
+    const indexes = await store.listIndexes();
+    const compositeIndexes = indexes.filter(
+      idx => idx.name.includes('threads_resourceid_createdat') || idx.name.includes('messages_thread_id_createdat'),
+    );
+    expect(compositeIndexes.length).toBeGreaterThan(0);
   });
 
   it('should show query plan improvements with indexes', async () => {

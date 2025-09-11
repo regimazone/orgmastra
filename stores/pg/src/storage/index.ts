@@ -26,9 +26,12 @@ import type { ISSLConfig } from 'pg-promise/typescript/pg-subset';
 import { LegacyEvalsPG } from './domains/legacy-evals';
 import { MemoryPG } from './domains/memory';
 import { StoreOperationsPG } from './domains/operations';
+import type { CreateIndexOptions, IndexInfo } from './domains/operations';
 import { ScoresPG } from './domains/scores';
 import { TracesPG } from './domains/traces';
 import { WorkflowsPG } from './domains/workflows';
+
+export type { CreateIndexOptions, IndexInfo };
 
 export type PostgresConfig = {
   schemaName?: string;
@@ -137,14 +140,14 @@ export class PostgresStore extends MastraStorage {
 
       await super.init();
 
-      // Create performance indexes to prevent full table scans
+      // Create automatic performance indexes by default
       // This is done after table creation and is safe to run multiple times
       try {
-        await operations.createPerformanceIndexes();
+        await operations.createAutomaticIndexes();
       } catch (indexError) {
         // Log the error but don't fail initialization
         // Indexes are performance optimizations, not critical for functionality
-        console.warn('Failed to create performance indexes:', indexError);
+        console.warn('Failed to create indexes:', indexError);
       }
     } catch (error) {
       this.isConnected = false;
@@ -467,6 +470,39 @@ export class PostgresStore extends MastraStorage {
 
   async close(): Promise<void> {
     this.pgp.end();
+  }
+
+  /**
+   * Create a custom index
+   * @override from MastraStorage base class
+   */
+  async createIndex(options: CreateIndexOptions): Promise<void> {
+    if (!this.stores.operations) {
+      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
+    }
+    return this.stores.operations.createIndex(options);
+  }
+
+  /**
+   * Drop an index
+   * @override from MastraStorage base class
+   */
+  async dropIndex(indexName: string): Promise<void> {
+    if (!this.stores.operations) {
+      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
+    }
+    return this.stores.operations.dropIndex(indexName);
+  }
+
+  /**
+   * List indexes for a table or all tables
+   * @override from MastraStorage base class
+   */
+  async listIndexes(tableName?: string): Promise<IndexInfo[]> {
+    if (!this.stores.operations) {
+      throw new Error('PostgresStore: Store is not initialized, please call "init()" first.');
+    }
+    return this.stores.operations.listIndexes(tableName);
   }
 
   /**
