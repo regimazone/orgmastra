@@ -22,6 +22,7 @@ vi.mock('../bundler/workspaceDependencies', () => ({
     .mockResolvedValue(
       new Map([['@mastra/core', { location: '/workspace/packages/core', dependencies: {}, version: '1.0.0' }]]),
     ),
+  workspacesCache: {},
 }));
 vi.mock('find-workspaces', () => ({
   findWorkspacesRoot: vi.fn().mockReturnValue({ location: '/workspace' }),

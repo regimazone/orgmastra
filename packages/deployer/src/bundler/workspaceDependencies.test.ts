@@ -7,6 +7,7 @@ import { collectTransitiveWorkspaceDependencies, packWorkspaceDependencies } fro
 
 vi.mock('find-workspaces', () => ({
   findWorkspacesRoot: vi.fn().mockReturnValue({ location: '/mock-root' }),
+  createWorkspacesCache: vi.fn(),
 }));
 
 vi.mock('fs-extra', () => ({
