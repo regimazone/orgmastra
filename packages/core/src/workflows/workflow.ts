@@ -1755,15 +1755,12 @@ export class Run<
     format?: 'aisdk' | 'mastra' | undefined;
   } = {}) {
     if (this.closeStreamAction) {
-      return {
-        stream: this.observeStreamVNext().stream,
-        getWorkflowState: () => this.executionResults!,
-      };
+      this.activeStream;
     }
 
     this.closeStreamAction = async () => {};
 
-    return new MastraWorkflowStream({
+    this.activeStream = new MastraWorkflowStream({
       run: this,
       createStream: () => {
         const { readable, writable } = new TransformStream<ChunkType, ChunkType>({
@@ -1843,6 +1840,8 @@ export class Run<
         return readable;
       },
     });
+
+    return this.activeStream;
   }
 
   watch(cb: (event: WatchEvent) => void, type: 'watch' | 'watch-v2' = 'watch'): () => void {
