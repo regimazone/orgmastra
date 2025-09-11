@@ -58,7 +58,7 @@ export async function getWorkspaceInformation({
   );
 
   // 3) Check if the current package is part of the workspace
-  const isWorkspacePackage = workspaces?.some(ws => ws.location === location);
+  const isWorkspacePackage = (workspaces ?? []).some(ws => ws.location === location);
 
   // 4) Get the workspace root only if the current package is part of the workspace
   const workspaceRoot = isWorkspacePackage ? findWorkspacesRoot(dir, { cache: workspacesCache })?.location : undefined;
