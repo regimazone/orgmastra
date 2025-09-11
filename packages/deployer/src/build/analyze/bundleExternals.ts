@@ -5,7 +5,7 @@ import virtual from '@rollup/plugin-virtual';
 import esmShim from '@rollup/plugin-esm-shim';
 import { basename } from 'node:path/posix';
 import * as path from 'node:path';
-import { rollup, type OutputChunk } from 'rollup';
+import { rollup, type OutputChunk, type OutputAsset } from 'rollup';
 import { esbuild } from '../plugins/esbuild';
 import { aliasHono } from '../plugins/hono-alias';
 import { getCompiledDepCachePath, getPackageRootPath } from '../utils';
@@ -185,6 +185,10 @@ async function buildExternalDependencies(
     outputDir: string;
   },
 ) {
+  if (virtualDependencies.size === 0) {
+    return [] as unknown as [OutputChunk, ...(OutputAsset | OutputChunk)[]];
+  }
+
   const bundler = await rollup({
     logLevel: process.env.MASTRA_BUNDLER_DEBUG === 'true' ? 'debug' : 'silent',
     input: Array.from(virtualDependencies.entries()).reduce(

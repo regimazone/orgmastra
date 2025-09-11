@@ -46,7 +46,7 @@ export async function getWorkspaceInformation({
 
   // 2) Get all workspaces
   const workspaces = await findWorkspaces(dir, { cache: workspacesCache });
-  const workspaceMap = new Map(
+  const _workspaceMap = new Map(
     workspaces?.map(workspace => [
       workspace.package.name,
       {
@@ -64,7 +64,7 @@ export async function getWorkspaceInformation({
   const workspaceRoot = isWorkspacePackage ? findWorkspacesRoot(dir, { cache: workspacesCache })?.location : undefined;
 
   return {
-    workspaceMap,
+    workspaceMap: isWorkspacePackage ? _workspaceMap : new Map<string, WorkspacePackageInfo>(),
     workspaceRoot,
     isWorkspacePackage,
   };

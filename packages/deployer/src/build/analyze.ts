@@ -166,6 +166,14 @@ If you think your configuration is valid, please open an issue.`);
     }
   }
 
+  if (isDev) {
+    for (const [dep, metadata] of depsToOptimize.entries()) {
+      if (!metadata.isWorkspace) {
+        depsToOptimize.delete(dep);
+      }
+    }
+  }
+
   logger.debug(`Analyzed dependencies: ${Array.from(depsToOptimize.keys()).join(', ')}`);
 
   logger.info('Optimizing dependencies...');
