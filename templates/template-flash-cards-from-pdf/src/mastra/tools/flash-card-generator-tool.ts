@@ -48,7 +48,15 @@ export const flashCardGeneratorTool = createTool({
     ),
     numberOfCards: z.number().min(1).max(50).default(10).describe('Number of flash cards to generate'),
     difficultyLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional().default('intermediate'),
-    questionTypes: z.array(z.string()).optional().describe('Preferred question types'),
+    questionTypes: z.array(z.enum([
+      'definition',
+      'concept', 
+      'application',
+      'comparison',
+      'true-false',
+      'multiple-choice',
+      'short-answer',
+    ])).optional().describe('Preferred question types'),
     subjectArea: z.string().describe('Subject area for the flash cards'),
   }),
   outputSchema: z.object({
