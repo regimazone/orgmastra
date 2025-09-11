@@ -865,7 +865,11 @@ export class Workflow<
    * @param options.disableScorers Optional flag to disable scorers for this run
    * @returns A Run instance that can be used to execute the workflow
    */
-  createRun(options?: { runId?: string; resourceId?: string; disableScorers?: boolean }): Run<TEngineType, TSteps, TInput, TOutput> {
+  createRun(options?: {
+    runId?: string;
+    resourceId?: string;
+    disableScorers?: boolean;
+  }): Run<TEngineType, TSteps, TInput, TOutput> {
     if (this.stepFlow.length === 0) {
       throw new Error(
         'Execution flow of workflow is not defined. Add steps to the workflow via .then(), .branch(), etc.',
