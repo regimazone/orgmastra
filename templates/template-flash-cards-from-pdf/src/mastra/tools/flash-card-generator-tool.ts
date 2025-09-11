@@ -87,7 +87,7 @@ export const flashCardGeneratorTool = createTool({
     console.log(`🃏 Generating ${numberOfCards} flash cards for ${subjectArea}...`);
 
     try {
-      const flashCards: any[] = [];
+      const flashCards: z.infer<typeof flashCardSchema>[] = [];
       let cardCount = 0;
       const maxCardsPerType = Math.ceil(numberOfCards / questionTypes.length);
 
