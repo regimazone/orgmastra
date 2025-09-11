@@ -1,6 +1,7 @@
 const meta = {
   "custom-scorer": "Custom Scorer",
   "answer-relevancy": "Answer Relevancy",
+  "answer-similarity": "Answer Similarity",
   bias: "Bias",
   completeness: "Completeness",
   "content-similarity": "Content Similarity",
@@ -12,6 +13,8 @@ const meta = {
   "textual-difference": "Textual Difference",
   "tone-consistency": "Tone Consistency",
   "tool-call-accuracy": "Tool Call Accuracy",
+  "prompt-alignment": "Prompt Alignment",
+  "noise-sensitivity": "Noise Sensitivity",
   toxicity: "Toxicity",
 };
 export default meta;

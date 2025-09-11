@@ -240,7 +240,7 @@ describe('DefaultExporter', () => {
         expect(() => exporter.init()).toThrow('DefaultExporter: init() called before __registerMastra()');
       });
 
-      it('should throw error if storage not available during init()', () => {
+      it('should log error if storage not available during init()', () => {
         const mockMastraWithoutStorage = {
           getStorage: vi.fn().mockReturnValue(null),
         } as any;
@@ -248,7 +248,12 @@ describe('DefaultExporter', () => {
         const exporter = new DefaultExporter({}, mockLogger);
         exporter.__registerMastra(mockMastraWithoutStorage);
 
-        expect(() => exporter.init()).toThrow('DefaultExporter: Storage not available during initialization');
+        // Should not throw, but log error instead
+        expect(() => exporter.init()).not.toThrow();
+
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'DefaultExporter disabled: Storage not available. Traces will not be persisted.',
+        );
       });
     });
 
@@ -363,6 +368,41 @@ describe('DefaultExporter', () => {
             traceId: 'trace-1',
             eventType: AITracingEventType.SPAN_UPDATED,
           }),
+        );
+      });
+
+      it('should handle event-type spans that only emit SPAN_ENDED', async () => {
+        const exporter = new DefaultExporter(
+          {
+            strategy: 'batch-with-updates',
+            maxBatchSize: 1, // Set to 1 to trigger immediate flush
+          },
+          mockLogger,
+        );
+        exporter.__registerMastra(mockMastra);
+        exporter.init();
+
+        // Event-type spans only emit SPAN_ENDED (no SPAN_STARTED)
+        const eventSpan = createMockEvent(AITracingEventType.SPAN_ENDED, 'trace-1', 'event-1', true);
+        await exporter.exportEvent(eventSpan);
+
+        // Wait for async flush to complete
+        await new Promise(resolve => setImmediate(resolve));
+
+        // Should create the span record (not treat as out-of-order)
+        expect(mockStorage.batchCreateAISpans).toHaveBeenCalledWith({
+          records: expect.arrayContaining([
+            expect.objectContaining({
+              spanId: 'event-1',
+              traceId: 'trace-1',
+            }),
+          ]),
+        });
+
+        // Should not log out-of-order warning
+        expect(mockLogger.warn).not.toHaveBeenCalledWith(
+          'Out-of-order span update detected - skipping event',
+          expect.anything(),
         );
       });
     });

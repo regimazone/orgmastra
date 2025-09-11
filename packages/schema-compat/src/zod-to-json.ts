@@ -5,10 +5,16 @@ import type { ZodType as ZodSchemaV4 } from 'zod/v4';
 import type { Targets } from 'zod-to-json-schema';
 import zodToJsonSchemaOriginal from 'zod-to-json-schema';
 
-export function zodToJsonSchema(zodSchema: ZodSchemaV3 | ZodSchemaV4, target: Targets = 'jsonSchema7') {
-  if ('toJSONSchema' in z) {
+export function zodToJsonSchema(
+  zodSchema: ZodSchemaV3 | ZodSchemaV4,
+  target: Targets = 'jsonSchema7',
+  strategy: 'none' | 'seen' | 'root' | 'relative' = 'relative',
+) {
+  const fn = 'toJSONSchema';
+
+  if (fn in z) {
     // Use dynamic property access to avoid import errors in Zod v3
-    return (z as any)['toJSONSchema'](zodSchema, {
+    return (z as any)[fn](zodSchema, {
       unrepresentable: 'any',
       override: (ctx: any) => {
         // Safe access to handle cases where _zod might be undefined
@@ -21,7 +27,7 @@ export function zodToJsonSchema(zodSchema: ZodSchemaV3 | ZodSchemaV4, target: Ta
     }) as JSONSchema7;
   } else {
     return zodToJsonSchemaOriginal(zodSchema as ZodSchemaV3, {
-      $refStrategy: 'none',
+      $refStrategy: strategy,
       target,
     }) as JSONSchema7;
   }

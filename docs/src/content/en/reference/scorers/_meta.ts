@@ -2,6 +2,7 @@ const meta = {
   "mastra-scorer": "MastraScorer Class",
   "create-scorer": "createScorer",
   "answer-relevancy": "AnswerRelevancy",
+  "answer-similarity": "AnswerSimilarity",
   bias: "Bias",
   completeness: "Completeness",
   "content-similarity": "ContentSimilarity",
@@ -13,6 +14,8 @@ const meta = {
   "textual-difference": "TextualDifference",
   "tone-consistency": "ToneConsistency",
   "tool-call-accuracy": "ToolCallAccuracy",
+  "prompt-alignment": "PromptAlignment",
+  "noise-sensitivity": "NoiseSensitivity",
   toxicity: "Toxicity",
 };
 
