@@ -15,13 +15,16 @@ export class MastraWorkflowStream extends ReadableStream<ChunkType> {
     reject: (reason?: any) => void;
   };
   #run: Run;
+  #format: 'aisdk' | 'mastra' | undefined;
 
   constructor({
     createStream,
     run,
+    format,
   }: {
     createStream: (writer: WritableStream<ChunkType>) => Promise<ReadableStream<any>> | ReadableStream<any>;
     run: Run;
+    format: 'aisdk' | 'mastra' | undefined;
   }) {
     const deferredPromise = {
       promise: null,
@@ -69,12 +72,35 @@ export class MastraWorkflowStream extends ReadableStream<ChunkType> {
           },
         });
 
-        controller.enqueue({
-          type: 'workflow-start',
-          runId: run.runId,
-          from: ChunkFrom.WORKFLOW,
-          payload: {},
-        });
+        console.log('format', format);
+        if (format === 'aisdk') {
+          // @ts-ignore
+          controller.enqueue({
+            type: 'start',
+            // @ts-ignore
+            payload: {
+              messageId: run.runId,
+            },
+          });
+
+          controller.enqueue({
+            // @ts-ignore
+            type: `data-workflow-start`,
+            // @ts-ignore
+            payload: {
+              data: {
+                runId: run.runId,
+              },
+            },
+          });
+        } else {
+          controller.enqueue({
+            type: 'workflow-start',
+            runId: run.runId,
+            from: ChunkFrom.WORKFLOW,
+            payload: {},
+          });
+        }
 
         const stream: ReadableStream<ChunkType> = await createStream(writer);
 
@@ -90,26 +116,56 @@ export class MastraWorkflowStream extends ReadableStream<ChunkType> {
             workflowStatus = 'failed';
           }
 
-          controller.enqueue(chunk);
+          if (format === 'aisdk') {
+            // @ts-ignore
+            controller.enqueue({
+              // @ts-ignore
+              type: `data-${chunk.type}`,
+              payload: {
+                // @ts-ignore
+                data: chunk.payload ?? {},
+              },
+            });
+          } else {
+            controller.enqueue(chunk);
+          }
         }
 
-        controller.enqueue({
-          type: 'workflow-finish',
-          runId: run.runId,
-          from: ChunkFrom.WORKFLOW,
-          payload: {
-            workflowStatus,
-            output: {
-              usage: this.#usageCount as any,
+        if (format === 'aisdk') {
+          controller.enqueue({
+            // @ts-ignore
+            type: `data-workflow-finish`,
+            // @ts-ignore
+            payload: {
+              data: {
+                runId: run.runId,
+                workflowStatus,
+                output: {
+                  usage: this.#usageCount as any,
+                },
+                metadata: {},
+              },
             },
-            metadata: {},
-            messages: {
-              all: [],
-              user: [],
-              nonUser: [],
+          });
+
+          // @ts-ignore
+          controller.enqueue({
+            type: 'finish',
+          });
+        } else {
+          controller.enqueue({
+            type: 'workflow-finish',
+            runId: run.runId,
+            from: ChunkFrom.WORKFLOW,
+            payload: {
+              workflowStatus,
+              output: {
+                usage: this.#usageCount as any,
+              },
+              metadata: {},
             },
-          },
-        });
+          });
+        }
 
         controller.close();
         deferredPromise.resolve();
