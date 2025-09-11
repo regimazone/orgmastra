@@ -3209,6 +3209,7 @@ export class Agent<
                   instructions,
                   thread: result.thread,
                   threadId: result.threadId,
+                  readOnlyMemory: options.memory?.readOnly,
                   resourceId,
                   memoryConfig,
                   runtimeContext,
@@ -3265,6 +3266,7 @@ export class Agent<
   async #executeOnFinish({
     result,
     instructions,
+    readOnlyMemory,
     thread: threadAfter,
     threadId,
     resourceId,
@@ -3283,6 +3285,7 @@ export class Agent<
     runId: string;
     result: Record<string, any>;
     thread: StorageThreadType | null | undefined;
+    readOnlyMemory?: boolean;
     threadId?: string;
     resourceId?: string;
     runtimeContext: RuntimeContext;
@@ -3330,7 +3333,7 @@ export class Agent<
     const memory = await this.getMemory({ runtimeContext });
     const thread = usedWorkingMemory ? (threadId ? await memory?.getThreadById({ threadId }) : undefined) : threadAfter;
 
-    if (memory && resourceId && thread) {
+    if (memory && resourceId && thread && !readOnlyMemory) {
       try {
         // Add LLM response messages to the list
         let responseMessages = result.response.messages;
