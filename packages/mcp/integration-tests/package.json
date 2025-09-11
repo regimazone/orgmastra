@@ -27,7 +27,6 @@
     "overrides": {
       "@mastra/core": "link:../../core",
       "@mastra/loggers": "link:../../loggers",
-      "@mastra/voice-openai": "link:../../voice/openai",
       "@mastra/memory": "link:../../memory",
       "@mastra/client-js": "link:../../client-sdks/client-js",
       "@mastra/mcp": "link:../",
