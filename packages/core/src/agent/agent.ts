@@ -2697,7 +2697,7 @@ export class Agent<
       );
     }
 
-    const llm = (await this.getLLM({ runtimeContext, model: options._modelOverride })) as MastraLLMVNext;
+    const llm = (await this.getLLM({ runtimeContext, model: options.model })) as MastraLLMVNext;
 
     const runId = options.runId || this.#mastra?.generateId() || randomUUID();
     const instructions = options.instructions || (await this.getInstructions({ runtimeContext }));
