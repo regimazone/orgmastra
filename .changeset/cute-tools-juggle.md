@@ -1,5 +1,4 @@
 ---
-'@mastra/agent-builder-integration-tests': patch
 '@mastra/memory-integration-tests-v5': patch
 '@mastra/mcp-registry-registry': patch
 '@mastra/voice-google-gemini-live': patch
