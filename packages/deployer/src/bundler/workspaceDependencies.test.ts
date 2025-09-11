@@ -231,7 +231,7 @@ describe('workspaceDependencies', () => {
 
       expect(result.isWorkspacePackage).toBe(false);
       expect(result.workspaceRoot).toBeUndefined();
-      expect(result.workspaceMap.size).toBe(1);
+      expect(result.workspaceMap.size).toBe(0);
     });
 
     it('should handle no workspaces found', async () => {

@@ -64,6 +64,7 @@ export async function getWorkspaceInformation({
   const workspaceRoot = isWorkspacePackage ? findWorkspacesRoot(dir, { cache: workspacesCache })?.location : undefined;
 
   return {
+    // If the current package is not part of the workspace, the bundling down the line shouldn't look at any workspace packages
     workspaceMap: isWorkspacePackage ? _workspaceMap : new Map<string, WorkspacePackageInfo>(),
     workspaceRoot,
     isWorkspacePackage,

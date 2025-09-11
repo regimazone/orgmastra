@@ -54,8 +54,6 @@ export async function getInputOptions(
 
   const externals = Array.from(externalsCopy);
 
-  console.log(analyzedBundleInfo);
-
   const normalizedEntryFile = entryFile.replaceAll('\\', '/');
   return {
     logLevel: process.env.MASTRA_BUNDLER_DEBUG === 'true' ? 'debug' : 'silent',

@@ -166,6 +166,9 @@ If you think your configuration is valid, please open an issue.`);
     }
   }
 
+  /**
+   * Only during `mastra dev` we want to optimize workspace packages. In previous steps we might have added dependencies that are not workspace packages, so we gotta remove them again.
+   */
   if (isDev) {
     for (const [dep, metadata] of depsToOptimize.entries()) {
       if (!metadata.isWorkspace) {

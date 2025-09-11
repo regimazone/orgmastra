@@ -185,6 +185,9 @@ async function buildExternalDependencies(
     outputDir: string;
   },
 ) {
+  /**
+   * If there are no virtual dependencies to bundle, return an empty array to avoid Rollup errors.
+   */
   if (virtualDependencies.size === 0) {
     return [] as unknown as [OutputChunk, ...(OutputAsset | OutputChunk)[]];
   }
