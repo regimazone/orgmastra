@@ -20,6 +20,7 @@ import type {
   CreateSpanOptions,
   AITracing,
   CustomSamplerOptions,
+  AnyExportedAISpan,
 } from '../types';
 import { SamplingStrategyType, AITracingEventType } from '../types';
 
@@ -248,19 +249,23 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
   // Event-driven Export Methods
   // ============================================================================
 
+  getSpanForExport(span: AnyAISpan): AnyExportedAISpan | undefined {
+    if (!span.isValid) return undefined;
+    if (span.isInternal && !this.config.includeInternalSpans) return undefined;
+    
+    const processedSpan = this.processSpan(span);
+    if (!processedSpan) return undefined;
+
+    return processedSpan?.exportSpan(this.config.includeInternalSpans);
+  }
+
   /**
    * Emit a span started event
    */
   protected emitSpanStarted(span: AnyAISpan): void {
-    // bypass event if internal span and not includeInternalSpans
-    if (!this.config.includeInternalSpans && span.isInternal) {
-      return
-    }
-
-    // Process the span before emitting
-    const processedSpan = this.processSpan(span);
-    if (processedSpan) {
-      this.exportEvent({ type: AITracingEventType.SPAN_STARTED, span: processedSpan }).catch(error => {
+    const exportedSpan = this.getSpanForExport(span);
+    if (exportedSpan) {
+      this.exportEvent({ type: AITracingEventType.SPAN_STARTED, exportedSpan }).catch(error => {
         this.logger.error('[AI Tracing] Failed to export span_started event', error);
       });
     }
@@ -270,15 +275,9 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * Emit a span ended event (called automatically when spans end)
    */
   protected emitSpanEnded(span: AnyAISpan): void {
-    // bypass event if internal span and not includeInternalSpans
-    if (!this.config.includeInternalSpans && span.isInternal) {
-      return
-    }
-
-    // Process the span through all processors
-    const processedSpan = this.processSpan(span);
-    if (processedSpan) {
-      this.exportEvent({ type: AITracingEventType.SPAN_ENDED, span: processedSpan }).catch(error => {
+    const exportedSpan = this.getSpanForExport(span);
+    if (exportedSpan) {
+      this.exportEvent({ type: AITracingEventType.SPAN_ENDED, exportedSpan }).catch(error => {
         this.logger.error('[AI Tracing] Failed to export span_ended event', error);
       });
     }
@@ -288,15 +287,9 @@ export abstract class BaseAITracing extends MastraBase implements AITracing {
    * Emit a span updated event
    */
   protected emitSpanUpdated(span: AnyAISpan): void {
-    // bypass event if internal span and not includeInternalSpans
-    if (!this.config.includeInternalSpans && span.isInternal) {
-      return
-    }
-
-    // Process the span before emitting
-    const processedSpan = this.processSpan(span);
-    if (processedSpan) {
-      this.exportEvent({ type: AITracingEventType.SPAN_UPDATED, span: processedSpan }).catch(error => {
+    const exportedSpan = this.getSpanForExport(span);
+    if (exportedSpan) {
+      this.exportEvent({ type: AITracingEventType.SPAN_UPDATED, exportedSpan }).catch(error => {
         this.logger.error('[AI Tracing] Failed to export span_updated event', error);
       });
     }

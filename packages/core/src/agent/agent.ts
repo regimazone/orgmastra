@@ -3260,7 +3260,7 @@ export class Agent<
       .commit();
 
     const run = await executionWorkflow.createRunAsync();
-    const result = await run.start({ tracingContext: { currentSpan: agentAISpan } });
+    const result = await run.start({ tracingContext: { currentSpan: agentAISpan, isInternal: true } });
 
     return result;
   }

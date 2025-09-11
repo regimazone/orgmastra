@@ -13,8 +13,8 @@ import { createWorkflow, createStep } from '../workflows';
 
 // AI Tracing imports
 import { clearAITracingRegistry, shutdownAITracingRegistry } from './registry';
-import { AISpanType, AITracingEventType } from './types';
-import type { AITracingExporter, AITracingEvent, AnyAISpan, AISpan } from './types';
+import { AISpanType, AnyExportedAISpan, AITracingEventType } from './types';
+import type { AITracingExporter, AITracingEvent, AISpan, ExportedAISpan } from './types';
 
 /**
  * Test exporter for AI tracing events with real-time span lifecycle validation.
@@ -48,7 +48,7 @@ class TestExporter implements AITracingExporter {
   private logs: string[] = [];
 
   async exportEvent(event: AITracingEvent) {
-    const logMessage = `[TestExporter] ${event.type}: ${event.span.type} "${event.span.name}" (trace: ${event.span.traceId.slice(-8)}, span: ${event.span.id.slice(-8)})`;
+    const logMessage = `[TestExporter] ${event.type}: ${event.exportedSpan.type} "${event.exportedSpan.name}" (trace: ${event.exportedSpan.traceId.slice(-8)}, span: ${event.exportedSpan.id.slice(-8)})`;
 
     // Store log for potential test failure reporting
     this.logs.push(logMessage);
@@ -59,7 +59,7 @@ class TestExporter implements AITracingExporter {
     }
     // Otherwise, logs will only appear on test failures
 
-    const spanId = event.span.id;
+    const spanId = event.exportedSpan.id;
     const state = this.spanStates.get(spanId) || {
       hasStart: false,
       hasEnd: false,
@@ -69,27 +69,27 @@ class TestExporter implements AITracingExporter {
 
     // Real-time validation as events arrive using Vitest expect
     if (event.type === AITracingEventType.SPAN_STARTED) {
-      expect(state.hasStart, `Span ${spanId} (${event.span.type} "${event.span.name}") started twice`).toBe(false);
+      expect(state.hasStart, `Span ${spanId} (${event.exportedSpan.type} "${event.exportedSpan.name}") started twice`).toBe(false);
       state.hasStart = true;
     } else if (event.type === AITracingEventType.SPAN_ENDED) {
       // Detect event spans (zero duration) - only check this in SPAN_ENDED where we have final timestamps
-      const isEventSpan = event.span.startTime === event.span.endTime;
+      const isEventSpan = event.exportedSpan.startTime === event.exportedSpan.endTime;
       if (isEventSpan) {
         // Event spans should only emit SPAN_ENDED, no SPAN_STARTED or SPAN_UPDATED
         expect(
           state.hasStart,
-          `Event span ${spanId} (${event.span.type} "${event.span.name}") incorrectly received SPAN_STARTED. Event spans should only emit SPAN_ENDED.`,
+          `Event span ${spanId} (${event.exportedSpan.type} "${event.exportedSpan.name}") incorrectly received SPAN_STARTED. Event spans should only emit SPAN_ENDED.`,
         ).toBe(false);
         expect(
           state.hasUpdate,
-          `Event span ${spanId} (${event.span.type} "${event.span.name}") incorrectly received SPAN_UPDATED. Event spans should only emit SPAN_ENDED.`,
+          `Event span ${spanId} (${event.exportedSpan.type} "${event.exportedSpan.name}") incorrectly received SPAN_UPDATED. Event spans should only emit SPAN_ENDED.`,
         ).toBe(false);
         state.isEventSpan = true;
       } else {
         // Normal span should have started
         expect(
           state.hasStart,
-          `Normal span ${spanId} (${event.span.type} "${event.span.name}") ended without starting`,
+          `Normal span ${spanId} (${event.exportedSpan.type} "${event.exportedSpan.name}") ended without starting`,
         ).toBe(true);
       }
       state.hasEnd = true;
@@ -112,29 +112,29 @@ class TestExporter implements AITracingExporter {
   }
 
   // Helper method to get final spans by type for test assertions
-  getSpansByType<T extends AISpanType>(type: T): AISpan<T>[] {
+  getSpansByType<T extends AISpanType>(type: T): ExportedAISpan<T>[] {
     return Array.from(this.spanStates.values())
       .filter(state => {
         // Only return completed spans of the requested type
         // Check the final span's type, not the first event
         const finalEvent =
           state.events.find(e => e.type === AITracingEventType.SPAN_ENDED) || state.events[state.events.length - 1];
-        return state.hasEnd && finalEvent.span.type === type;
+        return state.hasEnd && finalEvent.exportedSpan.type === type;
       })
       .map(state => {
         // Return the final span from SPAN_ENDED event
         const endEvent = state.events.find(e => e.type === AITracingEventType.SPAN_ENDED);
-        return endEvent!.span;
+        return endEvent!.exportedSpan;
       }) as AISpan<T>[];
   }
 
   // Helper to get all incomplete spans (spans that started but never ended)
-  getIncompleteSpans(): Array<{ spanId: string; span: AnyAISpan; state: any }> {
+  getIncompleteSpans(): Array<{ spanId: string; span: AnyExportedAISpan; state: any }> {
     return Array.from(this.spanStates.entries())
       .filter(([_, state]) => !state.hasEnd)
       .map(([spanId, state]) => ({
         spanId,
-        span: state.events[0].span,
+        span: state.events[0].exportedSpan,
         state: { hasStart: state.hasStart, hasUpdate: state.hasUpdate, hasEnd: state.hasEnd },
       }));
   }
@@ -146,11 +146,11 @@ class TestExporter implements AITracingExporter {
    *
    * Note: For specific span types, prefer using getSpansByType() for more precise filtering
    */
-  getAllSpans(): AnyAISpan[] {
+  getAllSpans(): AnyExportedAISpan[] {
     return Array.from(this.spanStates.values()).map(state => {
       // Return the final span from SPAN_ENDED event, or latest event if not ended
       const endEvent = state.events.find(e => e.type === AITracingEventType.SPAN_ENDED);
-      return endEvent ? endEvent.span : state.events[state.events.length - 1].span;
+      return endEvent ? endEvent.exportedSpan : state.events[state.events.length - 1].exportedSpan;
     });
   }
 
@@ -624,13 +624,14 @@ const mockModelV2 = new MockLanguageModelV2({
  * - AI tracing with TestExporter for span validation
  * - Integration tests configuration
  */
-function getBaseMastraConfig(testExporter: TestExporter) {
+function getBaseMastraConfig(testExporter: TestExporter, includeInternalSpans: boolean = false) {
   return {
     telemetry: { enabled: false },
     storage: new MockStore(),
-    observability: {
+    observability: { 
       configs: {
         test: {
+          includeInternalSpans,
           serviceName: 'integration-tests',
           exporters: [testExporter],
         },
@@ -1056,7 +1057,7 @@ describe('AI Tracing Integration Tests', () => {
       });
 
       const mastra = new Mastra({
-        ...getBaseMastraConfig(testExporter),
+        ...getBaseMastraConfig(testExporter, true),
         agents: { testAgent },
       });
 
@@ -1081,15 +1082,15 @@ describe('AI Tracing Integration Tests', () => {
 
       // verify span nesting
       if (name.includes('Legacy')) {
-        expect(llmGenerationspan.parentSpanId).toEqual(agentRunSpan.id);
-        expect(toolCallspan.parentSpanId).toEqual(agentRunSpan.id);
+        expect(llmGenerationSpan.parentSpanId).toEqual(agentRunSpan.id);
+        expect(toolCallSpan.parentSpanId).toEqual(agentRunSpan.id);
       } else {
         // VNext
         const executionWorkflowSpan = workflowSpans.filter(span => span.name?.includes('execution-workflow'))[0];
         const agenticLoopWorkflowSpan = workflowSpans.filter(span => span.name?.includes('agentic-loop'))[0];
         const streamTextStepSpan = workflowSteps.filter(span => span.name?.includes('stream-text-step'))[0];
-        expect(streamTextStepspan.parentSpanId).toEqual(executionWorkflowSpan.id);
-        expect(agenticLoopWorkflowspan.parentSpanId).toEqual(llmGenerationSpan.id);
+        expect(streamTextStepSpan.parentSpanId).toEqual(executionWorkflowSpan.id);
+        expect(agenticLoopWorkflowSpan.parentSpanId).toEqual(llmGenerationSpan.id);
       }
 
       expect(llmGenerationSpan.name).toBe("llm: 'mock-model-id'");

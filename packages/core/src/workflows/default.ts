@@ -453,6 +453,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         durationMs: duration,
         sleepType: fn ? 'dynamic' : 'fixed',
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     if (fn) {
@@ -566,6 +567,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         durationMs: date ? Math.max(0, date.getTime() - Date.now()) : undefined,
         sleepType: fn ? 'dynamic' : 'fixed',
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     if (fn) {
@@ -652,6 +654,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         eventName: event,
         timeoutMs: timeout,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     const startTime = Date.now();
@@ -741,6 +744,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       attributes: {
         stepId: step.id,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     const innerTracingContext: TracingContext = { currentSpan: stepAISpan };
@@ -1115,6 +1119,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         branchCount: entry.steps.length,
         parallelSteps: entry.steps.map(s => (s.type === 'step' ? s.step.id : `control-${s.type}`)),
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     let execResults: any;
@@ -1233,6 +1238,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       attributes: {
         conditionCount: entry.conditions.length,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     let execResults: any;
@@ -1246,6 +1252,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
             attributes: {
               conditionIndex: index,
             },
+            isInternal: tracingContext?.isInternal,
           });
 
           try {
@@ -1487,6 +1494,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       attributes: {
         loopType: entry.loopType,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     let isTrue = true;
@@ -1537,6 +1545,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         attributes: {
           conditionIndex: iteration,
         },
+        isInternal: tracingContext?.isInternal,
       });
 
       isTrue = await condition({
@@ -1658,6 +1667,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         loopType: 'foreach',
         concurrency,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     await emitter.emit('watch', {

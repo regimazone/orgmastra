@@ -1045,6 +1045,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
         durationMs: duration,
         sleepType: fn ? 'dynamic' : 'fixed',
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     if (fn) {
@@ -1162,6 +1163,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
         durationMs: date ? Math.max(0, date.getTime() - Date.now()) : undefined,
         sleepType: fn ? 'dynamic' : 'fixed',
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     if (fn) {
@@ -1285,6 +1287,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
       attributes: {
         stepId: step.id,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     const startedAt = await this.inngestStep.run(
@@ -1788,6 +1791,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
       attributes: {
         conditionCount: entry.conditions.length,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     let execResults: any;
@@ -1802,6 +1806,7 @@ export class InngestExecutionEngine extends DefaultExecutionEngine {
               attributes: {
                 conditionIndex: index,
               },
+              isInternal: tracingContext?.isInternal,
             });
 
             try {

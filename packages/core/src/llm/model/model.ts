@@ -183,6 +183,7 @@ export class MastraLLMV1 extends MastraBase {
         threadId,
         resourceId,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     const argsForExecute: OriginalGenerateTextOptions<Tools, Z> = {
@@ -331,6 +332,7 @@ export class MastraLLMV1 extends MastraBase {
         threadId,
         resourceId,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     try {
@@ -487,6 +489,7 @@ export class MastraLLMV1 extends MastraBase {
         threadId,
         resourceId,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     const argsForExecute: OriginalStreamTextOptions<Tools, Z> = {
@@ -672,6 +675,7 @@ export class MastraLLMV1 extends MastraBase {
         threadId,
         resourceId,
       },
+      isInternal: tracingContext?.isInternal,
     });
 
     try {
