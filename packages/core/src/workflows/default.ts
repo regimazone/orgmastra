@@ -181,6 +181,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async execute<TInput, TOutput>(params: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     disableScorers?: boolean;
     graph: ExecutionGraph;
     serializedStepGraph: SerializedStepFlowEntry[];
@@ -203,7 +204,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     writableStream?: WritableStream<ChunkType>;
     format?: 'aisdk' | 'mastra' | undefined;
   }): Promise<TOutput> {
-    const { workflowId, runId, graph, input, resume, retryConfig, workflowAISpan, disableScorers } = params;
+    const { workflowId, runId, resourceId, graph, input, resume, retryConfig, workflowAISpan, disableScorers } = params;
     const { attempts = 0, delay = 0 } = retryConfig ?? {};
     const steps = graph.steps;
 
@@ -223,7 +224,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     }
 
     const executionSpan = this.mastra?.getTelemetry()?.tracer.startSpan(`workflow.${workflowId}.execute`, {
-      attributes: { componentName: workflowId, runId },
+      attributes: { componentName: workflowId, runId, resourceId },
     });
 
     let startIdx = 0;
@@ -241,6 +242,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         lastOutput = await this.executeEntry({
           workflowId,
           runId,
+          resourceId,
           entry,
           serializedStepGraph: params.serializedStepGraph,
           prevStep: steps[i - 1]!,
@@ -280,6 +282,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           await this.persistStepUpdate({
             workflowId,
             runId,
+            resourceId,
             stepResults: lastOutput.stepResults as any,
             serializedStepGraph: params.serializedStepGraph,
             executionContext: lastOutput.executionContext as ExecutionContext,
@@ -329,6 +332,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         await this.persistStepUpdate({
           workflowId,
           runId,
+          resourceId,
           stepResults: lastOutput.stepResults as any,
           serializedStepGraph: params.serializedStepGraph,
           executionContext: lastOutput.executionContext as ExecutionContext,
@@ -354,6 +358,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     await this.persistStepUpdate({
       workflowId,
       runId,
+      resourceId,
       stepResults: lastOutput.stepResults as any,
       serializedStepGraph: params.serializedStepGraph,
       executionContext: lastOutput.executionContext as ExecutionContext,
@@ -689,6 +694,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeStep({
     workflowId,
     runId,
+    resourceId,
     step,
     stepResults,
     executionContext,
@@ -705,6 +711,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     step: Step<string, any, any>;
     stepResults: Record<string, StepResult<any, any, any, any>>;
     executionContext: ExecutionContext;
@@ -780,6 +787,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     await this.persistStepUpdate({
       workflowId,
       runId,
+      resourceId,
       serializedStepGraph,
       stepResults: {
         ...stepResults,
@@ -810,6 +818,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     const runStep = _runStep(step, `workflow.${workflowId}.step.${step.id}`, {
       componentName: workflowId,
       runId,
+      resourceId: resourceId ?? '',
     });
 
     let execResults: any;
@@ -1074,6 +1083,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeParallel({
     workflowId,
     runId,
+    resourceId,
     entry,
     prevStep,
     serializedStepGraph,
@@ -1089,6 +1099,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     entry: { type: 'parallel'; steps: StepFlowEntry[] };
     serializedStepGraph: SerializedStepFlowEntry[];
     prevStep: StepFlowEntry;
@@ -1123,6 +1134,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         this.executeEntry({
           workflowId,
           runId,
+          resourceId,
           entry: step,
           prevStep,
           stepResults,
@@ -1187,6 +1199,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeConditional({
     workflowId,
     runId,
+    resourceId,
     entry,
     prevOutput,
     prevStep,
@@ -1203,6 +1216,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     serializedStepGraph: SerializedStepFlowEntry[];
     entry: {
       type: 'conditional';
@@ -1352,6 +1366,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
         this.executeEntry({
           workflowId,
           runId,
+          resourceId,
           entry: step,
           prevStep,
           stepResults,
@@ -1439,6 +1454,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeLoop({
     workflowId,
     runId,
+    resourceId,
     entry,
     prevOutput,
     stepResults,
@@ -1454,6 +1470,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     entry: {
       type: 'loop';
       step: Step;
@@ -1499,6 +1516,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       result = await this.executeStep({
         workflowId,
         runId,
+        resourceId,
         step,
         stepResults,
         executionContext,
@@ -1597,6 +1615,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeForeach({
     workflowId,
     runId,
+    resourceId,
     entry,
     prevOutput,
     stepResults,
@@ -1612,6 +1631,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     entry: {
       type: 'foreach';
       step: Step;
@@ -1699,6 +1719,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
           return this.executeStep({
             workflowId,
             runId,
+            resourceId,
             step,
             stepResults,
             executionContext,
@@ -1841,6 +1862,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   protected async persistStepUpdate({
     workflowId,
     runId,
+    resourceId,
     stepResults,
     serializedStepGraph,
     executionContext,
@@ -1851,6 +1873,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     stepResults: Record<string, StepResult<any, any, any, any>>;
     serializedStepGraph: SerializedStepFlowEntry[];
     executionContext: ExecutionContext;
@@ -1867,6 +1890,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     await this.mastra?.getStorage()?.persistWorkflowSnapshot({
       workflowName: workflowId,
       runId,
+      resourceId,
       snapshot: {
         runId,
         status: workflowStatus,
@@ -1888,6 +1912,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   async executeEntry({
     workflowId,
     runId,
+    resourceId,
     entry,
     prevStep,
     serializedStepGraph,
@@ -1903,6 +1928,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
   }: {
     workflowId: string;
     runId: string;
+    resourceId?: string;
     entry: StepFlowEntry;
     prevStep: StepFlowEntry;
     serializedStepGraph: SerializedStepFlowEntry[];
@@ -1951,6 +1977,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       const resumedStepResult = await this.executeEntry({
         workflowId,
         runId,
+        resourceId,
         entry: entry.steps[idx!]!,
         prevStep,
         serializedStepGraph,
@@ -2158,6 +2185,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       await this.persistStepUpdate({
         workflowId,
         runId,
+        resourceId,
         serializedStepGraph,
         stepResults,
         executionContext,
@@ -2185,6 +2213,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       await this.persistStepUpdate({
         workflowId,
         runId,
+        resourceId,
         serializedStepGraph,
         stepResults,
         executionContext,
@@ -2279,6 +2308,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       await this.persistStepUpdate({
         workflowId,
         runId,
+        resourceId,
         serializedStepGraph,
         stepResults,
         executionContext,
@@ -2306,6 +2336,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       await this.persistStepUpdate({
         workflowId,
         runId,
+        resourceId,
         serializedStepGraph,
         stepResults,
         executionContext,
@@ -2402,6 +2433,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
       await this.persistStepUpdate({
         workflowId,
         runId,
+        resourceId,
         serializedStepGraph,
         stepResults,
         executionContext,
@@ -2464,6 +2496,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
     await this.persistStepUpdate({
       workflowId,
       runId,
+      resourceId,
       serializedStepGraph,
       stepResults,
       executionContext,
