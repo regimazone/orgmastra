@@ -159,8 +159,6 @@ export class ScoresPG extends ScoresStorage {
         ...rest
       } = scoreData;
 
-      console.log(`saving score with id: ${id}`);
-
       await this.operations.insert({
         tableName: TABLE_SCORERS,
         record: {
