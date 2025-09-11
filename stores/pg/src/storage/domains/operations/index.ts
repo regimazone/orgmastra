@@ -502,10 +502,10 @@ export class StoreOperationsPG extends StoreOperations {
             i.tablename as table,
             i.indexdef as definition,
             ix.indisunique as is_unique,
-            pg_size_pretty(pg_relation_size(quote_ident(i.indexname)::regclass)) as size,
+            pg_size_pretty(pg_relation_size(c.oid)) as size,
             array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns
           FROM pg_indexes i
-          JOIN pg_class c ON c.relname = i.indexname
+          JOIN pg_class c ON c.relname = i.indexname AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = i.schemaname)
           JOIN pg_index ix ON ix.indexrelid = c.oid
           JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
           WHERE i.schemaname = $1 
@@ -520,10 +520,10 @@ export class StoreOperationsPG extends StoreOperations {
             i.tablename as table,
             i.indexdef as definition,
             ix.indisunique as is_unique,
-            pg_size_pretty(pg_relation_size(quote_ident(i.indexname)::regclass)) as size,
+            pg_size_pretty(pg_relation_size(c.oid)) as size,
             array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns
           FROM pg_indexes i
-          JOIN pg_class c ON c.relname = i.indexname
+          JOIN pg_class c ON c.relname = i.indexname AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = i.schemaname)
           JOIN pg_index ix ON ix.indexrelid = c.oid
           JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
           WHERE i.schemaname = $1
@@ -534,14 +534,26 @@ export class StoreOperationsPG extends StoreOperations {
 
       const results = await this.client.manyOrNone(query, params);
 
-      return results.map(row => ({
-        name: row.name,
-        table: row.table,
-        columns: row.columns || [],
-        unique: row.is_unique || false,
-        size: row.size || '0',
-        definition: row.definition || '',
-      }));
+      return results.map(row => {
+        // Parse PostgreSQL array format {col1,col2} to ['col1','col2']
+        let columns: string[] = [];
+        if (typeof row.columns === 'string' && row.columns.startsWith('{') && row.columns.endsWith('}')) {
+          // Remove braces and split by comma, handling empty arrays
+          const arrayContent = row.columns.slice(1, -1);
+          columns = arrayContent ? arrayContent.split(',') : [];
+        } else if (Array.isArray(row.columns)) {
+          columns = row.columns;
+        }
+
+        return {
+          name: row.name,
+          table: row.table,
+          columns,
+          unique: row.is_unique || false,
+          size: row.size || '0',
+          definition: row.definition || '',
+        };
+      });
     } catch (error) {
       throw new MastraError(
         {

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PostgresStore } from './index';
 import { TABLE_THREADS, TABLE_MESSAGES, TABLE_TRACES, TABLE_EVALS } from '@mastra/core/storage';
 
@@ -6,6 +6,7 @@ const connectionString = process.env.DB_URL || 'postgresql://postgres:postgres@l
 
 describe('PostgreSQL Index Management', () => {
   let store: PostgresStore;
+  let currentStore: PostgresStore | null = null; // Track store used in current test
 
   beforeAll(async () => {
     // Setup clean database
@@ -14,15 +15,40 @@ describe('PostgreSQL Index Management', () => {
   });
 
   afterAll(async () => {
-    await store.close();
+    if (store) {
+      await store.close();
+    }
+  });
+
+  beforeEach(async () => {
+    // Each test starts with the main store
+    currentStore = store;
   });
 
   afterEach(async () => {
-    // Clean up all test indexes
-    const indexes = await store.listIndexes();
-    for (const index of indexes.filter(i => i.name.includes('test_'))) {
-      await store.dropIndex(index.name);
+    try {
+      // Clean up test indexes from whichever store was used
+      if (currentStore) {
+        const indexes = await currentStore.listIndexes();
+        const testIndexes = indexes.filter(i => i.name.includes('test_'));
+
+        // Drop indexes in parallel for faster cleanup
+        await Promise.allSettled(testIndexes.map(index => currentStore!.dropIndex(index.name)));
+      }
+    } catch (error) {
+      console.warn('Error during index cleanup:', error);
     }
+
+    // Close any additional store connections created during the test
+    if (currentStore && currentStore !== store) {
+      try {
+        await currentStore.close();
+      } catch (error) {
+        console.warn('Error closing additional store:', error);
+      }
+    }
+
+    currentStore = null;
   });
 
   describe('createIndex', () => {
@@ -173,6 +199,8 @@ describe('PostgreSQL Index Management', () => {
         connectionString,
         schemaName: 'test_schema',
       });
+      currentStore = schemaStore; // Update current store for cleanup
+
       await schemaStore.init();
 
       // Create an index with schema
@@ -182,14 +210,16 @@ describe('PostgreSQL Index Management', () => {
         columns: ['resourceId'],
       });
 
+      // Verify it was created
+      let indexes = await schemaStore.listIndexes('mastra_threads');
+      expect(indexes.some(i => i.name === 'test_schema_test_drop_idx')).toBe(true);
+
       // Drop it
       await schemaStore.dropIndex('test_schema_test_drop_idx');
 
       // Verify it's gone
-      const indexes = await schemaStore.listIndexes('mastra_threads');
+      indexes = await schemaStore.listIndexes('mastra_threads');
       expect(indexes.some(i => i.name === 'test_schema_test_drop_idx')).toBe(false);
-
-      await schemaStore.close();
     });
   });
 
@@ -265,10 +295,18 @@ describe('PostgreSQL Index Management', () => {
     });
 
     it('should handle different schema names', async () => {
+      // Create a temporary store to create the schema
+      const tempStore = new PostgresStore({ connectionString });
+      await tempStore.init();
+      await tempStore.db.none('CREATE SCHEMA IF NOT EXISTS test_schema');
+      await tempStore.close();
+
       const customStore = new PostgresStore({
         connectionString,
         schemaName: 'test_schema',
       });
+      currentStore = customStore; // Update current store for cleanup
+
       await customStore.init();
 
       // Check that composite indexes were created with schema prefix
@@ -283,8 +321,6 @@ describe('PostgreSQL Index Management', () => {
 
       expect(compositeIndexes.length).toBe(4);
       expect(compositeIndexes.every(i => i.name.startsWith('test_schema_'))).toBe(true);
-
-      await customStore.close();
     });
   });
 
@@ -370,12 +406,21 @@ describe('Index Performance Impact', () => {
   });
 
   afterAll(async () => {
-    await store.close();
+    if (store) {
+      try {
+        // Clean up test data before closing
+        await store.db.none(`DELETE FROM mastra_messages WHERE id LIKE 'message-%'`);
+        await store.db.none(`DELETE FROM mastra_threads WHERE id LIKE 'thread-%'`);
+      } catch (error) {
+        console.warn('Error cleaning up test data:', error);
+      }
+      await store.close();
+    }
   });
 
   const seedTestData = async (count: number) => {
-    const threads = [];
-    const messages = [];
+    const threads: Record<string, any>[] = [];
+    const messages: Record<string, any>[] = [];
 
     for (let i = 0; i < count; i++) {
       const threadId = `thread-${i}`;
@@ -432,8 +477,8 @@ describe('Index Performance Impact', () => {
 
   it('should improve performance with automatic indexes', async () => {
     // Clean up any existing test data
-    await store.stores.operations.client.none(`DELETE FROM mastra_messages WHERE id LIKE 'message-%'`);
-    await store.stores.operations.client.none(`DELETE FROM mastra_threads WHERE id LIKE 'thread-%'`);
+    await store.db.none(`DELETE FROM mastra_messages WHERE id LIKE 'message-%'`);
+    await store.db.none(`DELETE FROM mastra_threads WHERE id LIKE 'thread-%'`);
 
     // Seed test data
     await seedTestData(1000);
@@ -450,7 +495,7 @@ describe('Index Performance Impact', () => {
 
   it('should handle concurrent operations with indexes', async () => {
     // Run multiple operations concurrently
-    const operations = [];
+    const operations: Promise<any>[] = [];
     for (let i = 0; i < 10; i++) {
       operations.push(
         store.getThreadsByResourceId({ resourceId: `resource-${i}` }),

@@ -469,7 +469,12 @@ export class PostgresStore extends MastraStorage {
   }
 
   async close(): Promise<void> {
-    this.pgp.end();
+    if (this.#db) {
+      await this.#db.$pool.end();
+      this.#db = undefined;
+    }
+    this.#pgp = undefined;
+    this.isConnected = false;
   }
 
   /**
