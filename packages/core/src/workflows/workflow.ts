@@ -1651,9 +1651,111 @@ export class Run<
           writableStream: writable,
           format,
         }).then(result => {
-          if (result.status !== 'suspended') {
-            this.closeStreamAction?.().catch(() => {});
+          // always close stream, even if the worklfow is suspended
+          // this will trigger a finish event with workflow status set to suspended
+          this.closeStreamAction?.().catch(() => {});
+
+          return result;
+        });
+        this.executionResults = executionResults;
+
+        return readable;
+      },
+    });
+  }
+
+  /**
+   * Resumes the workflow execution with the provided input as a stream
+   * @param input The input data for the workflow
+   * @returns A promise that resolves to the workflow output
+   */
+  resumeStreamVNext({
+    step,
+    resumeData,
+    runtimeContext,
+    tracingContext,
+    format,
+  }: {
+    resumeData?: z.infer<TInput>;
+    step?: Step<string, any, any, any, any, TEngineType>;
+    runtimeContext?: RuntimeContext;
+    tracingContext?: TracingContext;
+    format?: 'aisdk' | 'mastra' | undefined;
+  } = {}) {
+    this.closeStreamAction = async () => {};
+
+    return new MastraWorkflowStream({
+      run: this,
+      createStream: () => {
+        const { readable, writable } = new TransformStream<ChunkType, ChunkType>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        });
+
+        let buffer: ChunkType[] = [];
+        let isWriting = false;
+        const tryWrite = async () => {
+          const chunkToWrite = buffer;
+          buffer = [];
+
+          if (chunkToWrite.length === 0 || isWriting) {
+            return;
           }
+          isWriting = true;
+
+          let watchWriter = writable.getWriter();
+
+          try {
+            for (const chunk of chunkToWrite) {
+              await watchWriter.write(chunk);
+            }
+          } finally {
+            watchWriter.releaseLock();
+          }
+          isWriting = false;
+
+          setImmediate(tryWrite);
+        };
+
+        // TODO: fix this, watch-v2 doesn't have a type
+        // @ts-ignore
+        const unwatch = this.watch(async ({ type, from = ChunkFrom.WORKFLOW, payload }) => {
+          buffer.push({
+            type,
+            runId: this.runId,
+            from,
+            payload: {
+              stepName: (payload as unknown as { id: string }).id,
+              ...payload,
+            },
+          });
+
+          await tryWrite();
+        }, 'watch-v2');
+
+        this.closeStreamAction = async () => {
+          unwatch();
+
+          try {
+            await writable.close();
+          } catch (err) {
+            console.error('Error closing stream:', err);
+          }
+        };
+
+        const executionResults = this._resume({
+          resumeData,
+          step,
+          runtimeContext,
+          tracingContext,
+          writableStream: writable,
+          format,
+          isVNext: true,
+        }).then(result => {
+          // always close stream, even if the worklfow is suspended
+          // this will trigger a finish event with workflow status set to suspended
+          this.closeStreamAction?.().catch(() => {});
 
           return result;
         });
@@ -1742,6 +1844,25 @@ export class Run<
     runCount?: number;
     tracingContext?: TracingContext;
     tracingOptions?: TracingOptions;
+    writableStream?: WritableStream<ChunkType>;
+  }): Promise<WorkflowResult<TOutput, TSteps>> {
+    return this._resume(params);
+  }
+
+  protected async _resume<TResumeSchema extends z.ZodType<any>>(params: {
+    resumeData?: z.infer<TResumeSchema>;
+    step?:
+      | Step<string, any, any, TResumeSchema, any, TEngineType>
+      | [...Step<string, any, any, any, any, TEngineType>[], Step<string, any, any, TResumeSchema, any, TEngineType>]
+      | string
+      | string[];
+    runtimeContext?: RuntimeContext;
+    runCount?: number;
+    tracingContext?: TracingContext;
+    tracingOptions?: TracingOptions;
+    writableStream?: WritableStream<ChunkType>;
+    format?: 'aisdk' | 'mastra' | undefined;
+    isVNext?: boolean;
   }): Promise<WorkflowResult<TOutput, TSteps>> {
     const snapshot = await this.#mastra?.getStorage()?.loadWorkflowSnapshot({
       workflowName: this.workflowId,
@@ -1857,6 +1978,7 @@ export class Run<
           // @ts-ignore
           resumePath: snapshot?.suspendedPaths?.[steps?.[0]] as any,
         },
+        format: params.format,
         emitter: {
           emit: (event: string, data: any) => {
             this.emitter.emit(event, data);
@@ -1877,7 +1999,7 @@ export class Run<
         workflowAISpan,
       })
       .then(result => {
-        if (result.status !== 'suspended') {
+        if (!params.isVNext && result.status !== 'suspended') {
           this.closeStreamAction?.().catch(() => {});
         }
         result.traceId = traceId;
