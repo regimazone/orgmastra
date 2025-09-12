@@ -97,8 +97,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            maxRetries: 0,
             id: 'test-model',
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async () => {
                 throw new Error('test error');
@@ -135,8 +135,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            maxRetries: 0,
             id: 'test-model',
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async ({ providerOptions }) => {
                 expect(providerOptions).toStrictEqual({
@@ -190,8 +190,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            maxRetries: 0,
             id: 'test-model',
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async ({ tools: toolsArg }) => {
                 tools = toolsArg;
@@ -290,8 +290,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              maxRetries: 0,
               id: 'test-model',
+              maxRetries: 0,
               model: new MockLanguageModelV2({
                 doStream: async ({ prompt, tools, toolChoice }) => {
                   stepInputs.push({ prompt, tools, toolChoice });
@@ -698,9 +698,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "role": "assistant",
                   },
                 ],
-                 "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:01.000Z,
               },
               "sources": [],
@@ -780,9 +778,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "tool",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:00.000Z,
                   },
                   "usage": {
@@ -856,9 +852,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "assistant",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:01.000Z,
                   },
                   "usage": {
@@ -969,9 +963,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                       "role": "tool",
                     },
                   ],
-                   "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                  "modelId": "mock-model-id",
                   "timestamp": 1970-01-01T00:00:00.000Z,
                 },
                 "usage": {
@@ -1045,9 +1037,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                       "role": "assistant",
                     },
                   ],
-                   "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                  "modelId": "mock-model-id",
                   "timestamp": 1970-01-01T00:00:01.000Z,
                 },
                 "usage": {
@@ -1177,9 +1167,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                       "role": "tool",
                     },
                   ],
-                   "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                  "modelId": "mock-model-id",
                   "timestamp": 1970-01-01T00:00:00.000Z,
                 },
                 "usage": {
@@ -1253,9 +1241,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                       "role": "assistant",
                     },
                   ],
-                   "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                  "modelId": "mock-model-id",
                   "timestamp": 1970-01-01T00:00:01.000Z,
                 },
                 "usage": {
@@ -1422,8 +1408,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              maxRetries: 0,
               id: 'test-model',
+              maxRetries: 0,
               model: new MockLanguageModelV2({
                 doStream: async options => {
                   doStreamCalls.push(options);
@@ -1988,9 +1974,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                 "call": "1",
     //               },
     //               "id": "id-0",
-    //                "modelId": "mock-model-id",
-    //              "modelProvider": "mock-provider",
-    //              "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:00.000Z,
     //             },
     //             "type": "finish-step",
@@ -2035,9 +2019,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                 "call": "2",
     //               },
     //               "id": "id-1",
-    //                "modelId": "mock-model-id",
-    //              "modelProvider": "mock-provider",
-    //              "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:01.000Z,
     //             },
     //             "type": "finish-step",
@@ -2138,9 +2120,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                 "role": "assistant",
     //               },
     //             ],
-    //              "modelId": "mock-model-id",
-    //              "modelProvider": "mock-provider",
-    //              "modelVersion": "v2",
+    //             "modelId": "mock-model-id",
     //             "timestamp": 1970-01-01T00:00:01.000Z,
     //           },
     //           "sources": [],
@@ -2220,9 +2200,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                     "role": "tool",
     //                   },
     //                 ],
-    //                  "modelId": "mock-model-id",
-    //              "modelProvider": "mock-provider",
-    //              "modelVersion": "v2",
+    //                 "modelId": "mock-model-id",
     //                 "timestamp": 1970-01-01T00:00:00.000Z,
     //               },
     //               "usage": {
@@ -2296,9 +2274,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                     "role": "assistant",
     //                   },
     //                 ],
-    //                  "modelId": "mock-model-id",
-    //              "modelProvider": "mock-provider",
-    //              "modelVersion": "v2",
+    //                 "modelId": "mock-model-id",
     //                 "timestamp": 1970-01-01T00:00:01.000Z,
     //               },
     //               "usage": {
@@ -2409,9 +2385,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                   "role": "tool",
     //                 },
     //               ],
-    //                "modelId": "mock-model-id",
-    //                "modelProvider": "mock-provider",
-    //                "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:00.000Z,
     //             },
     //             "usage": {
@@ -2485,9 +2459,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                   "role": "assistant",
     //                 },
     //               ],
-    //                "modelId": "mock-model-id",
-    //                "modelProvider": "mock-provider",
-    //               "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:01.000Z,
     //             },
     //             "usage": {
@@ -2617,9 +2589,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                   "role": "tool",
     //                 },
     //               ],
-    //                "modelId": "mock-model-id",
-    //                "modelProvider": "mock-provider",
-    //                "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:00.000Z,
     //             },
     //             "usage": {
@@ -2693,9 +2663,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
     //                   "role": "assistant",
     //                 },
     //               ],
-    //                "modelId": "mock-model-id",
-    //                "modelProvider": "mock-provider",
-    //                "modelVersion": "v2",
+    //               "modelId": "mock-model-id",
     //               "timestamp": 1970-01-01T00:00:01.000Z,
     //             },
     //             "usage": {
@@ -2992,8 +2960,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           runId,
           models: [
             {
-              maxRetries: 0,
               id: 'test-model',
+              maxRetries: 0,
               model: new MockLanguageModelV2({
                 doStream: async () => {
                   switch (responseCount++) {
@@ -3151,9 +3119,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "tool",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:00.000Z,
                   },
                   "usage": {
@@ -3243,9 +3209,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "tool",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:00.000Z,
                   },
                   "usage": {
@@ -3398,9 +3362,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                 "role": "tool",
               },
             ],
-             "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+            "modelId": "mock-model-id",
             "timestamp": 1970-01-01T00:00:00.000Z,
           },
           "sources": [],
@@ -3479,9 +3441,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "role": "tool",
                   },
                 ],
-                 "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:00.000Z,
               },
               "usage": {
@@ -3546,7 +3506,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList,
-        models: [{ maxRetries: 0, id: 'test-model', model: modelWithSources }],
+        models: [{ id: 'test-model', maxRetries: 0, model: modelWithSources }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -3610,9 +3570,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                 "role": "assistant",
               },
             ],
-             "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+            "modelId": "mock-model-id",
             "timestamp": 1970-01-01T00:00:00.000Z,
           },
           "sources": [
@@ -3692,9 +3650,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "role": "assistant",
                   },
                 ],
-                 "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:00.000Z,
               },
               "usage": {
@@ -3735,7 +3691,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       const resultObject = await loopFn({
         runId,
         messageList: new MessageList(),
-        models: [{ maxRetries: 0, id: 'test-model', model: modelWithFiles }],
+        models: [{ id: 'test-model', maxRetries: 0, model: modelWithFiles }],
         options: {
           onFinish: async event => {
             result = event as unknown as typeof result;
@@ -3818,9 +3774,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                 "role": "assistant",
               },
             ],
-             "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+            "modelId": "mock-model-id",
             "timestamp": 1970-01-01T00:00:00.000Z,
           },
           "sources": [],
@@ -3881,9 +3835,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "role": "assistant",
                   },
                 ],
-                 "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:00.000Z,
               },
               "usage": {
@@ -3932,8 +3884,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
         runId,
         models: [
           {
-            maxRetries: 0,
             id: 'test-model',
+            maxRetries: 0,
             model: new MockLanguageModelV2({
               doStream: async () => {
                 throw new Error('test error');
@@ -4194,7 +4146,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should transform the stream', async () => {
   //         const result = streamText({
-  //           model: createTestModel(),
+  //           models: createTestModels(),
   //           experimental_transform: upperCaseTransform,
   //           prompt: 'test-input',
   //         });
@@ -4204,7 +4156,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.text should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel(),
+  //           models: createTestModels(),
   //           experimental_transform: upperCaseTransform,
   //           prompt: 'test-input',
   //         });
@@ -4216,7 +4168,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.response.messages should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel(),
+  //           models: createTestModels(),
   //           experimental_transform: upperCaseTransform,
   //           prompt: 'test-input',
   //         });
@@ -4245,7 +4197,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.totalUsage should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello' },
@@ -4288,7 +4240,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.finishReason should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello' },
@@ -4319,7 +4271,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.toolCalls should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello, ' },
@@ -4368,7 +4320,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.toolResults should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello, ' },
@@ -4418,7 +4370,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.steps should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -4528,9 +4480,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                     "role": "tool",
   //                   },
   //                 ],
-  //                  "modelId": "mock-model-id",
-  //                  "modelProvider": "mock-provider",
-  //                  "modelVersion": "v2",
+  //                 "modelId": "mock-model-id",
   //                 "timestamp": 1970-01-01T00:00:00.000Z,
   //               },
   //               "usage": {
@@ -4548,7 +4498,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.request should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -4580,7 +4530,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('result.providerMetadata should be transformed', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -4623,7 +4573,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
 
   //         const resultObject = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -4751,9 +4701,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                   "role": "tool",
   //                 },
   //               ],
-  //                "modelId": "mock-model-id",
-  //              "modelProvider": "mock-provider",
-  //              "modelVersion": "v2",
+  //               "modelId": "mock-model-id",
   //               "timestamp": 1970-01-01T00:00:00.000Z,
   //             },
   //             "sources": [],
@@ -4837,9 +4785,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                       "role": "tool",
   //                     },
   //                   ],
-  //                    "modelId": "mock-model-id",
-  //                "modelProvider": "mock-provider",
-  //              "modelVersion": "v2",
+  //                   "modelId": "mock-model-id",
   //                   "timestamp": 1970-01-01T00:00:00.000Z,
   //                 },
   //                 "usage": {
@@ -4901,7 +4847,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onStepFinish']>[0];
 
   //         const resultObject = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -5024,9 +4970,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                   "role": "tool",
   //                 },
   //               ],
-  //                "modelId": "mock-model-id",
-  //                "modelProvider": "mock-provider",
-  //            "modelVersion": "v2",
+  //               "modelId": "mock-model-id",
   //               "timestamp": 1970-01-01T00:00:00.000Z,
   //             },
   //             "usage": {
@@ -5045,7 +4989,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         const tracer = new MockTracer();
 
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               {
   //                 type: 'response-metadata',
@@ -5110,7 +5054,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         > = [];
 
   //         const resultObject = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello' },
@@ -5256,7 +5200,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should transform the stream', async () => {
   //         const result = streamText({
-  //           model: createTestModel(),
+  //           models: createTestModels(),
   //           experimental_transform: [toUppercaseAndAddCommaTransform(), omitCommaTransform()],
   //           prompt: 'test-input',
   //         });
@@ -5322,7 +5266,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('stream should stop when STOP token is encountered', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello, ' },
@@ -5371,9 +5315,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                 "providerMetadata": undefined,
   //                 "response": {
   //                   "id": "response-id",
-  //                    "modelId": "mock-model-id",
-  //                   "modelProvider": "mock-provider",
-  //                   "modelVersion": "v2",
+  //                   "modelId": "mock-model-id",
   //                   "timestamp": 1970-01-01T00:00:00.000Z,
   //                 },
   //                 "type": "finish-step",
@@ -5404,7 +5346,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onStepFinish']>[0];
 
   //         const resultObject = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello, ' },
@@ -5453,9 +5395,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                   "role": "assistant",
   //                 },
   //               ],
-  //                "modelId": "mock-model-id",
-  //                "modelProvider": "mock-provider",
-  //                "modelVersion": "v2",
+  //               "modelId": "mock-model-id",
   //               "timestamp": 1970-01-01T00:00:00.000Z,
   //             },
   //             "usage": {
@@ -5476,7 +5416,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //     describe('no output', () => {
   //       it('should throw error when accessing partial output stream', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5505,7 +5445,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //     describe('text output', () => {
   //       it('should send partial output stream', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: 'Hello, ' },
@@ -5616,7 +5556,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should send valid partial text fragments', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5651,7 +5591,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should send partial output stream', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5684,7 +5624,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should send partial output stream when last chunk contains content', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5714,7 +5654,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
   //       it('should resolve text promise with the correct content', async () => {
   //         const result = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5745,7 +5685,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //         let result!: Parameters<Required<Parameters<typeof streamText>[0]>['onFinish']>[0];
 
   //         const resultObject = streamText({
-  //           model: createTestModel({
+  //           models: createTestModels({
   //             stream: convertArrayToReadableStream([
   //               { type: 'text-start', id: '1' },
   //               { type: 'text-delta', id: '1', delta: '{ ' },
@@ -5810,9 +5750,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                   "role": "assistant",
   //                 },
   //               ],
-  //                "modelId": "mock-model-id",
-  //                "modelProvider": "mock-provider",
-  //                "modelVersion": "v2",
+  //               "modelId": "mock-model-id",
   //               "timestamp": 1970-01-01T00:00:00.000Z,
   //             },
   //             "sources": [],
@@ -5845,9 +5783,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
   //                       "role": "assistant",
   //                     },
   //                   ],
-  //                    "modelId": "mock-model-id",
-  //                   "modelProvider": "mock-provider",
-  //                   "modelVersion": "v2",
+  //                   "modelId": "mock-model-id",
   //                   "timestamp": 1970-01-01T00:00:00.000Z,
   //                 },
   //                 "usage": {
@@ -6049,22 +5985,28 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       );
       let capturedOptions: any;
 
-      const model = new MockLanguageModelV2({
-        doStream: async options => {
-          capturedOptions = options;
+      const models = [
+        {
+          id: 'test-model',
+          maxRetries: 0,
+          model: new MockLanguageModelV2({
+            doStream: async options => {
+              capturedOptions = options;
 
-          return {
-            stream: convertArrayToReadableStream([
-              { type: 'stream-start', warnings: [] },
-              { type: 'finish', finishReason: 'stop', usage: testUsage },
-            ]),
-          };
+              return {
+                stream: convertArrayToReadableStream([
+                  { type: 'stream-start', warnings: [] },
+                  { type: 'finish', finishReason: 'stop', usage: testUsage },
+                ]),
+              };
+            },
+          }),
         },
-      });
+      ];
 
       const result = await loopFn({
         runId,
-        models: [{ maxRetries: 0, id: 'test-model', model }],
+        models,
         messageList,
         includeRawChunks: true,
       });
@@ -6203,34 +6145,40 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
       );
       let capturedOptions: any;
 
-      const model = new MockLanguageModelV2({
-        doStream: async options => {
-          capturedOptions = options;
-          return {
-            stream: convertArrayToReadableStream([
-              { type: 'stream-start', warnings: [] },
-              {
-                type: 'response-metadata',
-                id: 'test-id',
-                modelId: 'test-model',
-                timestamp: new Date(0),
-              },
-              { type: 'text-start', id: '1' },
-              { type: 'text-delta', id: '1', delta: 'Hello' },
-              { type: 'text-end', id: '1' },
-              {
-                type: 'finish',
-                finishReason: 'stop',
-                usage: testUsage,
-              },
-            ]),
-          };
+      const models = [
+        {
+          id: 'test-model',
+          maxRetries: 0,
+          model: new MockLanguageModelV2({
+            doStream: async options => {
+              capturedOptions = options;
+              return {
+                stream: convertArrayToReadableStream([
+                  { type: 'stream-start', warnings: [] },
+                  {
+                    type: 'response-metadata',
+                    id: 'test-id',
+                    modelId: 'test-model',
+                    timestamp: new Date(0),
+                  },
+                  { type: 'text-start', id: '1' },
+                  { type: 'text-delta', id: '1', delta: 'Hello' },
+                  { type: 'text-end', id: '1' },
+                  {
+                    type: 'finish',
+                    finishReason: 'stop',
+                    usage: testUsage,
+                  },
+                ]),
+              };
+            },
+          }),
         },
-      });
+      ];
 
       const result = await loopFn({
         runId,
-        models: [{ maxRetries: 0, id: 'test-model', model }],
+        models,
         messageList,
         includeRawChunks: true,
       });
@@ -6240,7 +6188,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result2 = await loopFn({
         runId,
-        models: [{ maxRetries: 0, id: 'test-model', model }],
+        models,
         messageList,
         includeRawChunks: false,
       });
@@ -6250,7 +6198,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
 
       const result3 = await loopFn({
         runId,
-        models: [{ maxRetries: 0, id: 'test-model', model }],
+        models,
         messageList,
       });
       await result3.aisdk.v5.consumeStream();
@@ -6546,9 +6494,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                     "role": "assistant",
                   },
                 ],
-                 "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                "modelId": "mock-model-id",
                 "timestamp": 1970-01-01T00:00:02.000Z,
               },
               "usage": {
@@ -6600,8 +6546,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           },
           models: [
             {
-              maxRetries: 0,
               id: 'test-model',
+              maxRetries: 0,
               model: new MockLanguageModelV2({
                 doStream: async () => ({
                   stream: new ReadableStream({
@@ -6730,8 +6676,8 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
           messageList: new MessageList(),
           models: [
             {
-              maxRetries: 0,
               id: 'test-model',
+              maxRetries: 0,
               model: new MockLanguageModelV2({
                 doStream: async () => ({
                   stream: new ReadableStream({
@@ -6890,9 +6836,7 @@ export function optionsTests({ loopFn, runId }: { loopFn: typeof loop; runId: st
                         "role": "tool",
                       },
                     ],
-                     "modelId": "mock-model-id",
-                    "modelProvider": "mock-provider",
-                    "modelVersion": "v2",
+                    "modelId": "mock-model-id",
                     "timestamp": 1970-01-01T00:00:00.000Z,
                   },
                   "usage": {
