@@ -1,0 +1,449 @@
+# System Architecture
+
+This document provides a detailed view of Mastra's system architecture, breaking down the core components and their interactions.
+
+## Core Framework Architecture
+
+The Mastra core framework is built around a central orchestration hub with pluggable components:
+
+```mermaid
+graph TB
+    subgraph "Mastra Core Instance"
+        DI[Dependency Injection Container]
+        Config[Configuration Manager]
+        Lifecycle[Lifecycle Manager]
+        Events[Event System]
+    end
+    
+    subgraph "Agent System"
+        AgentManager[Agent Manager]
+        AgentProcessor[Agent Processor]
+        AgentNetwork[Agent Network]
+        MessageList[Message List]
+    end
+    
+    subgraph "Workflow Engine"
+        WorkflowManager[Workflow Manager]
+        ExecutionEngine[Execution Engine]
+        StepProcessor[Step Processor]
+        StateManager[State Manager]
+    end
+    
+    subgraph "Tools System"
+        ToolRegistry[Tool Registry]
+        ToolExecutor[Tool Executor]
+        ToolComposer[Tool Composer]
+        MCPBridge[MCP Bridge]
+    end
+    
+    subgraph "Memory System"
+        MemoryManager[Memory Manager]
+        ThreadManager[Thread Manager]
+        SemanticRecall[Semantic Recall]
+        WorkingMemory[Working Memory]
+    end
+    
+    DI --> AgentManager
+    DI --> WorkflowManager
+    DI --> ToolRegistry
+    DI --> MemoryManager
+    
+    Config --> DI
+    Lifecycle --> Config
+    Events --> Lifecycle
+    
+    AgentManager --> AgentProcessor
+    AgentProcessor --> AgentNetwork
+    AgentNetwork --> MessageList
+    
+    WorkflowManager --> ExecutionEngine
+    ExecutionEngine --> StepProcessor
+    StepProcessor --> StateManager
+    
+    ToolRegistry --> ToolExecutor
+    ToolExecutor --> ToolComposer
+    ToolComposer --> MCPBridge
+    
+    MemoryManager --> ThreadManager
+    ThreadManager --> SemanticRecall
+    SemanticRecall --> WorkingMemory
+    
+    AgentProcessor -.-> ToolExecutor
+    AgentProcessor -.-> MemoryManager
+    StepProcessor -.-> ToolExecutor
+    StepProcessor -.-> AgentProcessor
+```
+
+## Agent System Architecture
+
+The agent system provides the primary interface for AI interactions:
+
+```mermaid
+graph TB
+    subgraph "Agent Core"
+        Agent[Agent Instance]
+        Config[Agent Config]
+        Instructions[Instructions]
+        Model[LLM Model]
+    end
+    
+    subgraph "Tool Integration"
+        AssignedTools[Assigned Tools]
+        MemoryTools[Memory Tools]
+        Toolsets[Toolsets]
+        MCPTools[MCP Tools]
+    end
+    
+    subgraph "Memory Integration"
+        ConversationMemory[Conversation Memory]
+        SemanticMemory[Semantic Memory]
+        WorkingMemory[Working Memory]
+        ThreadMemory[Thread Memory]
+    end
+    
+    subgraph "Processing Pipeline"
+        InputProcessor[Input Processor]
+        MessageProcessor[Message Processor]
+        OutputProcessor[Output Processor]
+        StreamProcessor[Stream Processor]
+    end
+    
+    subgraph "Runtime Context"
+        RequestContext[Request Context]
+        SessionContext[Session Context]
+        UserContext[User Context]
+        SystemContext[System Context]
+    end
+    
+    Agent --> Config
+    Config --> Instructions
+    Config --> Model
+    
+    Agent --> AssignedTools
+    Agent --> MemoryTools
+    Agent --> Toolsets
+    Agent --> MCPTools
+    
+    Agent --> ConversationMemory
+    Agent --> SemanticMemory
+    Agent --> WorkingMemory
+    Agent --> ThreadMemory
+    
+    Agent --> InputProcessor
+    InputProcessor --> MessageProcessor
+    MessageProcessor --> OutputProcessor
+    OutputProcessor --> StreamProcessor
+    
+    Agent --> RequestContext
+    RequestContext --> SessionContext
+    SessionContext --> UserContext
+    UserContext --> SystemContext
+    
+    MessageProcessor -.-> AssignedTools
+    MessageProcessor -.-> ConversationMemory
+    OutputProcessor -.-> ThreadMemory
+```
+
+## Workflow Engine Architecture
+
+The workflow engine manages step-based execution with suspend/resume capabilities:
+
+```mermaid
+graph TB
+    subgraph "Workflow Definition"
+        WorkflowSpec[Workflow Specification]
+        Steps[Step Definitions]
+        Transitions[Transition Rules]
+        ErrorHandling[Error Handling]
+    end
+    
+    subgraph "Execution Engine"
+        Executor[Workflow Executor]
+        Scheduler[Step Scheduler]
+        StateManager[State Manager]
+        EventEmitter[Event Emitter]
+    end
+    
+    subgraph "Step Types"
+        AgentStep[Agent Step]
+        ToolStep[Tool Step]
+        WorkflowStep[Workflow Step]
+        ConditionalStep[Conditional Step]
+        ParallelStep[Parallel Step]
+        WaitStep[Wait Step]
+    end
+    
+    subgraph "State Persistence"
+        ExecutionState[Execution State]
+        StepState[Step State]
+        Variables[Variables]
+        Context[Context]
+    end
+    
+    subgraph "Monitoring & Tracing"
+        Telemetry[Telemetry]
+        Metrics[Metrics]
+        Logging[Logging]
+        Tracing[OpenTelemetry]
+    end
+    
+    WorkflowSpec --> Steps
+    Steps --> Transitions
+    Transitions --> ErrorHandling
+    
+    Executor --> Scheduler
+    Scheduler --> StateManager
+    StateManager --> EventEmitter
+    
+    Scheduler --> AgentStep
+    Scheduler --> ToolStep
+    Scheduler --> WorkflowStep
+    Scheduler --> ConditionalStep
+    Scheduler --> ParallelStep
+    Scheduler --> WaitStep
+    
+    StateManager --> ExecutionState
+    ExecutionState --> StepState
+    StepState --> Variables
+    Variables --> Context
+    
+    Executor --> Telemetry
+    Telemetry --> Metrics
+    Metrics --> Logging
+    Logging --> Tracing
+    
+    AgentStep -.-> StateManager
+    ToolStep -.-> StateManager
+    WorkflowStep -.-> StateManager
+```
+
+## Tools & MCP System Architecture
+
+The tools system provides dynamic tool composition from multiple sources:
+
+```mermaid
+graph TB
+    subgraph "Tool Sources"
+        AssignedTools[Assigned Tools]
+        MemoryTools[Memory Tools]
+        Toolsets[Toolsets]
+        MCPServers[MCP Servers]
+    end
+    
+    subgraph "Tool Registry"
+        Registry[Tool Registry]
+        Resolver[Tool Resolver]
+        Validator[Tool Validator]
+        Composer[Tool Composer]
+    end
+    
+    subgraph "MCP Integration"
+        MCPClient[MCP Client]
+        MCPProtocol[MCP Protocol]
+        MCPTransport[MCP Transport]
+        MCPDiscovery[MCP Discovery]
+    end
+    
+    subgraph "Tool Execution"
+        Executor[Tool Executor]
+        Runtime[Tool Runtime]
+        Sandbox[Execution Sandbox]
+        ResultProcessor[Result Processor]
+    end
+    
+    subgraph "Integration Layer"
+        APIClients[API Clients]
+        AuthManager[Auth Manager]
+        RateLimiter[Rate Limiter]
+        ErrorHandler[Error Handler]
+    end
+    
+    AssignedTools --> Registry
+    MemoryTools --> Registry
+    Toolsets --> Registry
+    MCPServers --> MCPClient
+    
+    Registry --> Resolver
+    Resolver --> Validator
+    Validator --> Composer
+    
+    MCPClient --> MCPProtocol
+    MCPProtocol --> MCPTransport
+    MCPTransport --> MCPDiscovery
+    
+    MCPClient --> Registry
+    
+    Composer --> Executor
+    Executor --> Runtime
+    Runtime --> Sandbox
+    Sandbox --> ResultProcessor
+    
+    Runtime --> APIClients
+    APIClients --> AuthManager
+    AuthManager --> RateLimiter
+    RateLimiter --> ErrorHandler
+    
+    ResultProcessor -.-> Registry
+```
+
+## Memory System Architecture
+
+The memory system provides thread-based conversation persistence with semantic recall:
+
+```mermaid
+graph TB
+    subgraph "Memory Core"
+        MemoryManager[Memory Manager]
+        ThreadManager[Thread Manager]
+        SessionManager[Session Manager]
+        ContextManager[Context Manager]
+    end
+    
+    subgraph "Storage Layer"
+        ConversationStore[Conversation Store]
+        VectorStore[Vector Store]
+        SemanticIndex[Semantic Index]
+        MetadataStore[Metadata Store]
+    end
+    
+    subgraph "Memory Types"
+        ConversationMemory[Conversation Memory]
+        SemanticMemory[Semantic Memory]
+        WorkingMemory[Working Memory]
+        LongTermMemory[Long-term Memory]
+    end
+    
+    subgraph "Retrieval System"
+        SemanticSearch[Semantic Search]
+        ContextualRetrieval[Contextual Retrieval]
+        RelevanceRanking[Relevance Ranking]
+        MemoryFiltering[Memory Filtering]
+    end
+    
+    subgraph "Embedding & Processing"
+        EmbeddingEngine[Embedding Engine]
+        TextProcessor[Text Processor]
+        ChunkManager[Chunk Manager]
+        IndexManager[Index Manager]
+    end
+    
+    MemoryManager --> ThreadManager
+    ThreadManager --> SessionManager
+    SessionManager --> ContextManager
+    
+    MemoryManager --> ConversationStore
+    MemoryManager --> VectorStore
+    MemoryManager --> SemanticIndex
+    MemoryManager --> MetadataStore
+    
+    MemoryManager --> ConversationMemory
+    MemoryManager --> SemanticMemory
+    MemoryManager --> WorkingMemory
+    MemoryManager --> LongTermMemory
+    
+    SemanticMemory --> SemanticSearch
+    SemanticSearch --> ContextualRetrieval
+    ContextualRetrieval --> RelevanceRanking
+    RelevanceRanking --> MemoryFiltering
+    
+    VectorStore --> EmbeddingEngine
+    EmbeddingEngine --> TextProcessor
+    TextProcessor --> ChunkManager
+    ChunkManager --> IndexManager
+    
+    ConversationMemory -.-> ConversationStore
+    SemanticMemory -.-> VectorStore
+    WorkingMemory -.-> MemoryManager
+    LongTermMemory -.-> SemanticIndex
+```
+
+## Storage & Infrastructure Architecture
+
+The storage layer provides pluggable backends with standardized interfaces:
+
+```mermaid
+graph TB
+    subgraph "Storage Interfaces"
+        StorageInterface[Storage Interface]
+        VectorInterface[Vector Interface]
+        IndexInterface[Index Interface]
+        CacheInterface[Cache Interface]
+    end
+    
+    subgraph "Storage Adapters"
+        PostgreSQL[PostgreSQL Store]
+        Redis[Redis Store]
+        FileSystem[File System Store]
+        InMemory[In-Memory Store]
+    end
+    
+    subgraph "Vector Stores"
+        Chroma[Chroma DB]
+        Pinecone[Pinecone]
+        Weaviate[Weaviate]
+        LocalVector[Local Vector]
+    end
+    
+    subgraph "Infrastructure Services"
+        AuthService[Auth Service]
+        TelemetryService[Telemetry Service]
+        LoggingService[Logging Service]
+        MonitoringService[Monitoring Service]
+    end
+    
+    subgraph "External Integrations"
+        LLMProviders[LLM Providers]
+        APIGateways[API Gateways]
+        ThirdPartyAPIs[Third-party APIs]
+        MCPServers[MCP Servers]
+    end
+    
+    StorageInterface --> PostgreSQL
+    StorageInterface --> Redis
+    StorageInterface --> FileSystem
+    StorageInterface --> InMemory
+    
+    VectorInterface --> Chroma
+    VectorInterface --> Pinecone
+    VectorInterface --> Weaviate
+    VectorInterface --> LocalVector
+    
+    IndexInterface --> PostgreSQL
+    IndexInterface --> Chroma
+    
+    CacheInterface --> Redis
+    CacheInterface --> InMemory
+    
+    AuthService --> ThirdPartyAPIs
+    TelemetryService --> MonitoringService
+    LoggingService --> MonitoringService
+    
+    LLMProviders -.-> AuthService
+    APIGateways -.-> AuthService
+    ThirdPartyAPIs -.-> AuthService
+    MCPServers -.-> AuthService
+```
+
+## Performance & Scalability Considerations
+
+### Horizontal Scaling
+- Stateless agent instances for load balancing
+- Shared storage backend for state persistence
+- Event-driven coordination for distributed processing
+
+### Vertical Scaling
+- Memory-efficient stream processing
+- Lazy loading of tools and integrations
+- Optimized vector operations for semantic search
+
+### Caching Strategy
+- Multi-level caching (memory, Redis, storage)
+- Semantic cache for LLM responses
+- Tool result caching with TTL
+
+### Monitoring & Observability
+- OpenTelemetry integration for distributed tracing
+- Metrics collection for performance monitoring
+- Structured logging for debugging and analysis
+
+This architecture enables Mastra to scale from single-agent applications to complex multi-agent systems with enterprise-grade reliability and performance.

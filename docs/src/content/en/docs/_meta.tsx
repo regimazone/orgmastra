@@ -3,6 +3,7 @@ import { Tag } from "@/components/tag";
 const meta = {
   index: "Introduction",
   "getting-started": { title: "Getting Started" },
+  architecture: { title: "Architecture" },
   agents: { title: "Agents" },
   workflows: { title: "Workflows" },
   "workflows-legacy": {
