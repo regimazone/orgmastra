@@ -837,6 +837,7 @@ export class DefaultExecutionEngine extends ExecutionEngine {
 
         const result = await runStep({
           runId,
+          resourceId,
           workflowId,
           mastra: this.mastra ? wrapMastra(this.mastra, innerTracingContext) : undefined,
           runtimeContext,
