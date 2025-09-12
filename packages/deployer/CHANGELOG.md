@@ -1,5 +1,41 @@
 # @mastra/deployer
 
+## 0.16.4-alpha.0
+
+### Patch Changes
+
+- feat: add requiresAuth option for custom API routes ([#7703](https://github.com/mastra-ai/mastra/pull/7703))
+
+  Added a new `requiresAuth` option to the `ApiRoute` type that allows users to explicitly control authentication requirements for custom endpoints.
+  - By default, all custom routes require authentication (`requiresAuth: true`)
+  - Set `requiresAuth: false` to make a route publicly accessible without authentication
+  - The auth middleware now checks this configuration before applying authentication
+
+  Example usage:
+
+  ```typescript
+  const customRoutes: ApiRoute[] = [
+    {
+      path: '/api/public-endpoint',
+      method: 'GET',
+      requiresAuth: false, // No authentication required
+      handler: async c => c.json({ message: 'Public access' }),
+    },
+    {
+      path: '/api/protected-endpoint',
+      method: 'GET',
+      requiresAuth: true, // Authentication required (default)
+      handler: async c => c.json({ message: 'Protected access' }),
+    },
+  ];
+  ```
+
+  This addresses issue #7674 where custom endpoints were not being protected by the authentication system.
+
+- Updated dependencies [[`5bda53a`](https://github.com/mastra-ai/mastra/commit/5bda53a9747bfa7d876d754fc92c83a06e503f62), [`f26a8fd`](https://github.com/mastra-ai/mastra/commit/f26a8fd99fcb0497a5d86c28324430d7f6a5fb83)]:
+  - @mastra/core@0.16.4-alpha.0
+  - @mastra/server@0.16.4-alpha.0
+
 ## 0.16.3
 
 ### Patch Changes

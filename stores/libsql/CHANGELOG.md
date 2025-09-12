@@ -1,5 +1,14 @@
 # @mastra/libsql
 
+## 0.14.2-alpha.0
+
+### Patch Changes
+
+- dependencies updates: ([#7742](https://github.com/mastra-ai/mastra/pull/7742))
+  - Updated dependency [`@libsql/client@^0.15.15` ↗︎](https://www.npmjs.com/package/@libsql/client/v/0.15.15) (from `^0.15.14`, in `dependencies`)
+- Updated dependencies [[`5bda53a`](https://github.com/mastra-ai/mastra/commit/5bda53a9747bfa7d876d754fc92c83a06e503f62), [`f26a8fd`](https://github.com/mastra-ai/mastra/commit/f26a8fd99fcb0497a5d86c28324430d7f6a5fb83)]:
+  - @mastra/core@0.16.4-alpha.0
+
 ## 0.14.1
 
 ### Patch Changes

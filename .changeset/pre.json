@@ -82,5 +82,9 @@
     "@mastra/voice-speechify": "0.11.4",
     "@mastra/inngest": "0.13.2"
   },
-  "changesets": []
+  "changesets": [
+    "@mastra_libsql-7742-dependencies",
+    "curvy-cycles-train",
+    "custom-route-auth"
+  ]
 }
