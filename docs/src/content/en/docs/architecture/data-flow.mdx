@@ -1,0 +1,682 @@
+# Data Flow Architecture
+
+This document details how data flows through the Mastra system, including request processing, state management, memory persistence, and event propagation patterns.
+
+## Overall Data Flow Architecture
+
+Data flows through Mastra in a layered architecture with clear separation of concerns:
+
+```mermaid
+flowchart TB
+    subgraph "Input Layer"
+        UserInput[User Input]
+        APIRequests[API Requests]
+        EventTriggers[Event Triggers]
+        WorkflowTriggers[Workflow Triggers]
+    end
+    
+    subgraph "Processing Layer"
+        RequestRouter[Request Router]
+        ContextBuilder[Context Builder]
+        AgentOrchestrator[Agent Orchestrator]
+        WorkflowEngine[Workflow Engine]
+        ToolExecutor[Tool Executor]
+    end
+    
+    subgraph "Memory & State Layer"
+        ConversationMemory[Conversation Memory]
+        SemanticMemory[Semantic Memory]
+        WorkingMemory[Working Memory]
+        WorkflowState[Workflow State]
+        OrganizationState[Organization State]
+    end
+    
+    subgraph "Storage Layer"
+        PrimaryStorage[Primary Storage]
+        VectorStorage[Vector Storage]
+        CacheLayer[Cache Layer]
+        StateStore[State Store]
+    end
+    
+    subgraph "Integration Layer"
+        LLMProviders[LLM Providers]
+        ExternalAPIs[External APIs]
+        MCPServers[MCP Servers]
+        VectorStores[Vector Stores]
+    end
+    
+    subgraph "Output Layer"
+        ResponseFormatter[Response Formatter]
+        StreamProcessor[Stream Processor]
+        EventEmitter[Event Emitter]
+        StateUpdater[State Updater]
+    end
+    
+    UserInput --> RequestRouter
+    APIRequests --> RequestRouter
+    EventTriggers --> RequestRouter
+    WorkflowTriggers --> RequestRouter
+    
+    RequestRouter --> ContextBuilder
+    ContextBuilder --> AgentOrchestrator
+    ContextBuilder --> WorkflowEngine
+    
+    AgentOrchestrator --> ToolExecutor
+    WorkflowEngine --> ToolExecutor
+    
+    AgentOrchestrator --> ConversationMemory
+    WorkflowEngine --> WorkflowState
+    ToolExecutor --> SemanticMemory
+    ContextBuilder --> WorkingMemory
+    AgentOrchestrator --> OrganizationState
+    
+    ConversationMemory --> PrimaryStorage
+    SemanticMemory --> VectorStorage
+    WorkingMemory --> CacheLayer
+    WorkflowState --> StateStore
+    OrganizationState --> StateStore
+    
+    ToolExecutor --> LLMProviders
+    ToolExecutor --> ExternalAPIs
+    ToolExecutor --> MCPServers
+    SemanticMemory --> VectorStores
+    
+    AgentOrchestrator --> ResponseFormatter
+    WorkflowEngine --> StreamProcessor
+    ContextBuilder --> EventEmitter
+    WorkflowEngine --> StateUpdater
+```
+
+## Request Processing Flow
+
+Every request follows a structured processing pipeline:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Router
+    participant Context
+    participant Agent
+    participant Memory
+    participant Tools
+    participant LLM
+    participant Storage
+    
+    Client->>Router: Send request
+    Router->>Router: Parse and validate
+    Router->>Context: Create runtime context
+    
+    Context->>Context: Build execution context
+    Context->>Memory: Load relevant memories
+    Memory->>Storage: Query conversation history
+    Storage-->>Memory: Return history
+    Memory-->>Context: Return context with memories
+    
+    Context->>Agent: Initialize agent with context
+    Agent->>Agent: Process input with context
+    Agent->>Tools: Execute required tools
+    Tools->>LLM: Make LLM calls
+    LLM-->>Tools: Return LLM response
+    Tools-->>Agent: Return tool results
+    
+    Agent->>Memory: Store conversation
+    Memory->>Storage: Persist conversation
+    Storage-->>Memory: Confirm storage
+    
+    Agent-->>Context: Return response
+    Context-->>Router: Return formatted response
+    Router-->>Client: Send final response
+    
+    Note over Client,Storage: End-to-end request processing
+```
+
+## Agent Data Flow
+
+Agents process data through multiple stages with memory integration:
+
+```mermaid
+graph TB
+    subgraph "Input Processing"
+        InputParser[Input Parser]
+        ContextExtractor[Context Extractor]
+        IntentAnalyzer[Intent Analyzer]
+        ParameterExtractor[Parameter Extractor]
+    end
+    
+    subgraph "Memory Integration"
+        ConversationRetrieval[Conversation Retrieval]
+        SemanticRetrieval[Semantic Retrieval]
+        ContextualMemory[Contextual Memory]
+        MemoryRanking[Memory Ranking]
+    end
+    
+    subgraph "Processing Pipeline"
+        MessageProcessor[Message Processor]
+        ToolSelector[Tool Selector]
+        ToolExecutor[Tool Executor]
+        ResponseGenerator[Response Generator]
+    end
+    
+    subgraph "Memory Persistence"
+        ConversationStore[Conversation Store]
+        SemanticStore[Semantic Store]
+        ContextStore[Context Store]
+        VectorUpdate[Vector Update]
+    end
+    
+    subgraph "Output Generation"
+        ResponseFormatter[Response Formatter]
+        StreamingHandler[Streaming Handler]
+        EventPublisher[Event Publisher]
+        MetricsCollector[Metrics Collector]
+    end
+    
+    InputParser --> ContextExtractor
+    ContextExtractor --> IntentAnalyzer
+    IntentAnalyzer --> ParameterExtractor
+    
+    ParameterExtractor --> ConversationRetrieval
+    ConversationRetrieval --> SemanticRetrieval
+    SemanticRetrieval --> ContextualMemory
+    ContextualMemory --> MemoryRanking
+    
+    MemoryRanking --> MessageProcessor
+    MessageProcessor --> ToolSelector
+    ToolSelector --> ToolExecutor
+    ToolExecutor --> ResponseGenerator
+    
+    ResponseGenerator --> ConversationStore
+    ResponseGenerator --> SemanticStore
+    ResponseGenerator --> ContextStore
+    SemanticStore --> VectorUpdate
+    
+    ResponseGenerator --> ResponseFormatter
+    ResponseFormatter --> StreamingHandler
+    ResponseFormatter --> EventPublisher
+    ResponseFormatter --> MetricsCollector
+```
+
+## Memory System Data Flow
+
+The memory system manages multiple types of data with different persistence patterns:
+
+```mermaid
+graph TB
+    subgraph "Memory Input Sources"
+        ConversationInput[Conversation Messages]
+        ToolResults[Tool Execution Results]
+        WorkflowState[Workflow State Data]
+        OrganizationEvents[Organization Events]
+    end
+    
+    subgraph "Memory Processing"
+        MessageProcessor[Message Processor]
+        EmbeddingGenerator[Embedding Generator]
+        ChunkProcessor[Chunk Processor]
+        MetadataExtractor[Metadata Extractor]
+    end
+    
+    subgraph "Memory Storage Types"
+        ConversationMemory[Conversation Memory]
+        SemanticMemory[Semantic Memory]
+        WorkingMemory[Working Memory]
+        LongTermMemory[Long-term Memory]
+    end
+    
+    subgraph "Storage Backends"
+        RelationalDB[Relational Database]
+        VectorDB[Vector Database]
+        CacheStore[Cache Store]
+        ObjectStore[Object Store]
+    end
+    
+    subgraph "Memory Retrieval"
+        ConversationQuery[Conversation Query]
+        SemanticSearch[Semantic Search]
+        ContextualRetrieval[Contextual Retrieval]
+        TemporalQuery[Temporal Query]
+    end
+    
+    ConversationInput --> MessageProcessor
+    ToolResults --> MessageProcessor
+    WorkflowState --> MessageProcessor
+    OrganizationEvents --> MessageProcessor
+    
+    MessageProcessor --> EmbeddingGenerator
+    MessageProcessor --> ChunkProcessor
+    MessageProcessor --> MetadataExtractor
+    
+    MessageProcessor --> ConversationMemory
+    EmbeddingGenerator --> SemanticMemory
+    ChunkProcessor --> WorkingMemory
+    MetadataExtractor --> LongTermMemory
+    
+    ConversationMemory --> RelationalDB
+    SemanticMemory --> VectorDB
+    WorkingMemory --> CacheStore
+    LongTermMemory --> ObjectStore
+    
+    RelationalDB --> ConversationQuery
+    VectorDB --> SemanticSearch
+    CacheStore --> ContextualRetrieval
+    ObjectStore --> TemporalQuery
+```
+
+## Workflow Data Flow
+
+Workflows manage state transitions and data flow between steps:
+
+```mermaid
+sequenceDiagram
+    participant Trigger
+    participant Engine
+    participant Step1
+    participant Step2
+    participant Step3
+    participant State
+    participant Storage
+    
+    Trigger->>Engine: Start workflow
+    Engine->>State: Create execution state
+    State->>Storage: Persist initial state
+    
+    Engine->>Step1: Execute step with input
+    Step1->>Step1: Process data
+    Step1->>State: Update step state
+    State->>Storage: Persist step state
+    Step1-->>Engine: Return step result
+    
+    Engine->>Engine: Evaluate transitions
+    Engine->>Step2: Execute next step
+    Step2->>Step2: Process previous result
+    Step2->>State: Update step state
+    State->>Storage: Persist step state
+    Step2-->>Engine: Return step result
+    
+    Engine->>Engine: Evaluate transitions
+    Engine->>Step3: Execute final step
+    Step3->>Step3: Generate final output
+    Step3->>State: Update final state
+    State->>Storage: Persist final state
+    Step3-->>Engine: Return final result
+    
+    Engine->>State: Mark workflow complete
+    State->>Storage: Persist completion state
+    Engine-->>Trigger: Return workflow result
+    
+    Note over Trigger,Storage: Stateful workflow execution
+```
+
+## Tool Execution Data Flow
+
+Tools integrate with external systems and process data:
+
+```mermaid
+graph TB
+    subgraph "Tool Input"
+        ToolRequest[Tool Request]
+        Parameters[Parameters]
+        Context[Execution Context]
+        Authentication[Authentication Data]
+    end
+    
+    subgraph "Tool Processing"
+        Validator[Parameter Validator]
+        Transformer[Data Transformer]
+        Executor[Tool Executor]
+        ResultProcessor[Result Processor]
+    end
+    
+    subgraph "External Integration"
+        APIClient[API Client]
+        AuthHandler[Auth Handler]
+        RateLimiter[Rate Limiter]
+        ResponseParser[Response Parser]
+    end
+    
+    subgraph "Result Handling"
+        ResultTransformer[Result Transformer]
+        ErrorHandler[Error Handler]
+        CacheManager[Cache Manager]
+        MetricsCollector[Metrics Collector]
+    end
+    
+    subgraph "Tool Output"
+        ToolResult[Tool Result]
+        ExecutionMetrics[Execution Metrics]
+        CachedResponse[Cached Response]
+        ErrorResponse[Error Response]
+    end
+    
+    ToolRequest --> Validator
+    Parameters --> Validator
+    Context --> Transformer
+    Authentication --> AuthHandler
+    
+    Validator --> Transformer
+    Transformer --> Executor
+    Executor --> ResultProcessor
+    
+    Executor --> APIClient
+    AuthHandler --> APIClient
+    APIClient --> RateLimiter
+    RateLimiter --> ResponseParser
+    
+    ResultProcessor --> ResultTransformer
+    ResultProcessor --> ErrorHandler
+    ResultProcessor --> CacheManager
+    ResultProcessor --> MetricsCollector
+    
+    ResultTransformer --> ToolResult
+    MetricsCollector --> ExecutionMetrics
+    CacheManager --> CachedResponse
+    ErrorHandler --> ErrorResponse
+```
+
+## Organization Model Data Flow
+
+Organization entities coordinate data flow for federated operations:
+
+```mermaid
+graph TB
+    subgraph "Organization Level"
+        OrgCoordinator[Organization Coordinator]
+        PolicyEngine[Policy Engine]
+        ResourceManager[Resource Manager]
+        FederationManager[Federation Manager]
+    end
+    
+    subgraph "Project Level"
+        ProjectManager[Project Manager]
+        TeamCoordinator[Team Coordinator]
+        TaskDispatcher[Task Dispatcher]
+        ProgressTracker[Progress Tracker]
+    end
+    
+    subgraph "Person Level"
+        PersonAgent[Person Agent]
+        SkillMatcher[Skill Matcher]
+        TaskProcessor[Task Processor]
+        ResultReporter[Result Reporter]
+    end
+    
+    subgraph "Data Flows"
+        TaskDelegation[Task Delegation Flow]
+        ResourceSharing[Resource Sharing Flow]
+        StatusReporting[Status Reporting Flow]
+        EventCoordination[Event Coordination Flow]
+    end
+    
+    OrgCoordinator --> PolicyEngine
+    PolicyEngine --> ResourceManager
+    ResourceManager --> FederationManager
+    
+    FederationManager --> ProjectManager
+    ProjectManager --> TeamCoordinator
+    TeamCoordinator --> TaskDispatcher
+    TaskDispatcher --> ProgressTracker
+    
+    ProgressTracker --> PersonAgent
+    PersonAgent --> SkillMatcher
+    SkillMatcher --> TaskProcessor
+    TaskProcessor --> ResultReporter
+    
+    OrgCoordinator --> TaskDelegation
+    ResourceManager --> ResourceSharing
+    ProgressTracker --> StatusReporting
+    FederationManager --> EventCoordination
+    
+    TaskDelegation -.-> ProjectManager
+    ResourceSharing -.-> PersonAgent
+    StatusReporting -.-> OrgCoordinator
+    EventCoordination -.-> TeamCoordinator
+```
+
+## Event-Driven Data Flow
+
+Events propagate data changes throughout the system:
+
+```mermaid
+graph TB
+    subgraph "Event Sources"
+        AgentEvents[Agent Events]
+        WorkflowEvents[Workflow Events]
+        ToolEvents[Tool Events]
+        MemoryEvents[Memory Events]
+        OrganizationEvents[Organization Events]
+    end
+    
+    subgraph "Event Processing"
+        EventBus[Event Bus]
+        EventRouter[Event Router]
+        EventFilter[Event Filter]
+        EventTransformer[Event Transformer]
+    end
+    
+    subgraph "Event Storage"
+        EventStore[Event Store]
+        EventIndex[Event Index]
+        EventArchive[Event Archive]
+        EventMetrics[Event Metrics]
+    end
+    
+    subgraph "Event Consumers"
+        TelemetryConsumer[Telemetry Consumer]
+        LoggingConsumer[Logging Consumer]
+        MonitoringConsumer[Monitoring Consumer]
+        AnalyticsConsumer[Analytics Consumer]
+        NotificationConsumer[Notification Consumer]
+    end
+    
+    AgentEvents --> EventBus
+    WorkflowEvents --> EventBus
+    ToolEvents --> EventBus
+    MemoryEvents --> EventBus
+    OrganizationEvents --> EventBus
+    
+    EventBus --> EventRouter
+    EventRouter --> EventFilter
+    EventFilter --> EventTransformer
+    
+    EventTransformer --> EventStore
+    EventStore --> EventIndex
+    EventIndex --> EventArchive
+    EventStore --> EventMetrics
+    
+    EventTransformer --> TelemetryConsumer
+    EventTransformer --> LoggingConsumer
+    EventTransformer --> MonitoringConsumer
+    EventTransformer --> AnalyticsConsumer
+    EventTransformer --> NotificationConsumer
+```
+
+## Streaming Data Flow
+
+Real-time data streaming for interactive applications:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant StreamManager
+    participant Agent
+    participant LLM
+    participant StreamProcessor
+    participant Storage
+    
+    Client->>StreamManager: Start streaming request
+    StreamManager->>Agent: Initialize streaming agent
+    Agent->>LLM: Start streaming LLM call
+    
+    loop Streaming chunks
+        LLM-->>Agent: Stream chunk
+        Agent->>StreamProcessor: Process chunk
+        StreamProcessor->>StreamProcessor: Transform chunk
+        StreamProcessor-->>StreamManager: Forward processed chunk
+        StreamManager-->>Client: Send chunk to client
+    end
+    
+    LLM-->>Agent: Stream complete
+    Agent->>StreamProcessor: Finalize stream
+    StreamProcessor->>Storage: Store final conversation
+    Storage-->>StreamProcessor: Confirm storage
+    StreamProcessor-->>StreamManager: Stream finalized
+    StreamManager-->>Client: Close stream
+    
+    Note over Client,Storage: Real-time streaming with persistence
+```
+
+## Error and Recovery Data Flow
+
+Error handling and recovery mechanisms maintain data integrity:
+
+```mermaid
+graph TB
+    subgraph "Error Detection"
+        ErrorDetector[Error Detector]
+        ExceptionHandler[Exception Handler]
+        TimeoutMonitor[Timeout Monitor]
+        HealthChecker[Health Checker]
+    end
+    
+    subgraph "Error Analysis"
+        ErrorClassifier[Error Classifier]
+        RootCauseAnalyzer[Root Cause Analyzer]
+        ImpactAssessor[Impact Assessor]
+        RecoveryPlanner[Recovery Planner]
+    end
+    
+    subgraph "Recovery Actions"
+        RetryManager[Retry Manager]
+        FallbackExecutor[Fallback Executor]
+        StateRecovery[State Recovery]
+        DataRepair[Data Repair]
+    end
+    
+    subgraph "Error Persistence"
+        ErrorLog[Error Log]
+        IncidentTracker[Incident Tracker]
+        MetricsUpdater[Metrics Updater]
+        AlertManager[Alert Manager]
+    end
+    
+    ErrorDetector --> ErrorClassifier
+    ExceptionHandler --> ErrorClassifier
+    TimeoutMonitor --> RootCauseAnalyzer
+    HealthChecker --> ImpactAssessor
+    
+    ErrorClassifier --> RecoveryPlanner
+    RootCauseAnalyzer --> RecoveryPlanner
+    ImpactAssessor --> RecoveryPlanner
+    
+    RecoveryPlanner --> RetryManager
+    RecoveryPlanner --> FallbackExecutor
+    RecoveryPlanner --> StateRecovery
+    RecoveryPlanner --> DataRepair
+    
+    RetryManager --> ErrorLog
+    FallbackExecutor --> IncidentTracker
+    StateRecovery --> MetricsUpdater
+    DataRepair --> AlertManager
+```
+
+## Performance Optimization Data Flow
+
+Data flow optimizations for high-performance operations:
+
+```mermaid
+graph TB
+    subgraph "Input Optimization"
+        RequestBatching[Request Batching]
+        DataCompression[Data Compression]
+        InputValidation[Input Validation]
+        EarlyFiltering[Early Filtering]
+    end
+    
+    subgraph "Processing Optimization"
+        ParallelProcessing[Parallel Processing]
+        PipelineOptimization[Pipeline Optimization]
+        MemoryOptimization[Memory Optimization]
+        CPUOptimization[CPU Optimization]
+    end
+    
+    subgraph "Storage Optimization"
+        WriteBatching[Write Batching]
+        ReadCaching[Read Caching]
+        IndexOptimization[Index Optimization]
+        CompressionSchemes[Compression Schemes]
+    end
+    
+    subgraph "Output Optimization"
+        ResponseCaching[Response Caching]
+        StreamingOptimization[Streaming Optimization]
+        CompressionOutput[Output Compression]
+        PrefetchingStrategy[Prefetching Strategy]
+    end
+    
+    RequestBatching --> ParallelProcessing
+    DataCompression --> PipelineOptimization
+    InputValidation --> MemoryOptimization
+    EarlyFiltering --> CPUOptimization
+    
+    ParallelProcessing --> WriteBatching
+    PipelineOptimization --> ReadCaching
+    MemoryOptimization --> IndexOptimization
+    CPUOptimization --> CompressionSchemes
+    
+    WriteBatching --> ResponseCaching
+    ReadCaching --> StreamingOptimization
+    IndexOptimization --> CompressionOutput
+    CompressionSchemes --> PrefetchingStrategy
+```
+
+## Data Consistency and Integrity
+
+Ensuring data consistency across distributed components:
+
+```mermaid
+graph TB
+    subgraph "Consistency Models"
+        StrongConsistency[Strong Consistency]
+        EventualConsistency[Eventual Consistency]
+        CausalConsistency[Causal Consistency]
+        SessionConsistency[Session Consistency]
+    end
+    
+    subgraph "Transaction Management"
+        TransactionCoordinator[Transaction Coordinator]
+        LockManager[Lock Manager]
+        DeadlockDetector[Deadlock Detector]
+        ConflictResolver[Conflict Resolver]
+    end
+    
+    subgraph "Data Validation"
+        SchemaValidator[Schema Validator]
+        IntegrityChecker[Integrity Checker]
+        ConstraintValidator[Constraint Validator]
+        BusinessRuleValidator[Business Rule Validator]
+    end
+    
+    subgraph "Consistency Enforcement"
+        ReadRepair[Read Repair]
+        WriteReconciliation[Write Reconciliation]
+        VectorClocks[Vector Clocks]
+        ConflictResolution[Conflict Resolution]
+    end
+    
+    StrongConsistency --> TransactionCoordinator
+    EventualConsistency --> LockManager
+    CausalConsistency --> DeadlockDetector
+    SessionConsistency --> ConflictResolver
+    
+    TransactionCoordinator --> SchemaValidator
+    LockManager --> IntegrityChecker
+    DeadlockDetector --> ConstraintValidator
+    ConflictResolver --> BusinessRuleValidator
+    
+    SchemaValidator --> ReadRepair
+    IntegrityChecker --> WriteReconciliation
+    ConstraintValidator --> VectorClocks
+    BusinessRuleValidator --> ConflictResolution
+```
+
+This comprehensive data flow architecture ensures that information moves efficiently and reliably through the Mastra system while maintaining consistency, performance, and fault tolerance. The architecture supports both simple single-agent workflows and complex multi-agent organizational coordination scenarios.
