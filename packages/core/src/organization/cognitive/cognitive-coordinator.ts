@@ -76,7 +76,7 @@ export class CognitiveCoordinator extends MastraBase {
 
   constructor(pubsub: PubSub, config: CognitiveCoordinatorConfig) {
     super({ component: RegisteredLogger.COGNITIVE_COORDINATOR, name: config.name });
-    
+
     this.#config = config;
     this.#agents = new Map();
     this.#mindAgents = new Map();
@@ -115,7 +115,7 @@ export class CognitiveCoordinator extends MastraBase {
   public async performDistributedInference(
     query: string,
     participantIds: string[],
-    timeout: number = 30000
+    timeout: number = 30000,
   ): Promise<DistributedCognitiveResult> {
     const requestId = randomUUID();
     const request: DistributedCognitiveRequest = {
@@ -132,7 +132,7 @@ export class CognitiveCoordinator extends MastraBase {
 
     try {
       const results: Record<string, CognitiveResult> = {};
-      const promises = participantIds.map(async (agentId) => {
+      const promises = participantIds.map(async agentId => {
         const agent = this.#agents.get(agentId);
         if (!agent) return null;
 
@@ -148,14 +148,15 @@ export class CognitiveCoordinator extends MastraBase {
 
       const inferenceResults = await Promise.allSettled(promises);
       const successfulResults = inferenceResults
-        .filter((result): result is PromiseFulfilledResult<CognitiveResult> => 
-          result.status === 'fulfilled' && result.value?.success === true
+        .filter(
+          (result): result is PromiseFulfilledResult<CognitiveResult> =>
+            result.status === 'fulfilled' && result.value?.success === true,
         )
         .map(result => result.value);
 
       // Aggregate results
       const aggregatedResult = this.#aggregateInferenceResults(successfulResults);
-      
+
       const distributedResult: DistributedCognitiveResult = {
         requestId,
         success: successfulResults.length > 0,
@@ -200,11 +201,11 @@ export class CognitiveCoordinator extends MastraBase {
       minConfidence?: number;
       maxAge?: number;
       concepts?: string[];
-    }
+    },
   ): Promise<DistributedCognitiveResult> {
     const requestId = randomUUID();
     const sourceAgent = this.#agents.get(sourceAgentId);
-    
+
     if (!sourceAgent) {
       return {
         requestId,
@@ -220,9 +221,9 @@ export class CognitiveCoordinator extends MastraBase {
         minConfidence: knowledgeFilter?.minConfidence || this.#config.knowledgeShareThreshold,
         concepts: knowledgeFilter?.concepts,
       };
-      
+
       const sourceKnowledge = await sourceAgent.queryKnowledge(knowledgeQuery);
-      
+
       if (sourceKnowledge.length === 0) {
         return {
           requestId,
@@ -248,18 +249,18 @@ export class CognitiveCoordinator extends MastraBase {
               atom.name,
               atom.outgoing,
               atom.truthValue.confidence * 0.8, // Reduce confidence for shared knowledge
-              { ...atom.metadata, sharedFrom: sourceAgentId }
+              { ...atom.metadata, sharedFrom: sourceAgentId },
             );
             sharedCount++;
           } catch (error) {
-            this.logger?.debug('Failed to share atom', { 
-              sourceAgent: sourceAgentId, 
-              targetAgent: targetId, 
-              atomId: atom.id 
+            this.logger?.debug('Failed to share atom', {
+              sourceAgent: sourceAgentId,
+              targetAgent: targetId,
+              atomId: atom.id,
             });
           }
         }
-        
+
         transferStats[targetId] = sharedCount;
         totalShared += sharedCount;
       }
@@ -299,14 +300,14 @@ export class CognitiveCoordinator extends MastraBase {
     question: string,
     participantIds: string[],
     options: string[],
-    timeout: number = 60000
+    timeout: number = 60000,
   ): Promise<DistributedCognitiveResult> {
     const requestId = randomUUID();
-    
+
     try {
       // Get responses from each agent
       const responses: Record<string, { choice: string; confidence: number }> = {};
-      
+
       for (const agentId of participantIds) {
         const agent = this.#agents.get(agentId);
         if (!agent) continue;
@@ -317,25 +318,26 @@ export class CognitiveCoordinator extends MastraBase {
             concepts: options,
             minConfidence: 0.3,
           });
-          
+
           // Simple voting based on knowledge confidence
-          let bestOption = options[0];
+          let bestOption = options[0] || '';
           let maxConfidence = 0;
-          
+
           for (const option of options) {
-            const relevantAtoms = knowledgeRelevant.filter(atom => 
-              atom.name?.includes(option) || atom.metadata.concepts?.includes(option)
+            const relevantAtoms = knowledgeRelevant.filter(
+              atom => atom.name?.includes(option) || atom.metadata.concepts?.includes(option),
             );
-            const avgConfidence = relevantAtoms.length > 0
-              ? relevantAtoms.reduce((sum, atom) => sum + atom.truthValue.confidence, 0) / relevantAtoms.length
-              : 0.1;
-            
+            const avgConfidence =
+              relevantAtoms.length > 0
+                ? relevantAtoms.reduce((sum, atom) => sum + atom.truthValue.confidence, 0) / relevantAtoms.length
+                : 0.1;
+
             if (avgConfidence > maxConfidence) {
               maxConfidence = avgConfidence;
               bestOption = option;
             }
           }
-          
+
           responses[agentId] = { choice: bestOption, confidence: maxConfidence };
         } catch (error) {
           this.logger?.error('Agent consensus participation failed', { agentId, error });
@@ -344,22 +346,24 @@ export class CognitiveCoordinator extends MastraBase {
 
       // Calculate consensus
       const voteCounts: Record<string, { count: number; totalConfidence: number; voters: string[] }> = {};
-      
+
       for (const option of options) {
         voteCounts[option] = { count: 0, totalConfidence: 0, voters: [] };
       }
-      
+
       for (const [agentId, response] of Object.entries(responses)) {
         const option = response.choice;
-        voteCounts[option].count++;
-        voteCounts[option].totalConfidence += response.confidence;
-        voteCounts[option].voters.push(agentId);
+        if (voteCounts[option]) {
+          voteCounts[option].count++;
+          voteCounts[option].totalConfidence += response.confidence;
+          voteCounts[option].voters.push(agentId);
+        }
       }
 
       // Find winner
-      let winningOption = options[0];
+      let winningOption = options[0] || '';
       let maxScore = 0;
-      
+
       for (const [option, stats] of Object.entries(voteCounts)) {
         const score = stats.count * (stats.totalConfidence / Math.max(1, stats.count));
         if (score > maxScore) {
@@ -369,12 +373,10 @@ export class CognitiveCoordinator extends MastraBase {
       }
 
       const totalVotes = Object.values(responses).length;
-      const winnerVotes = voteCounts[winningOption].count;
+      const winnerVotes = voteCounts[winningOption]?.count || 0;
       const agreement = totalVotes > 0 ? winnerVotes / totalVotes : 0;
-      
-      const dissenting = participantIds.filter(id => 
-        responses[id] && responses[id].choice !== winningOption
-      );
+
+      const dissenting = participantIds.filter(id => responses[id] && responses[id].choice !== winningOption);
 
       const result: DistributedCognitiveResult = {
         requestId,
@@ -412,7 +414,7 @@ export class CognitiveCoordinator extends MastraBase {
   public async runMindAgentsCycle(): Promise<MindAgentResult[]> {
     const currentTime = Date.now();
     const results: MindAgentResult[] = [];
-    
+
     const cognitiveContext: CognitiveContext = {
       requestId: randomUUID(),
       requestType: 'cognitive-inference',
@@ -472,12 +474,12 @@ export class CognitiveCoordinator extends MastraBase {
    */
   #setupEventListeners(): void {
     // Listen for cognitive events
-    this.#pubsub.subscribe('cognitive:inference-request', async (event) => {
+    this.#pubsub.subscribe('cognitive:inference-request', async event => {
       this.logger?.debug('Received cognitive inference request', { event });
       // Handle distributed inference requests
     });
 
-    this.#pubsub.subscribe('cognitive:knowledge-share', async (event) => {
+    this.#pubsub.subscribe('cognitive:knowledge-share', async event => {
       this.logger?.debug('Received knowledge sharing request', { event });
       // Handle knowledge sharing requests
     });
@@ -513,5 +515,3 @@ export class CognitiveCoordinator extends MastraBase {
     };
   }
 }
-
-export type { CognitiveCoordinatorConfig, DistributedCognitiveRequest, DistributedCognitiveResult };

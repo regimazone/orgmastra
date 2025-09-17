@@ -7,7 +7,7 @@ import type { CognitiveContext, CognitiveResult } from './types';
 /**
  * Mind agent types for specialized cognitive processing
  */
-export type MindAgentType = 
+export type MindAgentType =
   | 'attention-allocation'
   | 'pattern-recognition'
   | 'goal-pursuit'
@@ -88,7 +88,7 @@ export abstract class MindAgent extends MastraBase {
     try {
       const result = await this.execute(context);
       result.executionTime = Date.now() - startTime;
-      
+
       this.logger?.debug('Mind agent executed', {
         agentId: this.config.id,
         type: this.config.type,
@@ -182,7 +182,7 @@ export class AttentionAllocationAgent extends MindAgent {
     // Simulate attention allocation logic
     actions.push('redistributed-attention');
     actions.push('updated-focus-threshold');
-    
+
     if (this.config.parameters.enableDecay) {
       actions.push('applied-attention-decay');
     }
@@ -214,7 +214,7 @@ export class PatternRecognitionAgent extends MindAgent {
     // Simulate pattern recognition logic
     actions.push('identified-patterns');
     actions.push('updated-pattern-index');
-    
+
     if (this.config.parameters.createAbstractions) {
       actions.push('created-abstract-patterns');
     }
@@ -246,7 +246,7 @@ export class GoalPursuitAgent extends MindAgent {
     // Simulate goal pursuit logic
     actions.push('evaluated-goals');
     actions.push('planned-actions');
-    
+
     if (this.config.parameters.adaptivePlanning) {
       actions.push('adapted-plans');
     }
@@ -278,7 +278,7 @@ export class LearningAgent extends MindAgent {
     // Simulate learning logic
     actions.push('updated-truth-values');
     actions.push('reinforced-patterns');
-    
+
     if (this.config.parameters.enableForgetting) {
       actions.push('forgot-low-confidence-atoms');
     }
@@ -310,7 +310,7 @@ export class MemoryConsolidationAgent extends MindAgent {
     // Simulate memory consolidation logic
     actions.push('consolidated-memories');
     actions.push('promoted-important-atoms');
-    
+
     if (this.config.parameters.enableCompression) {
       actions.push('compressed-redundant-memories');
     }
@@ -326,5 +326,3 @@ export class MemoryConsolidationAgent extends MindAgent {
     };
   }
 }
-
-export type { MindAgentType, MindAgentConfig, MindAgentResult };

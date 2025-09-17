@@ -13,13 +13,13 @@ export interface TruthValue {
 /**
  * Atom types in the cognitive architecture
  */
-export type AtomType = 
-  | 'concept' 
-  | 'predicate' 
-  | 'evaluation' 
-  | 'inheritance' 
-  | 'similarity' 
-  | 'implication' 
+export type AtomType =
+  | 'concept'
+  | 'predicate'
+  | 'evaluation'
+  | 'inheritance'
+  | 'similarity'
+  | 'implication'
   | 'equivalence'
   | 'and'
   | 'or'
@@ -49,6 +49,32 @@ export interface AttentionValue {
   sti: number; // Short-term importance [-1000, 1000]
   lti: number; // Long-term importance [-1000, 1000]
   vlti: number; // Very long-term importance [0, 1]
+}
+
+/**
+ * PLN inference rule types
+ */
+export type PLNInferenceRule =
+  | 'deduction'
+  | 'induction'
+  | 'abduction'
+  | 'modus-ponens'
+  | 'modus-tollens'
+  | 'hypothetical-syllogism'
+  | 'disjunctive-syllogism'
+  | 'simplification'
+  | 'conjunction'
+  | 'disjunction';
+
+/**
+ * Inference result containing derived atoms and confidence
+ */
+export interface InferenceResult {
+  derivedAtoms: Atom[];
+  rule: PLNInferenceRule;
+  premises: string[]; // IDs of premise atoms
+  confidence: number;
+  explanation: string;
 }
 
 /**

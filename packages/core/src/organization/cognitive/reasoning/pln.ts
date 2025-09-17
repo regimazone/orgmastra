@@ -7,9 +7,9 @@ import type { Atom, AtomType, TruthValue } from '../types';
 /**
  * PLN inference rule types
  */
-export type PLNInferenceRule = 
+export type PLNInferenceRule =
   | 'deduction'
-  | 'induction' 
+  | 'induction'
   | 'abduction'
   | 'modus-ponens'
   | 'modus-tollens'
@@ -55,7 +55,7 @@ export class PLNReasoner extends MastraBase {
 
   constructor(config: PLNReasonerConfig) {
     super({ component: RegisteredLogger.PLN_REASONER, name: config.name });
-    
+
     this.#config = config;
     this.#inferenceHistory = new Map();
     this.#activeInferences = new Set();
@@ -65,18 +65,16 @@ export class PLNReasoner extends MastraBase {
    * Perform inference on a set of atoms
    */
   public async performInference(
-    atoms: Atom[], 
+    atoms: Atom[],
     targetConcepts?: string[],
-    rules?: PLNInferenceRule[]
+    rules?: PLNInferenceRule[],
   ): Promise<InferenceResult[]> {
     const inferenceId = randomUUID();
     this.#activeInferences.add(inferenceId);
 
     try {
       const results: InferenceResult[] = [];
-      const rulesToApply = rules || [
-        'deduction', 'induction', 'modus-ponens', 'conjunction'
-      ];
+      const rulesToApply = rules || ['deduction', 'induction', 'modus-ponens', 'conjunction'];
 
       for (const rule of rulesToApply) {
         const ruleResults = await this.#applyRule(rule, atoms, targetConcepts);
@@ -87,9 +85,7 @@ export class PLNReasoner extends MastraBase {
       }
 
       // Filter by confidence threshold
-      const validResults = results.filter(
-        result => result.confidence >= this.#config.minConfidenceThreshold
-      );
+      const validResults = results.filter(result => result.confidence >= this.#config.minConfidenceThreshold);
 
       this.#inferenceHistory.set(inferenceId, validResults);
       this.logger?.info('PLN inference completed', {
@@ -117,23 +113,31 @@ export class PLNReasoner extends MastraBase {
         const imp1 = implications[i];
         const imp2 = implications[j];
 
-        if (imp1.outgoing && imp2.outgoing && 
-            imp1.outgoing.length >= 2 && imp2.outgoing.length >= 2 &&
-            imp1.outgoing[1] === imp2.outgoing[0]) {
-          
-          const newAtom = await this.#createImplicationAtom(
-            imp1.outgoing[0],
-            imp2.outgoing[1],
-            this.#combineDeductiveTruthValues(imp1.truthValue, imp2.truthValue)
-          );
+        if (
+          imp1?.outgoing &&
+          imp2?.outgoing &&
+          imp1.outgoing.length >= 2 &&
+          imp2.outgoing.length >= 2 &&
+          imp1.outgoing[1] === imp2.outgoing[0]
+        ) {
+          const antecedent = imp1.outgoing[0];
+          const consequent = imp2.outgoing[1];
 
-          results.push({
-            derivedAtoms: [newAtom],
-            rule: 'deduction',
-            premises: [imp1.id, imp2.id],
-            confidence: newAtom.truthValue.confidence,
-            explanation: `Deduced ${imp1.outgoing[0]} → ${imp2.outgoing[1]} from transitivity`,
-          });
+          if (antecedent && consequent) {
+            const newAtom = await this.#createImplicationAtom(
+              antecedent,
+              consequent,
+              this.#combineDeductiveTruthValues(imp1.truthValue, imp2.truthValue),
+            );
+
+            results.push({
+              derivedAtoms: [newAtom],
+              rule: 'deduction',
+              premises: [imp1.id, imp2.id],
+              confidence: newAtom.truthValue.confidence,
+              explanation: `Deduced ${antecedent} → ${consequent} from transitivity`,
+            });
+          }
         }
       }
     }
@@ -154,16 +158,19 @@ export class PLNReasoner extends MastraBase {
     for (const evaluation of evaluations) {
       if (evaluation.outgoing && evaluation.outgoing.length >= 2) {
         const pattern = evaluation.outgoing[0]; // Predicate
-        if (!patternGroups.has(pattern)) {
-          patternGroups.set(pattern, []);
+        if (pattern) {
+          if (!patternGroups.has(pattern)) {
+            patternGroups.set(pattern, []);
+          }
+          patternGroups.get(pattern)!.push(evaluation);
         }
-        patternGroups.get(pattern)!.push(evaluation);
       }
     }
 
     // Look for inductive patterns
     for (const [pattern, evaluations] of patternGroups.entries()) {
-      if (evaluations.length >= 3) { // Need multiple instances for induction
+      if (evaluations.length >= 3) {
+        // Need multiple instances for induction
         const avgStrength = evaluations.reduce((sum, e) => sum + e.truthValue.strength, 0) / evaluations.length;
         const avgConfidence = Math.min(0.9, evaluations.length * 0.1); // Confidence grows with instances
 
@@ -202,14 +209,16 @@ export class PLNReasoner extends MastraBase {
       const antecedent = implication.outgoing[0];
       const consequent = implication.outgoing[1];
 
+      if (!antecedent || !consequent) continue;
+
       // Find matching concept for antecedent
       const matchingConcept = concepts.find(c => c.id === antecedent);
       if (matchingConcept && matchingConcept.truthValue.strength > 0.5) {
-        
-        const consequentAtom = concepts.find(c => c.id === consequent) ||
-          await this.#createConceptAtom(consequent, this.#combineModusPonensTruthValues(
-            implication.truthValue,
-            matchingConcept.truthValue
+        const consequentAtom =
+          concepts.find(c => c.id === consequent) ||
+          (await this.#createConceptAtom(
+            consequent,
+            this.#combineModusPonensTruthValues(implication.truthValue, matchingConcept.truthValue),
           ));
 
         results.push({
@@ -230,9 +239,7 @@ export class PLNReasoner extends MastraBase {
    */
   public async applyConjunction(atoms: Atom[]): Promise<InferenceResult[]> {
     const results: InferenceResult[] = [];
-    const concepts = atoms.filter(atom => 
-      atom.type === 'concept' && atom.truthValue.strength > 0.5
-    );
+    const concepts = atoms.filter(atom => atom.type === 'concept' && atom.truthValue.strength > 0.5);
 
     // Create conjunctions of compatible concepts
     for (let i = 0; i < concepts.length; i++) {
@@ -244,7 +251,7 @@ export class PLNReasoner extends MastraBase {
           const conjunctionAtom = await this.#createConjunctionAtom(
             concept1.id,
             concept2.id,
-            this.#combineConjunctionTruthValues(concept1.truthValue, concept2.truthValue)
+            this.#combineConjunctionTruthValues(concept1.truthValue, concept2.truthValue),
           );
 
           results.push({
@@ -264,11 +271,7 @@ export class PLNReasoner extends MastraBase {
   /**
    * Apply specific inference rule
    */
-  async #applyRule(
-    rule: PLNInferenceRule, 
-    atoms: Atom[], 
-    targetConcepts?: string[]
-  ): Promise<InferenceResult[]> {
+  async #applyRule(rule: PLNInferenceRule, atoms: Atom[], targetConcepts?: string[]): Promise<InferenceResult[]> {
     switch (rule) {
       case 'deduction':
         return this.applyDeduction(atoms);
@@ -291,7 +294,7 @@ export class PLNReasoner extends MastraBase {
     // Deduction formula: strength = s1 * s2, confidence = c1 * c2 * s1 * s2
     const strength = tv1.strength * tv2.strength;
     const confidence = tv1.confidence * tv2.confidence * tv1.strength * tv2.strength;
-    
+
     return {
       strength: Math.max(0, Math.min(1, strength)),
       confidence: Math.max(0, Math.min(1, confidence)),
@@ -305,7 +308,7 @@ export class PLNReasoner extends MastraBase {
   #combineModusPonensTruthValues(tvImplication: TruthValue, tvAntecedent: TruthValue): TruthValue {
     const strength = tvImplication.strength * tvAntecedent.strength;
     const confidence = tvImplication.confidence * tvAntecedent.confidence;
-    
+
     return {
       strength: Math.max(0, Math.min(1, strength)),
       confidence: Math.max(0, Math.min(1, confidence)),
@@ -319,7 +322,7 @@ export class PLNReasoner extends MastraBase {
   #combineConjunctionTruthValues(tv1: TruthValue, tv2: TruthValue): TruthValue {
     const strength = tv1.strength * tv2.strength;
     const confidence = Math.min(tv1.confidence, tv2.confidence);
-    
+
     return {
       strength: Math.max(0, Math.min(1, strength)),
       confidence: Math.max(0, Math.min(1, confidence)),
@@ -398,9 +401,6 @@ export class PLNReasoner extends MastraBase {
    */
   #areConceptsCompatible(concept1: Atom, concept2: Atom): boolean {
     // Simple compatibility check - in practice this would be more sophisticated
-    return concept1.id !== concept2.id && 
-           concept1.truthValue.confidence > 0.3 &&
-           concept2.truthValue.confidence > 0.3;
+    return concept1.id !== concept2.id && concept1.truthValue.confidence > 0.3 && concept2.truthValue.confidence > 0.3;
   }
 }
-
