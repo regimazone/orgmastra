@@ -15,6 +15,12 @@ export const RegisteredLogger = {
   STORAGE: 'STORAGE',
   EMBEDDINGS: 'EMBEDDINGS',
   MCP_SERVER: 'MCP_SERVER',
+  // Cognitive architecture components
+  ATOMSPACE: 'ATOMSPACE',
+  ATTENTION: 'ATTENTION',
+  PLN_REASONER: 'PLN_REASONER',
+  MIND_AGENT: 'MIND_AGENT',
+  COGNITIVE_COORDINATOR: 'COGNITIVE_COORDINATOR',
 } as const;
 
 export type RegisteredLogger = (typeof RegisteredLogger)[keyof typeof RegisteredLogger];
