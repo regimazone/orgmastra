@@ -11,6 +11,9 @@ export { FederationCoordinator } from './coordination/federation';
 export { DelegationManager } from './coordination/delegation';
 export { RoutingSystem } from './coordination/routing';
 
+// Export cognitive architecture components
+export * from './cognitive';
+
 // Export coordination types
 export type {
   EntityRegistry,
