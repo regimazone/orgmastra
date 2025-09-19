@@ -6,7 +6,6 @@ import type {
   CoordinationContext,
   CoordinationResult,
   DelegationRequest,
-  CollaborationRequest,
 } from '../types';
 
 /**
