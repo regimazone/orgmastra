@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
+import type { ToolsetsInput } from '../agent/types';
 import { MastraBase } from '../base';
-import { MastraError, ErrorDomain, ErrorCategory } from '../error';
+import type { Mastra } from '../mastra';
+import type { MastraMemory } from '../memory/memory';
 import { InstrumentClass } from '../telemetry';
 import type { Workflow } from '../workflows';
-import type { ToolsetsInput } from '../agent/types';
-import type { MastraMemory } from '../memory/memory';
+import { Person } from './person';
 import type {
   ProjectConfig,
   PersonConfig,
@@ -14,10 +15,7 @@ import type {
   DelegationRequest,
   CollaborationRequest,
   OrganizationalPrimitives,
-  Role,
 } from './types';
-import { Person } from './person';
-import type { Mastra } from '../mastra';
 
 /**
  * Represents a project or team within an organizational structure.
@@ -160,7 +158,7 @@ export class Project extends MastraBase {
 
     // Emit status change event
     if (this.#mastra?.pubsub) {
-      this.#mastra.pubsub.publish('project:status-changed', {
+      void this.#mastra.pubsub.publish('project:status-changed', {
         
         type: 'project:status-changed',
         data: {
@@ -197,7 +195,7 @@ export class Project extends MastraBase {
 
     // Emit member added event
     if (this.#mastra?.pubsub) {
-      this.#mastra.pubsub.publish('project:member-added', {
+      void this.#mastra.pubsub.publish('project:member-added', {
         
         type: 'project:member-added',
         data: {
@@ -216,7 +214,7 @@ export class Project extends MastraBase {
     const removed = this.#members.delete(memberId);
     
     if (removed && this.#mastra?.pubsub) {
-      this.#mastra.pubsub.publish('project:member-removed', {
+      void this.#mastra.pubsub.publish('project:member-removed', {
         
         type: 'project:member-removed',
         data: {
@@ -542,7 +540,7 @@ export class Project extends MastraBase {
   /**
    * Handle information requests
    */
-  async #handleInformationRequest(context: CoordinationContext): Promise<CoordinationResult> {
+  async #handleInformationRequest(_context: CoordinationContext): Promise<CoordinationResult> {
     return {
       success: true,
       data: this.getProjectStatus(),

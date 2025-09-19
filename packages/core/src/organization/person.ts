@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
-import { MastraBase } from '../base';
-import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import { InstrumentClass } from '../telemetry';
+import type { CoreMessage } from 'ai';
 import { Agent } from '../agent';
 import type { AgentGenerateOptions, AgentStreamOptions } from '../agent/types';
-import type { CoreMessage } from 'ai';
+import { MastraBase } from '../base';
+import { MastraError, ErrorDomain, ErrorCategory } from '../error';
+import type { Mastra } from '../mastra';
+import { InstrumentClass } from '../telemetry';
 import type {
   PersonConfig,
   OrganizationalPosition,
@@ -15,7 +16,6 @@ import type {
   CollaborationRequest,
   OrganizationalPrimitives,
 } from './types';
-import type { Mastra } from '../mastra';
 
 /**
  * Represents a person within an organizational structure.
@@ -441,7 +441,7 @@ export class Person extends MastraBase {
   /**
    * Handle information requests
    */
-  async #handleInformationRequest(context: CoordinationContext): Promise<CoordinationResult> {
+  async #handleInformationRequest(_context: CoordinationContext): Promise<CoordinationResult> {
     return {
       success: true,
       data: this.getStatus(),

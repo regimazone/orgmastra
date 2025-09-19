@@ -1,10 +1,10 @@
 import { randomUUID } from 'crypto';
 import { MastraBase } from '../../base';
+import type { PubSub } from '../../events/pubsub';
 import { RegisteredLogger } from '../../logger/constants';
 import { InstrumentClass } from '../../telemetry';
-import type { PubSub } from '../../events/pubsub';
-import { CognitiveAgent } from './cognitive-agent';
-import { MindAgent, type MindAgentConfig, type MindAgentResult } from './mind-agent';
+import type { CognitiveAgent } from './cognitive-agent';
+import type { MindAgent, type MindAgentConfig, type MindAgentResult } from './mind-agent';
 import type { CognitiveContext, CognitiveResult } from './types';
 
 /**

@@ -1,13 +1,16 @@
 import { randomUUID } from 'crypto';
-import { MastraBase } from '../../base';
-import { InstrumentClass } from '../../telemetry';
 import { Agent } from '../../agent';
+import { MastraBase } from '../../base';
+import type { Mastra } from '../../mastra';
+import { InstrumentClass } from '../../telemetry';
 import { Person } from '../person';
 import type { PersonConfig, OrganizationalPosition } from '../types';
-import type { Mastra } from '../../mastra';
-import { AtomSpace, type AtomSpaceConfig } from './atomspace';
-import { AttentionBank, type AttentionBankConfig } from './attention';
-import { PLNReasoner, type PLNReasonerConfig } from './reasoning/pln';
+import { AtomSpace  } from './atomspace';
+import type {AtomSpaceConfig} from './atomspace';
+import { AttentionBank  } from './attention';
+import type {AttentionBankConfig} from './attention';
+import { PLNReasoner  } from './reasoning/pln';
+import type {PLNReasonerConfig} from './reasoning/pln';
 import type { 
   Atom, 
   AtomType, 
