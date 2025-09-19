@@ -1,24 +1,12 @@
-import { randomUUID } from 'crypto';
-import { Agent } from '../../agent';
-import { MastraBase } from '../../base';
-import type { Mastra } from '../../mastra';
 import { InstrumentClass } from '../../telemetry';
 import { Person } from '../person';
-import type { PersonConfig, OrganizationalPosition } from '../types';
+import type { PersonConfig } from '../types';
 import { AtomSpace  } from './atomspace';
 import type {AtomSpaceConfig} from './atomspace';
 import { AttentionBank  } from './attention';
 import type {AttentionBankConfig} from './attention';
 import { PLNReasoner  } from './reasoning/pln';
 import type {PLNReasonerConfig} from './reasoning/pln';
-import type { 
-  Atom, 
-  AtomType, 
-  TruthValue, 
-  AttentionValue, 
-  CognitiveContext, 
-  CognitiveResult 
-} from './types';
 
 /**
  * Configuration for cognitive agent
