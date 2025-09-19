@@ -1,8 +1,7 @@
-import { randomUUID } from 'crypto';
 import { MastraBase } from '../../base';
 import { RegisteredLogger } from '../../logger/constants';
 import { InstrumentClass } from '../../telemetry';
-import type { CognitiveContext, CognitiveResult } from './types';
+import type { CognitiveContext } from './types';
 
 /**
  * Mind agent types for specialized cognitive processing
@@ -175,7 +174,7 @@ export class AttentionAllocationAgent extends MindAgent {
     super({ ...config, type: 'attention-allocation' });
   }
 
-  async execute(context: CognitiveContext): Promise<MindAgentResult> {
+  async execute(_context: CognitiveContext): Promise<MindAgentResult> {
     const actions: string[] = [];
     const resources: string[] = ['attention-bank'];
 
@@ -207,7 +206,7 @@ export class PatternRecognitionAgent extends MindAgent {
     super({ ...config, type: 'pattern-recognition' });
   }
 
-  async execute(context: CognitiveContext): Promise<MindAgentResult> {
+  async execute(_context: CognitiveContext): Promise<MindAgentResult> {
     const actions: string[] = [];
     const resources: string[] = ['atomspace', 'pattern-index'];
 
@@ -239,7 +238,7 @@ export class GoalPursuitAgent extends MindAgent {
     super({ ...config, type: 'goal-pursuit' });
   }
 
-  async execute(context: CognitiveContext): Promise<MindAgentResult> {
+  async execute(_context: CognitiveContext): Promise<MindAgentResult> {
     const actions: string[] = [];
     const resources: string[] = ['goal-stack', 'action-planner'];
 
@@ -271,7 +270,7 @@ export class LearningAgent extends MindAgent {
     super({ ...config, type: 'learning' });
   }
 
-  async execute(context: CognitiveContext): Promise<MindAgentResult> {
+  async execute(_context: CognitiveContext): Promise<MindAgentResult> {
     const actions: string[] = [];
     const resources: string[] = ['atomspace', 'truth-values'];
 
@@ -303,7 +302,7 @@ export class MemoryConsolidationAgent extends MindAgent {
     super({ ...config, type: 'memory-consolidation' });
   }
 
-  async execute(context: CognitiveContext): Promise<MindAgentResult> {
+  async execute(_context: CognitiveContext): Promise<MindAgentResult> {
     const actions: string[] = [];
     const resources: string[] = ['atomspace', 'long-term-memory'];
 

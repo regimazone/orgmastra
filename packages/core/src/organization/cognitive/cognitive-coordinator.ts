@@ -4,7 +4,7 @@ import type { PubSub } from '../../events/pubsub';
 import { RegisteredLogger } from '../../logger/constants';
 import { InstrumentClass } from '../../telemetry';
 import type { CognitiveAgent } from './cognitive-agent';
-import type { MindAgent, type MindAgentConfig, type MindAgentResult } from './mind-agent';
+import type { MindAgent, MindAgentResult } from './mind-agent';
 import type { CognitiveContext, CognitiveResult } from './types';
 
 /**
@@ -252,7 +252,7 @@ export class CognitiveCoordinator extends MastraBase {
               { ...atom.metadata, sharedFrom: sourceAgentId },
             );
             sharedCount++;
-          } catch (error) {
+          } catch {
             this.logger?.debug('Failed to share atom', {
               sourceAgent: sourceAgentId,
               targetAgent: targetId,
@@ -300,7 +300,7 @@ export class CognitiveCoordinator extends MastraBase {
     question: string,
     participantIds: string[],
     options: string[],
-    timeout: number = 60000,
+    _timeout: number = 60000,
   ): Promise<DistributedCognitiveResult> {
     const requestId = randomUUID();
 
@@ -474,12 +474,12 @@ export class CognitiveCoordinator extends MastraBase {
    */
   #setupEventListeners(): void {
     // Listen for cognitive events
-    this.#pubsub.subscribe('cognitive:inference-request', async event => {
+    void this.#pubsub.subscribe('cognitive:inference-request', async event => {
       this.logger?.debug('Received cognitive inference request', { event });
       // Handle distributed inference requests
     });
 
-    this.#pubsub.subscribe('cognitive:knowledge-share', async event => {
+    void this.#pubsub.subscribe('cognitive:knowledge-share', async event => {
       this.logger?.debug('Received knowledge sharing request', { event });
       // Handle knowledge sharing requests
     });

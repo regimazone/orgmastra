@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { MastraBase } from '../../../base';
 import { RegisteredLogger } from '../../../logger/constants';
 import { InstrumentClass } from '../../../telemetry';
-import type { Atom, AtomType, TruthValue } from '../types';
+import type { Atom, TruthValue } from '../types';
 
 /**
  * PLN inference rule types
@@ -151,7 +151,7 @@ export class PLNReasoner extends MastraBase {
   public async applyInduction(atoms: Atom[]): Promise<InferenceResult[]> {
     const results: InferenceResult[] = [];
     const evaluations = atoms.filter(atom => atom.type === 'evaluation');
-    const implications = atoms.filter(atom => atom.type === 'implication');
+    const _implications = atoms.filter(atom => atom.type === 'implication');
 
     // Group evaluations by predicate patterns
     const patternGroups = new Map<string, Atom[]>();
@@ -271,7 +271,7 @@ export class PLNReasoner extends MastraBase {
   /**
    * Apply specific inference rule
    */
-  async #applyRule(rule: PLNInferenceRule, atoms: Atom[], targetConcepts?: string[]): Promise<InferenceResult[]> {
+  async #applyRule(rule: PLNInferenceRule, atoms: Atom[], _targetConcepts?: string[]): Promise<InferenceResult[]> {
     switch (rule) {
       case 'deduction':
         return this.applyDeduction(atoms);
