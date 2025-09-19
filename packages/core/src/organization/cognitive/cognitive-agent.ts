@@ -1,12 +1,13 @@
 import { InstrumentClass } from '../../telemetry';
 import { Person } from '../person';
 import type { PersonConfig } from '../types';
-import { AtomSpace  } from './atomspace';
-import type {AtomSpaceConfig} from './atomspace';
-import { AttentionBank  } from './attention';
-import type {AttentionBankConfig} from './attention';
-import { PLNReasoner  } from './reasoning/pln';
-import type {PLNReasonerConfig} from './reasoning/pln';
+import { AtomSpace } from './atomspace';
+import type { AtomSpaceConfig } from './atomspace';
+import { AttentionBank } from './attention';
+import type { AttentionBankConfig } from './attention';
+import { PLNReasoner } from './reasoning/pln';
+import type { PLNReasonerConfig } from './reasoning/pln';
+import type { AtomType, Atom, CognitiveResult, AttentionValue } from './types';
 
 /**
  * Configuration for cognitive agent
@@ -41,7 +42,7 @@ export interface CognitiveStatistics {
 }
 
 /**
- * Cognitive agent that combines traditional agent capabilities with 
+ * Cognitive agent that combines traditional agent capabilities with
  * OpenCog-inspired cognitive architecture
  */
 @InstrumentClass({
@@ -59,10 +60,10 @@ export class CognitiveAgent extends Person {
 
   constructor(config: CognitiveAgentConfig) {
     super(config);
-    
+
     this.#cognitiveCapabilities = new Set(config.cognitiveCapabilities);
     this.#autonomousProcessing = config.autonomousProcessing ?? true;
-    
+
     // Initialize cognitive components
     this.#atomSpace = new AtomSpace({
       name: `${config.id}_atomspace`,
@@ -115,14 +116,14 @@ export class CognitiveAgent extends Person {
     name?: string,
     relatedConcepts?: string[],
     confidence: number = 0.7,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<Atom> {
     const atom = await this.#atomSpace.addAtom(
       type,
       name,
       relatedConcepts,
       { strength: 0.8, confidence, count: 1 },
-      metadata
+      metadata,
     );
 
     // Allocate initial attention
@@ -165,16 +166,11 @@ export class CognitiveAgent extends Person {
   /**
    * Perform cognitive inference
    */
-  public async performInference(
-    targetConcepts?: string[],
-    rules?: string[]
-  ): Promise<CognitiveResult> {
+  public async performInference(targetConcepts?: string[], rules?: string[]): Promise<CognitiveResult> {
     try {
       // Get atoms in attention focus
       const focusedAtomIds = this.#attentionBank.getFocusedAtoms();
-      const focusedAtoms = focusedAtomIds
-        .map(id => this.#atomSpace.getAtom(id))
-        .filter(Boolean) as Atom[];
+      const focusedAtoms = focusedAtomIds.map(id => this.#atomSpace.getAtom(id)).filter(Boolean) as Atom[];
 
       if (focusedAtoms.length === 0) {
         return {
@@ -187,11 +183,7 @@ export class CognitiveAgent extends Person {
       }
 
       // Perform PLN inference
-      const inferenceResults = await this.#reasoner.performInference(
-        focusedAtoms,
-        targetConcepts,
-        rules as any[]
-      );
+      const inferenceResults = await this.#reasoner.performInference(focusedAtoms, targetConcepts, rules as any[]);
 
       // Add derived atoms to AtomSpace
       const newAtoms: Atom[] = [];
@@ -202,7 +194,7 @@ export class CognitiveAgent extends Person {
             derivedAtom.name,
             derivedAtom.outgoing,
             derivedAtom.truthValue,
-            { ...derivedAtom.metadata, inferred: true }
+            { ...derivedAtom.metadata, inferred: true },
           );
           newAtoms.push(addedAtom);
 
@@ -210,7 +202,7 @@ export class CognitiveAgent extends Person {
           this.#attentionBank.allocateAttention(
             addedAtom.id,
             Math.floor(derivedAtom.truthValue.confidence * 50),
-            Math.floor(derivedAtom.truthValue.strength * 20)
+            Math.floor(derivedAtom.truthValue.strength * 20),
           );
         }
       }
@@ -223,9 +215,10 @@ export class CognitiveAgent extends Person {
         data: {
           inferredAtoms: newAtoms,
           conclusions: inferenceResults.map(r => r.explanation),
-          confidence: inferenceResults.length > 0 
-            ? inferenceResults.reduce((sum, r) => sum + r.confidence, 0) / inferenceResults.length
-            : 0,
+          confidence:
+            inferenceResults.length > 0
+              ? inferenceResults.reduce((sum, r) => sum + r.confidence, 0) / inferenceResults.length
+              : 0,
         },
         metadata: {
           executionTime: Date.now(),
@@ -255,37 +248,35 @@ export class CognitiveAgent extends Person {
         this.#attentionBank.allocateAttention(atom.id, intensity, intensity * 0.5);
       }
     }
-    
-    this.logger?.debug('Attention focused', { 
-      agentId: this.id, 
-      concepts: conceptNames, 
-      intensity 
+
+    this.logger?.debug('Attention focused', {
+      agentId: this.id,
+      concepts: conceptNames,
+      intensity,
     });
   }
 
   /**
    * Learn from experience by updating truth values
    */
-  public async learn(
-    experience: {
-      concepts: string[];
-      outcome: 'positive' | 'negative' | 'neutral';
-      strength: number;
-    }
-  ): Promise<void> {
-    const strengthDelta = experience.outcome === 'positive' ? experience.strength :
-                         experience.outcome === 'negative' ? -experience.strength : 0;
+  public async learn(experience: {
+    concepts: string[];
+    outcome: 'positive' | 'negative' | 'neutral';
+    strength: number;
+  }): Promise<void> {
+    const strengthDelta =
+      experience.outcome === 'positive'
+        ? experience.strength
+        : experience.outcome === 'negative'
+          ? -experience.strength
+          : 0;
 
     for (const conceptName of experience.concepts) {
       const atoms = this.#atomSpace.getAtomsByName(conceptName);
       for (const atom of atoms) {
         // Update truth value based on experience
-        const newStrength = Math.max(0, Math.min(1, 
-          atom.truthValue.strength + strengthDelta * 0.1
-        ));
-        const newConfidence = Math.min(1, 
-          atom.truthValue.confidence + 0.05
-        );
+        const newStrength = Math.max(0, Math.min(1, atom.truthValue.strength + strengthDelta * 0.1));
+        const newConfidence = Math.min(1, atom.truthValue.confidence + 0.05);
 
         atom.truthValue = {
           strength: newStrength,
@@ -294,11 +285,7 @@ export class CognitiveAgent extends Person {
         };
 
         // Allocate attention based on learning outcome
-        this.#attentionBank.allocateAttention(
-          atom.id, 
-          Math.abs(strengthDelta) * 20,
-          strengthDelta > 0 ? 10 : -5
-        );
+        this.#attentionBank.allocateAttention(atom.id, Math.abs(strengthDelta) * 20, strengthDelta > 0 ? 10 : -5);
       }
     }
 
@@ -321,10 +308,12 @@ export class CognitiveAgent extends Person {
    */
   public getAttentionFocus(): Array<{ atom: Atom; attention: AttentionValue }> {
     const focusedIds = this.#attentionBank.getFocusedAtoms();
-    return focusedIds.map(id => ({
-      atom: this.#atomSpace.getAtom(id)!,
-      attention: this.#attentionBank.getAttentionValue(id)!,
-    })).filter(item => item.atom);
+    return focusedIds
+      .map(id => ({
+        atom: this.#atomSpace.getAtom(id)!,
+        attention: this.#attentionBank.getAttentionValue(id)!,
+      }))
+      .filter(item => item.atom);
   }
 
   /**
@@ -373,7 +362,7 @@ export class CognitiveAgent extends Person {
     try {
       // 1. Update attention dynamics
       const topAttention = this.#attentionBank.getTopAttentionAtoms(10);
-      
+
       // 2. Perform inference on focused atoms
       if (topAttention.length > 0) {
         await this.performInference();
@@ -391,7 +380,7 @@ export class CognitiveAgent extends Person {
       this.#updateCognitiveLoad();
 
       this.#statistics.processingCycles++;
-      
+
       this.logger?.debug('Cognitive loop completed', {
         agentId: this.id,
         cycle: this.#statistics.processingCycles,
@@ -407,7 +396,7 @@ export class CognitiveAgent extends Person {
    */
   #updateStatistics(): void {
     const attentionStats = this.#attentionBank.getStatistics();
-    
+
     this.#statistics.atomCount = attentionStats.totalAtoms;
     this.#statistics.attentionFocus = attentionStats.focusedAtoms;
     this.#statistics.averageConfidence = attentionStats.averageSTI / 100; // Normalize
@@ -423,10 +412,10 @@ export class CognitiveAgent extends Person {
       this.#statistics.atomCount / 10000, // Memory load
       this.#statistics.inferenceCount / 100, // Processing load
     ];
-    
-    this.#statistics.cognitiveLoad = Math.min(1, 
-      loadFactors.reduce((sum, factor) => sum + factor, 0) / loadFactors.length
+
+    this.#statistics.cognitiveLoad = Math.min(
+      1,
+      loadFactors.reduce((sum, factor) => sum + factor, 0) / loadFactors.length,
     );
   }
 }
-
