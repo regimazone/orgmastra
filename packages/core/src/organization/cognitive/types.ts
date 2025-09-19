@@ -1,5 +1,5 @@
-import type { CoreMessage } from 'ai';
-import type { CoordinationContext, CoordinationResult } from '../types';
+// Cognitive types placeholder file
+// Future types for cognitive functionality
 
 /**
  * Truth value representing confidence and strength in an atom

@@ -1,12 +1,14 @@
 import { randomUUID } from 'crypto';
+import type { ToolsetsInput } from '../agent/types';
 import { MastraBase } from '../base';
 import { MastraError, ErrorDomain, ErrorCategory } from '../error';
-import { InstrumentClass } from '../telemetry';
-import type { Workflow } from '../workflows';
-import type { ToolsetsInput } from '../agent/types';
+import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MastraStorage } from '../storage';
+import { InstrumentClass } from '../telemetry';
 import type { MastraVector } from '../vector';
+import type { Workflow } from '../workflows';
+import { Project } from './project';
 import type {
   OrganizationConfig,
   ProjectConfig,
@@ -18,8 +20,6 @@ import type {
   CollaborationRequest,
   OrganizationalPrimitives,
 } from './types';
-import { Project } from './project';
-import type { Mastra } from '../mastra';
 
 /**
  * Represents an organization that contains projects/teams and manages coordination.

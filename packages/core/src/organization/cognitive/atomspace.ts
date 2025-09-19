@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
 import { MastraBase } from '../../base';
 import { RegisteredLogger } from '../../logger/constants';
-import { InstrumentClass } from '../../telemetry';
 import type { MastraStorage } from '../../storage';
+import { InstrumentClass } from '../../telemetry';
 import type { MastraVector } from '../../vector';
 import type { Atom, AtomType, TruthValue, AttentionValue } from './types';
 

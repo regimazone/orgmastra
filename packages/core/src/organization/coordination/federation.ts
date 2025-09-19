@@ -2,6 +2,9 @@ import { randomUUID } from 'crypto';
 import type { PubSub } from '../../events/pubsub';
 import type { Event } from '../../events/types';
 import type { IMastraLogger } from '../../logger';
+import type { Organization } from '../organization';
+import type { Person } from '../person';
+import type { Project } from '../project';
 import type {
   CoordinationContext,
   CoordinationResult,
@@ -9,9 +12,6 @@ import type {
   CollaborationRequest,
   OrganizationalEvents,
 } from '../types';
-import type { Organization } from '../organization';
-import type { Project } from '../project';
-import type { Person } from '../person';
 
 /**
  * Convert coordination events to Mastra Event format

@@ -1,13 +1,13 @@
 import type { IMastraLogger } from '../../logger';
+import type { Organization } from '../organization';
+import type { Person } from '../person';
+import type { Project } from '../project';
 import type {
   CoordinationContext,
   CoordinationResult,
   DelegationRequest,
   CollaborationRequest,
 } from '../types';
-import type { Organization } from '../organization';
-import type { Project } from '../project';
-import type { Person } from '../person';
 
 /**
  * Represents a route in the organizational network
