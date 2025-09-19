@@ -10,7 +10,6 @@ import type {
   CoordinationResult,
   DelegationRequest,
   CollaborationRequest,
-  OrganizationalEvents,
 } from '../types';
 
 /**
@@ -212,7 +211,7 @@ export class FederationCoordinator {
           
           // Schedule retry
           setTimeout(() => {
-            this.routeRequest(targetEntityId, request);
+            void this.routeRequest(targetEntityId, request);
           }, this.#config.retryDelay);
           
           return {
@@ -350,14 +349,14 @@ export class FederationCoordinator {
    */
   #setupEventListeners(): void {
     // Listen for delegation requests
-    this.#pubsub.subscribe('federation:delegation-request', async (event: Event) => {
+    void this.#pubsub.subscribe('federation:delegation-request', async (event: Event) => {
       if (event.type === 'federation:delegation-request') {
         await this.#handleDelegationRequest(event.data as DelegationRequest);
       }
     });
 
     // Listen for collaboration requests
-    this.#pubsub.subscribe('federation:collaboration-request', async (event: Event) => {
+    void this.#pubsub.subscribe('federation:collaboration-request', async (event: Event) => {
       if (event.type === 'federation:collaboration-request') {
         await this.#handleCollaborationRequest(event.data as CollaborationRequest);
       }
@@ -378,7 +377,7 @@ export class FederationCoordinator {
   /**
    * Calculate the delegation depth of a request
    */
-  #calculateDelegationDepth(request: DelegationRequest): number {
+  #calculateDelegationDepth(_request: DelegationRequest): number {
     // For now, assume depth is 1 per delegation
     // In a full implementation, this would track the actual delegation chain
     return 1;

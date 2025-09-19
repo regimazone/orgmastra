@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { ToolsetsInput } from '../agent/types';
 import { MastraBase } from '../base';
-import { MastraError, ErrorDomain, ErrorCategory } from '../error';
 import type { Mastra } from '../mastra';
 import type { MastraMemory } from '../memory/memory';
 import type { MastraStorage } from '../storage';
@@ -186,7 +185,7 @@ export class Organization extends MastraBase {
 
     // Emit project created event
     if (this.#mastra?.pubsub) {
-      this.#mastra.pubsub.publish('organization:project-created', {
+      void this.#mastra.pubsub.publish('organization:project-created', {
         type: 'organization:project-created',
         data: {
           organizationId: this.id,
@@ -204,7 +203,7 @@ export class Organization extends MastraBase {
     const removed = this.#projects.delete(projectId);
     
     if (removed && this.#mastra?.pubsub) {
-      this.#mastra.pubsub.publish('organization:project-deleted', {
+      void this.#mastra.pubsub.publish('organization:project-deleted', {
         type: 'organization:project-deleted',
         data: {
           organizationId: this.id,
@@ -610,7 +609,7 @@ export class Organization extends MastraBase {
   /**
    * Handle information requests
    */
-  async #handleInformationRequest(context: CoordinationContext): Promise<CoordinationResult> {
+  async #handleInformationRequest(_context: CoordinationContext): Promise<CoordinationResult> {
     return {
       success: true,
       data: this.getOrganizationStatus(),

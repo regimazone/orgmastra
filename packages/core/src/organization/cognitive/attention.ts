@@ -1,8 +1,7 @@
-import { randomUUID } from 'crypto';
 import { MastraBase } from '../../base';
 import { RegisteredLogger } from '../../logger/constants';
 import { InstrumentClass } from '../../telemetry';
-import type { AttentionValue, Atom } from './types';
+import type { AttentionValue } from './types';
 
 /**
  * Configuration for the attention bank
@@ -159,7 +158,7 @@ export class AttentionBank extends MastraBase {
    * Importance-driven attention reallocation
    */
   public updateImportance(atomId: string, importance: number): void {
-    const current = this.#attentionValues.get(atomId) || { sti: 0, lti: 0, vlti: 0 };
+    const _current = this.#attentionValues.get(atomId) || { sti: 0, lti: 0, vlti: 0 };
     
     // Convert importance to LTI adjustment
     const ltiAdjustment = (importance - 0.5) * 200; // Scale [-100, 100]
