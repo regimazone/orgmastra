@@ -67,21 +67,6 @@ const attentionBank1 = new AttentionBank({
   spreadingRate: 0.1,
 });
 
-// Additional attention bank for distributed attention management
-const attentionBank2 = new AttentionBank({
-  name: 'learning-attention',
-  totalSTI: 5000,
-  totalLTI: 5000,
-  focusThreshold: 50,
-  forgettingThreshold: -10,
-  maxAttentionAtoms: 20,
-  decayRate: 0.01,
-  spreadingRate: 0.1,
-});
-
-// Demonstrate attention bank is initialized
-console.log(`   Created attentionBank2 for learning domain (${attentionBank2.getTopAttentionAtoms(0).length} atoms)`);
-
 const reasoner = new PLNReasoner({
   name: 'test-reasoner',
   maxInferenceDepth: 3,
@@ -90,7 +75,7 @@ const reasoner = new PLNReasoner({
   enableProbabilisticLogic: true,
 });
 
-console.log('✅ Created 3 AtomSpaces, 2 AttentionBanks, and 1 PLNReasoner\n');
+console.log('✅ Created 3 AtomSpaces, 1 AttentionBank, and 1 PLNReasoner\n');
 
 // Create mind agents
 const mindAgents = [
