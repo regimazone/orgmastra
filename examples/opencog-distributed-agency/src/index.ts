@@ -8,12 +8,11 @@ import {
   GoalPursuitAgent,
   LearningAgent,
   MemoryConsolidationAgent,
-  type CognitiveAgentConfig,
 } from '@mastra/core/organization';
 
 /**
  * OpenCog Distributed Agency Cognitive Architecture Example
- * 
+ *
  * This example demonstrates:
  * 1. Multiple cognitive agents with specialized capabilities
  * 2. Distributed inference and knowledge sharing
@@ -59,10 +58,11 @@ const reasoningAgent = new CognitiveAgent({
     'inductive-reasoning',
     'abductive-reasoning',
     'modus-ponens',
-    'syllogistic-reasoning'
+    'syllogistic-reasoning',
   ],
   agentConfig: {
-    instructions: 'You are Aristotle, a reasoning specialist in the OpenCog collective. You excel at logical inference, pattern recognition, and drawing sound conclusions from available evidence. Your role is to apply rigorous logical reasoning to help the collective make well-founded decisions.',
+    instructions:
+      'You are Aristotle, a reasoning specialist in the OpenCog collective. You excel at logical inference, pattern recognition, and drawing sound conclusions from available evidence. Your role is to apply rigorous logical reasoning to help the collective make well-founded decisions.',
     model: openai('gpt-4'),
   },
   federationConfig: {
@@ -100,10 +100,11 @@ const learningAgent = new CognitiveAgent({
     'unsupervised-learning',
     'evolutionary-learning',
     'meta-learning',
-    'transfer-learning'
+    'transfer-learning',
   ],
   agentConfig: {
-    instructions: 'You are Darwin, a learning specialist who understands adaptation, evolution, and continuous improvement. You help the collective learn from experience, adapt to new situations, and evolve better strategies over time.',
+    instructions:
+      'You are Darwin, a learning specialist who understands adaptation, evolution, and continuous improvement. You help the collective learn from experience, adapt to new situations, and evolve better strategies over time.',
     model: openai('gpt-4'),
   },
   federationConfig: {
@@ -132,10 +133,11 @@ const patternAgent = new CognitiveAgent({
     'temporal-pattern-analysis',
     'anomaly-detection',
     'clustering',
-    'classification'
+    'classification',
   ],
   agentConfig: {
-    instructions: 'You are Curie, a pattern recognition expert who excels at identifying hidden structures, correlations, and anomalies in data. You help the collective discover meaningful patterns and insights.',
+    instructions:
+      'You are Curie, a pattern recognition expert who excels at identifying hidden structures, correlations, and anomalies in data. You help the collective discover meaningful patterns and insights.',
     model: openai('gpt-4'),
   },
   federationConfig: {
@@ -164,10 +166,11 @@ const creativityAgent = new CognitiveAgent({
     'analogical-reasoning',
     'creative-synthesis',
     'innovation-generation',
-    'conceptual-blending'
+    'conceptual-blending',
   ],
   agentConfig: {
-    instructions: 'You are Tesla, a creative genius who thinks outside the box and generates innovative solutions. You help the collective approach problems from novel angles and discover breakthrough insights.',
+    instructions:
+      'You are Tesla, a creative genius who thinks outside the box and generates innovative solutions. You help the collective approach problems from novel angles and discover breakthrough insights.',
     model: openai('gpt-4'),
   },
   federationConfig: {
@@ -204,7 +207,7 @@ const mindAgents = [
       redistributionThreshold: 0.8,
     },
   }),
-  
+
   new PatternRecognitionAgent({
     id: 'pattern-detector',
     name: 'Pattern Recognition Agent',
@@ -217,7 +220,7 @@ const mindAgents = [
       patternConfidenceThreshold: 0.6,
     },
   }),
-  
+
   new GoalPursuitAgent({
     id: 'goal-pursuer',
     name: 'Goal Pursuit Agent',
@@ -230,7 +233,7 @@ const mindAgents = [
       goalPriorityThreshold: 0.7,
     },
   }),
-  
+
   new LearningAgent({
     id: 'learner',
     name: 'Learning Agent',
@@ -243,7 +246,7 @@ const mindAgents = [
       learningRate: 0.05,
     },
   }),
-  
+
   new MemoryConsolidationAgent({
     id: 'memory-consolidator',
     name: 'Memory Consolidation Agent',
@@ -268,47 +271,32 @@ console.log('📚 Seeding initial knowledge base...\n');
 // Seed initial knowledge across agents
 async function seedKnowledge() {
   // Add domain knowledge to reasoning agent
-  await reasoningAgent.addKnowledge(
-    'concept', 
-    'logical-reasoning', 
-    ['inference', 'deduction', 'syllogism'],
-    0.9,
-    { domain: 'logic', importance: 'high' }
-  );
-  
-  await reasoningAgent.addKnowledge(
-    'implication',
-    'if-premise-then-conclusion',
-    ['premise', 'conclusion'],
-    0.85,
-    { rule: 'modus-ponens', domain: 'logic' }
-  );
+  await reasoningAgent.addKnowledge('concept', 'logical-reasoning', ['inference', 'deduction', 'syllogism'], 0.9, {
+    domain: 'logic',
+    importance: 'high',
+  });
+
+  await reasoningAgent.addKnowledge('implication', 'if-premise-then-conclusion', ['premise', 'conclusion'], 0.85, {
+    rule: 'modus-ponens',
+    domain: 'logic',
+  });
 
   // Add learning concepts to learning agent
-  await learningAgent.addKnowledge(
-    'concept',
-    'reinforcement-learning',
-    ['reward', 'punishment', 'policy'],
-    0.8,
-    { domain: 'machine-learning', type: 'algorithm' }
-  );
-  
-  await learningAgent.addKnowledge(
-    'concept',
-    'adaptation',
-    ['environment', 'fitness', 'evolution'],
-    0.85,
-    { domain: 'evolution', principle: 'survival' }
-  );
+  await learningAgent.addKnowledge('concept', 'reinforcement-learning', ['reward', 'punishment', 'policy'], 0.8, {
+    domain: 'machine-learning',
+    type: 'algorithm',
+  });
+
+  await learningAgent.addKnowledge('concept', 'adaptation', ['environment', 'fitness', 'evolution'], 0.85, {
+    domain: 'evolution',
+    principle: 'survival',
+  });
 
   // Add pattern concepts to pattern agent
-  await patternAgent.addKnowledge(
-    'concept',
-    'pattern-recognition',
-    ['feature', 'classification', 'clustering'],
-    0.9,
-    { domain: 'data-science', application: 'analysis' }
-  );
+  await patternAgent.addKnowledge('concept', 'pattern-recognition', ['feature', 'classification', 'clustering'], 0.9, {
+    domain: 'data-science',
+    application: 'analysis',
+  });
 
   // Add creativity concepts to creativity agent
   await creativityAgent.addKnowledge(
@@ -316,7 +304,7 @@ async function seedKnowledge() {
     'divergent-thinking',
     ['brainstorming', 'alternatives', 'novelty'],
     0.8,
-    { domain: 'creativity', process: 'ideation' }
+    { domain: 'creativity', process: 'ideation' },
   );
 
   console.log('✅ Knowledge base seeded successfully!\n');
@@ -333,7 +321,7 @@ async function demonstrateDistributedCognition() {
   const inferenceResult = await cognitiveCoordinator.performDistributedInference(
     'How can we improve learning efficiency in AI systems?',
     ['reasoning-specialist', 'learning-specialist', 'pattern-expert', 'creativity-specialist'],
-    30000
+    30000,
   );
 
   console.log('📊 Inference Results:');
@@ -352,7 +340,7 @@ async function demonstrateDistributedCognition() {
   const knowledgeResult = await cognitiveCoordinator.shareKnowledge(
     'pattern-expert',
     ['learning-specialist', 'reasoning-specialist'],
-    { minConfidence: 0.7 }
+    { minConfidence: 0.7 },
   );
 
   console.log('📈 Knowledge Sharing Results:');
@@ -371,7 +359,7 @@ async function demonstrateDistributedCognition() {
     'What should be the priority focus for cognitive architecture research?',
     ['reasoning-specialist', 'learning-specialist', 'pattern-expert', 'creativity-specialist'],
     ['attention-mechanisms', 'knowledge-representation', 'learning-algorithms', 'reasoning-systems'],
-    45000
+    45000,
   );
 
   console.log('🎯 Consensus Results:');
@@ -443,10 +431,10 @@ async function demonstrateDistributedCognition() {
 // Run mind agents cycle demonstration
 async function demonstrateMindAgents() {
   console.log('🧠 Demonstrating Mind Agents Autonomous Processing...\n');
-  
+
   // Run one cycle of mind agents
   const mindAgentResults = await cognitiveCoordinator.runMindAgentsCycle();
-  
+
   console.log('🤖 Mind Agent Execution Results:');
   for (const result of mindAgentResults) {
     console.log(`${result.type}:`);
@@ -486,7 +474,6 @@ async function main() {
 
     console.log('🚀 Cognitive agents continue autonomous processing...');
     console.log('(In a real system, agents would continue running indefinitely)');
-
   } catch (error) {
     console.error('❌ Error during demonstration:', error);
   } finally {

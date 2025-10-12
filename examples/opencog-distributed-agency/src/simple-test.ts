@@ -2,13 +2,8 @@ import {
   AtomSpace,
   AttentionBank,
   PLNReasoner,
-  CognitiveCoordinator,
-  MindAgent,
   AttentionAllocationAgent,
   PatternRecognitionAgent,
-  type Atom,
-  type TruthValue,
-  type AttentionValue,
 } from '@mastra/core/organization';
 
 /**

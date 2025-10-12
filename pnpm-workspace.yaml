@@ -8,6 +8,7 @@ packages:
   - "client-sdks/*"
   - "integrations/*"
   - "examples/dane"
+  - "examples/opencog-distributed-agency"
   - "packages/*/integration-tests"
   - "packages/*/integration-tests-v5"
   - "auth/*"
