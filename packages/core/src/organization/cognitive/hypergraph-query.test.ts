@@ -164,12 +164,12 @@ describe('HypergraphQL Query Engine', () => {
       expect(paths[0][paths[0].length - 1].id).toBe(conceptIntelligence.id);
     });
 
-    it('should return empty array when no path exists', () => {
-      const isolatedConcept = atomSpace.addAtom('concept', 'isolated', [], { strength: 0.5, confidence: 0.5 });
+    it('should return empty array when no path exists', async () => {
+      const isolatedConcept = await atomSpace.addAtom('concept', 'isolated', [], { strength: 0.5, confidence: 0.5 });
 
       const paths = atomSpace.findHypergraphPaths({
         startAtomId: conceptLearning.id,
-        endAtomId: (isolatedConcept as any).id,
+        endAtomId: isolatedConcept.id,
         maxDepth: 5,
       });
 
