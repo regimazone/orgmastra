@@ -5,6 +5,15 @@ import type { MastraStorage } from '../../storage';
 import { InstrumentClass } from '../../telemetry';
 import type { MastraVector } from '../../vector';
 import type { Atom, AtomType, TruthValue, AttentionValue } from './types';
+import {
+  HypergraphQueryEngine,
+  type HypergraphPattern,
+  type QueryResult,
+  type TraversalQuery,
+  type PathQuery,
+  type SubgraphQuery,
+  type TraversalDirection,
+} from './hypergraph-query';
 
 /**
  * Configuration for AtomSpace
@@ -34,6 +43,7 @@ export class AtomSpace extends MastraBase {
   #vector?: MastraVector;
   #attentionValues: Map<string, AttentionValue>;
   #config: Required<Omit<AtomSpaceConfig, 'storage' | 'vector'>> & Pick<AtomSpaceConfig, 'storage' | 'vector'>;
+  #queryEngine: HypergraphQueryEngine;
 
   constructor(config: AtomSpaceConfig) {
     super({ component: RegisteredLogger.ATOMSPACE, name: config.name });
@@ -54,6 +64,9 @@ export class AtomSpace extends MastraBase {
       storage: config.storage,
       vector: config.vector,
     };
+
+    // Initialize hypergraph query engine
+    this.#queryEngine = new HypergraphQueryEngine(config.name, this.#atoms);
   }
 
   /**
@@ -346,5 +359,123 @@ export class AtomSpace extends MastraBase {
     } catch (error) {
       this.logger?.error('Failed to vectorize atom', { atomId: atom.id, error });
     }
+  }
+
+  // ============================================================================
+  // HypergraphQL Query Methods
+  // ============================================================================
+
+  /**
+   * Execute a pattern query with variable bindings (HypergraphQL)
+   * 
+   * @example
+   * ```typescript
+   * // Find all concepts with high truth value
+   * const result = await atomSpace.hypergraphQuery({
+   *   type: 'concept',
+   *   truthValue: {
+   *     strength: { operator: 'gte', value: 0.8 }
+   *   },
+   *   limit: 10
+   * });
+   * 
+   * // Pattern matching with variables
+   * const result = await atomSpace.hypergraphQuery({
+   *   type: 'implication',
+   *   variable: '?impl',
+   *   outgoing: [
+   *     { type: 'concept', name: 'learning', variable: '?premise' },
+   *     { type: 'concept', variable: '?conclusion' }
+   *   ]
+   * });
+   * ```
+   */
+  public async hypergraphQuery(pattern: HypergraphPattern): Promise<QueryResult> {
+    this.logger?.debug('Executing hypergraph query', { pattern });
+    return this.#queryEngine.query(pattern);
+  }
+
+  /**
+   * Traverse the hypergraph from starting atoms
+   * 
+   * @example
+   * ```typescript
+   * // Get all atoms reachable from a concept within 3 hops
+   * const reachable = atomSpace.traverseHypergraph({
+   *   startAtomIds: [conceptId],
+   *   direction: 'outgoing',
+   *   maxDepth: 3
+   * });
+   * ```
+   */
+  public traverseHypergraph(query: TraversalQuery): Atom[] {
+    this.logger?.debug('Traversing hypergraph', { query });
+    return this.#queryEngine.traverseGraph(query);
+  }
+
+  /**
+   * Find paths between two atoms in the hypergraph
+   * 
+   * @example
+   * ```typescript
+   * const paths = atomSpace.findHypergraphPaths({
+   *   startAtomId: conceptA,
+   *   endAtomId: conceptB,
+   *   maxDepth: 5
+   * });
+   * ```
+   */
+  public findHypergraphPaths(query: PathQuery): Array<Atom[]> {
+    this.logger?.debug('Finding paths in hypergraph', { query });
+    return this.#queryEngine.findPaths(query);
+  }
+
+  /**
+   * Extract a subgraph around center atoms
+   * 
+   * @example
+   * ```typescript
+   * // Get local neighborhood around key concepts
+   * const subgraph = atomSpace.getHypergraphSubgraph({
+   *   centerAtomIds: [concept1, concept2],
+   *   radius: 2,
+   *   direction: 'both'
+   * });
+   * ```
+   */
+  public getHypergraphSubgraph(query: SubgraphQuery): Atom[] {
+    this.logger?.debug('Extracting subgraph', { query });
+    return this.#queryEngine.getSubgraph(query);
+  }
+
+  /**
+   * Get neighboring atoms in the hypergraph
+   * 
+   * @example
+   * ```typescript
+   * const neighbors = atomSpace.getHypergraphNeighbors(atomId, 'both');
+   * ```
+   */
+  public getHypergraphNeighbors(atomId: string, direction: TraversalDirection = 'both'): Atom[] {
+    return this.#queryEngine.getNeighbors(atomId, direction);
+  }
+
+  /**
+   * Get hypergraph statistics
+   * 
+   * @example
+   * ```typescript
+   * const stats = atomSpace.getHypergraphStatistics();
+   * console.log(`Graph has ${stats.nodeCount} nodes and ${stats.edgeCount} edges`);
+   * ```
+   */
+  public getHypergraphStatistics(): {
+    nodeCount: number;
+    edgeCount: number;
+    avgDegree: number;
+    maxDegree: number;
+    typeDistribution: Record<AtomType, number>;
+  } {
+    return this.#queryEngine.getGraphStatistics();
   }
 }

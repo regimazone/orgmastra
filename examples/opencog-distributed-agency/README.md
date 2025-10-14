@@ -295,6 +295,77 @@ Tests cover:
 - **Budgeting**: Attention budgets prevent resource exhaustion
 - **Batching**: Mind agents run in configurable intervals
 
+## HypergraphQL: Declarative Queries ✨ NEW
+
+The AtomSpace now supports HypergraphQL - a GraphQL-like query interface for the hypergraph:
+
+### Pattern Queries
+
+```typescript
+// Find high-confidence concepts
+const result = await atomSpace.hypergraphQuery({
+  type: 'concept',
+  truthValue: {
+    strength: { operator: 'gte', value: 0.8 },
+    confidence: { operator: 'gte', value: 0.7 }
+  },
+  limit: 10
+});
+
+// Pattern matching with variable bindings
+const patterns = await atomSpace.hypergraphQuery({
+  type: 'implication',
+  variable: '?rule',
+  outgoing: [
+    { type: 'concept', variable: '?premise' },
+    { type: 'concept', variable: '?conclusion' }
+  ]
+});
+```
+
+### Graph Traversal
+
+```typescript
+// Explore neighborhood
+const neighborhood = atomSpace.traverseHypergraph({
+  startAtomIds: [conceptId],
+  direction: 'both',
+  maxDepth: 3
+});
+
+// Find paths between concepts
+const paths = atomSpace.findHypergraphPaths({
+  startAtomId: startConcept,
+  endAtomId: endConcept,
+  maxDepth: 5
+});
+
+// Extract subgraph
+const subgraph = atomSpace.getHypergraphSubgraph({
+  centerAtomIds: [concept1, concept2],
+  radius: 2,
+  direction: 'both'
+});
+```
+
+### Query Operators
+
+- **eq, ne**: Equality/inequality
+- **gt, gte, lt, lte**: Numeric comparisons
+- **in**: Check if value is in array
+- **contains**: String contains substring
+- **matches**: Regular expression matching
+
+### Example Use Cases
+
+1. **Knowledge Discovery**: Find related concepts by traversing the graph
+2. **Reasoning Paths**: Discover how two concepts are connected
+3. **Pattern Recognition**: Identify recurring structures in knowledge
+4. **Attention Allocation**: Query high-attention atoms for focus
+5. **Learning Analysis**: Find concepts with changing truth values
+
+See `src/hypergraph-query-example.ts` for a comprehensive demonstration.
+
 ## Future Extensions
 
 Potential areas for enhancement:
@@ -306,6 +377,9 @@ Potential areas for enhancement:
 5. **Natural Language**: Integration with language understanding
 6. **Goal Systems**: Hierarchical goal management and pursuit
 7. **Creativity**: Divergent thinking and novel concept generation
+8. **Query Optimization**: Caching and indexing for faster queries
+9. **Distributed Queries**: Execute queries across federated AtomSpaces
+10. **Graph Neural Networks**: Learn embeddings for semantic similarity
 
 ## References
 
