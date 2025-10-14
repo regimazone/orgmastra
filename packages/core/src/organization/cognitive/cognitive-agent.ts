@@ -356,6 +356,56 @@ export class CognitiveAgent extends Person {
   }
 
   /**
+   * Execute hypergraph query on agent's knowledge base
+   * 
+   * @example
+   * ```typescript
+   * // Find all high-confidence implications
+   * const result = await agent.queryHypergraph({
+   *   type: 'implication',
+   *   truthValue: {
+   *     confidence: { operator: 'gte', value: 0.7 }
+   *   }
+   * });
+   * ```
+   */
+  public async queryHypergraph(pattern: import('./hypergraph-query').HypergraphPattern): Promise<import('./hypergraph-query').QueryResult> {
+    this.logger?.debug('Executing hypergraph query', { agentId: this.id, pattern });
+    return this.#atomSpace.hypergraphQuery(pattern);
+  }
+
+  /**
+   * Traverse agent's knowledge hypergraph
+   */
+  public traverseKnowledgeGraph(query: import('./hypergraph-query').TraversalQuery): Atom[] {
+    this.logger?.debug('Traversing knowledge graph', { agentId: this.id, query });
+    return this.#atomSpace.traverseHypergraph(query);
+  }
+
+  /**
+   * Find reasoning paths between concepts
+   */
+  public findConceptPaths(query: import('./hypergraph-query').PathQuery): Array<Atom[]> {
+    this.logger?.debug('Finding concept paths', { agentId: this.id, query });
+    return this.#atomSpace.findHypergraphPaths(query);
+  }
+
+  /**
+   * Extract knowledge subgraph around key concepts
+   */
+  public getKnowledgeSubgraph(query: import('./hypergraph-query').SubgraphQuery): Atom[] {
+    this.logger?.debug('Extracting knowledge subgraph', { agentId: this.id, query });
+    return this.#atomSpace.getHypergraphSubgraph(query);
+  }
+
+  /**
+   * Get hypergraph statistics for agent's knowledge base
+   */
+  public getHypergraphStatistics(): ReturnType<AtomSpace['getHypergraphStatistics']> {
+    return this.#atomSpace.getHypergraphStatistics();
+  }
+
+  /**
    * Run one cognitive processing loop
    */
   async #runCognitiveLoop(): Promise<void> {

@@ -1,8 +1,9 @@
 # OpenCog Distributed Cognitive Agency - Implementation Summary
 
-## Status: ✅ COMPLETE
+## Status: ✅ COMPLETE + HypergraphQL
 
 The OpenCog-inspired distributed cognitive agency has been fully implemented and verified.
+**NEW**: HypergraphQL query engine added for declarative graph queries.
 
 ## What Was Implemented
 
@@ -58,6 +59,17 @@ The cognitive architecture in `packages/core/src/organization/cognitive/` includ
    - LearningAgent: Updates knowledge based on experience
    - MemoryConsolidationAgent: Consolidates important memories
 
+7. **HypergraphQueryEngine** (`hypergraph-query.ts`) ✨ NEW
+   - GraphQL-like declarative query interface
+   - Pattern matching with variable bindings
+   - Graph traversal (neighbors, paths, subgraphs)
+   - Truth value and attention-based filtering
+   - Query operators (eq, ne, gt, gte, lt, lte, in, contains, matches)
+   - Relevance scoring and ranking
+   - Path finding between atoms
+   - Subgraph extraction
+   - Graph statistics computation
+
 ### Key Features
 
 - **Truth Value System**: Probabilistic confidence in knowledge
@@ -67,6 +79,7 @@ The cognitive architecture in `packages/core/src/organization/cognitive/` includ
 - **Consensus Building**: Weighted voting on decisions
 - **Autonomous Processing**: Background cognitive maintenance
 - **Telemetry Integration**: Full instrumentation for monitoring
+- **HypergraphQL**: Declarative query language for hypergraph exploration ✨ NEW
 
 ## Testing
 
@@ -228,6 +241,58 @@ coordinator.registerAgent(agent2);
 const result = await coordinator.performDistributedInference('How can we improve learning?', ['agent1', 'agent2']);
 ```
 
+### HypergraphQL Queries ✨ NEW
+
+```typescript
+import { AtomSpace } from '@mastra/core/organization';
+
+const atomSpace = new AtomSpace({ name: 'knowledge-graph' });
+
+// Pattern query with filters
+const result = await atomSpace.hypergraphQuery({
+  type: 'concept',
+  truthValue: {
+    strength: { operator: 'gte', value: 0.8 },
+    confidence: { operator: 'gte', value: 0.7 }
+  },
+  limit: 10
+});
+
+// Variable binding
+const implications = await atomSpace.hypergraphQuery({
+  type: 'implication',
+  variable: '?impl',
+  outgoing: [
+    { type: 'concept', name: 'learning', variable: '?premise' },
+    { type: 'concept', variable: '?conclusion' }
+  ]
+});
+
+// Graph traversal
+const neighborhood = atomSpace.traverseHypergraph({
+  startAtomIds: [conceptId],
+  direction: 'both',
+  maxDepth: 3
+});
+
+// Path finding
+const paths = atomSpace.findHypergraphPaths({
+  startAtomId: concept1,
+  endAtomId: concept2,
+  maxDepth: 5
+});
+
+// Subgraph extraction
+const subgraph = atomSpace.getHypergraphSubgraph({
+  centerAtomIds: [concept1, concept2],
+  radius: 2
+});
+
+// Graph statistics
+const stats = atomSpace.getHypergraphStatistics();
+console.log(`Graph: ${stats.nodeCount} nodes, ${stats.edgeCount} edges`);
+```
+
 ## Performance Characteristics
 
 - **Memory Management**: Attention-based forgetting prevents unbounded growth
@@ -257,6 +322,23 @@ cd examples/opencog-distributed-agency
 pnpm run build
 ```
 
+## Recent Enhancements ✨
+
+### HypergraphQL Implementation
+
+The AtomSpace now includes a powerful query engine for declarative hypergraph exploration:
+
+- **Pattern Queries**: GraphQL-like syntax for pattern matching
+- **Query Operators**: Support for eq, ne, gt, gte, lt, lte, in, contains, matches
+- **Variable Bindings**: Bind and unify variables in patterns
+- **Graph Traversal**: Navigate incoming/outgoing/both directions with depth control
+- **Path Finding**: Find all paths between atoms with configurable max depth
+- **Subgraph Extraction**: Extract local neighborhoods around atoms
+- **Relevance Ranking**: Automatic scoring and ranking of results
+- **Graph Analytics**: Compute statistics (node/edge counts, degree distribution)
+
+**Integration**: Works seamlessly with AtomSpace, CognitiveAgent, and PLN reasoning.
+
 ## Future Enhancements
 
 Potential areas for extension:
@@ -268,6 +350,9 @@ Potential areas for extension:
 5. Natural language understanding integration
 6. Hierarchical goal management
 7. Creativity and divergent thinking modules
+8. Graph neural networks for embedding learning
+9. Query optimization and caching
+10. Distributed query execution across AtomSpaces
 
 ## References
 

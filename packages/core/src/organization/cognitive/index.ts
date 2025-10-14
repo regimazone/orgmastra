@@ -33,3 +33,13 @@ export {
   type PLNInferenceRule,
   type InferenceResult,
 } from './types';
+export {
+  HypergraphQueryEngine,
+  type HypergraphPattern,
+  type QueryResult,
+  type QueryOperator,
+  type TraversalQuery,
+  type TraversalDirection,
+  type PathQuery,
+  type SubgraphQuery,
+} from './hypergraph-query';
